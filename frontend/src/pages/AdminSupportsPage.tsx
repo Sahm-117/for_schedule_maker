@@ -19,7 +19,7 @@ import { cohortHasStarted } from '../utils/cohortStarted';
 import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
 import { useAppData } from '../context/AppDataContext';
-import { cohortsApi, followUpContactsApi, groupDiscussionApi, participantNotesApi, settingsApi, supportHubsApi, supportKindApi, supportNotesApi, supportSessionsApi, usersApi } from '../services/api';
+import { cohortsApi, followUpContactsApi, groupDiscussionApi, groupsApi, participantNotesApi, settingsApi, supportHubsApi, supportKindApi, supportNotesApi, supportSessionsApi, usersApi } from '../services/api';
 import type { HubMembership, OnboardingProgressParticipant, ParticipantNote, SupportHub, SupportKind, SupportNote, SupportSession, User } from '../types';
 import AppSelect from '../components/AppSelect';
 import AppOverflowMenu from '../components/AppOverflowMenu';
@@ -147,12 +147,14 @@ const AdminSupportsPage: React.FC = () => {
   }, []);
   // Onboarding stage roll-up per group (one extra cohort fetch; missing data falls back to the sentence).
   const [stagesByGroup, setStagesByGroup] = useState<Record<string, StageSummary>>({});
+  // Which groups have a meeting day and time (the support's own onboarding step). Empty if it could not be read: then the step is not judged.
+  const [meetingSetByGroup, setMeetingSetByGroup] = useState<Record<string, boolean>>({});
 
   const load = useCallback(async () => {
     if (!activeCohort?.id) { setLoading(false); return; }
     try {
       setError('');
-      const [h, p, r, u, hb, ms, ts, k, cm, ob] = await Promise.all([
+      const [h, p, r, u, hb, ms, ts, k, cm, ob, gs] = await Promise.all([
         cohortsApi.getHealth(activeCohort.id),
         cohortsApi.getPeople(activeCohort.id),
         settingsApi.getProgrammeRules(),
@@ -163,7 +165,9 @@ const AdminSupportsPage: React.FC = () => {
         supportKindApi.getForCohort(activeCohort.id).then((res) => res.kinds).catch(() => ({} as Record<string, SupportKind>)),
         cohortsApi.getMembers(activeCohort.id).then((res) => res.users.map((x) => x.id)).catch(() => [] as string[]),
         groupDiscussionApi.cohortOnboardingProgress(activeCohort.id).then((res) => res.participants).catch(() => [] as OnboardingProgressParticipant[]),
+        groupsApi.getAll({ cohortId: activeCohort.id }).then((res) => res.groups).catch(() => null),
       ]);
+      setMeetingSetByGroup(gs ? Object.fromEntries(gs.map((g) => [g.id, !!(g.meetingDay && g.meetingTime)])) : {});
       setHealth(h);
       setPeople(p);
       setRules(r);
@@ -223,7 +227,8 @@ const AdminSupportsPage: React.FC = () => {
     const currentWeek = mode === 'completed' ? (stats[stats.length - 1]?.weekNumber ?? 0) : mode === 'upcoming' ? 0 : currentWeekNumber(activeCohort, stats);
     const judged = judgedWeekNumbers(mode, stats, currentWeek);
     const judgedWeeks = health.weeks.filter((w) => judged.includes(w.weekNumber));
-    const evaluations = evaluateSupports(people, health.groups, health.meetings, judgedWeeks, rules)
+    const groupsWithMeeting = health.groups.map((g) => (g.id in meetingSetByGroup ? { ...g, meetingSet: meetingSetByGroup[g.id] } : g));
+    const evaluations = evaluateSupports(people, groupsWithMeeting, health.meetings, judgedWeeks, rules)
       .sort((a, b) => SEVERITY[a.health] - SEVERITY[b.health] || b.missedWeeks.length - a.missedWeeks.length);
     // A support leading two groups is judged by the weaker one.
     const bySupport = new Map<string, PersonHealth>();
@@ -238,7 +243,7 @@ const AdminSupportsPage: React.FC = () => {
     const notLeading = users.filter((u) => hasSupportRole(u) && u.isActive !== false && cohortMemberIds.has(u.id) && !leading.has(u.id));
     const weekIdByNumber = new Map(health.weeks.map((w) => [w.weekNumber, w.id]));
     return { mode, judged, evaluations, counts, total: bySupport.size, unsupported, notLeading, weekIdByNumber };
-  }, [health, people, rules, users, cohortMemberIds, activeCohort]);
+  }, [health, people, rules, users, cohortMemberIds, activeCohort, meetingSetByGroup]);
 
   // Newest report per group+week: a support can submit more than once, and the
   // latest one is what the back office should read.
@@ -683,7 +688,7 @@ const SupportCard: React.FC<{
   const onboardingText = onboarding.completedAt && onboarding.allOnboarded
     ? `Onboarded in ${onboarding.days} day${onboarding.days === 1 ? '' : 's'}${onboarding.late ? ` (over ${rules.onboardingMaxDays})` : ''}`
     : onboarding.assignedAt
-      ? `Onboarding not finished · ${Math.floor(onboarding.days ?? 0)} day${Math.floor(onboarding.days ?? 0) === 1 ? '' : 's'} since assigned`
+      ? `${onboarding.meetingSet ? 'Onboarding not finished' : 'No group meeting time set yet'} · ${Math.floor(onboarding.days ?? 0)} day${Math.floor(onboarding.days ?? 0) === 1 ? '' : 's'} since assigned`
       : 'Onboarding not started';
 
   const recordsText = judgedCount === 0
@@ -725,6 +730,7 @@ const SupportCard: React.FC<{
       </div>
       <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-gray-500">
         <OnboardingBar stages={stages} fallback={onboardingText} late={onboarding.late || !onboarding.allOnboarded} />
+        {!onboarding.meetingSet && <p className="mt-1 text-[11px] font-semibold text-amber-700">No group meeting time set yet, so onboarding is not complete.</p>}
         {isTeenSupport && <TeenSupportPill />}
         {training.total > 0 && <TrainingPill name={supportName} userId={evaluation.supportId} sessions={training.sessions} attendance={training.attendance} />}
       </div>

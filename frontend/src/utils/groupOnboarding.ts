@@ -32,7 +32,13 @@ export interface GroupOnboardingSummary {
   daysSinceAssigned: number | null;
   /** The step with the most people still to do (earliest on a tie); null when nobody is waiting. */
   waitingOn: { label: string; people: number } | null;
+  /** Support-side steps. `introduced` is null when it is not known. `meetingSet` is the extra step for supports: a group is not onboarded until its support has set a meeting time. */
+  support: SupportOnboardingSteps;
+  /** Every member is done but the support has not set a meeting time yet, so the group is still waiting on the support. */
+  waitingOnSupportMeeting: boolean;
 }
+
+export interface SupportOnboardingSteps { introduced: boolean | null; meetingSet: boolean }
 
 const DAY_MS = 86400000;
 
@@ -45,6 +51,7 @@ export const summarizeGroupOnboarding = (
   progress: Map<string, OnboardingProgressParticipant>,
   assignedAt: string | null,
   maxDays: number,
+  support: SupportOnboardingSteps = { introduced: null, meetingSet: true },
   now = new Date(),
 ): GroupOnboardingSummary | null => {
   if (memberIds.length === 0) return null;
@@ -57,8 +64,10 @@ export const summarizeGroupOnboarding = (
   const exactDays = Number.isNaN(assignedMs) ? null : Math.max(0, (now.getTime() - assignedMs) / DAY_MS);
   const daysSinceAssigned = exactDays === null ? null : Math.floor(exactDays);
 
+  // A group is onboarded when every member is done AND its support has set a meeting time (the support's own step).
+  const membersDone = onboarded === memberIds.length;
   let chip: OnboardingChip;
-  if (onboarded === memberIds.length) chip = 'onboarded';
+  if (membersDone && support.meetingSet) chip = 'onboarded';
   else if (exactDays !== null && exactDays > maxDays) chip = 'overdue';
   else if (stepCounts.every((count) => count === 0)) chip = 'not_started';
   else chip = 'in_progress';
@@ -70,5 +79,5 @@ export const summarizeGroupOnboarding = (
       if (people > 0 && (!waitingOn || people > waitingOn.people)) waitingOn = { label: step.label, people };
     });
   }
-  return { chip, members: memberIds.length, onboarded, stepCounts, daysSinceAssigned, waitingOn };
+  return { chip, members: memberIds.length, onboarded, stepCounts, daysSinceAssigned, waitingOn, support, waitingOnSupportMeeting: membersDone && !support.meetingSet };
 };

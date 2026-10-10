@@ -481,6 +481,8 @@ const AdminGroupsContent: React.FC = () => {
   const [minTrainingsAttended, setMinTrainingsAttended] = useState(DEFAULT_PROGRAMME_RULES.minTrainingsAttended);
   // Onboarding progress for the glance on each card. null = could not be loaded: the cards simply show no strip.
   const [onboardingProgress, setOnboardingProgress] = useState<Map<string, OnboardingProgressParticipant> | null>(null);
+  // Which groups' supports have posted their introduction (from the same onboarding read). Unknown when missing.
+  const [supportIntroByGroup, setSupportIntroByGroup] = useState<Record<string, boolean>>({});
   // Which hub each support belongs to (a card names it next to the support). Empty if it could not be loaded.
   const [hubNameByUser, setHubNameByUser] = useState<Record<string, string>>({});
   const [assignedAtByGroup, setAssignedAtByGroup] = useState<Record<string, string>>({});
@@ -526,7 +528,7 @@ const AdminGroupsContent: React.FC = () => {
         cohortsApi.getMembers(activeCohort.id).then((r) => new Set(r.users.map((u) => u.id))).catch(() => null),
         supportKindApi.getForCohort(activeCohort.id).then((r) => r.kinds).catch(() => null),
         supportTagsApi.getAll().then((r) => r.tags).catch(() => null),
-        groupDiscussionApi.cohortOnboardingProgress(activeCohort.id).then((r) => r.participants).catch(() => null),
+        groupDiscussionApi.cohortOnboardingProgress(activeCohort.id).catch(() => null),
         supportHubsApi.getAll(activeCohort.id).then((r) => r.hubs).catch(() => null),
         supportHubsApi.getMembershipsForCohort(activeCohort.id).then((r) => r.memberships).catch(() => null),
         assignedRequest,
@@ -567,8 +569,10 @@ const AdminGroupsContent: React.FC = () => {
         });
         setHubNameByUser(byUser);
       } else if (!silent) setHubNameByUser({});
-      if (progressRes) setOnboardingProgress(new Map(progressRes.map((row) => [row.participantId, row])));
-      else if (!silent) setOnboardingProgress(null);
+      if (progressRes) {
+        setOnboardingProgress(new Map(progressRes.participants.map((row) => [row.participantId, row])));
+        setSupportIntroByGroup(Object.fromEntries((progressRes.groups ?? []).map((row) => [row.groupId, !!row.supportIntroPosted])));
+      } else if (!silent) { setOnboardingProgress(null); setSupportIntroByGroup({}); }
       if (assignedDates) { setAssignedAtByGroup(assignedDates); setAssignedDatesKnown(true); }
       else if (!silent) { setAssignedAtByGroup({}); setAssignedDatesKnown(false); }
     } catch { /* ignore */ }
@@ -644,11 +648,13 @@ const AdminGroupsContent: React.FC = () => {
     groups.forEach((g) => {
       if (g.isTeenGroup) return;
       const memberIds = (membersByGroupId.get(g.id) ?? []).map((p) => p.id);
-      const summary = summarizeGroupOnboarding(memberIds, onboardingProgress, g.supportId ? (assignedAtByGroup[g.id] ?? null) : null, onboardingMaxDays);
+      // The support's own steps: have they introduced themselves, and have they set a meeting time (a group without a support has nothing to wait on).
+      const supportSteps = { introduced: g.supportId && g.id in supportIntroByGroup ? supportIntroByGroup[g.id] : null, meetingSet: !g.supportId || !!(g.meetingDay && g.meetingTime) };
+      const summary = summarizeGroupOnboarding(memberIds, onboardingProgress, g.supportId ? (assignedAtByGroup[g.id] ?? null) : null, onboardingMaxDays, supportSteps);
       if (summary) map.set(g.id, summary);
     });
     return map;
-  }, [groups, membersByGroupId, onboardingProgress, assignedAtByGroup, onboardingMaxDays]);
+  }, [groups, membersByGroupId, onboardingProgress, assignedAtByGroup, onboardingMaxDays, supportIntroByGroup]);
 
   const onboardingCounts = useMemo(() => {
     const counts: Record<OnboardingChip, number> = { overdue: 0, in_progress: 0, not_started: 0, onboarded: 0 };
@@ -816,7 +822,7 @@ const AdminGroupsContent: React.FC = () => {
                   </div>
                 </div>
 
-                {onboardingByGroup.get(g.id) && <GroupOnboardingStrip summary={onboardingByGroup.get(g.id)!} maxDays={onboardingMaxDays} />}
+                {onboardingByGroup.get(g.id) && <GroupOnboardingStrip summary={onboardingByGroup.get(g.id)!} maxDays={onboardingMaxDays} showSupport={!!g.supportId} />}
 
                 {/* Members always visible at a glance — name + phone cards. */}
                 {members.length === 0 ? (

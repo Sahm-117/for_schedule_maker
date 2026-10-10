@@ -31,3 +31,10 @@ NOT tested against the deployed backend or with real data, so the real numbers (
 - A support in no hub shows no hub text (nothing says "No hub"). Say if you want that spelled out.
 - The Supports page keeps its own all-or-nothing strip; it was not changed. It could use the same partial-fill strip.
 - Member rows on the card do not show per-person steps (idea 4 from the proposal), only the group roll-up.
+
+## Update: the support's steps on the strip (frontend only, no live changes)
+- Under the status chip each adult group with a support now shows two small dots: **Support introduced** (green) or **Support not introduced** (amber), and **Meeting time set** (green) or **No meeting time yet** (amber). Group with no support: no dots.
+- **Extra onboarding step for supports only: set the group's meeting time.** A group is not "Onboarded" until its support has set a meeting day and time (the card says "Waiting on the support to set a meeting time"), so it can also become Overdue. The Supports page applies the same rule: the support is not onboarded and the day count keeps running until the time is set, and the card shows "No group meeting time set yet, so onboarding is not complete." Participants' five steps are unchanged.
+- Data: `supportIntroPosted` already came with the onboarding read; the meeting time is on the group (the Supports page now loads the cohort's groups to read it).
+- NOT done: the Dashboard's late-onboarding counts and the cohort health feed do not include the meeting-time step (the feed has no meeting times), so the Dashboard can still count a group as onboarded.
+- Tested in a browser with a mocked backend (4 groups: onboarded with time, members done but no time, support not introduced, no support). The Supports page change compiles and was not exercised in a browser.

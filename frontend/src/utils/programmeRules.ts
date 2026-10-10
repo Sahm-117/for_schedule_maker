@@ -244,6 +244,8 @@ export interface SupportEvaluation {
     assignedAt: string | null;
     completedAt: string | null;
     allOnboarded: boolean;
+    /** The support's own step: their group has a meeting day and time. Counts as set when it is not known. */
+    meetingSet: boolean;
     days: number | null;
     late: boolean;
   };
@@ -253,7 +255,7 @@ const DAY_MS = 86400000;
 
 export const evaluateSupports = (
   people: CohortPeoplePayload,
-  groups: Array<{ id: string; supportId: string | null }>,
+  groups: Array<{ id: string; supportId: string | null; meetingSet?: boolean }>,
   meetingReports: Array<{ weekId: number; groupId: string }>,
   judgedWeeks: Array<{ id: number; weekNumber: number }>,
   rules: ProgrammeRules,
@@ -288,9 +290,12 @@ export const evaluateSupports = (
       const missedWeeks = weeks.filter((w) => !w.recorded).map((w) => w.weekNumber);
 
       const o = onboardingBy.get(g.id);
-      const allOnboarded = members.every((m) => onboardedIds.has(m));
+      // A support is onboarded when every member is AND they have set a meeting time for the group.
+      const meetingSet = g.meetingSet !== false;
+      const allOnboarded = members.every((m) => onboardedIds.has(m)) && meetingSet;
       const start = o?.assignedAt ? new Date(o.assignedAt).getTime() : null;
-      const end = o?.completedAt ? new Date(o.completedAt).getTime() : null;
+      // The clock stops only when the whole onboarding is finished, the meeting time included.
+      const end = o?.completedAt && meetingSet ? new Date(o.completedAt).getTime() : null;
       const days = start !== null ? Math.max(0, ((end ?? now.getTime()) - start) / DAY_MS) : null;
       const late = days !== null && days > rules.onboardingMaxDays;
 
@@ -309,6 +314,7 @@ export const evaluateSupports = (
           assignedAt: o?.assignedAt ?? null,
           completedAt: o?.completedAt ?? null,
           allOnboarded,
+          meetingSet,
           days: days === null ? null : Math.round(days * 10) / 10,
           late,
         },
