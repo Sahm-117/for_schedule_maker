@@ -489,6 +489,10 @@ export const usersApi = USE_SUPABASE ? supabaseUsersApi : {
     return { labels: [] };
   },
 
+  async withLabels<T extends { id: string }>(users: T[]): Promise<Array<T & { labels: Label[] }>> {
+    return users.map((user) => ({ ...user, labels: [] as Label[] }));
+  },
+
   async getLabelOwners(): Promise<{ owners: Array<{ labelId: string; user: Pick<User, 'id' | 'name'> }> }> {
     return { owners: [] };
   },

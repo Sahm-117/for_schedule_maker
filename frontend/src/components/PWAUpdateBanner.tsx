@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { startPolling } from '../hooks/usePolling';
 import { useLocation } from 'react-router-dom';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
@@ -16,13 +17,17 @@ const PWAUpdateBanner: React.FC = () => {
   useEffect(() => {
     if (!registration) return undefined;
 
+    // Focus and visibilitychange fire together on return; one check is enough.
+    let lastCheck = 0;
     const checkForUpdates = () => {
+      if (Date.now() - lastCheck < 10_000) return;
+      lastCheck = Date.now();
       void registration.update().catch(() => {
         // Best-effort only. If the browser declines the check, keep the app usable.
       });
     };
 
-    const intervalId = window.setInterval(checkForUpdates, 60_000);
+    const stopPolling = startPolling(checkForUpdates, 120_000);
     const handleFocus = () => checkForUpdates();
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
@@ -37,7 +42,7 @@ const PWAUpdateBanner: React.FC = () => {
     checkForUpdates();
 
     return () => {
-      window.clearInterval(intervalId);
+      stopPolling();
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };

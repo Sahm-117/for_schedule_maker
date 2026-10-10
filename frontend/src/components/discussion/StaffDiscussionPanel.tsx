@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { startPolling } from '../../hooks/usePolling';
 import { useSearchParams } from 'react-router-dom';
 import Spinner from '../Spinner';
 import IntroComposer, { SUPPORT_INTRO_PROMPTS } from './IntroComposer';
@@ -42,8 +43,7 @@ const StaffDiscussionPanel: React.FC<{ groupId: string; viewerName: string; view
   useEffect(() => {
     setLoading(true);
     void load();
-    const timer = window.setInterval(() => { if (document.visibilityState === 'visible') void load(); }, 30000);
-    return () => window.clearInterval(timer);
+    return startPolling(load, 30000);
   }, [load]);
 
   const actions = useMemo<DiscussionActions>(() => {

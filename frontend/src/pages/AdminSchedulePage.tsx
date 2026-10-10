@@ -70,16 +70,7 @@ const AdminSchedulePage: React.FC = () => {
     usersApi.getAll()
       .then(async (response) => {
         const onlySupportUsers = pickableUsers(response.users.filter((member) => hasSupportRole(member)));
-        const usersWithLabels = await Promise.all(
-          onlySupportUsers.map(async (member) => {
-            try {
-              const labelsResponse = await usersApi.getUserLabels(member.id);
-              return { ...member, labels: labelsResponse.labels };
-            } catch {
-              return { ...member, labels: [] };
-            }
-          })
-        );
+        const usersWithLabels = await usersApi.withLabels(onlySupportUsers);
         setSupportUsers(sortByText(usersWithLabels, (member) => member.name));
       })
       .catch((error) => console.warn('Failed to load support users:', error));

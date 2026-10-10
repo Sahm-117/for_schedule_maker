@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { practiceApi } from '../services/api';
+import { startPolling } from './usePolling';
 import type { PracticePulse } from '../types';
 
 const POLL_MS = 4000;
@@ -7,8 +8,8 @@ const POLL_MS = 4000;
 const IDLE_POLL_MS = 20000;
 // Practice is on for everyone, but most supports are doing real work: they only need the
 // fast beat while they are inside Practice or in a walkthrough. Otherwise this keeps the
-// phone and the database quiet (and still catches a request within a few seconds).
-const BACKGROUND_POLL_MS = 12000;
+// phone and the database quiet (and still catches a request within about twenty seconds).
+const BACKGROUND_POLL_MS = 20000;
 
 // Asks the database one tiny question every few seconds while the app is on
 // screen: what is my cohort list, am I in Practice, is anyone asking me to
@@ -49,10 +50,10 @@ export const usePracticePulse = (enabled: boolean, onCohortKeyChange: () => void
   useEffect(() => {
     if (!enabled) { setPulse(null); lastKey.current = null; return undefined; }
     void refresh();
-    const timer = window.setInterval(() => { if (document.visibilityState === 'visible') void refresh(); }, idle ? IDLE_POLL_MS : fast ? POLL_MS : BACKGROUND_POLL_MS);
+    const stopPolling = startPolling(() => refresh(), idle ? IDLE_POLL_MS : fast ? POLL_MS : BACKGROUND_POLL_MS, { catchUp: false });
     const onVisible = () => { if (document.visibilityState === 'visible') void refresh(); };
     document.addEventListener('visibilitychange', onVisible);
-    return () => { window.clearInterval(timer); document.removeEventListener('visibilitychange', onVisible); };
+    return () => { stopPolling(); document.removeEventListener('visibilitychange', onVisible); };
   }, [enabled, refresh, idle, fast]);
 
   // The returned refresh is the "something just changed" one: it is never skipped.

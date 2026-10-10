@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { startPolling } from '../../hooks/usePolling';
 import { useLocation } from 'react-router-dom';
 import ModalShell from '../followups/ModalShell';
 import PracticeChecklist from './PracticeChecklist';
@@ -165,8 +166,8 @@ const PracticeDock: React.FC<DockProps> = ({ mode, active = true, pulse, refresh
     if (!active) { setData(null); return undefined; }
     // Participants wait a moment so the first screen is not slowed for real people.
     const first = window.setTimeout(load, mode === 'participant' ? 1500 : 0);
-    const poll = window.setInterval(() => { if (document.visibilityState === 'visible') load(); }, 5000);
-    return () => { window.clearTimeout(first); window.clearInterval(poll); };
+    const stopPolling = startPolling(load, 5000);
+    return () => { window.clearTimeout(first); stopPolling(); };
   }, [active, load, mode]);
 
   const peer: PracticePeerActive | null = mode === 'staff' ? (pulse?.active ?? null) : partner;

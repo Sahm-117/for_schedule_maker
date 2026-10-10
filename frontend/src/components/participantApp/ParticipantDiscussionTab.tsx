@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { startPolling } from '../../hooks/usePolling';
 import { useSearchParams } from 'react-router-dom';
 import IntroComposer, { INTRO_PROMPTS } from '../discussion/IntroComposer';
 import Spinner from '../Spinner';
@@ -41,8 +42,7 @@ const ParticipantDiscussionTab: React.FC<{ viewerName: string; viewerAvatarUrl?:
   useEffect(() => {
     void load();
     // Pick up new posts while the tab is open.
-    const timer = window.setInterval(() => { if (document.visibilityState === 'visible') void load(); }, 30000);
-    return () => window.clearInterval(timer);
+    return startPolling(load, 30000);
   }, [load]);
 
   const loadMore = async () => {

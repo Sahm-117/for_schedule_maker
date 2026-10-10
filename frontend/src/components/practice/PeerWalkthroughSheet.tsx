@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { startPolling } from '../../hooks/usePolling';
 import Spinner from '../Spinner';
 import ModalShell from '../followups/ModalShell';
 import SegmentedTabs from '../SegmentedTabs';
@@ -39,8 +40,8 @@ const PeerWalkthroughSheet: React.FC<{
     let live = true;
     const load = () => practiceApi.team().then((rows) => { if (live) setTeam(rows); }).catch(() => {});
     void load();
-    const timer = window.setInterval(load, 5000);
-    return () => { live = false; window.clearInterval(timer); };
+    const stopPolling = startPolling(load, 5000);
+    return () => { live = false; stopPolling(); };
   }, [isOpen, mySeat]);
 
   const bothParticipants = mine === 'PARTICIPANT' && theirs === 'PARTICIPANT';

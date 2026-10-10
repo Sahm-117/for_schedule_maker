@@ -1,6 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { authApi, setAuthToken, clearAuthToken, usersApi, getSessionToken, SESSION_TOKEN_KEY } from '../services/api';
-import { supabase } from '../lib/supabase';
 import { applyTheme } from '../utils/theme';
 import { setLoginPassword } from '../utils/loginPassword';
 import type { Label, User } from '../types';
@@ -270,39 +269,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     window.addEventListener('focus', verifyCurrentUser);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    const supabaseClient = supabase as unknown as {
-      channel?: typeof supabase.channel;
-      removeChannel?: typeof supabase.removeChannel;
-    };
-
-    if (!supabaseClient?.channel || !supabaseClient?.removeChannel) {
-      return () => {
-        window.removeEventListener('focus', verifyCurrentUser);
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
-      };
-    }
-
-    const channel = supabaseClient
-      .channel(`user-status-${user.id}`)
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'User', filter: `id=eq.${user.id}` },
-        (payload) => {
-          const nextUser = payload.new as User;
-          if (nextUser.isActive === false) {
-            clearSession();
-            return;
-          }
-          localStorage.setItem('user', JSON.stringify(nextUser));
-          setUser(nextUser);
-        }
-      )
-      .subscribe();
-
+    // No Realtime listener on the User row: the publication does not carry it, so it never
+    // fired. A deactivated account is caught by this check instead, on focus and on return.
     return () => {
       window.removeEventListener('focus', verifyCurrentUser);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      void supabaseClient.removeChannel?.(channel);
     };
   }, [clearSession, user?.id]);
 

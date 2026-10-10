@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { startPolling } from '../hooks/usePolling';
 import { NavLink, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import LinkText from '../components/LinkText';
@@ -35,8 +36,7 @@ const ParticipantGroupPage: React.FC = () => {
     if (tabNow === 'discussion') { setUnseen(0); return undefined; }
     const check = () => { participantAppApi.discussionUnseen().then(setUnseen).catch(() => {}); };
     check();
-    const timer = window.setInterval(() => { if (document.visibilityState === 'visible') check(); }, 30000);
-    return () => window.clearInterval(timer);
+    return startPolling(check, 30000);
   }, [tabNow]);
   if (loading || !home) return <PageLoader />;
   const tab = tabNow;

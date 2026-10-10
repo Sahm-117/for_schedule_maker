@@ -573,7 +573,11 @@ duplicating the logic anywhere else is a bug waiting to happen.
     tab returns. In `ParticipantAppContext` a failed background poll keeps the last good `home` (only the first load may show the error
     card), the newest request wins, and a response that started before a local save is dropped so it cannot wipe it. Staff `AppDataContext`
     holds a Realtime-triggered workspace refresh while the tab is hidden and runs it on return. A clock that only ticks locally
-    (`setInterval(() => setNow(...))`) is not a poll. Frontend only; no migration.
+    (`setInterval(() => setNow(...))`) is not a poll. The `supabase_realtime` publication carries ONLY `Notification` (which the public key cannot
+    read), so a `postgres_changes` listener on any other table never fires: do not add one and expect live updates; poll instead. The staff app
+    learns of changes elsewhere through the notification check (30 s) and its "Refresh" prompt. Per-person label lookups for a list go through
+    `usersApi.withLabels(users)` (one query), never `getUserLabels` per person. Uploads to storage pass `cacheControl` (their paths are
+    timestamped, so never overwritten), and `vercel.json` serves the hashed `/assets/*` as immutable. Frontend only; no migration.
 
 ## 5. Edge functions and schedules
 

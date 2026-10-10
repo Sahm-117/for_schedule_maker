@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { usePolling } from '../hooks/usePolling';
 import { Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import SegmentedTabs from '../components/SegmentedTabs';
@@ -54,10 +55,7 @@ const AdminPracticePage: React.FC = () => {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
-  useEffect(() => {
-    const timer = window.setInterval(() => { if (document.visibilityState === 'visible') void load(true); }, 8000);
-    return () => window.clearInterval(timer);
-  }, [load]);
+  usePolling(() => load(true), 8000);
 
   const toggle = async () => {
     if (!data || busy) return;

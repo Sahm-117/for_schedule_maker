@@ -425,7 +425,7 @@ export const weeksApi = {
 export const uploadClassImage = async (cohortId: string, weekId: number, kind: 'graphic' | 'teacher', file: File): Promise<string> => {
   const compressed = await resizeImageToJpeg(file, kind === 'graphic' ? 1000 : 640);
   const path = `classes/${cohortId}/${weekId}-${kind}-${Date.now()}.jpg`;
-  const { error } = await supabase.storage.from('resources').upload(path, compressed, { upsert: false, contentType: 'image/jpeg' });
+  const { error } = await supabase.storage.from('resources').upload(path, compressed, { cacheControl: '31536000', upsert: false, contentType: 'image/jpeg' });
   if (error) throw new Error(error.message);
   return supabase.storage.from('resources').getPublicUrl(path).data.publicUrl;
 };
@@ -2344,7 +2344,7 @@ export const landingImagesApi = {
   async upload(slot: 'hero' | 'heroMobile' | 'group' | 'class', image: Blob): Promise<string> {
     const extension = image.type === 'image/webp' ? 'webp' : image.type === 'image/png' ? 'png' : 'jpg';
     const path = `landing/${slot}-${Date.now()}.${extension}`;
-    const { error } = await supabase.storage.from('resources').upload(path, image, { upsert: false, contentType: image.type || undefined });
+    const { error } = await supabase.storage.from('resources').upload(path, image, { cacheControl: '31536000', upsert: false, contentType: image.type || undefined });
     if (error) throw new Error(error.message);
     const { data } = supabase.storage.from('resources').getPublicUrl(path);
     return data.publicUrl;
@@ -2566,6 +2566,29 @@ export const usersApi = {
       }) as Label);
 
     return { labels };
+  },
+
+  /**
+   * Put each person's labels on them with ONE query (the old way was one request per person,
+   * which meant 40+ requests every time an admin page opened). A failed read gives everyone
+   * an empty list, as a failed per-person read used to.
+   */
+  async withLabels<T extends { id: string }>(users: T[]): Promise<Array<T & { labels: Label[] }>> {
+    const byUser = new Map<string, Label[]>();
+    try {
+      const { data, error } = await supabase.from('UserLabel').select('userId, Label(*)');
+      if (error) throw new Error(error.message);
+      for (const row of (data || []) as any[]) {
+        const l = row.Label;
+        if (!row.userId || !l) continue;
+        const list = byUser.get(row.userId as string) ?? [];
+        list.push({ id: l.id, name: l.name, color: l.color, createdAt: l.createdAt, updatedAt: l.updatedAt } as Label);
+        byUser.set(row.userId as string, list);
+      }
+    } catch {
+      byUser.clear();
+    }
+    return users.map((user) => ({ ...user, labels: byUser.get(user.id) ?? [] }));
   },
 
   /**
@@ -2841,7 +2864,7 @@ export const usersApi = {
     const compressed = await resizeImageToJpeg(file);
 
     const path = `avatars/${userId}-${Date.now()}.jpg`;
-    const { error: uploadError } = await supabase.storage.from('resources').upload(path, compressed, { upsert: false, contentType: 'image/jpeg' });
+    const { error: uploadError } = await supabase.storage.from('resources').upload(path, compressed, { cacheControl: '31536000', upsert: false, contentType: 'image/jpeg' });
     if (uploadError) throw new Error(uploadError.message);
 
     const { data: urlData } = supabase.storage.from('resources').getPublicUrl(path);
@@ -3229,7 +3252,7 @@ export const resourcesApi = {
     const path = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
     const { error: uploadError } = await supabase.storage
       .from('resources')
-      .upload(path, file, { upsert: false });
+      .upload(path, file, { cacheControl: '31536000', upsert: false });
     if (uploadError) throw new Error(uploadError.message);
 
     const { data: urlData } = supabase.storage.from('resources').getPublicUrl(path);
@@ -3699,7 +3722,7 @@ export const participantAppApi = {
   async uploadAvatar(participantId: string, file: File): Promise<{ avatarUrl: string }> {
     const compressed = await resizeImageToJpeg(file);
     const path = `avatars/participants/${participantId}-${Date.now()}.jpg`;
-    const { error: uploadError } = await supabase.storage.from('resources').upload(path, compressed, { upsert: false, contentType: 'image/jpeg' });
+    const { error: uploadError } = await supabase.storage.from('resources').upload(path, compressed, { cacheControl: '31536000', upsert: false, contentType: 'image/jpeg' });
     if (uploadError) throw new Error(uploadError.message);
     const { data: urlData } = supabase.storage.from('resources').getPublicUrl(path);
     const { error } = await supabase.rpc('set_participant_avatar', { p_token: getSessionToken(), p_url: urlData.publicUrl });
@@ -4461,7 +4484,7 @@ export const messageTemplatesApi = {
 
   async uploadTemplateImage(file: File): Promise<{ url: string; name: string }> {
     const path = `templates/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-    const { error } = await supabase.storage.from('resources').upload(path, file, { upsert: false });
+    const { error } = await supabase.storage.from('resources').upload(path, file, { cacheControl: '31536000', upsert: false });
     if (error) throw new Error(error.message);
     const { data } = supabase.storage.from('resources').getPublicUrl(path);
     return { url: data.publicUrl, name: file.name };
@@ -8171,7 +8194,7 @@ export const coverRequestsApi = {
 export const recapDocumentsApi = {
   async upload(weekId: number, file: File): Promise<{ url: string; name: string }> {
     const path = `recaps/week-${weekId}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-    const { error: uploadError } = await supabase.storage.from('resources').upload(path, file, { upsert: false, contentType: file.type || undefined });
+    const { error: uploadError } = await supabase.storage.from('resources').upload(path, file, { cacheControl: '31536000', upsert: false, contentType: file.type || undefined });
     if (uploadError) throw new Error(uploadError.message);
     const { data } = supabase.storage.from('resources').getPublicUrl(path);
     const { data: week, error } = await supabase
@@ -8210,7 +8233,7 @@ export const recapDocumentsApi = {
 export const teenRecapDocumentsApi = {
   async upload(weekId: number, file: File): Promise<{ url: string; name: string }> {
     const path = `teen-recaps/week-${weekId}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-    const { error: uploadError } = await supabase.storage.from('resources').upload(path, file, { upsert: false, contentType: file.type || undefined });
+    const { error: uploadError } = await supabase.storage.from('resources').upload(path, file, { cacheControl: '31536000', upsert: false, contentType: file.type || undefined });
     if (uploadError) throw new Error(uploadError.message);
     const { data } = supabase.storage.from('resources').getPublicUrl(path);
     const { error } = await supabase.from('Week').update({ teenRecapDocumentUrl: data.publicUrl, teenRecapDocumentName: file.name }).eq('id', weekId);
@@ -8235,7 +8258,7 @@ export const teenRecapDocumentsApi = {
 export const manualDocumentsApi = {
   async upload(weekId: number, file: File): Promise<{ url: string; name: string }> {
     const path = `manuals/week-${weekId}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-    const { error: uploadError } = await supabase.storage.from('resources').upload(path, file, { upsert: false, contentType: file.type || undefined });
+    const { error: uploadError } = await supabase.storage.from('resources').upload(path, file, { cacheControl: '31536000', upsert: false, contentType: file.type || undefined });
     if (uploadError) throw new Error(uploadError.message);
     const { data } = supabase.storage.from('resources').getPublicUrl(path);
     const { error } = await supabase
@@ -8380,7 +8403,7 @@ export const scripturesApi = {
   async upload(dayNumber: number, image: Blob, userId: string): Promise<{ scripture: import('../types').Scripture }> {
     const extension = image.type === 'image/webp' ? 'webp' : image.type === 'image/png' ? 'png' : 'jpg';
     const path = `scriptures/day-${dayNumber}-${Date.now()}.${extension}`;
-    const { error: uploadError } = await supabase.storage.from('resources').upload(path, image, { upsert: false, contentType: image.type || undefined });
+    const { error: uploadError } = await supabase.storage.from('resources').upload(path, image, { cacheControl: '31536000', upsert: false, contentType: image.type || undefined });
     if (uploadError) throw new Error(uploadError.message);
     const { data: publicUrl } = supabase.storage.from('resources').getPublicUrl(path);
 
@@ -8570,7 +8593,7 @@ export const surveyApi = {
     if (file.size > SURVEY_FILE_MAX_BYTES) throw new Error('That file is over 5 MB. Choose a smaller one.');
     const safe = file.name.replace(/[^a-zA-Z0-9._-]+/g, '-').slice(-60) || 'file';
     const path = `survey-files/${surveyId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${safe}`;
-    const { error } = await supabase.storage.from('resources').upload(path, file, { upsert: false, contentType: file.type || undefined });
+    const { error } = await supabase.storage.from('resources').upload(path, file, { cacheControl: '31536000', upsert: false, contentType: file.type || undefined });
     if (error) throw new Error('Could not upload that file. Please try again.');
     const { data } = supabase.storage.from('resources').getPublicUrl(path);
     return { url: data.publicUrl, name: file.name };

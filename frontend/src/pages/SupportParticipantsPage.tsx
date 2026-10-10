@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { startPolling } from '../hooks/usePolling';
 import { NavLink, Navigate, useSearchParams } from 'react-router-dom';
 import AppSelect from '../components/AppSelect';
 import SegmentedTabs from '../components/SegmentedTabs';
@@ -78,8 +79,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
     if (!selectedGroupId || activeTab === 'discussion') { setDiscussionUnseen(0); return undefined; }
     const check = () => { groupDiscussionApi.unseen(selectedGroupId).then(setDiscussionUnseen).catch(() => {}); };
     check();
-    const timer = window.setInterval(() => { if (document.visibilityState === 'visible') check(); }, 30000);
-    return () => window.clearInterval(timer);
+    return startPolling(check, 30000);
   }, [selectedGroupId, activeTab]);
   const [savingPrayerFocus, setSavingPrayerFocus] = useState(false);
   const [loading, setLoading] = useState(true);

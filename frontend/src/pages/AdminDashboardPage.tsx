@@ -144,13 +144,7 @@ const AdminDashboardPage: React.FC = () => {
     usersApi.getAll()
       .then(async (res) => {
         const supportUsers = res.users.filter((member) => hasSupportRole(member));
-        const withLabels = await Promise.all(supportUsers.map(async (member) => {
-          try {
-            return { ...member, labels: (await usersApi.getUserLabels(member.id)).labels };
-          } catch {
-            return { ...member, labels: [] };
-          }
-        }));
+        const withLabels = await usersApi.withLabels(supportUsers);
         setSupports(sortByText(withLabels, (member) => member.name));
       })
       .catch(() => setSupports([]));

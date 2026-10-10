@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { startPolling } from '../../hooks/usePolling';
 import { NavLink } from 'react-router-dom';
 import Avatar from '../Avatar';
 import { appNudgeApi } from '../../services/api';
@@ -61,14 +62,20 @@ const AppNudgeCard: React.FC = () => {
       finally { loading = false; }
     };
     void load();
-    const timer = window.setInterval(() => { void load(); }, REFRESH_MS);
-    const refresh = () => { void load(); };
+    const stopPolling = startPolling(load, REFRESH_MS, { catchUp: false });
+    // Focus, online and visibilitychange can fire together; refresh once.
+    let lastRefresh = 0;
+    const refresh = () => {
+      if (Date.now() - lastRefresh < 5000) return;
+      lastRefresh = Date.now();
+      void load();
+    };
     window.addEventListener('focus', refresh);
     window.addEventListener('online', refresh);
     document.addEventListener('visibilitychange', refresh);
     return () => {
       live = false;
-      window.clearInterval(timer);
+      stopPolling();
       window.removeEventListener('focus', refresh);
       window.removeEventListener('online', refresh);
       document.removeEventListener('visibilitychange', refresh);

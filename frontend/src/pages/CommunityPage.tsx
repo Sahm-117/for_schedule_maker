@@ -8,9 +8,9 @@ import PeoplePanel from '../components/community/PeoplePanel';
 import ModalShell from '../components/followups/ModalShell';
 import TourHelpButton from '../components/tour/TourHelpButton';
 import { hubApi } from '../services/api';
-import { supabase } from '../lib/supabase';
 import { reconcileById } from '../utils/reconcile';
 import { useAuth } from '../hooks/useAuth';
+import { usePolling } from '../hooks/usePolling';
 import { useAppData } from '../context/AppDataContext';
 import type { HubTopic } from '../types';
 import Spinner from '../components/Spinner';
@@ -357,24 +357,12 @@ const CommunityPage: React.FC = () => {
 
   useEffect(() => { markHubSeen(); }, [markHubSeen]);
 
-  // Realtime: silently refresh the topic list on any HubTopic or HubComment change.
-  // We refetch authoritative counts (rather than doing fragile +1/-1 math, which
-  // breaks for DELETE — Postgres default replica identity only sends the PK, so
-  // payload.old.topicId is undefined) and reconcile by id so unchanged rows don't
-  // re-render / scroll-jump.
-  useEffect(() => {
-    const refresh = () => hubApi.getTopics(tab, user?.id)
-      .then(({ topics: t }) => setTopics((prev) => reconcileById(prev, t)))
-      .catch(() => {});
-    const channel = supabase
-      .channel('hub-topics-rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'HubTopic' }, refresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'HubComment' }, refresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'HubReaction' }, refresh)
-      .subscribe();
-
-    return () => { void supabase.removeChannel(channel); };
-  }, [tab, user?.id]);
+  // Keep the topic list current. (This used to listen to Realtime table changes, but those
+  // tables are not published, so it never fired.) We refetch authoritative counts and
+  // reconcile by id so unchanged rows don't re-render / scroll-jump.
+  usePolling(() => hubApi.getTopics(tab, user?.id)
+    .then(({ topics: t }) => setTopics((prev) => reconcileById(prev, t)))
+    .catch(() => {}), 45000);
 
   // Optimistic thumbs-up toggle; the realtime refresh reconciles authoritative counts.
   const handleToggleLike = useCallback((topicId: string) => {
@@ -566,51 +554,10 @@ const HubTopicView: React.FC<{
 
   const refreshComments = () => hubApi.getComments(topic.id)
     .then(({ comments: fresh }) => setComments(fresh)).catch(() => {});
-  const refreshReplies = (commentId: string) => hubApi.getReplies(commentId)
-    .then(({ replies: fresh }) => setReplies((r) => ({ ...r, [commentId]: fresh }))).catch(() => {});
 
-  // Realtime: new comments/replies from OTHER clients appear without reload.
-  // Self-authored rows are added optimistically, so we ignore our own echoes here
-  // to avoid double-counting; fetches run outside the state updaters (updaters
-  // must stay pure — they can run twice under StrictMode).
-  useEffect(() => {
-    const channel = supabase
-      .channel(`hub-topic-${topic.id}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'HubComment', filter: `topicId=eq.${topic.id}` }, (payload) => {
-        const row = payload.new as any;
-        if (!row?.id || row.authorId === currentUser.id) return; // ignore our own optimistic echo
-        setComments((prev) => {
-          if (prev.some((c) => c.id === row.id)) return prev;
-          // Refetch the joined list once for the new row (side effect lives outside the updater below)
-          void refreshComments();
-          return prev;
-        });
-      })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'HubReply' }, (payload) => {
-        const row = payload.new as any;
-        const commentId = row?.commentId;
-        if (!commentId || row.authorId === currentUser.id) return; // ignore our own optimistic echo
-        // Refresh replies if currently expanded, and bump the count by id (deduped).
-        setExpandedReplies((prev) => {
-          if (prev.has(commentId)) void refreshReplies(commentId);
-          return prev;
-        });
-        setReplies((r) => {
-          const list = r[commentId];
-          if (list && list.some((x) => x.id === row.id)) return r; // already have it
-          return r;
-        });
-        setComments((prev) => prev.map((c) => {
-          if (c.id !== commentId) return c;
-          // only count this reply once (the realtime echo for our own reply is filtered above)
-          return { ...c, replyCount: c.replyCount + 1 };
-        }));
-      })
-      .subscribe();
-
-    return () => { void supabase.removeChannel(channel); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [topic.id, currentUser.id]);
+  // New comments from other people appear without a reload: check while the thread is open.
+  // (Realtime table listeners used to do this on paper; the tables are not published.)
+  usePolling(() => refreshComments(), 20000);
 
   const roleOf = (userId: string) => users.find((u) => u.id === userId)?.role;
 

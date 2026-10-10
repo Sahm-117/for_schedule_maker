@@ -1,5 +1,4 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { usePolling } from '../hooks/usePolling';
 import { cohortsApi, hubApi, myHubApi, notificationsApi, pendingChangesApi, rejectedChangesApi, resourcesApi, settingsApi, usersApi, weeksApi } from '../services/api';
@@ -36,7 +35,6 @@ interface AppDataContextType {
   refreshPendingChanges: () => Promise<void>;
   handlePendingApprove: (changeIds?: string[]) => void;
   handlePendingReject: (changeIds?: string[]) => void;
-  realtimeHealthy: boolean;
   newResourceCount: number;
   refreshResourceCount: () => Promise<void>;
   markResourcesViewed: () => void;
@@ -75,11 +73,8 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [newResourceCount, setNewResourceCount] = useState(0);
   const [latestHubActivityAt, setLatestHubActivityAt] = useState<string | null>(null);
   const [myHub, setMyHub] = useState<MyHubPayload | null>(null);
-  const [realtimeHealthy, setRealtimeHealthy] = useState(false);
   const [liveRevision, setLiveRevision] = useState(0);
 
-  const refreshTimeoutRef = useRef<number | null>(null);
-  const refreshPendingWhileHiddenRef = useRef(false);
   const refreshInProgressRef = useRef(false);
   // Mirror the latest cohort/week into refs so refreshWorkspaceData can read them
   // without listing them as deps. That keeps the callback (and the realtime
@@ -285,30 +280,6 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     loadMyHub,
   ]);
 
-  const scheduleWorkspaceRefresh = useCallback(() => {
-    // Debounce bursts into a single refresh. If one is already running when the
-    // timer fires, re-defer instead of dropping it, so the latest change is
-    // never lost (refreshWorkspaceData's in-progress guard would otherwise
-    // silently swallow this call).
-    if (refreshTimeoutRef.current) {
-      window.clearTimeout(refreshTimeoutRef.current);
-    }
-    // A little random spread, so a burst of writes doesn't make every open staff tab
-    // reload the whole workspace in the same instant.
-    refreshTimeoutRef.current = window.setTimeout(() => {
-      // Nobody is looking: remember it and catch up when the tab comes back.
-      if (document.visibilityState === 'hidden') {
-        refreshPendingWhileHiddenRef.current = true;
-        return;
-      }
-      if (refreshInProgressRef.current) {
-        scheduleWorkspaceRefresh();
-        return;
-      }
-      refreshWorkspaceData();
-    }, 300 + Math.round(Math.random() * 1500));
-  }, [refreshWorkspaceData]);
-
   useEffect(() => {
     let cancelled = false;
 
@@ -343,82 +314,17 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     };
   }, [isAdmin, loadCohorts, loadGlobalPendingChanges, loadWeeksForCohort, refreshNotifications, refreshResourceCount, refreshHubActivity, loadMyHub, user]);
 
+  // There is no live feed to the staff app: the Realtime publication carries only the
+  // Notification table, which the public key cannot read, so table listeners here would
+  // never fire (they used to, on paper, and kept a websocket open for nothing). A change
+  // made elsewhere reaches a person through a notification: this check finds it and offers
+  // the "Refresh" prompt, and pages that need to stay current poll for themselves.
   useEffect(() => {
-    if (!user || !(supabase as any)) return;
-
-    const channel = (supabase as any)
-      .channel(`app-sync-${user.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'PendingChange' }, scheduleWorkspaceRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'Activity' }, scheduleWorkspaceRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'Week' }, scheduleWorkspaceRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'Resource' }, scheduleWorkspaceRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'Announcement' }, scheduleWorkspaceRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'Cohort' }, scheduleWorkspaceRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'UserCohort' }, scheduleWorkspaceRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'UserLabel' }, scheduleWorkspaceRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'SupportActivityCompletion' }, scheduleWorkspaceRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'AppSetting' }, scheduleWorkspaceRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'FollowUpContact' }, scheduleWorkspaceRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'FollowUpIssue' }, scheduleWorkspaceRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'MessageTemplate' }, scheduleWorkspaceRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'Group' }, scheduleWorkspaceRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'GroupParticipant' }, scheduleWorkspaceRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'GroupOnboardingStatus' }, scheduleWorkspaceRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ParticipantOnboardingStatus' }, scheduleWorkspaceRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'OnboardingEvent' }, scheduleWorkspaceRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'GroupPrayerFocus' }, scheduleWorkspaceRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'GroupPrayerStatus' }, scheduleWorkspaceRefresh)
-      // Hub activity — refresh just the unread-dot check, not the whole workspace.
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'HubTopic' }, () => { void refreshHubActivity(); })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'HubComment' }, () => { void refreshHubActivity(); })
-      .subscribe((status: string) => {
-        if (status === 'SUBSCRIBED') {
-          setRealtimeHealthy(true);
-          return;
-        }
-
-        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-          setRealtimeHealthy(false);
-        }
-      });
-
-    // The Notification table is closed to the public key, so the bell can no longer
-    // listen to it live. Check for new ones every 10 seconds while the app is in
-    // view, and as soon as it comes back to the front.
     seenNotificationIdsRef.current = null; // a different person: start fresh
-    const pollNotifications = () => {
-      if (document.visibilityState === 'visible') void refreshNotifications().catch(() => {});
-    };
-    const notificationTimer = window.setInterval(pollNotifications, 10000);
-    // Back in view: check notifications, and do any workspace refresh that came in while hidden.
-    const onBackInView = () => {
-      pollNotifications();
-      if (document.visibilityState === 'visible' && refreshPendingWhileHiddenRef.current) {
-        refreshPendingWhileHiddenRef.current = false;
-        scheduleWorkspaceRefresh();
-      }
-    };
-    document.addEventListener('visibilitychange', onBackInView);
-
-    return () => {
-      if (refreshTimeoutRef.current) {
-        window.clearTimeout(refreshTimeoutRef.current);
-      }
-      setRealtimeHealthy(false);
-      (supabase as any).removeChannel(channel);
-      window.clearInterval(notificationTimer);
-      document.removeEventListener('visibilitychange', onBackInView);
-    };
-    // Depend on user.id (not the whole user object) so avatar/theme updates that
-    // replace the user object don't tear down and rebuild the realtime channel.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refreshHubActivity, refreshNotifications, refreshUserCohorts, scheduleWorkspaceRefresh, user?.id]);
-
-  // Live updates are down: fall back to polling, but only while the tab is in view.
-  usePolling(() => {
-    refreshWorkspaceData();
-    return refreshNotifications();
-  }, user && !realtimeHealthy ? 15000 : null);
+  }, [user?.id]);
+  usePolling(() => refreshNotifications(), user ? 30000 : null);
+  // The Community unread dot.
+  usePolling(() => refreshHubActivity(), user ? 60000 : null);
 
   // A support whose cohort list changes (e.g. Practice switched on for them) sees
   // it in their cohort menu straight away, without reloading.
@@ -547,7 +453,6 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     refreshPendingChanges,
     handlePendingApprove,
     handlePendingReject,
-    realtimeHealthy,
     newResourceCount,
     refreshResourceCount,
     markResourcesViewed,
@@ -575,7 +480,6 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     liveNotificationTitle,
     dismissLiveNotification,
     pendingChangesForSelectedWeek,
-    realtimeHealthy,
     refreshPendingChanges,
     refreshResourceCount,
     rejectedChanges,

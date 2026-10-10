@@ -17,7 +17,8 @@ export const useGroupMeetingLive = (groupId: string | null | undefined) => {
     const load = () => {
       meetingAttendanceApi.getLiveForGroup(groupId)
         .then((result) => { if (!cancelled) setLive(result); })
-        .catch(() => { if (!cancelled) setLive(null); });
+        // A failed check (busy server, bad signal) keeps what was last known rather than hiding a meeting that is on.
+        .catch(() => { /* keep the last value */ });
     };
     load();
     const stopPolling = startPolling(load, 60000);

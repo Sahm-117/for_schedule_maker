@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { usePolling } from '../../hooks/usePolling';
 import React, { useCallback, useEffect, useState } from 'react';
 import { practiceApi } from '../../services/api';
 import { useToast } from '../Toast';
@@ -16,11 +17,8 @@ const PracticeModeCard: React.FC = () => {
     practiceApi.getStatus().then((next) => setStatus((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next))).catch(() => {});
   }, []);
 
-  useEffect(() => {
-    load();
-    const timer = window.setInterval(() => { if (document.visibilityState === 'visible') load(); }, 10000);
-    return () => window.clearInterval(timer);
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
+  usePolling(load, 10000);
 
   const toggle = async () => {
     if (!status || busy) return;
