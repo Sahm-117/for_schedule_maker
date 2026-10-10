@@ -5,6 +5,7 @@ import SegmentedTabs from '../components/SegmentedTabs';
 import AppSelect from '../components/AppSelect';
 import FilterBar, { type FilterGroup, type FilterValues } from '../components/filters/FilterBar';
 import Spinner from '../components/Spinner';
+import BirthdayGraphicSheet from '../components/BirthdayGraphicSheet';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import { birthdaysApi } from '../services/api';
@@ -53,6 +54,7 @@ const AdminBirthdaysPage: React.FC = () => {
   const [data, setData] = useState<BirthdayList | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [graphicFor, setGraphicFor] = useState<BirthdayPerson | null>(null);
 
   // Start on the cohort being worked in; "All cohorts" is one tap away.
   useEffect(() => { if (activeCohort?.id) setCohortId((prev) => prev || activeCohort.id); }, [activeCohort?.id]);
@@ -87,6 +89,8 @@ const AdminBirthdaysPage: React.FC = () => {
     { key: 'when', label: 'How soon', options: GROUPS.map((g) => ({ value: g.label, label: g.label, count: all.filter((p) => fits('when', g.label, p)).length })) },
     { key: 'month', label: 'Month', options: MONTHS.map((m, i) => ({ value: String(i + 1), label: m, count: all.filter((p) => fits('month', String(i + 1), p)).length })) },
   ];
+  // Nudge towards whoever is celebrating next (within a fortnight) on the tab being looked at.
+  const suggestion = all.find((p) => p.daysUntil <= 14) ?? null;
   const missing = data ? (tab === 'supports' ? data.missing.supports : data.missing.participants) : 0;
   const todayMonth = data ? Number(data.today.slice(5, 7)) : 0;
 
@@ -136,6 +140,16 @@ const AdminBirthdaysPage: React.FC = () => {
         <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</p>
       ) : (
         <>
+          {suggestion && !filtering && (
+            <div className="mb-5 flex items-center gap-3 rounded-2xl bg-gradient-to-br from-[#fff1e6] to-[#ffe3cc] p-4 shadow-[0_8px_24px_-14px_rgba(194,65,12,0.45)]">
+              <span className="text-2xl" aria-hidden="true">🎈</span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-[#9a4a12]">{suggestion.daysUntil === 0 ? 'Celebrating today' : `Next up · ${countdown(suggestion.daysUntil)}`}</p>
+                <p className="truncate text-[15px] font-semibold text-gray-900">{suggestion.name}</p>
+              </div>
+              <button type="button" onClick={() => setGraphicFor(suggestion)} className="flex-none rounded-full bg-primary px-4 py-2 text-[13px] font-semibold text-white shadow-sm">Make graphic</button>
+            </div>
+          )}
           {list.length === 0 ? (
             <p className="rounded-2xl bg-white px-4 py-10 text-center text-sm text-gray-500">{filtering ? 'No one matches that search.' : 'No birthdays on file for this view yet.'}</p>
           ) : (
@@ -156,6 +170,7 @@ const AdminBirthdaysPage: React.FC = () => {
                             {p.cohorts.length > 0 && <p className="truncate text-[11.5px] text-gray-400">{p.cohorts.slice(0, 2).join(' · ')}</p>}
                           </div>
                           <span className={`flex-none rounded-full px-3 py-1 text-[12px] font-semibold ${pillTone(p.daysUntil)}`}>{countdown(p.daysUntil)}</span>
+                          <button type="button" onClick={() => setGraphicFor(p)} aria-label={`Make a birthday graphic for ${p.name}`} title="Make birthday graphic" className="grid h-9 w-9 flex-none place-items-center rounded-full bg-gray-100 text-base text-gray-700 hover:bg-[#fff1e6]">🎈</button>
                         </li>
                       ))}
                     </ul>
@@ -171,6 +186,7 @@ const AdminBirthdaysPage: React.FC = () => {
           )}
         </>
       )}
+      {graphicFor && <BirthdayGraphicSheet person={graphicFor} onClose={() => setGraphicFor(null)} />}
     </div>
   );
 };

@@ -2080,6 +2080,7 @@ export interface BirthdayPerson {
   /** 0 = today. */
   daysUntil: number;
   cohorts: string[];
+  avatarUrl?: string | null;
 }
 
 export interface BirthdayList {
