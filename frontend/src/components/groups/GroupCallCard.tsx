@@ -117,7 +117,9 @@ export const MeetingCallCard: React.FC<MeetingCallCardProps> = ({
       return;
     }
     // The back-office limits (Settings > Group call limits); admin-set meetings are not held to them.
-    const problem = anySlot ? null : meetingSlotProblem(slotDraft, limits);
+    // Only a changed day or time is judged, so a group already outside the limits can still have its link edited.
+    const slotChanged = slotDraft.meetingDay !== slot.meetingDay || slotDraft.meetingTime !== slot.meetingTime;
+    const problem = anySlot || !slotChanged ? null : meetingSlotProblem(slotDraft, limits);
     if (problem) { setError(problem); return; }
     setSaving(true);
     setError('');
@@ -159,7 +161,7 @@ export const MeetingCallCard: React.FC<MeetingCallCardProps> = ({
               <div>
               <div className="mb-1.5 flex items-center gap-2">
                 <span className="text-[13px] font-semibold text-gray-900">Day and time</span>
-                <InfoTip label="Meeting time rules">{anySlot ? 'Admins can set any day, time and length.' : describeMeetingLimits(limits)}</InfoTip>
+                <InfoTip label="Meeting time rules">{anySlot ? 'Admins can set any day and time.' : describeMeetingLimits(limits)}</InfoTip>
               </div>
               <GroupMeetingSlotEditor value={slotDraft} onChange={setSlotDraft} anySlot={anySlot} />
               </div>
@@ -181,7 +183,7 @@ export const MeetingCallCard: React.FC<MeetingCallCardProps> = ({
         </div>
       ) : !hasSetup ? (
         canEdit ? (
-          <button type="button" onClick={startEditing} className="min-h-11 text-sm font-semibold text-primary">Set up meeting</button>
+          <button type="button" onClick={startEditing} className="min-h-[46px] w-full rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white">Set up meeting</button>
         ) : (
           <p className="text-sm text-gray-400">Meeting time not set yet.</p>
         )

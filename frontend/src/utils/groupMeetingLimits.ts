@@ -1,31 +1,31 @@
 // Back-office limits on when a group's call can be set (Settings > Group call limits). The same rules are checked by the
 // database (group_meeting_limits_guard) for supports; admins are not held to them.
 
-export interface GroupMeetingLimits {
-  /** Allowed days, as the group stores them: 'WEDNESDAY'. */
-  days: string[];
+export interface DayWindow {
   /** Earliest start, 'HH:MM' (24 hour). */
   earliestStart: string;
-  /** The call must be over by this time, 'HH:MM'. */
-  latestEnd: string;
-  /** Allowed lengths in minutes. */
-  durations: number[];
+  /** Latest start, 'HH:MM'. */
+  latestStart: string;
+}
+
+export interface GroupMeetingLimits extends DayWindow {
+  /** Allowed days, as the group stores them: 'WEDNESDAY'. */
+  days: string[];
+  /** Own earliest/latest start for a day; a day without an entry uses the top-level window. */
+  dayTimes: Record<string, DayWindow>;
 }
 
 export const DEFAULT_GROUP_MEETING_LIMITS: GroupMeetingLimits = {
   days: ['WEDNESDAY', 'FRIDAY', 'SATURDAY'],
   earliestStart: '17:00',
-  latestEnd: '21:00',
-  durations: [45, 60],
+  latestStart: '21:00',
+  dayTimes: {},
 };
 
 export const MEETING_DAYS: Array<{ value: string; label: string }> = [
   { value: 'MONDAY', label: 'Monday' }, { value: 'TUESDAY', label: 'Tuesday' }, { value: 'WEDNESDAY', label: 'Wednesday' },
   { value: 'THURSDAY', label: 'Thursday' }, { value: 'FRIDAY', label: 'Friday' }, { value: 'SATURDAY', label: 'Saturday' }, { value: 'SUNDAY', label: 'Sunday' },
 ];
-
-/** Lengths an admin can allow. */
-export const MEETING_DURATION_CHOICES = [30, 45, 60, 75, 90, 120];
 
 export const toMinutes = (hhmm: string): number => {
   const [h, m] = hhmm.split(':').map(Number);
@@ -42,47 +42,66 @@ export const formatClock = (hhmm: string): string => {
   return `${h12}:${pad(m || 0)} ${ampm}`;
 };
 
-export const formatDuration = (mins: number): string => (mins < 60 ? `${mins} minutes` : mins === 60 ? '1 hour' : mins % 60 === 0 ? `${mins / 60} hours` : `${Math.floor(mins / 60)} h ${mins % 60} min`);
-
 const dayLabel = (value: string) => MEETING_DAYS.find((d) => d.value === value)?.label ?? value;
 
-/** Accepts whatever is stored and returns usable limits (the defaults for anything missing or unusable). */
-export const normalizeMeetingLimits = (raw: unknown): GroupMeetingLimits => {
-  const r = (raw ?? {}) as Partial<GroupMeetingLimits>;
-  const days = Array.isArray(r.days) ? MEETING_DAYS.map((d) => d.value).filter((d) => r.days!.includes(d)) : [];
-  const durations = Array.isArray(r.durations) ? [...new Set(r.durations.map(Number).filter((n) => Number.isFinite(n) && n > 0))].sort((a, b) => a - b) : [];
-  const ok = (t: unknown): t is string => typeof t === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(t);
-  const limits: GroupMeetingLimits = {
-    days: days.length ? days : DEFAULT_GROUP_MEETING_LIMITS.days,
-    earliestStart: ok(r.earliestStart) ? r.earliestStart : DEFAULT_GROUP_MEETING_LIMITS.earliestStart,
-    latestEnd: ok(r.latestEnd) ? r.latestEnd : DEFAULT_GROUP_MEETING_LIMITS.latestEnd,
-    durations: durations.length ? durations : DEFAULT_GROUP_MEETING_LIMITS.durations,
-  };
-  // A window too short for even the shortest allowed length would leave nothing to pick: fall back.
-  return toMinutes(limits.earliestStart) + limits.durations[0] > toMinutes(limits.latestEnd) ? DEFAULT_GROUP_MEETING_LIMITS : limits;
+const isClock = (t: unknown): t is string => typeof t === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(t);
+
+/** A window with both times valid and the start not after the latest start, otherwise null. */
+const toWindow = (raw: unknown, legacyEnd?: unknown): DayWindow | null => {
+  const r = (raw ?? {}) as { earliestStart?: unknown; latestStart?: unknown };
+  const latest = isClock(r.latestStart) ? r.latestStart : legacyEnd;
+  return isClock(r.earliestStart) && isClock(latest) && toMinutes(r.earliestStart) <= toMinutes(latest) ? { earliestStart: r.earliestStart, latestStart: latest } : null;
 };
 
-/** Start times (15-minute steps) a support can pick: from the earliest start to the latest one that still ends in time for the shortest allowed length. */
-export const startTimeOptions = (limits: GroupMeetingLimits): Array<{ value: string; label: string }> => {
+/** Accepts whatever is stored and returns usable limits (the defaults for anything missing or unusable). A row saved before
+ *  call lengths were dropped has a "latestEnd": it is read as the latest start. */
+export const normalizeMeetingLimits = (raw: unknown): GroupMeetingLimits => {
+  const r = (raw ?? {}) as Partial<GroupMeetingLimits> & { latestEnd?: unknown };
+  const days = Array.isArray(r.days) ? MEETING_DAYS.map((d) => d.value).filter((d) => r.days!.includes(d)) : [];
+  const base = toWindow(r, r.latestEnd) ?? { earliestStart: DEFAULT_GROUP_MEETING_LIMITS.earliestStart, latestStart: DEFAULT_GROUP_MEETING_LIMITS.latestStart };
+  const dayTimes: Record<string, DayWindow> = {};
+  const rawDayTimes = (r.dayTimes && typeof r.dayTimes === 'object' ? r.dayTimes : {}) as Record<string, unknown>;
+  for (const d of MEETING_DAYS) {
+    const w = toWindow(rawDayTimes[d.value]);
+    if (w) dayTimes[d.value] = w;
+  }
+  return { days: days.length ? days : DEFAULT_GROUP_MEETING_LIMITS.days, ...base, dayTimes };
+};
+
+/** The earliest and latest start for one day. */
+export const windowForDay = (limits: GroupMeetingLimits, day: string | null | undefined): DayWindow =>
+  (day ? limits.dayTimes[day] : undefined) ?? { earliestStart: limits.earliestStart, latestStart: limits.latestStart };
+
+/** Start times (15-minute steps) a support can pick on a day. */
+export const startTimeOptions = (limits: GroupMeetingLimits, day: string | null | undefined): Array<{ value: string; label: string }> => {
+  const w = windowForDay(limits, day);
   const out: Array<{ value: string; label: string }> = [];
-  const last = toMinutes(limits.latestEnd) - limits.durations[0];
-  for (let t = toMinutes(limits.earliestStart); t <= last; t += 15) out.push({ value: fromMinutes(t), label: formatClock(fromMinutes(t)) });
+  for (let t = toMinutes(w.earliestStart); t <= toMinutes(w.latestStart); t += 15) out.push({ value: fromMinutes(t), label: formatClock(fromMinutes(t)) });
   return out;
 };
 
-/** A sentence for the "Meeting time rules" hint. */
-export const describeMeetingLimits = (limits: GroupMeetingLimits): string =>
-  `Group calls can be on ${limits.days.map(dayLabel).join(', ')}, starting at ${formatClock(limits.earliestStart)} or later and finishing by ${formatClock(limits.latestEnd)}, for ${limits.durations.map(formatDuration).join(' or ')}.`;
+const sameWindow = (a: DayWindow, b: DayWindow) => a.earliestStart === b.earliestStart && a.latestStart === b.latestStart;
+
+/** A sentence for the "Meeting time rules" hint and the Settings summary: days sharing the same times are grouped. */
+export const describeMeetingLimits = (limits: GroupMeetingLimits): string => {
+  const groups: Array<{ w: DayWindow; days: string[] }> = [];
+  for (const d of limits.days) {
+    const w = windowForDay(limits, d);
+    const g = groups.find((x) => sameWindow(x.w, w));
+    if (g) g.days.push(d); else groups.push({ w, days: [d] });
+  }
+  const parts = groups.map((g) => `${g.days.map(dayLabel).join(', ')}, starting between ${formatClock(g.w.earliestStart)} and ${formatClock(g.w.latestStart)}`);
+  return `Group calls can be on ${parts.join('; ')}.`;
+};
 
 /** null when the slot fits the limits (or is not a full slot yet), otherwise what to tell the person. */
-export const meetingSlotProblem = (slot: { meetingDay: string | null; meetingTime: string | null; meetingDurationMins: number | null }, limits: GroupMeetingLimits): string | null => {
+export const meetingSlotProblem = (slot: { meetingDay: string | null; meetingTime: string | null }, limits: GroupMeetingLimits): string | null => {
   if (slot.meetingDay && !limits.days.includes(slot.meetingDay)) return `Group calls can only be on ${limits.days.map(dayLabel).join(', ')}.`;
-  if (slot.meetingDurationMins && !limits.durations.includes(slot.meetingDurationMins)) return `Group calls can only run for ${limits.durations.map(formatDuration).join(' or ')}.`;
   if (slot.meetingTime) {
+    const w = windowForDay(limits, slot.meetingDay);
     const start = toMinutes(slot.meetingTime);
-    const length = slot.meetingDurationMins ?? limits.durations[0];
-    if (start < toMinutes(limits.earliestStart) || start + length > toMinutes(limits.latestEnd)) {
-      return `Group calls must start at ${formatClock(limits.earliestStart)} or later and finish by ${formatClock(limits.latestEnd)}.`;
+    if (start < toMinutes(w.earliestStart) || start > toMinutes(w.latestStart)) {
+      return `${slot.meetingDay ? `${dayLabel(slot.meetingDay)} calls` : 'Group calls'} must start between ${formatClock(w.earliestStart)} and ${formatClock(w.latestStart)}.`;
     }
   }
   return null;
