@@ -512,28 +512,64 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
             <StaffDiscussionPanel key={selectedGroupId} groupId={selectedGroupId} viewerName={user.name} viewerAvatarUrl={user.avatarUrl} />
           ) : activeTab === 'faith' ? (
             <div className="space-y-3">
-            {showOnboarding && selectedParticipants.length > 0 && (
-              <section data-wt="onb-steps" className="rounded-[18px] border border-[#eef0f4] bg-white p-4 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-[13px] font-semibold text-gray-700">{onboarding ? `${readyCount} of ${selectedParticipants.length} ready` : 'Loading…'}</p>
-                  <button
-                    type="button"
-                    data-wt="onb-intro-btn"
-                    onClick={openIntroductions}
-                    disabled={!onboarding}
-                    className="min-h-[36px] rounded-full bg-primary px-4 text-[13px] font-semibold text-white disabled:opacity-60"
-                  >
-                    {onboardingGroup?.supportIntroPosted ? 'View introductions' : 'Start introductions'}
-                  </button>
-                </div>
-                <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-neutral-100">
-                  <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${readyPercent}%` }} />
-                </div>
-                {onboarding && !onboardingGroup?.supportIntroPosted && (
-                  <p className="mt-2.5 text-[12.5px] text-gray-500">Your group can&apos;t introduce themselves until you have.</p>
-                )}
-              </section>
-            )}
+            {showOnboarding && (() => {
+              if (!onboarding) {
+                return <section data-wt="onb-steps" className="rounded-[18px] border border-[#eef0f4] bg-white p-4 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]"><p className="text-[13px] font-semibold text-gray-700">Loading…</p></section>;
+              }
+              const introDone = !!onboardingGroup?.supportIntroPosted;
+              const everyoneReady = selectedParticipants.length > 0 && readyCount === selectedParticipants.length;
+              const meetingDone = !!selectedGroupData?.callLink?.trim() && !!selectedGroupData?.meetingDay && !!selectedGroupData?.meetingTime;
+              if (introDone && everyoneReady && meetingDone) {
+                return (
+                  <section data-wt="onb-steps" className="flex items-center gap-2.5 rounded-[18px] border border-[#eef0f4] bg-white px-4 py-3 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
+                    <span className="flex h-5 w-5 flex-none items-center justify-center rounded-full bg-emerald-500 text-white"><svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="m5 13 4 4L19 7" /></svg></span>
+                    <p className="min-w-0 flex-1 text-[13px] font-semibold text-gray-700">Onboarding complete</p>
+                    <button type="button" data-wt="onb-intro-btn" onClick={openIntroductions} className="flex-none text-[12.5px] font-semibold text-primary">View introductions</button>
+                  </section>
+                );
+              }
+              const steps = [
+                { key: 'intro', done: introDone, label: 'Introduce yourself', note: introDone ? null : 'Your group can\u2019t introduce themselves until you have.', action: { label: 'Start introductions', onClick: openIntroductions } },
+                { key: 'ready', done: everyoneReady, label: 'Ensure your participants complete their onboarding steps', note: selectedParticipants.length > 0 ? `${readyCount} of ${selectedParticipants.length} ready` : null, action: null },
+                { key: 'meeting', done: meetingDone, label: 'Set meeting time', note: null, action: { label: 'Open Meetings', onClick: () => selectTab('prayers') } },
+              ];
+              return (
+                <section data-wt="onb-steps" className="rounded-[18px] border border-[#eef0f4] bg-white p-4 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
+                  <p className="text-[13px] font-semibold text-gray-700">Your onboarding steps</p>
+                  <ul className="mt-3 space-y-3">
+                    {steps.map((step) => (
+                      <li key={step.key} data-step={step.key} data-done={step.done} className="flex items-start gap-3">
+                        <span className={`mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-full ${step.done ? 'bg-emerald-500 text-white' : 'border-2 border-neutral-300'}`}>
+                          {step.done && <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="m5 13 4 4L19 7" /></svg>}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className={`text-[14px] font-semibold ${step.done ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{step.label}</p>
+                          {step.key === 'ready' && selectedParticipants.length > 0 && (
+                            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-neutral-100">
+                              <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${readyPercent}%` }} />
+                            </div>
+                          )}
+                          {step.note && <p className="mt-1 text-[12.5px] text-gray-500">{step.note}</p>}
+                          {!step.done && step.action && (
+                            <button
+                              type="button"
+                              data-wt={step.key === 'intro' ? 'onb-intro-btn' : undefined}
+                              onClick={step.action.onClick}
+                              className="mt-2 min-h-[36px] rounded-full bg-primary px-4 text-[13px] font-semibold text-white"
+                            >
+                              {step.action.label}
+                            </button>
+                          )}
+                          {step.key === 'intro' && step.done && (
+                            <button type="button" onClick={openIntroductions} className="mt-1 text-[12.5px] font-semibold text-primary">View introductions</button>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              );
+            })()}
             {selectedParticipants.length === 0 ? (
               <div className="rounded-[18px] border border-dashed border-orange-200 bg-white py-12 text-center text-sm text-gray-500">
                 No participants are in this group yet.

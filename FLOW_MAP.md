@@ -633,7 +633,9 @@ duplicating the logic anywhere else is a bug waiting to happen.
 
 57. **A support sees onboarding on My Group → People, not on a page of its own.** Each person's card shows the five
     steps (Intro / Map / Guide / Profile / Ready) from `groupDiscussionApi.onboardingProgress`, or just Ready once
-    `completed`; the "x of y ready" bar and Start / View introductions sit at the top of People. The support Onboard
+    `completed`. At the top of People a "Your onboarding steps" checklist shows the support's own three steps: Introduce yourself
+    (`supportIntroPosted`), Ensure your participants complete their onboarding steps ("x of y ready"), and Set meeting time (done only
+    when the group has a call link, day and time, same as `GroupCallCard`); all three done collapses it to "Onboarding complete". The support Onboard
     menu item is gone and `/support/onboarding` redirects to `/support/participants?tab=faith`
     (`SupportOnboardingPage.tsx` is unused). Teen groups show none of it (rule 22). The tab is kept in the address
     (`?tab=`), which the Practice "visit" steps read. The card's "Not seen in the app yet" only shows once
