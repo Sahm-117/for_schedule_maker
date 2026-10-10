@@ -1005,7 +1005,7 @@ Deno.serve(async (req) => {
       //    ahead (the loop above starts a day before the start, too late for this).
       //    Tag is per day and the 10-minute window is narrow, so a missed run never
       //    turns into a backlog. Lists only what each person still has to do.
-      if (pNowMinutes >= 19 * 60 && pNowMinutes < 19 * 60 + 10) {
+      if (pNowMinutes >= 19 * 60 && pNowMinutes < 19 * 60 + 10 && pToday !== '2026-10-10') {
         const readyCohortId = onlyCohortId ?? await getCurrentProgrammeCohortId()
         const { data: readyCohorts } = readyCohortId
           ? await supabase.from('Cohort').select('id, startDate, status').eq('id', readyCohortId)
@@ -1053,6 +1053,59 @@ Deno.serve(async (req) => {
           }
           for (const [body, participantIds] of byBody) {
             await pushParticipants(participantIds, { title: 'Get ready for FOF', body, path: '/me', tag: `GET_READY:${pToday}` })
+          }
+        }
+      }
+
+      // h) One-off onboarding nudges on Saturday 10 Oct 2026: 6:00 pm "have you introduced yourself?" (also tells people to
+      //    message their support) and 8:00 pm "here is what is still open" with the readiness badge. Everyone with an active
+      //    account in the running cohort who has not attended or completed is considered; each person only gets what applies.
+      //    The 7pm "Get ready" above is skipped on this day so nobody gets three in two hours.
+      if (pToday === '2026-10-10' && ((pNowMinutes >= 18 * 60 && pNowMinutes < 18 * 60 + 10) || (pNowMinutes >= 20 * 60 && pNowMinutes < 20 * 60 + 10))) {
+        const nudgeCohortId = onlyCohortId ?? await getCurrentProgrammeCohortId()
+        if (nudgeCohortId) {
+          const { data: accounts } = await supabase
+            .from('ParticipantAccount').select('participantId, participant:Participant!inner(id, cohortId, status)')
+            .eq('isActive', true).eq('participant.cohortId', nudgeCohortId).eq('participant.status', 'ACTIVE')
+          const ids = ((accounts ?? []) as any[]).map((a) => a.participantId)
+          if (ids.length > 0) {
+            const [{ data: stepRows }, stateList] = await Promise.all([
+              supabase.from('ParticipantReadyStep').select('participantId, step').in('participantId', ids),
+              Promise.all(ids.map(async (id: string) => {
+                const { data, error } = await supabase.rpc('participant_onboarding_state', { p_participant_id: id })
+                return [id, error ? null : (data as any)] as const
+              })),
+            ])
+            const doneSteps = new Set(((stepRows ?? []) as any[]).map((r) => `${r.participantId}:${r.step}`))
+            const states = new Map<string, any>(stateList)
+            if (pNowMinutes < 19 * 60) {
+              const needIntro = ids.filter((id) => { const st = states.get(id); return st && !st.completed && !st.hasAttended && !st.introPosted })
+              await pushParticipants(needIntro, {
+                title: 'Have you introduced yourself?',
+                body: 'Say hi in your group now, then message your support so they can welcome you.',
+                path: '/me/group',
+                tag: 'ONBOARD_NUDGE:2026-10-10:1800',
+              })
+            } else {
+              const byBody = new Map<string, string[]>()
+              for (const id of ids) {
+                const st = states.get(id)
+                if (!st || st.completed || st.hasAttended) continue
+                const guideRead = !!st.introGuideRead || doneSteps.has(`${id}:intro`)
+                const left: string[] = []
+                if (!st.introPosted) left.push('introduce yourself')
+                if (!guideRead) left.push('read the Intro Class guide')
+                if (!st.profileComplete) left.push('finish your profile')
+                if (!st.venueMapAcknowledged) left.push('check the venue map')
+                if (left.length === 0 && !st.readyConfirmed) left.push("confirm you're ready for class")
+                if (left.length === 0) continue
+                const body = `Almost there. Still to do: ${left.join(', ')}. Finish every step to earn your readiness badge.`
+                byBody.set(body, [...(byBody.get(body) ?? []), id])
+              }
+              for (const [body, group] of byBody) {
+                await pushParticipants(group, { title: 'Finish getting ready for FOF', body, path: '/me', tag: 'ONBOARD_NUDGE:2026-10-10:2000' })
+              }
+            }
           }
         }
       }

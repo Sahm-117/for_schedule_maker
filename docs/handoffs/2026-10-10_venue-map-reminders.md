@@ -17,3 +17,9 @@
 ## Open items
 - Cohort 10's week 2 class is on 25 Oct in the Planner (no class 18 Oct); the reminders still go out for 17/18 Oct as asked ("first two weeks"). Change `serviceDays` in `push-reminders` to follow class days if that is not wanted.
 - Review fixes: the map link's hook now sits above the early returns on the participant Home (it would have crashed the page while loading); the map opens even if the person's onboarding state is slow or fails (after 2.5 seconds); a null picture from the graphic sheets shows an error instead of dead buttons.
+
+## One-off onboarding nudges, Saturday 10 Oct 2026
+- `push-reminders` block h, only on `2026-10-10`: **6:00 pm** "Have you introduced yourself? Say hi in your group now, then message your support so they can welcome you." (only people who have not posted their introduction, not attended, not completed); **8:00 pm** "Finish getting ready for FOF: Almost there. Still to do: [their own open steps]. Finish every step to earn your readiness badge." (only people with something open). Opens `/me/group` and `/me`.
+- The regular 7:00 pm "Get ready" reminder is skipped on that day so nobody gets three in two hours. At 8:00 pm people also get the venue-map reminder (so two notifications that hour).
+- Deployed as **v46** (built from the live-matching version plus the two new blocks; the repo copy additionally has the roles change). Dry run only: 71 recipients at 6 pm, 71 at 8 pm in five wordings. Not tested: a real send.
+- Remove block h and the `pToday !== '2026-10-10'` guard after today; they do nothing on other days.
