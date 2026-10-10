@@ -41,6 +41,11 @@ fire-and-forget, so a failed send inside `notify-users` is not noticed by the jo
 Name in prayers is the **first name** (`{{NAME}}` capitals, `{{Name}}` as written). Hubs pray for **anyone** in the cohort not opted out, **one person per hub per faith-project slot**; people with no hub share a `NO_HUB` target. Verse slots are always **one person for everyone** and never show the project.
 **Admins who also hold the Support role are counted**; plain admins are not. The verse library is **global** (shared by every cohort), the cycling position is per slot. Join window defaults to 15 minutes. Supports are never the person prayed for.
 
+## Gotchas
+- Fixed 10 Oct: `CorporatePrayerSkip` had keys to both `Participant` and `Cohort`, which made `Participant ... cohort:Cohort(name)` ambiguous (`PGRST201`) and broke the Dashboard
+  registration cards and any other page embedding a participant's cohort, from the migration until the fix. Its `cohortId` key was dropped
+  (`20261012090000_prayer_skip_drop_cohort_fk.sql`, applied live; the column stays). FLOW_MAP rule 55. My SQL tests missed it because they ran SQL, not the API.
+
 ## Open items
 - **Load at slot time.** Everyone opens within about a minute of the push. The screen loads from one call, the timer runs on the phone, counts poll every 10 s with jitter (visible tabs only), writes are two per person. Still, watch the Supabase usage page the first few days and be ready to slow the 10 s count poll.
 - The Home banner and live pop-up rely on a one-minute signal poll per open app (`corporate_prayer_signal`, tiny, visible tabs only). Someone with the app closed gets the push and bell row; opening the app within the window shows the banner.

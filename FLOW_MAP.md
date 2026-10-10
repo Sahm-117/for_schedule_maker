@@ -603,6 +603,11 @@ duplicating the logic anywhere else is a bug waiting to happen.
     (priority 28) that cannot be closed: "Prayed" unlocks N minutes after the Telegram link tap (`CorporatePrayerSetting.liveWaitMinutes`), with an exit after ten minutes if the link would not
     open; it never appears without a Telegram link. Notifications go through `notify-users` (both channels, rule 10). Tables are locked outright; every function takes `p_token`, admin
     functions need an ADMIN session. Source: `20261011100000_corporate_prayers.sql`, `docs/specs/corporate-prayers-admin.md`.
+55. **A new table must not give two existing tables a second route between them.** The app reads related rows with embeds such as `cohort:Cohort(name)` on `Participant`.
+    A table with foreign keys to BOTH tables counts as a many-to-many route, the embed turns ambiguous (`PGRST201`) and every page using it fails, while the SQL itself looks fine.
+    `CorporatePrayerSkip` did this to `Participant` and `Cohort` for a day (Dashboard registration cards failed); its `cohortId` key was dropped
+    (`20261012090000_prayer_skip_drop_cohort_fk.sql`). Before adding a table, check it has no two foreign keys to tables that are already embedded together; keep one as a plain column,
+    then replay the real embed through the API with a test session.
 
 ## 5. Edge functions and schedules
 
