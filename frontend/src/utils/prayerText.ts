@@ -39,6 +39,8 @@ export const initialsOf = (name: string) => name.trim().split(/\s+/).slice(0, 2)
 const GRADIENTS = [
   ['#f97316', '#db2777'], ['#0ea5e9', '#6366f1'], ['#10b981', '#0ea5e9'], ['#a855f7', '#ec4899'], ['#f59e0b', '#ef4444'], ['#14b8a6', '#3b82f6'],
 ];
+/** The colour pair at a position, wrapping round: neighbouring numbers get different colours. */
+export const gradientAt = (index: number): [string, string] => GRADIENTS[((index % GRADIENTS.length) + GRADIENTS.length) % GRADIENTS.length] as [string, string];
 /** A steady colour pair for a person, so their circle looks the same every time. */
 export const gradientFor = (name: string): [string, string] => {
   let hash = 0;
