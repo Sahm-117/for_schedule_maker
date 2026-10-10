@@ -10,7 +10,7 @@
  * Reads AppSetting.remind_before_minutes to know which reminder intervals are
  * active, then sends Web Push to supports whose activities fall within each
  * window. Participants also get class nudges, group call and recap reminders,
- * and a 7pm "Get ready" until their first class. Supports also get a "no activity"
+ * a 7pm "Get ready" until their first class, and "view the venue map" on the Saturday (5pm, 8pm) and Sunday (6am) of the first two FOF Sundays. Supports also get a "no activity"
  * nudge (9am, 12pm, 4pm, 9pm) on follow-ups untouched 24 hours after assignment. All timing is derived in Africa/Lagos, never server-local: edge
  * functions run UTC and the users do not.
  *
@@ -1053,6 +1053,47 @@ Deno.serve(async (req) => {
           }
           for (const [body, participantIds] of byBody) {
             await pushParticipants(participantIds, { title: 'Get ready for FOF', body, path: '/me', tag: `GET_READY:${pToday}` })
+          }
+        }
+      }
+
+      // g) "View the venue map" for the first two FOF Sundays: Saturday 5:00 pm and 8:00 pm, then Sunday 6:00 am.
+      //    Everyone with an active account in the running cohort gets it, whether or not they have opened the map
+      //    before, because the point is to know where to go after first service. Tag is per service day and slot,
+      //    and each window is one 10-minute cron run wide, so a missed run never becomes a backlog.
+      //    "First two weeks" = the first two Sundays from the cohort's start date.
+      {
+        const VENUE_SLOTS = [
+          { code: '1700', minute: 17 * 60, dayIndex: 6, daysAhead: 1 },
+          { code: '2000', minute: 20 * 60, dayIndex: 6, daysAhead: 1 },
+          { code: '0600', minute: 6 * 60, dayIndex: 0, daysAhead: 0 },
+        ]
+        const slot = VENUE_SLOTS.find((v) => pDayIndex === v.dayIndex && pNowMinutes >= v.minute && pNowMinutes < v.minute + 10)
+        const mapCohortId = slot ? (onlyCohortId ?? await getCurrentProgrammeCohortId()) : null
+        if (slot && mapCohortId) {
+          const serviceIso = addLagosDays(pToday, slot.daysAhead)
+          const { data: mapCohort } = await supabase.from('Cohort').select('id, startDate, status').eq('id', mapCohortId).maybeSingle()
+          if (mapCohort?.startDate && (mapCohort as any).status !== 'COMPLETED') {
+            const startIso = String((mapCohort as any).startDate).slice(0, 10)
+            // The first two Sundays from the cohort's start date, wherever the Planner puts the classes.
+            const serviceDays = new Set([startIso, addLagosDays(startIso, 7)])
+            if (serviceDays.has(serviceIso)) {
+              const { data: accounts } = await supabase
+                .from('ParticipantAccount').select('participantId, participant:Participant!inner(id, cohortId, status)')
+                .eq('isActive', true).eq('participant.cohortId', mapCohortId).eq('participant.status', 'ACTIVE')
+              const ids = ((accounts ?? []) as any[]).map((a) => a.participantId)
+              if (ids.length > 0) {
+                const sunday = slot.daysAhead === 0
+                await pushParticipants(ids, {
+                  title: sunday ? 'Today at FOF' : 'Tomorrow at FOF',
+                  body: sunday
+                    ? 'After first service, head to the New VIP Lounge. Open the venue map now so you know the way.'
+                    : 'After first service, view the venue map so you know where to go.',
+                  path: '/me?map=1',
+                  tag: `VENUE_MAP:${serviceIso}:${slot.code}`,
+                })
+              }
+            }
           }
         }
       }

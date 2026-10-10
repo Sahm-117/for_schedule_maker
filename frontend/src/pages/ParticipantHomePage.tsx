@@ -101,7 +101,7 @@ const ParticipantHomePage: React.FC = () => {
   }, [readyId, readyPreStart]);
 
   // Arrived from a practice "Go there" link: bring the Get ready card into view.
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const wantsReady = searchParams.get('ready') === '1';
   const readyScrolled = useRef(false);
   const onboardingLoaded = !!onboarding;
@@ -202,6 +202,16 @@ const ParticipantHomePage: React.FC = () => {
   ] : [];
   const readyDone = readyItems.filter((item) => item.done).length;
   const allDone = readyItems.length > 0 && readyDone === readyItems.length;
+
+  // A "view the venue map" notification opens /me?map=1: show the map once the person's own state has loaded
+  // (so the tick starts right), then drop the flag so a refresh does not open it again.
+  useEffect(() => {
+    if (searchParams.get('map') !== '1' || !onboarding) return;
+    setMapOpen(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete('map');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams, onboarding]);
 
   const acknowledgeMap = async () => {
     await participantAppApi.ackVenueMap();
