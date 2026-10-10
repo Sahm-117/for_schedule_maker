@@ -13,7 +13,7 @@ Built from `docs/specs/corporate-prayers-admin.md` (Parts 2, 3 and 4 of the pray
 - Guide entries (admin, support, participant), page tour `admin:corporate-prayers`, FLOW_MAP rule 54.
 
 ## Live changes
-**Applied live on 11 Oct 2026** (Management API, one transaction): `supabase/migrations/20261011100000_corporate_prayers.sql`. It created 8 locked tables (`CorporatePrayerSlot`, `Verse`, `Setting`, `Session`, `Target`, `Checkin`, `Cycle`, `Skip`: row-level security on, the public key has no privileges on them),
+**Applied live on 10 Oct 2026** (Management API, one transaction): `supabase/migrations/20261011100000_corporate_prayers.sql`. It created 8 locked tables (`CorporatePrayerSlot`, `Verse`, `Setting`, `Session`, `Target`, `Checkin`, `Cycle`, `Skip`: row-level security on, the public key has no privileges on them),
 the functions (19 callable with a session token, 19 internal helpers the public key cannot call) and the cron job `corporate_prayer_slots_every_minute` (jobid 17, every minute; returns at once until a notifying slot exists).
 Checked live afterwards: the full 43-check scenario was run against the applied schema inside a transaction that always rolls back, and passed; the tables are empty, the cohort's dates and the Faith project settings are untouched, and no start week is set, so nothing runs and nobody is notified until an admin sets it up.
 The frontend was pushed after the migration, so the new functions exist when the page loads. No edge function is new or changed.
