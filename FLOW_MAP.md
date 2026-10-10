@@ -604,7 +604,8 @@ duplicating the logic anywhere else is a bug waiting to happen.
     Opening the prayer screen checks you in, Amen checks you out (`corporate_prayer_join` / `_amen`), counts are numbers only, polled slowly (rule 51). The LIVE slot is a required pop-up
     (priority 28) that cannot be closed: "Prayed" unlocks N minutes after the Telegram link tap (the slot's `liveWaitMinutes`), with an exit after ten minutes if the link would not
     open; a LIVE slot cannot be saved without a link, and different hubs get different links by having one LIVE slot each. Notifications go through `notify-users` (both channels, rule 10). Tables are locked outright; every function takes `p_token`, admin
-    functions need an ADMIN session. Admin-only `practice_send_test_prayer` opens a 30-minute test prayer in the Practice cohort (hidden test slot, never run by the clock) and notifies only the admin's practice participants and the admin.
+    functions need an ADMIN session. A verse that is part of a slot's template cannot be switched off (the admin is told which slot uses it and to update that slot first); only the exact-time hub clash is checked.
+    Admin-only `practice_send_test_prayer` opens a 30-minute test prayer in the Practice cohort (hidden test slot, never run by the clock) and notifies only the admin's practice participants and the admin.
     Source: `20261011100000_corporate_prayers.sql`, `20261014100000_corporate_prayers_templates.sql`, `docs/specs/corporate-prayers-admin.md`.
 55. **A new table must not give two existing tables a second route between them.** The app reads related rows with embeds such as `cohort:Cohort(name)` on `Participant`.
     A table with foreign keys to BOTH tables counts as a many-to-many route, the embed turns ambiguous (`PGRST201`) and every page using it fails, while the SQL itself looks fine.

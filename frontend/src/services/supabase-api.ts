@@ -9057,6 +9057,8 @@ const prayerError = (rawMessage: string | undefined, fallback: string): Error =>
     const who = clash[1].trim();
     return new Error(who === 'everyone' ? 'Another slot at this time already goes to everyone.' : `${who} already ${who.includes(',') ? 'have' : 'has'} a slot at this time.`);
   }
+  const inSlot = msg.match(/VERSE_IN_SLOT:\s*([^\n"]+)/);
+  if (inSlot) return new Error(`This verse is in the ${inSlot[1].trim()} slot. Update that slot to use a different verse first, then switch this one off.`);
   const known: Array<[string, string]> = [
     ['SLOT_TIME_TAKEN', 'Another slot is already at that time.'],
     ['SLOT_HAS_HISTORY', 'This slot has already run, so it can only be switched off.'],
