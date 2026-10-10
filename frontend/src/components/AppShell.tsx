@@ -199,7 +199,6 @@ const supportNav: NavItem[] = [
   { to: '/support/participants', label: 'My Group', mobileLabel: 'Group', icon: ICONS.participants, hiddenForHubOnly: true },
   { to: '/support/my-hub', label: 'My Hub', icon: ICONS.groups, mobileMore: true, hubOnly: true },
   { to: '/support/attendance', label: 'Attendance', icon: ICONS.attendance, mobileMore: true },
-  { to: '/support/onboarding', label: 'Onboard', icon: ICONS.onboarding, mobileMore: true },
   { to: '/support/community', label: 'Community', icon: ICONS.hub, mobileMore: true },
   { to: '/support/practice', label: 'Practice', icon: ICONS.practice, mobileMore: true, practiceOnly: true },
   { to: '/support/resources', label: 'Resources', icon: ICONS.resources, mobileMore: true },

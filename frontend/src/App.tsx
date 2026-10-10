@@ -75,7 +75,6 @@ const SupportResourcesPage = lazy(() => import('./pages/SupportResourcesPage'));
 const SupportPracticeEntryPage = lazy(() => import('./pages/SupportPracticeEntryPage'));
 const SupportProfilePage = lazy(() => import('./pages/SupportProfilePage'));
 const AdminOnboardingPage = lazy(() => import('./pages/AdminOnboardingPage'));
-const SupportOnboardingPage = lazy(() => import('./pages/SupportOnboardingPage'));
 const CommunityPage = lazy(() => import('./pages/CommunityPage'));
 
 const RouteFallback: React.FC = () => (
@@ -171,7 +170,7 @@ function App() {
             <Route path="/surveys" element={<Suspense fallback={<RouteFallback />}><AdminSurveysPage /></Suspense>} />
             <Route path="/surveys/:id" element={<Suspense fallback={<RouteFallback />}><AdminSurveyResultsPage /></Suspense>} />
             <Route path="/feedback" element={<Suspense fallback={<RouteFallback />}><AdminFeedbackPage /></Suspense>} />
-            <Route path="/support/onboarding" element={<Suspense fallback={<RouteFallback />}><SupportOnboardingPage /></Suspense>} />
+            <Route path="/support/onboarding" element={<Navigate to="/support/participants?tab=faith" replace />} />
             <Route path="/support/follow-ups" element={<Navigate to="/support/mobilisation?tab=follow" replace />} />
             <Route path="/support/mobilisation" element={<Suspense fallback={<RouteFallback />}><SupportMobilisationPage /></Suspense>} />
             <Route path="/support/attendance" element={<Suspense fallback={<RouteFallback />}><SupportAttendancePage /></Suspense>} />

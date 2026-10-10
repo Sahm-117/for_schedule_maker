@@ -12,9 +12,11 @@ type OverflowMenuItem = {
 interface AppOverflowMenuProps {
   items: OverflowMenuItem[];
   align?: 'left' | 'right';
+  /** A small quiet "⋯" for tight spots such as chat bubbles. */
+  compact?: boolean;
 }
 
-const AppOverflowMenu: React.FC<AppOverflowMenuProps> = ({ items, align = 'right' }) => {
+const AppOverflowMenu: React.FC<AppOverflowMenuProps> = ({ items, align = 'right', compact = false }) => {
   const [open, setOpen] = useState(false);
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -74,11 +76,13 @@ const AppOverflowMenu: React.FC<AppOverflowMenuProps> = ({ items, align = 'right
         ref={triggerRef}
         type="button"
         onPointerDown={() => setOpen((prev) => !prev)}
-        className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-orange-100 bg-white text-gray-500 shadow-sm transition hover:border-orange-200 hover:bg-orange-50 hover:text-gray-700"
+        className={compact
+          ? 'inline-flex h-6 w-6 items-center justify-center rounded-full text-gray-400 transition hover:bg-black/5 hover:text-gray-600'
+          : 'inline-flex h-9 w-9 items-center justify-center rounded-full border border-orange-100 bg-white text-gray-500 shadow-sm transition hover:border-orange-200 hover:bg-orange-50 hover:text-gray-700'}
         aria-label="More actions"
         title="More actions"
       >
-        <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+        <svg className={compact ? 'h-4 w-4' : 'h-5 w-5'} fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
           <path d="M10 4.25a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5Zm0 4.5a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5Zm-1.25 5.75a1.25 1.25 0 1 1 2.5 0 1.25 1.25 0 0 1-2.5 0Z" />
         </svg>
       </button>

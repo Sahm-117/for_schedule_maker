@@ -15,7 +15,7 @@ import PageLoader from '../components/PageLoader';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
 import { supportTagsApi, faithProjectsApi, faithProjectCategoriesApi, faithHelpRequestsApi, testimoniesApi, groupOnboardingStatusApi, groupDiscussionApi, groupPrayerFocusApi, groupPrayerStatusApi, groupsApi, participantHandoversApi, participantFlagsApi, participantNotesApi, participantsApi, participantPushApi, reflectionActivityApi, participantCheckInsApi } from '../services/api';
-import type { FaithHelpRequest, FaithProject, FaithProjectCategory, Group, GroupOnboardingStatus, GroupPrayerFocus, GroupPrayerStatus, Participant, ParticipantHandover, ParticipantFlag, ParticipantNote, RetakeMatch, Testimony, User, ParticipantAppInfo } from '../types';
+import type { FaithHelpRequest, FaithProject, FaithProjectCategory, Group, GroupOnboardingStatus, GroupPrayerFocus, GroupPrayerStatus, Participant, ParticipantHandover, ParticipantFlag, ParticipantNote, RetakeMatch, Testimony, User, ParticipantAppInfo, OnboardingProgress } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
 import { sortByText } from '../utils/sort';
 import Spinner from '../components/Spinner';
@@ -66,12 +66,18 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
   const [noAlertsIds, setNoAlertsIds] = useState<Set<string>>(new Set());
   const [notInstalledIds, setNotInstalledIds] = useState<Set<string>>(new Set());
   const [appDetails, setAppDetails] = useState<Record<string, ParticipantAppInfo>>({});
+  // Until these have loaded (or if they fail) a card must not claim someone was never seen.
+  const [appDetailsLoaded, setAppDetailsLoaded] = useState(false);
   const [noteParticipant, setNoteParticipant] = useState<Participant | null>(null);
   const [noteBody, setNoteBody] = useState('');
   const [savingNote, setSavingNote] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState('');
+  // Where each person stands on the onboarding steps (they tick themselves as they use the app).
+  const [onboardingResult, setOnboardingResult] = useState<{ groupId: string; progress: OnboardingProgress } | null>(null);
+  // Only ever the selected group's numbers: a result for another group is not shown while this one loads.
+  const onboarding = onboardingResult && onboardingResult.groupId === selectedGroupId ? onboardingResult.progress : null;
   const [selectedWeekId, setSelectedWeekId] = useState<number | null>(null);
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<GroupTab>(searchParams.get('tab') === 'prayers' ? 'prayers' : searchParams.get('tab') === 'faith' ? 'faith' : 'discussion');
   const [discussionUnseen, setDiscussionUnseen] = useState(0);
   // Orange dot on Discussion while it's closed and the group has posted since the support last looked.
@@ -189,7 +195,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
       setCheckIns(checkInsRes.checkIns);
       setNoAlertsIds(new Set(unreachableIds));
       participantPushApi.getNotInstalledIds().then((ids) => setNotInstalledIds(new Set(ids))).catch(() => { /* no tags */ });
-      participantPushApi.getAppDetails().then(setAppDetails).catch(() => { /* details are only a hint */ });
+      participantPushApi.getAppDetails().then((details) => { setAppDetails(details); setAppDetailsLoaded(true); }).catch(() => { /* details are only a hint */ });
       setFaithHelpRequests(faithHelpRes.requests);
       setTestimonies(testimoniesRes.testimonies);
 
@@ -281,6 +287,15 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
     if (requestedWeekId && cohortWeeks.some((week) => week.id === requestedWeekId)) setSelectedWeekId(requestedWeekId);
   }, [requestedWeekParam, cohortWeeks]);
 
+  useEffect(() => {
+    if (!selectedGroupId) { setOnboardingResult(null); return undefined; }
+    let cancelled = false;
+    groupDiscussionApi.onboardingProgress(selectedGroupId)
+      .then((progress) => { if (!cancelled) setOnboardingResult({ groupId: selectedGroupId, progress }); })
+      .catch(() => { if (!cancelled) setOnboardingResult(null); });
+    return () => { cancelled = true; };
+  }, [selectedGroupId, activeTab, liveRevision]);
+
   const groupOptions = useMemo(() => {
     const map = new Map<string, { value: string; label: string; meta?: string }>();
     groupStatuses.forEach((status) => {
@@ -308,6 +323,27 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
     ),
     [participants, selectedGroupId]
   );
+
+  // Teen groups have no onboarding (FLOW_MAP rule 22), so they get no steps or progress bar.
+  const showOnboarding = !isTeenSupport && !groups.find((g) => g.id === selectedGroupId)?.isTeenGroup;
+  const onboardingByPerson = useMemo(
+    () => new Map((showOnboarding ? onboarding?.participants ?? [] : []).map((entry) => [entry.participantId, entry])),
+    [onboarding, showOnboarding]
+  );
+  const onboardingGroup = onboarding?.groups.find((entry) => entry.groupId === selectedGroupId) ?? null;
+  const readyCount = selectedParticipants.filter((participant) => onboardingByPerson.get(participant.id)?.completed).length;
+  const readyPercent = selectedParticipants.length > 0 ? Math.round((readyCount / selectedParticipants.length) * 100) : 0;
+  // Keeps the tab in the address, so a refresh or a shared link comes back to the same tab.
+  const selectTab = (tab: GroupTab) => {
+    setActiveTab(tab);
+    setSearchParams((prev) => { const next = new URLSearchParams(prev); next.set('tab', tab); return next; }, { replace: true });
+  };
+  const openIntroductions = () => {
+    setActiveTab('discussion');
+    const params = new URLSearchParams({ tab: 'discussion', group: selectedGroupId });
+    if (!onboardingGroup?.supportIntroPosted) params.set('intro', '1');
+    setSearchParams(params, { replace: true });
+  };
 
   const selectedGroup = useMemo(
     () => groupStatuses.find((status) => status.groupId === selectedGroupId) ?? null,
@@ -467,7 +503,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
                   { key: 'faith', label: 'Participants', shortLabel: 'People' },
                 ]}
                 active={activeTab}
-                onChange={(key) => setActiveTab(key as GroupTab)}
+                onChange={(key) => selectTab(key as GroupTab)}
               />
             </div>
           </div>
@@ -476,6 +512,28 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
             <StaffDiscussionPanel key={selectedGroupId} groupId={selectedGroupId} viewerName={user.name} viewerAvatarUrl={user.avatarUrl} />
           ) : activeTab === 'faith' ? (
             <div className="space-y-3">
+            {showOnboarding && selectedParticipants.length > 0 && (
+              <section data-wt="onb-steps" className="rounded-[18px] border border-[#eef0f4] bg-white p-4 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[13px] font-semibold text-gray-700">{onboarding ? `${readyCount} of ${selectedParticipants.length} ready` : 'Loading…'}</p>
+                  <button
+                    type="button"
+                    data-wt="onb-intro-btn"
+                    onClick={openIntroductions}
+                    disabled={!onboarding}
+                    className="min-h-[36px] rounded-full bg-primary px-4 text-[13px] font-semibold text-white disabled:opacity-60"
+                  >
+                    {onboardingGroup?.supportIntroPosted ? 'View introductions' : 'Start introductions'}
+                  </button>
+                </div>
+                <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-neutral-100">
+                  <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${readyPercent}%` }} />
+                </div>
+                {onboarding && !onboardingGroup?.supportIntroPosted && (
+                  <p className="mt-2.5 text-[12.5px] text-gray-500">Your group can&apos;t introduce themselves until you have.</p>
+                )}
+              </section>
+            )}
             {selectedParticipants.length === 0 ? (
               <div className="rounded-[18px] border border-dashed border-orange-200 bg-white py-12 text-center text-sm text-gray-500">
                 No participants are in this group yet.
@@ -509,6 +567,8 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
                 noAlerts={noAlertsIds.has(participant.id)}
                 notInstalled={notInstalledIds.has(participant.id)}
                 appInfo={appDetails[participant.id]}
+                appInfoLoaded={appDetailsLoaded}
+                onboarding={onboardingByPerson.get(participant.id) ?? null}
                 onHelpHandled={(checkIn) => setCheckIns((prev) => prev.map((entry) => (entry.id === checkIn.id ? checkIn : entry)))}
                 faithHelpRequests={faithHelpRequests.filter((entry) => entry.participantId === participant.id)}
                 onFaithHelpResolved={(resolved) => setFaithHelpRequests((prev) => prev.filter((entry) => entry.id !== resolved.id))}

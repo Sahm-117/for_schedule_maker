@@ -16,7 +16,7 @@ Staff can hold two roles and switch (`hooks/useAuth.tsx:129-134`).
 | Who | Shell | Routes |
 |---|---|---|
 | Participant | `components/participantApp/ParticipantShell.tsx` (own nav: Home, Group, Journey, Faith, more: People, Resources, Feedback, Profile) | `/me/*`, plus `/me/welcome` and `/me/setup` standalone |
-| Support | `components/StaffApp.tsx` + `AppShell.tsx` | `/support`, `/support/schedule`, `/support/mobilisation`, `/support/participants`, `/support/my-hub`, `/support/attendance`, `/support/onboarding`, `/support/community`, `/support/practice`, `/support/resources`, `/support/profile`, `/support/recap` |
+| Support | `components/StaffApp.tsx` + `AppShell.tsx` | `/support`, `/support/schedule`, `/support/mobilisation`, `/support/participants`, `/support/my-hub`, `/support/attendance`, `/support/community`, `/support/practice`, `/support/resources`, `/support/profile`, `/support/recap` |
 | Admin | same staff shell | `/`, `/dashboard`, `/schedule`, `/planner`, `/participants*`, `/groups`, `/supports`, `/hubs`, `/cohorts`, `/approvals`, `/users`, `/announcements`, `/resources`, `/settings`, plus all support pages |
 
 Guards: `components/ProtectedRoute.tsx:25-53` splits staff vs participant
@@ -623,6 +623,14 @@ duplicating the logic anywhere else is a bug waiting to happen.
     `notify-users` (`module` input) and the reported-post trigger. Source: `20261013085500_staff_role_value.sql`, `20261013090100_roles_and_permissions.sql`, `20261013100000_permissions_support_view.sql`,
     `20261013110000_lowest_role_staff_above_support.sql`, `20261013120000_module_viewers.sql`, `20261013130000_roles_review_fixes.sql`, `docs/specs/roles-and-permissions.md`.
     Frontend: `utils/permissions.ts`, `hooks/usePermissions.ts`, `hooks/useAuth.tsx`, `components/PermissionGate.tsx`, `pages/AdminRolesPage.tsx`, `pages/NoAccessPage.tsx`, `components/AppShell.tsx`, `components/UserManagement.tsx`.
+
+57. **A support sees onboarding on My Group → People, not on a page of its own.** Each person's card shows the five
+    steps (Intro / Map / Guide / Profile / Ready) from `groupDiscussionApi.onboardingProgress`, or just Ready once
+    `completed`; the "x of y ready" bar and Start / View introductions sit at the top of People. The support Onboard
+    menu item is gone and `/support/onboarding` redirects to `/support/participants?tab=faith`
+    (`SupportOnboardingPage.tsx` is unused). Teen groups show none of it (rule 22). The tab is kept in the address
+    (`?tab=`), which the Practice "visit" steps read. The card's "Not seen in the app yet" only shows once
+    `participants_app_details` has loaded. Frontend only: `SupportParticipantsPage.tsx`, `ParticipantCard.tsx`.
 
 ## 5. Edge functions and schedules
 

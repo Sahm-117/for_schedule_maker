@@ -13,8 +13,9 @@ import WhatsAppIcon from '../WhatsAppIcon';
 import { FAITH_PROJECT_STATUS_LABEL, shortMoment } from '../../utils/participantApp';
 import FaithProjectHistory from '../faithProjects/FaithProjectHistory';
 import { FAITH_HELP_REASON_LABELS } from '../../types';
-import type { DepartmentReferral, FaithHelpRequest, FaithProject, FaithProjectCategory, FaithProjectStatus, FaithProjectVersion, Participant, ParticipantAppInfo, ParticipantCheckIn, ParticipantFlag, ParticipantHandover, ParticipantNote, ParticipantUpdate, RetakeMatch, Testimony } from '../../types';
+import type { OnboardingState, DepartmentReferral, FaithHelpRequest, FaithProject, FaithProjectCategory, FaithProjectStatus, FaithProjectVersion, Participant, ParticipantAppInfo, ParticipantCheckIn, ParticipantFlag, ParticipantHandover, ParticipantNote, ParticipantUpdate, RetakeMatch, Testimony } from '../../types';
 import { appUseLine } from '../../utils/appUse';
+import { PROGRESS_STEPS, StepPill } from '../OnboardingStepPills';
 import NotOpenedTag from '../participants/NotOpenedTag';
 import Spinner from '../Spinner';
 
@@ -287,6 +288,10 @@ interface ParticipantCardProps {
   notInstalled?: boolean;
   /** Their phone type and when the app was last opened, for the line under the tags. */
   appInfo?: ParticipantAppInfo;
+  /** The phone details have loaded, so no line really means "not seen". */
+  appInfoLoaded?: boolean;
+  /** Their onboarding steps. Once all are done the card just says Ready. */
+  onboarding?: OnboardingState | null;
   /** Open ("is it going well?") faith help requests for this participant. */
   faithHelpRequests?: FaithHelpRequest[];
   onFaithHelpResolved?: (request: FaithHelpRequest) => void;
@@ -320,6 +325,8 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
   noAlerts,
   notInstalled,
   appInfo,
+  appInfoLoaded,
+  onboarding,
   faithHelpRequests,
   onFaithHelpResolved,
   testimonies,
@@ -492,6 +499,18 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
             <svg className={`h-3.5 w-3.5 transition-transform ${concernOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m9 5 7 7-7 7" /></svg>
           </button>
         )}
+        {messageLink && (
+          <a
+            href={messageLink}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={`WhatsApp ${participant.fullName}`}
+            title="Message on WhatsApp"
+            className="grid h-9 w-9 flex-none place-items-center rounded-[10px] border border-gray-200 bg-white"
+          >
+            <WhatsAppIcon />
+          </a>
+        )}
         <button
           ref={menuButtonRef}
           type="button"
@@ -504,9 +523,9 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${participant.status === 'ARCHIVED' ? 'bg-neutral-100 text-neutral-600' : 'bg-[#f2fbf5] text-[#15803d]'}`}>
-          {participant.status === 'ARCHIVED' ? 'Archived' : 'Active'}
-        </span>
+        {participant.status === 'ARCHIVED' && (
+          <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-semibold text-neutral-600">Archived</span>
+        )}
         <RetakingChip participant={participant} matches={retakeMatches} onUpdate={updateRetake} />
         {notInstalled && (
           <NotOpenedTag className="px-2.5 py-1 text-[11px]" />
@@ -524,6 +543,9 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
         >
           <span className="font-semibold opacity-70">Faith project</span>
           <span>{chip.label}</span>
+          {status === 'SAVED' && !project?.categoryId && (
+            <span className="font-medium opacity-60" title="No Faith Project category chosen yet. Open it to pick one.">· No category</span>
+          )}
           <svg width="10" height="10" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.4" d="m9 5 7 7-7 7" /></svg>
         </button>
         {reflectedAt && (
@@ -537,7 +559,19 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
           </span>
         )}
       </div>
-      {appLine && <p className="mt-1.5 text-[11.5px] text-gray-500">{appLine}</p>}
+      {onboarding && (
+        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+          {onboarding.completed ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100/80 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+              <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="m5 13 4 4L19 7" /></svg>
+              Ready
+            </span>
+          ) : (
+            PROGRESS_STEPS.map((step) => <StepPill key={step.key} label={step.label} done={onboarding[step.key]} />)
+          )}
+        </div>
+      )}
+      {(appLine || appInfoLoaded) && <p className="mt-2 text-[11.5px] text-gray-500">{appLine || 'Not seen in the app yet'}</p>}
 
       {helpRequest && (
         <div className="mt-2.5 rounded-xl bg-red-100/80 px-[13px] py-3">

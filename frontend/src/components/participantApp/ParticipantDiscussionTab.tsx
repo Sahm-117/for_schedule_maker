@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { startPolling } from '../../hooks/usePolling';
 import { useSearchParams } from 'react-router-dom';
 import IntroComposer, { INTRO_PROMPTS } from '../discussion/IntroComposer';
 import Spinner from '../Spinner';
 import DiscussionFeedView, { type DiscussionActions } from '../discussion/DiscussionFeedView';
 import { participantAppApi } from '../../services/api';
+import { appendOlderPosts, fetchLoadedDiscussionFeed } from '../../utils/discussionFeed';
 import type { DiscussionFeed, OnboardingState } from '../../types';
 
 // My Group → Discussion: just the participant, their group and their support.
@@ -21,13 +22,16 @@ const ParticipantDiscussionTab: React.FC<{ viewerName: string; viewerAvatarUrl?:
   const introRequested = searchParams.get('intro') === '1';
   const [onboarding, setOnboarding] = useState<OnboardingState | null>(null);
   const [feed, setFeed] = useState<DiscussionFeed | null>(null);
+  // The refresh needs to know how far back the reader has scrolled.
+  const feedRef = useRef<DiscussionFeed | null>(null);
+  feedRef.current = feed;
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
     try {
-      setFeed(await participantAppApi.discussionFeed());
+      setFeed(await fetchLoadedDiscussionFeed(feedRef.current, (before) => participantAppApi.discussionFeed(before)));
       setError('');
       // They're looking at it, so nothing here is new any more.
       participantAppApi.discussionMarkSeen().catch(() => {});
@@ -51,7 +55,7 @@ const ParticipantDiscussionTab: React.FC<{ viewerName: string; viewerAvatarUrl?:
     setLoadingMore(true);
     try {
       const older = await participantAppApi.discussionFeed(last.createdAt);
-      if (older) setFeed({ ...feed, posts: [...feed.posts, ...older.posts], hasMore: older.hasMore });
+      if (older) setFeed((prev) => appendOlderPosts(prev, older));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load older posts.');
     } finally {

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { startPolling } from '../../hooks/usePolling';
 import { useSearchParams } from 'react-router-dom';
 import Spinner from '../Spinner';
@@ -6,6 +6,7 @@ import IntroComposer, { SUPPORT_INTRO_PROMPTS } from './IntroComposer';
 import DiscussionFeedView, { type DiscussionActions } from './DiscussionFeedView';
 import { groupDiscussionApi } from '../../services/api';
 import { usePermissions } from '../../hooks/usePermissions';
+import { appendOlderPosts, fetchLoadedDiscussionFeed } from '../../utils/discussionFeed';
 import type { DiscussionFeed } from '../../types';
 
 // A group's discussion for staff. What they can do follows feed.access:
@@ -14,6 +15,9 @@ const StaffDiscussionPanel: React.FC<{ groupId: string; viewerName: string; view
   const { can } = usePermissions();
   const canEdit = can('groups', 'edit');
   const [feed, setFeed] = useState<DiscussionFeed | null>(null);
+  // The refresh needs to know how far back the reader has scrolled.
+  const feedRef = useRef<DiscussionFeed | null>(null);
+  feedRef.current = feed;
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
@@ -25,7 +29,8 @@ const StaffDiscussionPanel: React.FC<{ groupId: string; viewerName: string; view
 
   const load = useCallback(async () => {
     try {
-      const next = await groupDiscussionApi.feed(groupId);
+      const next = await fetchLoadedDiscussionFeed(feedRef.current, (before) => groupDiscussionApi.feed(groupId, before));
+      if (!next) return;
       setFeed(next);
       setError('');
       if (next.access === 'SUPPORT') {
@@ -72,7 +77,7 @@ const StaffDiscussionPanel: React.FC<{ groupId: string; viewerName: string; view
     setLoadingMore(true);
     try {
       const older = await groupDiscussionApi.feed(groupId, last.createdAt);
-      setFeed({ ...feed, posts: [...feed.posts, ...older.posts], hasMore: older.hasMore });
+      setFeed((prev) => appendOlderPosts(prev, older));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load older posts.');
     } finally {

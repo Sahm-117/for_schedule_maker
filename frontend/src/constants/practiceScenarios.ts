@@ -25,7 +25,7 @@ export const PRACTICE_ROLE_LABEL: Record<PracticeSeat, string> = {
 // are supports first, so they start with these.
 const SUPPORT_BASE: PracticeScenario[] = [
   { key: 'sup-intro', title: 'Post your introduction to your group', hint: 'In My Group, open the discussion and introduce yourself.', to: '/support/participants' },
-  { key: 'sup-onboarding', title: 'Check how your participants are getting on', hint: 'Open Onboard and look at each person’s steps.', to: '/support/onboarding', visit: true },
+  { key: 'sup-onboarding', title: 'Check how your participants are getting on', hint: 'In My Group, open People and look at each person’s steps.', to: '/support/participants?tab=faith', visit: true },
   { key: 'sup-attendance', title: 'Start class attendance and mark everyone', hint: 'Open Attendance, start the register and mark each person.', to: '/support/attendance' },
   { key: 'sup-post', title: 'Post a message in the group discussion', hint: 'Say something to your group.', to: '/support/participants' },
   { key: 'sup-pin', title: 'Pin a message to the top', hint: 'Pin one of the posts so everyone sees it first.', to: '/support/participants' },
