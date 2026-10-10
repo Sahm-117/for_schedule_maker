@@ -15,6 +15,8 @@ const BirthdayGraphicSheet: React.FC<{ person: BirthdayPerson; roleLabel: string
   const [drawing, setDrawing] = useState(true);
   const [photoUsed, setPhotoUsed] = useState(true);
   const [error, setError] = useState('');
+  // The finished picture, made right after drawing so Share can run inside the tap (phones refuse it after an await).
+  const blobRef = useRef<Blob | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -22,37 +24,36 @@ const BirthdayGraphicSheet: React.FC<{ person: BirthdayPerson; roleLabel: string
     let cancelled = false;
     setDrawing(true);
     setError('');
-    drawBirthdayGraphic(canvas, { name: person.name, photoUrl: person.avatarUrl, month: person.month, day: person.day, roleLabel, quote: BIRTHDAY_QUOTES[quoteIdx] })
-      .then((r) => { if (!cancelled) { setPhotoUsed(r.photoUsed); setDrawing(false); } })
+    blobRef.current = null;
+    drawBirthdayGraphic(canvas, { name: person.name, photoUrl: person.avatarUrl, month: person.month, day: person.day, roleLabel, quote: BIRTHDAY_QUOTES[quoteIdx] }, () => cancelled)
+      .then((r) => {
+        if (cancelled) return;
+        canvas.toBlob((b) => { if (!cancelled) { blobRef.current = b; setPhotoUsed(r.photoUsed); setDrawing(false); } }, 'image/png');
+      })
       .catch((e) => { if (!cancelled) { setError(e instanceof Error ? e.message : 'Could not make the graphic.'); setDrawing(false); } });
     return () => { cancelled = true; };
   }, [person.name, person.avatarUrl, person.month, person.day, roleLabel, quoteIdx]);
 
-  const toBlob = (): Promise<Blob> => new Promise((resolve, reject) => {
-    const canvas = canvasRef.current;
-    if (!canvas) { reject(new Error('Nothing to save yet.')); return; }
-    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Could not save the picture.'))), 'image/png');
-  });
-
-  const download = async () => {
-    try {
-      const url = URL.createObjectURL(await toBlob());
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName(person.name);
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 2000);
-    } catch (e) { setError(e instanceof Error ? e.message : 'Could not save the picture.'); }
+  const download = () => {
+    const blob = blobRef.current;
+    if (!blob) { setError('The picture is not ready yet.'); return; }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName(person.name);
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
   };
 
-  const share = async () => {
-    try {
-      const file = new File([await toBlob()], fileName(person.name), { type: 'image/png' });
-      if (navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file] });
-      else await download();
-    } catch (e) { if (!(e instanceof DOMException && e.name === 'AbortError')) setError(e instanceof Error ? e.message : 'Could not share the picture.'); }
+  // No await before navigator.share: it must run inside the tap.
+  const share = () => {
+    const blob = blobRef.current;
+    if (!blob) { setError('The picture is not ready yet.'); return; }
+    const file = new File([blob], fileName(person.name), { type: 'image/png' });
+    if (!navigator.canShare?.({ files: [file] })) { download(); return; }
+    navigator.share({ files: [file] }).catch((e) => { if (!(e instanceof DOMException && e.name === 'AbortError')) setError('Could not share the picture.'); });
   };
 
   return (
@@ -64,8 +65,8 @@ const BirthdayGraphicSheet: React.FC<{ person: BirthdayPerson; roleLabel: string
       {!drawing && !photoUsed && <p className="mt-2 text-[12.5px] text-gray-500">{person.avatarUrl ? 'Their photo would not load, so initials are shown.' : 'They have no photo yet, so initials are shown.'}</p>}
       {error && <p className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-[13px] text-red-600">{error}</p>}
       <div className="mt-3 flex flex-wrap gap-2">
-        <button type="button" disabled={drawing} onClick={() => void download()} className="flex-1 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Download</button>
-        <button type="button" disabled={drawing} onClick={() => void share()} className="flex-1 rounded-full bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Share</button>
+        <button type="button" disabled={drawing} onClick={download} className="flex-1 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Download</button>
+        <button type="button" disabled={drawing} onClick={share} className="flex-1 rounded-full bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Share</button>
         <button type="button" disabled={drawing} onClick={() => setQuoteIdx((i) => (i + 1) % BIRTHDAY_QUOTES.length)} className="w-full rounded-full bg-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-700 disabled:opacity-50">Try another quote</button>
       </div>
     </HomeSheet>

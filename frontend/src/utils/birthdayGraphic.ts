@@ -39,6 +39,11 @@ const loadImage = (src: string, cors: boolean): Promise<HTMLImageElement | null>
     img.src = src;
   });
 
+// A photo the browser cached earlier from a plain <img> may be stored without CORS headers and then fail here.
+// One retry with a throwaway query string fetches a fresh, CORS-readable copy.
+const loadPhoto = async (url: string): Promise<HTMLImageElement | null> =>
+  (await loadImage(url, true)) ?? loadImage(`${url}${url.includes('?') ? '&' : '?'}cors=1`, true);
+
 const initialsOf = (name: string): string => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('');
 
 const star = (ctx: CanvasRenderingContext2D, x: number, y: number, r: number, color: string) => {
@@ -119,13 +124,15 @@ export interface BirthdayGraphicInput {
 }
 
 /** Draws the graphic onto `canvas`. Returns whether the photo was used (false when none was set or it would not load). */
-export const drawBirthdayGraphic = async (canvas: HTMLCanvasElement, input: BirthdayGraphicInput): Promise<{ photoUsed: boolean }> => {
+export const drawBirthdayGraphic = async (target: HTMLCanvasElement, input: BirthdayGraphicInput, isCancelled: () => boolean = () => false): Promise<{ photoUsed: boolean }> => {
+  // Draw on a private canvas and copy it over at the end, so a draw that was replaced meanwhile never paints on the visible one.
+  const canvas = document.createElement('canvas');
   canvas.width = GRAPHIC_W;
   canvas.height = GRAPHIC_H;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('This browser cannot draw the graphic.');
   const [photo, crest] = await Promise.all([
-    input.photoUrl ? loadImage(input.photoUrl, true) : Promise.resolve(null),
+    input.photoUrl ? loadPhoto(input.photoUrl) : Promise.resolve(null),
     loadImage('/logo-crest.webp', false),
   ]);
   const rand = seeded(input.name);
@@ -271,7 +278,6 @@ export const drawBirthdayGraphic = async (canvas: HTMLCanvasElement, input: Birt
   roundRect(ctx, bannerX, bannerY + 4, bannerW, 104, 20);
   ctx.fill();
   ctx.restore();
-  ctx.font = `600 26px ${SERIF}`;
   const pillText = input.roleLabel;
   ctx.font = `italic 600 26px ${SERIF}`;
   const pillW = ctx.measureText(pillText).width + 70;
@@ -292,17 +298,21 @@ export const drawBirthdayGraphic = async (canvas: HTMLCanvasElement, input: Birt
   ctx.font = `800 ${size}px ${SANS}`;
   spaced(ctx, 2);
   while (ctx.measureText(label).width > bannerW - 60 && size > 28) { size -= 2; ctx.font = `800 ${size}px ${SANS}`; }
+  let shown = label;
+  while (ctx.measureText(shown).width > bannerW - 60 && shown.length > 4) shown = `${shown.slice(0, -2).trimEnd()}\u2026`;
   ctx.textAlign = 'center';
-  ctx.fillText(label, cx, bannerY + 4 + 52 + size * 0.34);
+  ctx.fillText(shown, cx, bannerY + 4 + 52 + size * 0.34);
   spaced(ctx, 0);
 
   // Footer: quote bottom left, crest and programme bottom right.
   ctx.textAlign = 'left';
   ctx.fillStyle = '#FFF1E6';
   ctx.font = `italic 400 25px ${SERIF}`;
-  const lines = wrap(ctx, `\u201C${input.quote.text}\u201D`, 560).slice(0, 3);
+  const all = wrap(ctx, `\u201C${input.quote.text}\u201D`, 560);
+  const lines = all.slice(0, 3);
+  if (all.length > 3) lines[2] = `${lines[2].replace(/[\s,;.]+$/, '')}\u2026`;
   const lineH = 34;
-  const qTop = 1240;
+  const qTop = 1306 - lines.length * lineH;
   lines.forEach((l, i) => ctx.fillText(l, 70, qTop + i * lineH));
   ctx.fillStyle = GOLD;
   ctx.font = `700 17px ${SANS}`;
@@ -321,5 +331,10 @@ export const drawBirthdayGraphic = async (canvas: HTMLCanvasElement, input: Birt
   star(ctx, 1030, 90, 20, '#FFFFFF');
   star(ctx, 55, 70, 14, '#FFFFFF');
 
+  if (!isCancelled()) {
+    target.width = GRAPHIC_W;
+    target.height = GRAPHIC_H;
+    target.getContext('2d')?.drawImage(canvas, 0, 0);
+  }
   return { photoUsed: !!photo };
 };

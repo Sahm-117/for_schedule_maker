@@ -6,7 +6,7 @@
 - **Download** saves a PNG; **Share** opens the phone's share sheet with the picture (falls back to download where files cannot be shared).
 
 ## Live changes
-- Migration `20261014090000_birthdays_list_avatar.sql` (applied live): `birthdays_list` now also returns `avatarUrl` per person. Same function, one extra field, nothing else changed. Checked live with a temporary session (since deleted): 33 supports, 26 with a photo.
+- Migration `20261013100000_birthdays_list_avatar.sql` (applied live): `birthdays_list` now also returns `avatarUrl` per person. Same function, one extra field, nothing else changed. Checked live with a temporary session (since deleted): 33 supports, 26 with a photo.
 - No edge function changes.
 - Frontend: `AdminBirthdaysPage.tsx`, new `components/BirthdayGraphicSheet.tsx`, new `utils/birthdayGraphic.ts`, `types/index.ts`.
 
@@ -18,3 +18,5 @@
 ## Open items
 - Participants' birthdays use the same sheet; their photo comes from the participant profile.
 - The headline uses a serif italic (Georgia where present); on Android it falls back to the system serif.
+- Review fixes: Share runs inside the tap (the picture is made right after drawing); a replaced draw can no longer paint over the visible one; a photo the browser cached without CORS gets one retry; a quote longer than 3 lines ends with an ellipsis; a very long name is shortened with an ellipsis instead of overflowing. The migration file is named 20261013100000 (it was applied live on 10 Oct).
+- The "Next up" card follows the active tab and hides while searching or filtering, by design.
