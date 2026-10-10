@@ -3071,6 +3071,7 @@ export const announcementsApi = {
       targetHubId?: string | null;
       targetHubJobs?: import('../types').HubJob[];
       targetUserId?: string | null;
+      targetUserIds?: string[] | null;
       targetParticipantId?: string | null;
       home?: { homeUntil: string; homeLabel?: string | null; linkUrl?: string | null; linkLabel?: string | null } | null;
       audience?: import('../types').AnnouncementAudience;
@@ -3092,6 +3093,7 @@ export const announcementsApi = {
         targetHubId: options?.targetHubId || null,
         targetHubJobs: options?.targetHubJobs?.length ? options.targetHubJobs : null,
         targetUserId: options?.targetUserId || null,
+        targetUserIds: options?.targetUserIds?.length ? options.targetUserIds : null,
         targetParticipantId: options?.targetParticipantId || null,
         audience: options?.audience || 'SUPPORTS',
         popup: !!options?.popup,
@@ -3168,6 +3170,7 @@ export const announcementsApi = {
       targetGroupId: row.targetGroupId ?? null,
       targetHubId: row.targetHubId ?? null,
       targetUserId: row.targetUserId ?? null,
+      targetUserIds: row.targetUserIds ?? null,
       targetParticipantId: row.targetParticipantId ?? null,
       showOnHome: !!row.showOnHome,
       homeUntil: row.homeUntil ?? null,
@@ -3182,13 +3185,14 @@ export const announcementsApi = {
       row.scope === 'ALL_USERS' || row.scope == null || row.cohortId == null;
 
     // A tag-targeted announcement is visible to admins (always) and to non-admins
-    // only if they hold that tag. A person-targeted announcement (targetUserId)
-    // is visible to admins and only to that user. A participant-targeted one
+    // only if they hold that tag. A person-targeted announcement (targetUserId,
+    // or a picked list in targetUserIds) is visible to admins and only to those users. A participant-targeted one
     // (targetParticipantId) never reaches this staff feed. Untargeted rows pass.
     const userLabelIds = new Set(options?.userLabelIds || []);
-    const passesTarget = (row: { targetLabelId?: string | null; targetUserId?: string | null; targetParticipantId?: string | null }) => {
+    const passesTarget = (row: { targetLabelId?: string | null; targetUserId?: string | null; targetUserIds?: string[] | null; targetParticipantId?: string | null }) => {
       if (options?.isAdmin) return true;
       if (row.targetParticipantId) return false;
+      if (row.targetUserIds?.length) return !!options?.userId && row.targetUserIds.includes(options.userId);
       if (row.targetUserId) return row.targetUserId === options?.userId;
       if (!row.targetLabelId) return true;
       return userLabelIds.has(row.targetLabelId);

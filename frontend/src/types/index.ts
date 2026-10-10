@@ -385,6 +385,8 @@ export interface Announcement {
   targetHubId?: string | null;
   /** User id: send to a single support/admin only. Mutually exclusive with the group/hub/tag filters. */
   targetUserId?: string | null;
+  /** User ids: send to these supports/admins only (two or more). */
+  targetUserIds?: string[] | null;
   /** Participant id: send to a single participant only. Mutually exclusive with the group/hub/tag filters. */
   targetParticipantId?: string | null;
   showOnHome?: boolean;

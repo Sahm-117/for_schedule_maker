@@ -16,6 +16,7 @@
  *   targetHubId?: string | null (SUPPORTS/EVERYONE audience: narrows to one hub's members)
  *   targetHubJobs?: HubJob[] | null (supports only: narrows to people holding these hub roles)
  *   targetUserId?: string | null (send to a single support/admin only)
+ *   targetUserIds?: string[] | null (send to these supports/admins only, two or more)
  *   targetParticipantId?: string | null (send to a single participant only)
  *   audience?: 'SUPPORTS' | 'PARTICIPANTS' | 'EVERYONE'
  *   popup?: boolean (a popup each recipient must acknowledge; recorded in AnnouncementPopup)
@@ -66,7 +67,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { subject, body, sentBy, scope = 'ACTIVE_COHORT', cohortId = null, targetLabelId = null, targetGroupId = null, targetHubId = null, targetHubJobs = null, targetUserId = null, targetParticipantId = null, audience = 'SUPPORTS', popup = false } = await req.json() as {
+    const { subject, body, sentBy, scope = 'ACTIVE_COHORT', cohortId = null, targetLabelId = null, targetGroupId = null, targetHubId = null, targetHubJobs = null, targetUserId = null, targetUserIds = null, targetParticipantId = null, audience = 'SUPPORTS', popup = false } = await req.json() as {
       subject: string
       body: string
       sentBy?: string
@@ -80,6 +81,8 @@ Deno.serve(async (req) => {
       targetHubJobs?: Array<'HUB_LEAD' | 'ASSISTANT_HUB_LEAD' | 'RECAP_LEAD' | 'PRAYER_LEAD' | 'IT_SUPPORT'> | null
       // Send to a single support/admin only. Mutually exclusive with the group/hub/tag filters.
       targetUserId?: string | null
+      // Send to these supports/admins only (two or more). Mutually exclusive with the group/hub/tag filters.
+      targetUserIds?: string[] | null
       // Send to a single participant only. Mutually exclusive with the group/hub/tag filters.
       targetParticipantId?: string | null
       // SUPPORTS (default), PARTICIPANTS (participant app only) or EVERYONE.
@@ -102,6 +105,10 @@ Deno.serve(async (req) => {
       })
     }
 
+    // Two or more picked supports: they are the whole recipient set, like a single pick.
+    const pickedUserIds: string[] = Array.from(new Set((Array.isArray(targetUserIds) ? targetUserIds : []).filter((id): id is string => typeof id === 'string' && id.length > 0)))
+    const hasPickedUsers = audience !== 'PARTICIPANTS' && pickedUserIds.length > 0
+
     // 1. Record the announcement
     const { data: announcement, error: insertError } = await supabase
       .from('Announcement')
@@ -115,6 +122,7 @@ Deno.serve(async (req) => {
         targetGroupId: audience === 'PARTICIPANTS' ? targetGroupId : null,
         targetHubId: audience === 'PARTICIPANTS' ? null : targetHubId,
         targetUserId: audience === 'PARTICIPANTS' ? null : targetUserId,
+        targetUserIds: hasPickedUsers ? pickedUserIds : null,
         targetParticipantId: audience === 'SUPPORTS' ? null : targetParticipantId,
         audience,
         requirePopup: !!popup,
@@ -130,8 +138,8 @@ Deno.serve(async (req) => {
     //     announcement shows on their Home when pinned there).
     let participantSent = 0
     // Skip participants entirely when the send is targeted at a single support/admin.
-    const hubJobs = targetUserId || targetParticipantId ? [] : (targetHubJobs || [])
-    if ((audience === 'PARTICIPANTS' || audience === 'EVERYONE') && !targetUserId && hubJobs.length === 0) {
+    const hubJobs = targetUserId || hasPickedUsers || targetParticipantId ? [] : (targetHubJobs || [])
+    if ((audience === 'PARTICIPANTS' || audience === 'EVERYONE') && !targetUserId && !hasPickedUsers && hubJobs.length === 0) {
       let participantIds: string[]
       if (targetParticipantId) {
         participantIds = [targetParticipantId]
@@ -198,6 +206,8 @@ Deno.serve(async (req) => {
       scopedUserIds = []
     } else if (targetUserId) {
       scopedUserIds = [targetUserId]
+    } else if (hasPickedUsers) {
+      scopedUserIds = pickedUserIds
     } else {
       if (scope === 'ACTIVE_COHORT' && cohortId) {
         const { data: memberships, error: membershipError } = await supabase

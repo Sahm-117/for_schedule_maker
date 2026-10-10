@@ -8,6 +8,7 @@ import type { AnnouncementPopupStatus } from '../types';
 import type { Announcement, Label, Group, SupportHub, User, Participant, HubJob } from '../types';
 import { HUB_JOB_INFO } from './hubs/hubJobs';
 import AppSelect from './AppSelect';
+import AppMultiSelect from './AppMultiSelect';
 import type { AnnouncementAudience } from '../types';
 import Spinner from './Spinner';
 
@@ -101,6 +102,8 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
   // '' = no one person picked; 'user:<id>' (support) or 'participant:<id>'.
   // Picking a person overrides audience/tag/group/hub for who actually gets it.
   const [targetPersonKey, setTargetPersonKey] = useState('');
+  // SUPPORTS audience: several supports picked at once (user ids).
+  const [pickedSupportIds, setPickedSupportIds] = useState<string[]>([]);
   const [narrowOpen, setNarrowOpen] = useState(false); // the "Send to specific people" accordion
   const [groups, setGroups] = useState<Group[]>([]);
   const [hubs, setHubs] = useState<SupportHub[]>([]);
@@ -206,6 +209,27 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
       ? participantNameById.get(targetParticipantId)
       : null;
 
+  // Several supports picked (SUPPORTS audience only). One pick is sent as a single person, two or more as a list.
+  const pickedSupports = audience === 'SUPPORTS' ? pickedSupportIds : [];
+  const anyPersonPicked = !!targetPersonKey || pickedSupports.length > 0;
+  const pickedNames = pickedSupports.map((id) => supportNameById.get(id) || 'a support');
+
+  // Which groups each support leads in this cohort, so the list shows who has one and "supports with a group" is one tap.
+  const groupNamesBySupport = useMemo(() => {
+    const map = new Map<string, string[]>();
+    groups.filter((g) => g.supportId && !g.archivedAt && !g.isTeenGroup).forEach((g) => {
+      map.set(g.supportId as string, [...(map.get(g.supportId as string) ?? []), g.name]);
+    });
+    return map;
+  }, [groups]);
+  const supportOptions = useMemo(() => {
+    const collator = new Intl.Collator(undefined, { numeric: true });
+    return [...supports]
+      .map((u) => ({ value: u.id, label: u.name, meta: groupNamesBySupport.get(u.id)?.join(', ') || 'No group yet' }))
+      .sort((a, b) => collator.compare(a.label, b.label));
+  }, [supports, groupNamesBySupport]);
+  const supportsWithGroupIds = useMemo(() => supports.filter((u) => groupNamesBySupport.has(u.id)).map((u) => u.id), [supports, groupNamesBySupport]);
+
   const personOptions = useMemo(() => {
     const supportOpts = supports.map((u) => ({ value: `user:${u.id}`, label: u.name, meta: 'Support' }));
     const participantOpts = participants.map((p) => ({ value: `participant:${p.id}`, label: p.fullName, meta: 'Participant' }));
@@ -234,7 +258,9 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
   }, [labels, activeCohort?.id]);
 
   // What the "Send to specific people" accordion shows when it is closed.
-  const narrowParts = (targetPersonKey
+  const narrowParts = (pickedSupports.length > 0
+    ? [pickedSupports.length === 1 ? pickedNames[0] : `${pickedSupports.length} supports`]
+    : targetPersonKey
     ? [targetPersonName || 'One person']
     : [
       audience === 'PARTICIPANTS'
@@ -253,7 +279,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
     setSending(true);
     setStatus(null);
     try {
-      const personPicked = !!targetPersonKey;
+      const personPicked = anyPersonPicked;
       const { sent } = await announcementsApi.send(subject.trim(), body.trim(), user.id, {
         scope: activeCohort?.isPractice ? 'ACTIVE_COHORT' : scope,
         cohortId: (activeCohort?.isPractice || scope === 'ACTIVE_COHORT') ? activeCohort?.id || null : null,
@@ -261,7 +287,8 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
         targetGroupId: personPicked || audience !== 'PARTICIPANTS' ? null : targetGroupId || null,
         targetHubId: personPicked || audience === 'PARTICIPANTS' ? null : targetHubId || null,
         targetHubJobs: personPicked || audience !== 'SUPPORTS' ? [] : targetHubJobs,
-        targetUserId,
+        targetUserId: pickedSupports.length === 1 ? pickedSupports[0] : targetUserId,
+        targetUserIds: pickedSupports.length > 1 ? pickedSupports : null,
         targetParticipantId,
         audience,
         popup: popupOn,
@@ -272,7 +299,11 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
       });
       const jobsPicked = !personPicked && audience === 'SUPPORTS' && targetHubJobs.length > 0;
       const jobsName = HUB_JOB_ORDER.filter((j) => targetHubJobs.includes(j)).map((j) => `${HUB_JOB_INFO[j].label}s`).join(', ');
-      const targetName = personPicked
+      const targetName = pickedSupports.length > 1
+        ? `${pickedSupports.length} supports`
+        : pickedSupports.length === 1
+          ? pickedNames[0]
+        : personPicked
         ? targetPersonName
         : jobsPicked
           ? `${jobsName}${targetHubId ? ` in ${hubNameById.get(targetHubId) || 'the hub'}` : ''}`
@@ -287,6 +318,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
       setTargetHubId('');
       setTargetHubJobs([]);
       setTargetPersonKey('');
+      setPickedSupportIds([]);
       setNarrowOpen(false);
       setAudience('SUPPORTS');
       setShowOnHome(false);
@@ -420,10 +452,10 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
                     <button
                       key={option.value}
                       type="button"
-                      disabled={!!targetPersonKey}
-                      onClick={() => { setAudience(option.value); setLinkTarget(''); setTargetLabelId(''); setTargetGroupId(''); setTargetHubId(''); setTargetHubJobs([]); }}
+                      disabled={anyPersonPicked}
+                      onClick={() => { setAudience(option.value); setPickedSupportIds([]); setLinkTarget(''); setTargetLabelId(''); setTargetGroupId(''); setTargetHubId(''); setTargetHubJobs([]); }}
                       aria-pressed={audience === option.value}
-                      className={`rounded-xl border px-3 py-2 text-sm font-semibold ${audience === option.value ? 'border-primary bg-primary/10 text-primary' : 'border-gray-200 text-gray-600 hover:bg-gray-50'} ${targetPersonKey ? 'opacity-40 cursor-not-allowed hover:bg-white' : ''}`}
+                      className={`rounded-xl border px-3 py-2 text-sm font-semibold ${audience === option.value ? 'border-primary bg-primary/10 text-primary' : 'border-gray-200 text-gray-600 hover:bg-gray-50'} ${anyPersonPicked ? 'opacity-40 cursor-not-allowed hover:bg-white' : ''}`}
                     >
                       {option.label}
                       <span className="mt-1 block text-[11px] font-medium text-gray-500">{option.hint}</span>
@@ -450,6 +482,42 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
               </button>
               {narrowOpen && (
                 <div className="space-y-3 border-t border-gray-100 px-4 py-3">
+                {audience === 'SUPPORTS' ? (
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">Send to specific supports</label>
+                  <AppMultiSelect
+                    values={pickedSupportIds}
+                    onChange={setPickedSupportIds}
+                    options={supportOptions}
+                    placeholder="Everyone in audience"
+                    compact
+                  />
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPickedSupportIds(supportsWithGroupIds)}
+                      disabled={supportsWithGroupIds.length === 0}
+                      className="min-h-[36px] rounded-full border border-primary/30 bg-primary/5 px-3 text-xs font-semibold text-primary disabled:opacity-40"
+                    >
+                      Supports with a group ({supportsWithGroupIds.length})
+                    </button>
+                    {pickedSupportIds.length > 0 && (
+                      <button type="button" onClick={() => setPickedSupportIds([])} className="min-h-[36px] rounded-full border border-gray-200 px-3 text-xs font-semibold text-gray-600">
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  {pickedSupports.length > 0 ? (
+                    <p className="mt-1.5 text-[11px] font-semibold text-primary">
+                      Only {pickedSupports.length === 1 ? pickedNames[0] : `these ${pickedSupports.length} supports`} will get this.
+                    </p>
+                  ) : (
+                    <p className="mt-1.5 text-[11px] text-gray-500">
+                      Pick one or more supports to send only to them. This overrides the tag, hub and role below.
+                    </p>
+                  )}
+                </div>
+                ) : (
                 <div>
                   <label className="mb-2 block text-sm font-medium text-gray-700">Send to one person</label>
                   <AppSelect
@@ -469,9 +537,10 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
                     </p>
                   )}
                 </div>
+                )}
 
                 {audience === 'PARTICIPANTS' ? (
-                <div className={targetPersonKey ? 'opacity-40 pointer-events-none' : ''}>
+                <div className={anyPersonPicked ? 'opacity-40 pointer-events-none' : ''}>
                   <label className="mb-2 block text-sm font-medium text-gray-700">Send to a specific group (optional)</label>
                   <AppSelect
                     value={targetGroupId}
@@ -479,14 +548,14 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
                     options={groupOptions}
                     placeholder="Everyone in audience"
                     compact
-                    disabled={!!targetPersonKey}
+                    disabled={anyPersonPicked}
                   />
                   <p className="mt-1 text-[11px] text-gray-500">
                     Pick a group to send only to the participants in that group. Leave as “Everyone” to notify all participants.
                   </p>
                 </div>
                 ) : (
-                <div className={targetPersonKey ? 'opacity-40 pointer-events-none' : ''}>
+                <div className={anyPersonPicked ? 'opacity-40 pointer-events-none' : ''}>
                   <label className="mb-2 block text-sm font-medium text-gray-700">Send to a specific tag (optional)</label>
                   <AppSelect
                     value={targetLabelId}
@@ -494,7 +563,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
                     options={labelOptions}
                     placeholder="Everyone in audience"
                     compact
-                    disabled={!!targetPersonKey || !!targetHubId}
+                    disabled={anyPersonPicked || !!targetHubId}
                   />
                   <p className="mt-1 text-[11px] text-gray-500">
                     Pick a group’s support tag to send to only that support. Leave as “Everyone” to notify the whole audience.
@@ -503,7 +572,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
                 )}
 
                 {audience !== 'PARTICIPANTS' && hubs.length > 0 && (
-                <div className={targetPersonKey ? 'opacity-40 pointer-events-none' : ''}>
+                <div className={anyPersonPicked ? 'opacity-40 pointer-events-none' : ''}>
                   <label className="mb-2 block text-sm font-medium text-gray-700">Send to a specific hub (optional)</label>
                   <AppSelect
                     value={targetHubId}
@@ -511,7 +580,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
                     options={hubOptions}
                     placeholder="Everyone in audience"
                     compact
-                    disabled={!!targetPersonKey || !!targetLabelId}
+                    disabled={anyPersonPicked || !!targetLabelId}
                   />
                   <p className="mt-1 text-[11px] text-gray-500">
                     Pick a hub to send only to its members. Leave as “Everyone” to notify the whole audience.
@@ -520,7 +589,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
                 )}
 
                 {audience === 'SUPPORTS' && hubs.length > 0 && (
-                <div className={targetPersonKey ? 'opacity-40 pointer-events-none' : ''}>
+                <div className={anyPersonPicked ? 'opacity-40 pointer-events-none' : ''}>
                   <label className="mb-2 block text-sm font-medium text-gray-700">Send to hub roles only (optional)</label>
                   <div className="flex flex-wrap gap-2">
                     {HUB_JOB_ORDER.map((job) => {
@@ -529,7 +598,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
                         <button
                           key={job}
                           type="button"
-                          disabled={!!targetPersonKey}
+                          disabled={anyPersonPicked}
                           onClick={() => setTargetHubJobs((prev) => (on ? prev.filter((j) => j !== job) : [...prev, job]))}
                           aria-pressed={on}
                           className={`rounded-xl border px-3 py-2 text-sm font-semibold ${on ? 'border-primary bg-primary/10 text-primary' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
@@ -709,9 +778,14 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
                               To: {hubNameById.get(a.targetHubId) || 'hub'}
                             </span>
                           )}
-                          {a.targetUserId && (
+                          {a.targetUserId && !a.targetUserIds?.length && (
                             <span className="ml-1.5 rounded-full bg-violet-100/80 px-1.5 py-0.5 font-semibold text-violet-700">
                               To: {supportNameById.get(a.targetUserId) || 'a person'}
+                            </span>
+                          )}
+                          {!!a.targetUserIds?.length && (
+                            <span title={a.targetUserIds.map((id) => supportNameById.get(id) || 'a support').join(', ')} className="ml-1.5 rounded-full bg-violet-100/80 px-1.5 py-0.5 font-semibold text-violet-700">
+                              To: {a.targetUserIds.length} supports
                             </span>
                           )}
                           {a.targetParticipantId && (
