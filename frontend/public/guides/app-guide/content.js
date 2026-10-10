@@ -952,6 +952,27 @@ window.GUIDE_CONTENT = {
         "Or use **Jump to group** to go straight to one."
        ],
        "result": "Only matching groups show; assign a support from the card to clear it from that list."
+      },
+      {
+       "id": "groups-onboarding-glance",
+       "q": "How do I see how far each group's onboarding has got?",
+       "keywords": [
+        "onboarding status",
+        "overdue",
+        "onboarded",
+        "group progress",
+        "hub name",
+        "7 days"
+       ],
+       "steps": [
+        "Open **Groups** and look at the chip on each group card: **Not started**, **In progress**, **Overdue** or **Onboarded**.",
+        "Under the chip, the five-step bar (Intro, Map, Guide, Profile, Ready) fills as members get through each step, and the card says which step most people are still waiting on.",
+        "The card also names the **hub** of the group's support, so you know who to call."
+       ],
+       "result": "A group is **Onboarded** when every member has finished. It turns **Overdue** when it is not onboarded and more than 7 days have passed since its support was assigned (the same limit the Supports page and the Dashboard use).",
+       "tips": [
+        "A group with no members has no chip, because there is nothing to measure yet."
+       ]
       }
      ]
     },
@@ -3375,6 +3396,24 @@ window.GUIDE_CONTENT = {
         "Tap the rows below to open **Your messages**, **Prayer list**, **My attendance** and **Meeting time & link**."
        ],
        "shot": "support-my-hub.jpg"
+      },
+      {
+       "id": "s-hub-group-overview",
+       "q": "How do I see how a fellow support's group is doing?",
+       "keywords": [
+        "group overview",
+        "faith project written",
+        "phone alerts",
+        "onboarded",
+        "send message"
+       ],
+       "steps": [
+        "Open **My Hub**. Under **Fellow supports**, tap the group name shown with a support.",
+        "At the top, three tiles show how many are **onboarded**, the attendance rate, and how many **Faith Projects are written**.",
+        "Each person shows their **Onboarding** progress (for example 2/5) and a **Faith project** chip: **written** or **not started**. A bell with a line through it means their phone alerts are off.",
+        "Tap a person to open them: the onboarding steps they have done, recent classes, phone alerts, and **Send message** to reach them on WhatsApp."
+       ],
+       "result": "You can see who is stuck without asking the support. A teen's number is never shown."
       },
       {
        "id": "s-hub-roles",
