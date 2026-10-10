@@ -639,7 +639,7 @@ duplicating the logic anywhere else is a bug waiting to happen.
 58. **Likes, downloads and shares on the Inspirational Scripture posts are counted by database functions, one like per person, and the admin totals leave out practice and test accounts.**
     Participants and supports use `scripture_react` (like toggles; a double tap on download or share counts once), `scripture_my_likes` and, for admins only, `scripture_engagement_summary`.
     `ScriptureEngagement` has one foreign key (to `Scripture`); the person is a plain id and kind, so it adds no second route between User, Participant and Scripture (rule 55).
-    A post is named by its day number, the row keeps the Scripture id, so re-ordering never moves a like. Source: `20261013140000_scripture_engagement.sql`.
+    A post is named by its day number, the row keeps the Scripture id, so re-ordering never moves a like. Source: `20261013140000_scripture_engagement.sql`; the cohort filter and the final `scripture_engagement_summary(token, cohort)` come from `20261013150000_scripture_engagement_by_cohort.sql`.
 
 ## 5. Edge functions and schedules
 

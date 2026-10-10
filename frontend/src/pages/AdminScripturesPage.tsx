@@ -190,6 +190,7 @@ const AdminScripturesPage: React.FC = () => {
   // Likes, downloads and shares for the chosen cohort. A nicety: if they cannot be read the cards just show no counts.
   useEffect(() => {
     let cancelled = false;
+    setEngagement({}); // never show the last cohort's numbers under the new choice
     scriptureEngagementApi.summary(engagementCohort || null)
       .then((rows) => { if (!cancelled) setEngagement(Object.fromEntries(rows.map((r) => [r.dayNumber, r]))); })
       .catch(() => { if (!cancelled) setEngagement({}); });

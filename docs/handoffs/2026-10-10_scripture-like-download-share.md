@@ -22,3 +22,5 @@
 ## Open items
 - A re-ordered post keeps its likes (they follow the picture), but a replaced picture keeps the old post's counts, because the post is the same row.
 - Admins see counts only, not who liked; that can be added if wanted.
+- Review fixes: a like ignores taps while its save is in flight; Download waits for the picture and counts only when it was really saved; the slide stops moving for 6 seconds after a touch on the three buttons; each picture is fetched once; the admin counts clear while another cohort loads.
+- Known and accepted: the post is named by its day number, so a phone that loaded Home just before an admin re-orders posts could like the picture now on that number (it clears on the next load). A support counts under every cohort they are attached to. Copying a link where the device has no share sheet is not counted as a share.

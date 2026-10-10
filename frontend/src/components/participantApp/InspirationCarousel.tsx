@@ -26,6 +26,11 @@ const InspirationCarousel: React.FC<{
   const [focused, setFocused] = useState(false);
   const [allOpen, setAllOpen] = useState(false);
   const [viewDay, setViewDay] = useState<number | null>(null);
+  // True for a few seconds after the person touches Like, Download or Share, so the slide does not change under their finger.
+  const [acting, setActing] = useState(false);
+  const actingTimer = useRef<number | null>(null);
+  useEffect(() => () => { if (actingTimer.current) window.clearTimeout(actingTimer.current); }, []);
+  const onActing = () => { setActing(true); if (actingTimer.current) window.clearTimeout(actingTimer.current); actingTimer.current = window.setTimeout(() => setActing(false), 6000); };
   const { liked, toggle } = useScriptureLikes();
   const [dragPx, setDragPx] = useState(0);
   const dragStart = useRef<{ id: number; x: number } | null>(null);
@@ -54,7 +59,7 @@ const InspirationCarousel: React.FC<{
 
   // One timer per slide (not a polling loop): it re-arms whenever the slide changes, and stays off while the
   // person is touching the card, the "See all" sheet is open, the tab is hidden, or reduced motion is on.
-  const paused = held || focused || allOpen || viewDay !== null || hidden || count < 2;
+  const paused = held || focused || acting || allOpen || viewDay !== null || hidden || count < 2;
   useEffect(() => {
     if (paused || prefersReducedMotion()) return undefined;
     const timer = window.setTimeout(() => setIndex((current) => (current + 1) % count), SLIDE_MS);
@@ -122,7 +127,7 @@ const InspirationCarousel: React.FC<{
           ))}
         </div>
       )}
-      {recent[index] && <ScriptureActions day={recent[index].day} imageUrl={recent[index].imageUrl} liked={liked.has(recent[index].day)} onToggleLike={() => void toggle(recent[index].day)} />}
+      {recent[index] && <div onPointerDown={onActing}><ScriptureActions day={recent[index].day} imageUrl={recent[index].imageUrl} liked={liked.has(recent[index].day)} onToggleLike={() => void toggle(recent[index].day)} /></div>}
       {allOpen && (
         <HomeSheet label="All inspirational posts" onClose={() => setAllOpen(false)}>
           <h2 className="pr-10 text-lg font-extrabold tracking-tight text-gray-900">All inspirational posts</h2>
