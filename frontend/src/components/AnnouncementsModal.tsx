@@ -210,6 +210,12 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
       : null;
 
   // Several supports picked (SUPPORTS audience only). One pick is sent as a single person, two or more as a list.
+  // Picks that are no longer in the list (the cohort changed, a support was switched off) are dropped, so the count and the send match what the admin can see.
+  const knownSupportIds = useMemo(() => new Set(supports.map((u) => u.id)), [supports]);
+  useEffect(() => {
+    if (supports.length === 0) return;
+    setPickedSupportIds((current) => (current.every((id) => knownSupportIds.has(id)) ? current : current.filter((id) => knownSupportIds.has(id))));
+  }, [supports.length, knownSupportIds]);
   const pickedSupports = audience === 'SUPPORTS' ? pickedSupportIds : [];
   const anyPersonPicked = !!targetPersonKey || pickedSupports.length > 0;
   const pickedNames = pickedSupports.map((id) => supportNameById.get(id) || 'a support');

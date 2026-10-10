@@ -7,7 +7,7 @@
 
 ## Live changes
 - Migration `20261013090000_announcement_target_user_ids.sql` (applied live): `Announcement."targetUserIds" uuid[]`, nullable, additive. Rollback is in the file.
-- Edge function `send-announcement` deployed as **v22** (was v21; the repo source matched v21 before the change): accepts `targetUserIds`, stores it, and uses it as the whole recipient set (no participants, no tag/hub filtering), like a single `targetUserId`.
+- Edge function `send-announcement` deployed as **v23** (v22 first, then a review fix; v21 matched the repo before): accepts `targetUserIds` for the Supports audience only (ignored for any other), stores it with the tag and hub columns cleared, and uses it as the whole recipient set (no participants, no tag/hub filtering), like a single `targetUserId`. Popups are created per resolved recipient, so only people on the list get one.
 - Frontend files: `AnnouncementsModal.tsx`, `supabase-api.ts` (send, history mapping, visibility), `api.ts`, `types/index.ts`.
 
 ## How it was tested
@@ -16,5 +16,7 @@
 - NOT tested: a real send to real supports, and the push/bell delivery of a list-targeted announcement.
 
 ## Open items
+- A phone still running an older cached copy of the app would show a list-targeted announcement in its in-app feed to every support (push and popups still go only to the list); it clears when the app updates.
+- `targetUserIds` has no foreign key or index (a removed user's id stays in the array and shows as "a support"); fine at this size.
 - Admins whose main role is Admin but who hold the Support tag appear in the list, as they do in the single-person picker.
 - A list-targeted announcement shows "To: N supports" in History; the names are only in the hover title.

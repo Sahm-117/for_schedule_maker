@@ -107,7 +107,8 @@ Deno.serve(async (req) => {
 
     // Two or more picked supports: they are the whole recipient set, like a single pick.
     const pickedUserIds: string[] = Array.from(new Set((Array.isArray(targetUserIds) ? targetUserIds : []).filter((id): id is string => typeof id === 'string' && id.length > 0)))
-    const hasPickedUsers = audience !== 'PARTICIPANTS' && pickedUserIds.length > 0
+    // Only the Supports audience takes a list; for any other audience it is ignored.
+    const hasPickedUsers = audience === 'SUPPORTS' && pickedUserIds.length > 0
 
     // 1. Record the announcement
     const { data: announcement, error: insertError } = await supabase
@@ -118,9 +119,9 @@ Deno.serve(async (req) => {
         sentBy: sentBy || null,
         scope,
         cohortId,
-        targetLabelId: audience === 'PARTICIPANTS' ? null : targetLabelId,
+        targetLabelId: audience === 'PARTICIPANTS' || hasPickedUsers ? null : targetLabelId,
         targetGroupId: audience === 'PARTICIPANTS' ? targetGroupId : null,
-        targetHubId: audience === 'PARTICIPANTS' ? null : targetHubId,
+        targetHubId: audience === 'PARTICIPANTS' || hasPickedUsers ? null : targetHubId,
         targetUserId: audience === 'PARTICIPANTS' ? null : targetUserId,
         targetUserIds: hasPickedUsers ? pickedUserIds : null,
         targetParticipantId: audience === 'SUPPORTS' ? null : targetParticipantId,
