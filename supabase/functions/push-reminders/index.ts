@@ -1057,8 +1057,8 @@ Deno.serve(async (req) => {
         }
       }
 
-      // h) One-off onboarding nudges on Saturday 10 Oct 2026: 6:00 pm "have you introduced yourself?" (also tells people to
-      //    message their support) and 8:00 pm "here is what is still open" with the readiness badge. Everyone with an active
+      // h) One-off onboarding nudges on Saturday 10 Oct 2026: 6:00 pm "introductions in your group" (tells people to nudge their
+      //    support if the support has not introduced themselves yet) and 8:00 pm "here is what is still open" with the readiness badge. Everyone with an active
       //    account in the running cohort who has not attended or completed is considered; each person only gets what applies.
       //    The 7pm "Get ready" above is skipped on this day so nobody gets three in two hours.
       if (pToday === '2026-10-10' && ((pNowMinutes >= 18 * 60 && pNowMinutes < 18 * 60 + 10) || (pNowMinutes >= 20 * 60 && pNowMinutes < 20 * 60 + 10))) {
@@ -1079,13 +1079,26 @@ Deno.serve(async (req) => {
             const doneSteps = new Set(((stepRows ?? []) as any[]).map((r) => `${r.participantId}:${r.step}`))
             const states = new Map<string, any>(stateList)
             if (pNowMinutes < 19 * 60) {
-              const needIntro = ids.filter((id) => { const st = states.get(id); return st && !st.completed && !st.hasAttended && !st.introPosted })
-              await pushParticipants(needIntro, {
-                title: 'Have you introduced yourself?',
-                body: 'Say hi in your group now, then message your support so they can welcome you.',
-                path: '/me/group',
-                tag: 'ONBOARD_NUDGE:2026-10-10:1800',
-              })
+              // Only people already in a group (otherwise there is no support to nudge and nowhere to introduce yourself).
+              const { data: grouped } = await supabase.from('GroupParticipant').select('participantId').in('participantId', ids)
+              const inGroup = new Set(((grouped ?? []) as any[]).map((r) => r.participantId))
+              const byText = new Map<string, string[]>()
+              for (const id of ids) {
+                const st = states.get(id)
+                if (!st || st.completed || st.hasAttended || !inGroup.has(id)) continue
+                let body: string | null = null
+                if (!st.supportIntroPosted) {
+                  body = st.introPosted
+                    ? 'Has your support introduced themselves in your group yet? If not, give them a nudge to do so.'
+                    : 'Has your support introduced themselves in your group yet? If not, nudge them to do so. Then introduce yourself too.'
+                } else if (!st.introPosted) {
+                  body = 'Have you introduced yourself in your group yet? Say hi now so everyone gets to know you.'
+                }
+                if (body) byText.set(body, [...(byText.get(body) ?? []), id])
+              }
+              for (const [body, group] of byText) {
+                await pushParticipants(group, { title: 'Introductions in your group', body, path: '/me/group', tag: 'ONBOARD_NUDGE:2026-10-10:1800' })
+              }
             } else {
               const byBody = new Map<string, string[]>()
               for (const id of ids) {
