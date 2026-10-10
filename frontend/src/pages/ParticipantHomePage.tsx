@@ -114,6 +114,24 @@ const ParticipantHomePage: React.FC = () => {
     window.setTimeout(() => document.querySelector('[data-wt="ph-get-ready"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
   }, [wantsReady, onboardingLoaded]);
 
+  // A "view the venue map" notification opens /me?map=1. Wait briefly for the person's own state so the tick starts right,
+  // but open the map anyway if that state is slow or never arrives. The flag is then dropped so a refresh does not reopen it.
+  // (Kept above the early returns below: hooks must run on every render.)
+  const [mapWaited, setMapWaited] = useState(false);
+  const wantsMap = searchParams.get('map') === '1';
+  useEffect(() => {
+    if (!wantsMap || loading) return undefined;
+    const timer = window.setTimeout(() => setMapWaited(true), 2500);
+    return () => window.clearTimeout(timer);
+  }, [wantsMap, loading]);
+  useEffect(() => {
+    if (!wantsMap || loading || !(onboarding || mapWaited)) return;
+    setMapOpen(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete('map');
+    setSearchParams(next, { replace: true });
+  }, [wantsMap, loading, onboarding, mapWaited, searchParams, setSearchParams]);
+
   if (loading) {
     return <PageLoader label="Loading your FOF space…" />;
   }
@@ -208,16 +226,6 @@ const ParticipantHomePage: React.FC = () => {
   // The readiness badge is earned when every step is ticked and readiness is confirmed; it stays after the Get ready card is gone.
   const badgeName = `${cohortLabel(home.cohort?.name)} Readiness Badge`;
   const badgeEarned = !!onboarding && allDone && (onboarding.readyConfirmed || onboarding.completed);
-
-  // A "view the venue map" notification opens /me?map=1: show the map once the person's own state has loaded
-  // (so the tick starts right), then drop the flag so a refresh does not open it again.
-  useEffect(() => {
-    if (searchParams.get('map') !== '1' || !onboarding) return;
-    setMapOpen(true);
-    const next = new URLSearchParams(searchParams);
-    next.delete('map');
-    setSearchParams(next, { replace: true });
-  }, [searchParams, setSearchParams, onboarding]);
 
   const acknowledgeMap = async () => {
     await participantAppApi.ackVenueMap();
@@ -452,14 +460,12 @@ const ParticipantHomePage: React.FC = () => {
             {!onboarding ? (
               <div className="flex justify-center py-4"><Spinner /></div>
             ) : onboarding.readyConfirmed || onboarding.completed ? (
-              <>
               <div className="flex items-center gap-3">
                 <span className="grid h-8 w-8 flex-none place-items-center rounded-full bg-emerald-500 text-white" aria-hidden="true">
                   <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="m5 12 5 5L20 7" /></svg>
                 </span>
                 <h2 className="text-lg font-bold text-gray-900">You're ready for class</h2>
               </div>
-              </>
             ) : (
               <>
             <div className="flex items-baseline gap-2">

@@ -6,8 +6,8 @@
 - Tapping it opens `/me?map=1`, which opens the venue map on the participant Home (the flag is then removed from the address). Until this frontend change is deployed, the link just opens Home.
 
 ## Live changes
-- Edge function `push-reminders` deployed as **v44** (v42 before; v43 was an intermediate version using class days, replaced). FLOW_MAP rule 59.
-- IMPORTANT: v44 was built from the repo as it was BEFORE the roles-and-permissions commit (`cb65c72`) plus the new block, because that commit's function changes were deliberately not deployed yet. So the repo copy of `push-reminders` is ahead of the live one by that roles change (the birthday alert recipients). Whoever deploys the roles functions should deploy the repo copy; it contains this block as well.
+- Edge function `push-reminders` deployed as **v45** (v42 before; v43 and v44 were earlier versions of this same block). v45 counts the first two Sundays on or after the cohort's start date, so a start date that is not a Sunday still works. FLOW_MAP rule 59.
+- IMPORTANT: v45 was built from the repo as it was BEFORE the roles-and-permissions commit (`cb65c72`) plus the new block, because that commit's function changes were deliberately not deployed yet. So the repo copy of `push-reminders` is ahead of the live one by that roles change (the birthday alert recipients). Whoever deploys the roles functions should deploy the repo copy; it contains this block as well.
 - No migration.
 
 ## How it was tested
@@ -16,3 +16,4 @@
 
 ## Open items
 - Cohort 10's week 2 class is on 25 Oct in the Planner (no class 18 Oct); the reminders still go out for 17/18 Oct as asked ("first two weeks"). Change `serviceDays` in `push-reminders` to follow class days if that is not wanted.
+- Review fixes: the map link's hook now sits above the early returns on the participant Home (it would have crashed the page while loading); the map opens even if the person's onboarding state is slow or fails (after 2.5 seconds); a null picture from the graphic sheets shows an error instead of dead buttons.

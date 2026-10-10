@@ -1075,8 +1075,10 @@ Deno.serve(async (req) => {
           const { data: mapCohort } = await supabase.from('Cohort').select('id, startDate, status').eq('id', mapCohortId).maybeSingle()
           if (mapCohort?.startDate && (mapCohort as any).status !== 'COMPLETED') {
             const startIso = String((mapCohort as any).startDate).slice(0, 10)
-            // The first two Sundays from the cohort's start date, wherever the Planner puts the classes.
-            const serviceDays = new Set([startIso, addLagosDays(startIso, 7)])
+            // The first two Sundays on or after the cohort's start date, wherever the Planner puts the classes.
+            // (If the start date is not itself a Sunday, the first Sunday after it is the first service.)
+            const firstSunday = addLagosDays(startIso, (7 - lagosDayIndex(startIso)) % 7)
+            const serviceDays = new Set([firstSunday, addLagosDays(firstSunday, 7)])
             if (serviceDays.has(serviceIso)) {
               const { data: accounts } = await supabase
                 .from('ParticipantAccount').select('participantId, participant:Participant!inner(id, cohortId, status)')

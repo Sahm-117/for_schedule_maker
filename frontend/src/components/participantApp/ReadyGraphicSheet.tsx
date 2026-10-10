@@ -25,7 +25,7 @@ const ReadyGraphicSheet: React.FC<{ badgeName: string; name: string; photoUrl?: 
     drawReadyGraphic(canvas, { name, photoUrl, cohortName }, () => cancelled)
       .then((r) => {
         if (cancelled) return;
-        canvas.toBlob((b) => { if (!cancelled) { blobRef.current = b; setPhotoUsed(r.photoUsed); setDrawing(false); } }, 'image/png');
+        canvas.toBlob((b) => { if (cancelled) return; blobRef.current = b; setPhotoUsed(r.photoUsed); if (!b) setNote('Could not make the picture. Close this and try again.'); setDrawing(false); }, 'image/png');
       })
       .catch((e) => { if (!cancelled) { setNote(e instanceof Error ? e.message : 'Could not make the graphic.'); setDrawing(false); } });
     return () => { cancelled = true; };

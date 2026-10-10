@@ -28,7 +28,7 @@ const BirthdayGraphicSheet: React.FC<{ person: BirthdayPerson; roleLabel: string
     drawBirthdayGraphic(canvas, { name: person.name, photoUrl: person.avatarUrl, month: person.month, day: person.day, roleLabel, quote: BIRTHDAY_QUOTES[quoteIdx] }, () => cancelled)
       .then((r) => {
         if (cancelled) return;
-        canvas.toBlob((b) => { if (!cancelled) { blobRef.current = b; setPhotoUsed(r.photoUsed); setDrawing(false); } }, 'image/png');
+        canvas.toBlob((b) => { if (cancelled) return; blobRef.current = b; setPhotoUsed(r.photoUsed); if (!b) setError('Could not make the picture. Close this and try again.'); setDrawing(false); }, 'image/png');
       })
       .catch((e) => { if (!cancelled) { setError(e instanceof Error ? e.message : 'Could not make the graphic.'); setDrawing(false); } });
     return () => { cancelled = true; };

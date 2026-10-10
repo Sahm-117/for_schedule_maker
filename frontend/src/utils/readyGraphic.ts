@@ -1,4 +1,4 @@
-import { BURNT, GOLD, GRAPHIC_H, GRAPHIC_W, INK, ORANGE, ORANGE_DEEP, SANS, initialsOf, loadFonts, loadImage, loadPhoto, roundRect, seeded, spaced, star } from './birthdayGraphic';
+import { GOLD, GRAPHIC_H, GRAPHIC_W, INK, ORANGE_DEEP, SANS, initialsOf, loadFonts, loadImage, loadPhoto, roundRect, seeded, spaced, star } from './birthdayGraphic';
 
 // The "I'm fully ready" graphic a participant can make once every Get ready step is done: their photo and name,
 // a green tick, and one line saying they are ready for their cohort's class. Same size and look family as the birthday graphic.
@@ -159,7 +159,6 @@ export const drawReadyGraphic = async (target: HTMLCanvasElement, input: ReadyGr
   star(ctx, 1010, 1260, 22, '#FFFFFF');
   star(ctx, 110, 1290, 11, '#FFFFFF');
   star(ctx, 960, 1215, 12, GOLD);
-  ctx.fillStyle = BURNT;
 
   if (!isCancelled()) {
     target.width = GRAPHIC_W;
@@ -168,5 +167,3 @@ export const drawReadyGraphic = async (target: HTMLCanvasElement, input: ReadyGr
   }
   return { photoUsed: !!photo };
 };
-
-export { ORANGE };
