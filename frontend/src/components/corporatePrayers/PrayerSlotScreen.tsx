@@ -35,6 +35,8 @@ const RING = 2 * Math.PI * 40;
 
 const PrayerSlotScreen: React.FC<Props> = ({ model, clockOffsetMs, onAmen, onLeave, busy = false, error = '', embedded = false }) => {
   const [tick, setTick] = useState(() => Date.now());
+  // Amen ends the prayer, so a tap on it asks first (a slip of the thumb would close the screen).
+  const [confirming, setConfirming] = useState(false);
   // A clock that only ticks locally, to redraw the countdown. It does not call the server.
   useEffect(() => {
     const timer = window.setInterval(() => setTick(Date.now()), 1000);
@@ -104,6 +106,16 @@ const PrayerSlotScreen: React.FC<Props> = ({ model, clockOffsetMs, onAmen, onLea
               <p className="text-[17px] font-semibold">Thank you for praying.</p>
               <button type="button" onClick={onLeave} className="flex h-[54px] w-full items-center justify-center rounded-full bg-white text-[16px] font-semibold text-[#0b1020] active:scale-[0.98]">Done</button>
             </div>
+          ) : confirming ? (
+            <div className="flex flex-col items-center gap-3 text-center">
+              <p className="text-[17px] font-semibold">Are you done praying?</p>
+              <div className="flex w-full gap-3">
+                <button type="button" onClick={() => setConfirming(false)} disabled={busy} className="flex h-[54px] min-w-0 flex-1 items-center justify-center rounded-full bg-white/15 text-[16px] font-semibold text-white active:scale-[0.98] disabled:opacity-60">Not yet</button>
+                <button type="button" onClick={onAmen} disabled={busy} className="flex h-[54px] min-w-0 flex-1 items-center justify-center rounded-full bg-white text-[16px] font-bold text-[#0b1020] active:scale-[0.98] disabled:opacity-60">
+                  {busy ? <span className="inline-flex items-center gap-2"><Spinner className="h-4 w-4" />Saving…</span> : 'Yes, Amen'}
+                </button>
+              </div>
+            </div>
           ) : (
             <div className="flex items-center gap-4">
               <div className="relative h-[84px] w-[84px] flex-none" role="timer" aria-label={timeUp ? 'Time is up' : `${mmss(remaining)} left`}>
@@ -113,9 +125,7 @@ const PrayerSlotScreen: React.FC<Props> = ({ model, clockOffsetMs, onAmen, onLea
                 </svg>
                 <span className="absolute inset-0 grid place-items-center text-[17px] font-bold tabular-nums">{timeUp ? 'Done' : mmss(remaining)}</span>
               </div>
-              <button type="button" onClick={onAmen} disabled={busy} className="flex h-[58px] min-w-0 flex-1 items-center justify-center rounded-full bg-white text-[17px] font-bold text-[#0b1020] transition active:scale-[0.98] disabled:opacity-60">
-                {busy ? <span className="inline-flex items-center gap-2"><Spinner className="h-4 w-4" />Saving…</span> : 'Amen'}
-              </button>
+              <button type="button" onClick={() => setConfirming(true)} className="flex h-[58px] min-w-0 flex-1 items-center justify-center rounded-full bg-white text-[17px] font-bold text-[#0b1020] transition active:scale-[0.98]">Amen</button>
             </div>
           )}
         </div>
