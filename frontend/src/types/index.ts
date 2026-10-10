@@ -2093,7 +2093,11 @@ export interface BirthdayList {
 
 // ---- Corporate prayers ----
 
-export type PrayerSlotType = 'VERSE' | 'FAITH_PROJECT' | 'LIVE';
+export type PrayerSlotType = 'PRAYER' | 'LIVE';
+/** One part of a prayer template: a library verse (fixed), or the faith project of whoever is prayed for. */
+export type PrayerBlock = { type: 'VERSE'; verseId: string } | { type: 'FAITH_PROJECT' };
+/** A template block filled in for display. */
+export type PrayerResolvedBlock = { type: 'VERSE'; title: string; prayer: string; reference: string } | { type: 'FAITH_PROJECT'; text: string | null };
 export type PrayerTargetMode = 'COHORT' | 'HUB';
 export type PrayerPool = 'FAITH' | 'NAME';
 
@@ -2110,6 +2114,12 @@ export interface PrayerSlot {
   targetMode: PrayerTargetMode | null;
   notify: boolean;
   active: boolean;
+  blocks: PrayerBlock[];
+  audienceAll: boolean;
+  hubIds: string[];
+  telegramLink: string | null;
+  liveWaitMinutes: number;
+  liveMessage: string | null;
   hasHistory: boolean;
   today: { sessionId: string; opensAt: string; closesAt: string; counts: PrayerCounts } | null;
 }
@@ -2121,14 +2131,15 @@ export interface PrayerOverview {
   endDate: string | null;
   today: string;
   running: boolean;
-  settings: { telegramLink: string | null; liveWaitMinutes: number; liveMessage: string | null };
+  isPractice: boolean;
+  hubs: Array<{ id: string; name: string }>;
   slots: PrayerSlot[];
   verses: { total: number; active: number };
   pools: { FAITH: number; NAME: number };
   counted: { participants: number; supports: number };
 }
 
-export interface PrayerVerse { id: string; prayer: string; reference: string; sortOrder: number; active: boolean; used: number }
+export interface PrayerVerse { id: string; title: string; prayer: string; reference: string; sortOrder: number; active: boolean; used: number; inSlots: number }
 
 export interface PrayerPerson { id: string; fullName: string; firstName: string; avatarUrl: string | null }
 
@@ -2143,8 +2154,7 @@ export interface PrayerNow {
   state: 'none' | 'upcoming' | 'open' | 'closed';
   session?: { id: string; name: string | null; slotType: PrayerSlotType; timerMinutes: number; opensAt: string; closesAt: string };
   person?: PrayerPerson | null;
-  projectText?: string | null;
-  verse?: { prayer: string; reference: string } | null;
+  blocks?: PrayerResolvedBlock[];
   me?: { checkedInAt: string; amenAt: string | null; linkTappedAt: string | null } | null;
   counts?: PrayerCounts;
   live?: PrayerLiveInfo | null;
@@ -2169,7 +2179,25 @@ export interface PrayerCoverage {
 export interface PrayerPreview {
   slot: { id: string; name: string | null; time: string; slotType: PrayerSlotType; timerMinutes: number };
   person: PrayerPerson | null;
-  projectText: string | null;
-  verse: { prayer: string; reference: string } | null;
+  blocks: PrayerResolvedBlock[];
   live: PrayerLiveInfo | null;
+}
+
+/** What the slot wizard saves. */
+export interface PrayerSlotInput {
+  id: string | null;
+  name: string;
+  time: string;
+  slotType: PrayerSlotType;
+  timerMinutes: number;
+  joinWindowMinutes: number;
+  targetMode: PrayerTargetMode | null;
+  notify: boolean;
+  active: boolean;
+  blocks: PrayerBlock[];
+  audienceAll: boolean;
+  hubIds: string[];
+  telegramLink: string;
+  liveWaitMinutes: number;
+  liveMessage: string;
 }

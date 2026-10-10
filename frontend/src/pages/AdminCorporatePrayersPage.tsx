@@ -23,7 +23,7 @@ type TabKey = 'schedule' | 'verses' | 'live' | 'coverage' | 'preview';
 const TABS: Array<{ key: TabKey; label: string }> = [
   { key: 'schedule', label: 'Schedule' },
   { key: 'verses', label: 'Verses' },
-  { key: 'live', label: 'Live prayer' },
+  { key: 'live', label: 'Live prayers' },
   { key: 'coverage', label: 'Coverage' },
   { key: 'preview', label: 'Preview' },
 ];
@@ -33,7 +33,7 @@ const shortDay = (iso: string) => new Intl.DateTimeFormat('en-GB', { weekday: 's
 
 const StatusStrip: React.FC<{ overview: PrayerOverview; cohortName: string }> = ({ overview, cohortName }) => {
   const activeSlots = overview.slots.filter((slot) => slot.active);
-  const needsVerses = activeSlots.some((slot) => slot.slotType !== 'LIVE');
+  const needsVerses = activeSlots.some((slot) => slot.slotType === 'PRAYER');
   const missing: string[] = [];
   if (!overview.startDate) missing.push('Set the start week');
   if (activeSlots.length === 0) missing.push('Add a slot');
@@ -117,12 +117,12 @@ const AdminCorporatePrayersPage: React.FC = () => {
         <>
           <StatusStrip overview={overview} cohortName={activeCohort?.name ?? ''} />
           <SegmentedTabs tabs={TABS} active={tab} onChange={(key) => setTab(key as TabKey)} scrollable className="mb-5" />
-          {tab === 'schedule' && <ScheduleTab overview={overview} cohortId={cohortId} weeks={cohortWeeks} onReload={reload} onAdd={openAdd} onEdit={openEdit} />}
+          {tab === 'schedule' && <ScheduleTab overview={overview} cohortId={cohortId} weeks={cohortWeeks} onReload={reload} onAdd={openAdd} onEdit={openEdit} hubs={overview.hubs} />}
           {tab === 'verses' && <VersesTab onChanged={reload} />}
-          {tab === 'live' && <LivePrayerTab overview={overview} cohortId={cohortId} onReload={reload} />}
+          {tab === 'live' && <LivePrayerTab overview={overview} onEdit={openEdit} onAdd={openAdd} />}
           {tab === 'coverage' && <CoverageTab cohortId={cohortId} overview={overview} onReload={reload} />}
           {tab === 'preview' && <PreviewTab overview={overview} cohortId={cohortId} />}
-          <SlotEditorModal isOpen={editorOpen} onClose={() => setEditorOpen(false)} cohortId={cohortId} slot={editing} hasHubs onSaved={reload} />
+          <SlotEditorModal isOpen={editorOpen} onClose={() => setEditorOpen(false)} cohortId={cohortId} slot={editing} hubs={overview.hubs} onSaved={reload} />
         </>
       )}
     </div>

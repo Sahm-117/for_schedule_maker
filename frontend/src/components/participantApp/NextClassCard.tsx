@@ -85,7 +85,9 @@ const NextClassCard: React.FC<{ week: ParticipantHomeWeek }> = ({ week }) => {
   const title = week.title?.trim() || `Class ${week.weekNumber}`;
   const teacher = week.teacher;
   return (
-    <section data-wt="ph-next-class" className="rounded-[22px] border border-[#ffdeca] bg-[#fff8f3] p-3.5 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
+    // The whole card opens the graphic (a phone tap rarely lands on the small picture or arrow). The buttons inside stay for keyboards,
+    // and the teacher chip keeps its own tap. Taps inside the sheets (portalled, so still React children) must not reopen it.
+    <section data-wt="ph-next-class" onClick={(event) => { if (event.currentTarget.contains(event.target as Node)) setGraphicOpen(true); }} className="cursor-pointer rounded-[22px] border border-[#ffdeca] bg-[#fff8f3] p-3.5 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
       <p className="px-0.5 pb-2.5 text-[11px] font-bold uppercase tracking-[0.06em] text-[#9a6a4b]">Next class</p>
       <div className="grid grid-cols-[96px_minmax(0,1fr)_24px] items-start gap-3">
         <button type="button" onClick={() => setGraphicOpen(true)} aria-label={`View the ${title} graphic`} className="block h-24 w-24 overflow-hidden rounded-[14px]" style={{ background: gradientCss(week) }}>
@@ -96,7 +98,7 @@ const NextClassCard: React.FC<{ week: ParticipantHomeWeek }> = ({ week }) => {
             <h2 className="text-[18px] font-extrabold leading-[1.15] tracking-tight text-gray-900 [overflow-wrap:anywhere]">{title}</h2>
           </button>
           {teacher && (
-            <span className="max-w-full rounded-2xl bg-sky-500/[0.09] p-[3px]">
+            <span className="max-w-full rounded-2xl bg-sky-500/[0.09] p-[3px]" onClick={(event) => event.stopPropagation()}>
               <GlassTeacherChip name={teacher.name} photoUrl={teacher.photoUrl} tone="light" onOpen={() => setTeacherOpen(true)} />
             </span>
           )}

@@ -30,7 +30,7 @@ const PreviewTab: React.FC<{ overview: PrayerOverview; cohortId: string }> = ({ 
     let cancelled = false;
     void corporatePrayersApi.coverage(cohortId).then((coverage) => {
       if (cancelled) return;
-      const pool = slot.slotType === 'FAITH_PROJECT' ? 'FAITH' : 'NAME';
+      const pool = slot.blocks.some((block) => block.type === 'FAITH_PROJECT') ? 'FAITH' : 'NAME';
       const all = [...(coverage.notYet?.[pool] ?? []), ...(coverage.doneList?.[pool] ?? [])];
       setPeople(all.map((person) => ({ id: person.id, name: person.name })).sort((a, b) => a.name.localeCompare(b.name)));
     }).catch(() => undefined);
@@ -87,7 +87,7 @@ const PreviewTab: React.FC<{ overview: PrayerOverview; cohortId: string }> = ({ 
                   onTapLink={() => undefined}
                   onPrayed={() => undefined}
                 />
-              ) : <Notice tone="warn">No Telegram link yet. Add it on the Live prayer tab.</Notice>}
+              ) : <Notice tone="warn">No Telegram link yet. Add it by editing this slot.</Notice>}
             </div>
           ) : (
             <PrayerSlotScreen
@@ -95,8 +95,7 @@ const PreviewTab: React.FC<{ overview: PrayerOverview; cohortId: string }> = ({ 
               model={{
                 slotLabel: preview.slot.name || clockLabel(preview.slot.time),
                 person: preview.person,
-                projectText: preview.projectText,
-                verse: preview.verse,
+                blocks: preview.blocks,
                 counts: { joined: 10, praying: 7, amen: 3 },
                 timerMinutes: preview.slot.timerMinutes,
                 checkedInAtMs: null,

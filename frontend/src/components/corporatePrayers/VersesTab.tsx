@@ -9,15 +9,16 @@ import { usePermissions } from '../../hooks/usePermissions';
 import { corporatePrayersApi } from '../../services/api';
 import type { PrayerVerse } from '../../types';
 import { gendered, parseBulkVerses, renderPrayer } from '../../utils/prayerText';
+import PlaceholderInsert from './PlaceholderInsert';
+import PrayerText from './PrayerText';
 import { Field, INPUT, Notice, PRIMARY_BTN, SECONDARY_BTN, Toggle } from './ui';
 
-// The verse library. Slots use it in this order, cycling, and everyone sees the same verse. A prayer may carry the person's
-// name as {{NAME}} (first name in capitals) or {{Name}} (first name as written). The project is shown separately as written,
-// so a prayer must read correctly without knowing anyone's gender.
-
-const PLACEHOLDER_HELP = 'Use {{NAME}} for the person’s first name in capitals, or {{Name}} as written.';
+// The verse library. Each verse has a title (how it is picked when building a slot's template), the prayer, and a reference. A prayer
+// may carry the person's full name as {{Name}} (insert it with @), and may use blank lines and "- " bullets. The faith project is its
+// own part of a template, so a prayer must read correctly without knowing anyone's gender.
 
 const VerseModal: React.FC<{ isOpen: boolean; verse: PrayerVerse | null; onClose: () => void; onSaved: () => void }> = ({ isOpen, verse, onClose, onSaved }) => {
+  const [title, setTitle] = useState('');
   const [prayer, setPrayer] = useState('');
   const [reference, setReference] = useState('');
   const [active, setActive] = useState(true);
@@ -26,6 +27,7 @@ const VerseModal: React.FC<{ isOpen: boolean; verse: PrayerVerse | null; onClose
 
   useEffect(() => {
     if (!isOpen) return;
+    setTitle(verse?.title ?? '');
     setPrayer(verse?.prayer ?? '');
     setReference(verse?.reference ?? '');
     setActive(verse?.active ?? true);
@@ -40,7 +42,7 @@ const VerseModal: React.FC<{ isOpen: boolean; verse: PrayerVerse | null; onClose
     setSaving(true);
     setError('');
     try {
-      await corporatePrayersApi.saveVerse({ id: verse?.id ?? null, prayer, reference, active });
+      await corporatePrayersApi.saveVerse({ id: verse?.id ?? null, title, prayer, reference, active });
       onSaved();
       onClose();
     } catch (err) { setError(err instanceof Error ? err.message : 'Could not save the verse.'); }
@@ -60,8 +62,11 @@ const VerseModal: React.FC<{ isOpen: boolean; verse: PrayerVerse | null; onClose
       )}
     >
       <div className="space-y-4">
-        <Field label="Prayer" htmlFor="verse-prayer" hint={PLACEHOLDER_HELP}>
-          <textarea id="verse-prayer" rows={5} value={prayer} onChange={(event) => setPrayer(event.target.value)} className={`${INPUT} resize-y py-2.5 leading-relaxed`} placeholder="Father, give you, {{NAME}}, the spirit of wisdom and revelation." />
+        <Field label="Title" htmlFor="verse-title" hint="How you will find this verse when building a slot. Each title is used once.">
+          <input id="verse-title" value={title} maxLength={60} onChange={(event) => setTitle(event.target.value)} className={INPUT} placeholder="Spirit of wisdom" />
+        </Field>
+        <Field label="Prayer" htmlFor="verse-prayer">
+          <PlaceholderInsert id="verse-prayer" value={prayer} onChange={setPrayer} rows={6} placeholder="Father, give {{Name}} the spirit of wisdom and revelation." />
         </Field>
         <Field label="Reference" htmlFor="verse-ref">
           <input id="verse-ref" value={reference} onChange={(event) => setReference(event.target.value)} className={INPUT} placeholder="Eph 1:17-18" />
@@ -70,7 +75,7 @@ const VerseModal: React.FC<{ isOpen: boolean; verse: PrayerVerse | null; onClose
         {prayer.trim() && (
           <div className="rounded-2xl bg-[#0b1020] p-4 text-white">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-white/50">Preview</p>
-            <p className="mt-1.5 text-[16px] leading-relaxed">{renderPrayer(prayer, 'Adaeze')}</p>
+            <PrayerText text={renderPrayer(prayer, 'Adaeze Okafor')} className="mt-1.5 text-[16px] leading-relaxed" />
             <p className="mt-1.5 text-sm font-semibold text-orange-300">{reference || 'Reference'}</p>
           </div>
         )}
@@ -93,7 +98,7 @@ const BulkModal: React.FC<{ isOpen: boolean; onClose: () => void; onSaved: () =>
     setSaving(true);
     setError('');
     try {
-      await corporatePrayersApi.addVerses(parsed.map(({ prayer, reference }) => ({ prayer, reference })));
+      await corporatePrayersApi.addVerses(parsed.map(({ title, prayer, reference }) => ({ title, prayer, reference })));
       onSaved();
       onClose();
     } catch (err) { setError(err instanceof Error ? err.message : 'Could not add the verses.'); }
@@ -106,7 +111,7 @@ const BulkModal: React.FC<{ isOpen: boolean; onClose: () => void; onSaved: () =>
       onClose={onClose}
       wide
       title="Add several verses"
-      subtitle="Paste prayers separated by a blank line. Put the reference on the last line of each, starting with a dash."
+      subtitle="Paste verses separated by a line of ===. Each starts with a Title: line and a Ref: line; the rest is the prayer, kept as typed."
       footer={(
         <>
           <button type="button" onClick={onClose} className={SECONDARY_BTN}>Cancel</button>
@@ -123,13 +128,14 @@ const BulkModal: React.FC<{ isOpen: boolean; onClose: () => void; onSaved: () =>
           value={raw}
           onChange={(event) => setRaw(event.target.value)}
           className={`${INPUT} resize-y py-2.5 font-mono text-[13px] leading-relaxed`}
-          placeholder={'Father, give you, {{NAME}}, the spirit of wisdom and revelation.\n- Eph 1:17-18\n\nLord, open the eyes of {{Name}}’s heart.\n- Ps 119:18'}
+          placeholder={'Title: Spirit of wisdom\nRef: Eph 1:17-18\nFather, give {{Name}} the spirit of wisdom.\n\n- Open the eyes of their heart\n- Let them know the hope of the calling\n===\nTitle: Open eyes\nRef: Ps 119:18\nLord, open the eyes of {{Name}}.'}
         />
         {parsed.length > 0 && (
           <ul className="space-y-2" aria-label="How these will be added">
             {parsed.map((item, index) => (
               <li key={index} className={`rounded-xl border px-3 py-2 text-sm ${item.problem ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-white'}`}>
-                <p className="line-clamp-2 text-gray-900">{item.prayer || '—'}</p>
+                <p className="font-semibold text-gray-900">{item.title || '—'}</p>
+                <p className="line-clamp-2 whitespace-pre-line text-gray-700">{item.prayer || '—'}</p>
                 <p className={`mt-0.5 text-xs font-semibold ${item.problem ? 'text-red-700' : 'text-orange-700'}`}>{item.problem ?? item.reference}</p>
               </li>
             ))}
@@ -176,7 +182,7 @@ const VersesTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
   };
 
   const toggleActive = async (verse: PrayerVerse) => {
-    try { await corporatePrayersApi.saveVerse({ id: verse.id, prayer: verse.prayer, reference: verse.reference, active: !verse.active }); changed(); }
+    try { await corporatePrayersApi.saveVerse({ id: verse.id, title: verse.title, prayer: verse.prayer, reference: verse.reference, active: !verse.active }); changed(); }
     catch (err) { toast({ tone: 'error', message: err instanceof Error ? err.message : 'Could not update the verse.' }); }
   };
 
@@ -194,7 +200,7 @@ const VersesTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="text-base font-bold text-gray-900">Verse library</h2>
-          <p className="text-[13px] text-gray-500">{verses ? `${verses.filter((verse) => verse.active).length} active. Slots use them in this order, then start again.` : ''} {PLACEHOLDER_HELP}</p>
+          <p className="text-[13px] text-gray-500">{verses ? `${verses.filter((verse) => verse.active).length} active. Pick them by title when you build a slot.` : ''}</p>
         </div>
         {canAdd && (
           <div className="flex gap-2">
@@ -205,13 +211,13 @@ const VersesTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
       </div>
       {error && <Notice tone="error">{error}</Notice>}
       {verses && verses.length === 0 ? (
-        <div className="rounded-2xl bg-gray-50/80 px-4 py-10 text-center text-sm text-gray-500">No verses yet. Slots of type Verse and Faith project cannot run until there is at least one.</div>
+        <div className="rounded-2xl bg-gray-50/80 px-4 py-10 text-center text-sm text-gray-500">No verses yet. Add the verses first, then build slots from them.</div>
       ) : (
         <ol className="space-y-2.5">
           {(verses ?? []).map((verse, index) => {
             const menuItems = [
               ...(canEdit ? [{ label: 'Edit', onClick: () => { setEditing(verse); setFormOpen(true); } }, { label: verse.active ? 'Switch off' : 'Switch on', onClick: () => { void toggleActive(verse); } }] : []),
-              ...(canDelete ? [{ label: verse.used > 0 ? 'Delete (used, switch off instead)' : 'Delete', onClick: () => { if (verse.used === 0) setDeleting(verse); else toast({ message: 'This verse has been used, so it can only be switched off.' }); }, tone: 'danger' as const }] : []),
+              ...(canDelete ? [{ label: verse.used > 0 || verse.inSlots > 0 ? 'Delete (in use, switch off instead)' : 'Delete', onClick: () => { if (verse.used === 0 && verse.inSlots === 0) setDeleting(verse); else toast({ message: 'This verse is in a slot or has been used, so it can only be switched off.' }); }, tone: 'danger' as const }] : []),
             ];
             return (
             <li key={verse.id} className={`surface-card flex items-start gap-3 p-4 ${verse.active ? '' : 'opacity-60'}`}>
@@ -225,9 +231,10 @@ const VersesTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
                 </button>}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="line-clamp-3 text-[15px] leading-relaxed text-gray-900">{verse.prayer}</p>
+                <p className="text-[15px] font-bold text-gray-900">{verse.title}</p>
+                <p className="mt-0.5 line-clamp-3 whitespace-pre-line text-[14px] leading-relaxed text-gray-700">{verse.prayer}</p>
                 <p className="mt-1 text-[13px] font-semibold text-orange-700">{verse.reference}</p>
-                <p className="mt-1 text-xs text-gray-500">{verse.used === 0 ? 'Not used yet' : `Used ${verse.used} time${verse.used === 1 ? '' : 's'}`}{verse.active ? '' : ' · Off'}</p>
+                <p className="mt-1 text-xs text-gray-500">{verse.inSlots === 0 ? 'Not in a slot' : `In ${verse.inSlots} slot${verse.inSlots === 1 ? '' : 's'}`}{verse.used === 0 ? '' : ` · Used ${verse.used} time${verse.used === 1 ? '' : 's'}`}{verse.active ? '' : ' · Off'}</p>
               </div>
               {menuItems.length > 0 && <AppOverflowMenu align="right" items={menuItems} />}
             </li>

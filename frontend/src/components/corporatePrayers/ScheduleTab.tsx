@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import AppSelect from '../AppSelect';
 import AppOverflowMenu from '../AppOverflowMenu';
 import ConfirmationModal from '../ConfirmationModal';
@@ -6,8 +6,8 @@ import Spinner from '../Spinner';
 import { useToast } from '../Toast';
 import { usePermissions } from '../../hooks/usePermissions';
 import { corporatePrayersApi, faithProjectSettingsApi } from '../../services/api';
-import type { PrayerOverview, PrayerSlot, Week } from '../../types';
-import { PRAYER_TYPE_LABEL, clockLabel } from '../../utils/prayerText';
+import type { PrayerOverview, PrayerSlot, PrayerVerse, Week } from '../../types';
+import { PRAYER_TYPE_LABEL, clockLabel, slotToInput } from '../../utils/prayerText';
 import { Field, INPUT, Notice, PRIMARY_BTN } from './ui';
 
 // Schedule tab: when prayers start, and the slots that run every day from then.
@@ -19,11 +19,11 @@ interface Props {
   onReload: () => void;
   onAdd: () => void;
   onEdit: (slot: PrayerSlot) => void;
+  hubs: Array<{ id: string; name: string }>;
 }
 
 const TYPE_CHIP: Record<PrayerSlot['slotType'], string> = {
-  VERSE: 'bg-sky-100/80 text-sky-700',
-  FAITH_PROJECT: 'bg-violet-100/80 text-violet-700',
+  PRAYER: 'bg-sky-100/80 text-sky-700',
   LIVE: 'bg-rose-100/80 text-rose-700',
 };
 
@@ -33,7 +33,7 @@ const dayLabel = (iso: string | null) => {
   return Number.isNaN(date.getTime()) ? null : new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }).format(date);
 };
 
-const ScheduleTab: React.FC<Props> = ({ overview, cohortId, weeks, onReload, onAdd, onEdit }) => {
+const ScheduleTab: React.FC<Props> = ({ overview, cohortId, weeks, onReload, onAdd, onEdit, hubs }) => {
   const toast = useToast();
   const { can } = usePermissions();
   const canAdd = can('corporate_prayers', 'add');
@@ -44,6 +44,14 @@ const ScheduleTab: React.FC<Props> = ({ overview, cohortId, weeks, onReload, onA
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [deleting, setDeleting] = useState<PrayerSlot | null>(null);
+  const [verses, setVerses] = useState<PrayerVerse[]>([]);
+  // Verse titles for the template line on each card. A failed load only costs the titles, not the page.
+  useEffect(() => {
+    let cancelled = false;
+    void corporatePrayersApi.listVerses().then((list) => { if (!cancelled) setVerses(list); }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [overview.slots]);
+  const verseTitles = useMemo(() => new Map(verses.map((verse) => [verse.id, verse.title])), [verses]);
   const [busyDelete, setBusyDelete] = useState(false);
 
   useEffect(() => {
@@ -69,7 +77,7 @@ const ScheduleTab: React.FC<Props> = ({ overview, cohortId, weeks, onReload, onA
 
   const toggleActive = async (slot: PrayerSlot) => {
     try {
-      await corporatePrayersApi.saveSlot(cohortId, { ...slot, id: slot.id, name: slot.name ?? '', time: slot.time, active: !slot.active });
+      await corporatePrayersApi.saveSlot(cohortId, slotToInput(slot, { active: !slot.active }));
       toast({ message: slot.active ? 'Slot switched off' : 'Slot switched on' });
       onReload();
     } catch (err) { toast({ tone: 'error', message: err instanceof Error ? err.message : 'Could not update the slot.' }); }
@@ -152,10 +160,13 @@ const ScheduleTab: React.FC<Props> = ({ overview, cohortId, weeks, onReload, onA
                   <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${TYPE_CHIP[slot.slotType]}`}>{PRAYER_TYPE_LABEL[slot.slotType]}</span>
                   {slot.slotType !== 'LIVE' && <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-semibold text-gray-600">{slot.timerMinutes} min timer</span>}
                   <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-semibold text-gray-600">open {slot.joinWindowMinutes} min</span>
-                  {slot.slotType === 'FAITH_PROJECT' && <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-semibold text-gray-600">{slot.targetMode === 'HUB' ? 'By hub' : 'One person'}</span>}
+                  {slot.slotType === 'PRAYER' && (slot.audienceAll || slot.hubIds.length > 1) && <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-semibold text-gray-600">{slot.targetMode === 'COHORT' ? 'Same person for all' : 'Person per hub'}</span>}
                   {!slot.notify && <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-semibold text-gray-500">No notification</span>}
                   {!slot.active && <span className="rounded-full bg-amber-100/80 px-2.5 py-0.5 text-xs font-semibold text-amber-700">Off</span>}
                 </div>
+                <p className="text-[13px] text-gray-700"><span className="font-semibold">Goes to:</span> {slot.audienceAll ? 'Everyone' : slot.hubIds.map((id) => hubs.find((hub) => hub.id === id)?.name ?? 'A hub').join(', ')}</p>
+                {slot.slotType === 'PRAYER' && <p className="text-[13px] text-gray-600">{slot.blocks.map((block) => (block.type === 'FAITH_PROJECT' ? 'Faith project' : (verseTitles.get(block.verseId) ?? 'Verse'))).join(' · ')}</p>}
+                {slot.slotType === 'LIVE' && slot.telegramLink && <p className="truncate text-[13px] text-gray-600">{slot.telegramLink}</p>}
                 {slot.today && <p className="text-[13px] text-gray-500">Today: {slot.today.counts.praying} praying, {slot.today.counts.amen} said Amen</p>}
               </li>
               );

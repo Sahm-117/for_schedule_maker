@@ -1,12 +1,16 @@
+import type { PrayerSlot, PrayerSlotInput } from '../types';
+
 // Small helpers for corporate prayers: filling a verse prayer with a name, reading pasted verses, and the look of a person's circle.
 
-/** `{{NAME}}` becomes the first name in capitals; `{{Name}}` becomes the first name as written. Nothing else is replaced. */
-export const renderPrayer = (text: string, firstName: string): string => {
-  const name = firstName.trim() || 'this person';
-  const written = name.charAt(0).toUpperCase() + name.slice(1);
-  return text
-    .replace(/\{\{\s*NAME\s*\}\}/g, name.toUpperCase())
-    .replace(/\{\{\s*name\s*\}\}/gi, written);
+/** The placeholders a verse can carry, offered in the Insert menu (and after typing @). */
+export const PRAYER_PLACEHOLDERS: Array<{ token: string; label: string; example: string }> = [
+  { token: '{{Name}}', label: 'Full name', example: 'Adaeze Okafor' },
+];
+
+/** `{{Name}}` (and the older `{{NAME}}`) become the person's full name exactly as they wrote it. Nothing else is replaced. */
+export const renderPrayer = (text: string, fullName: string): string => {
+  const name = fullName.trim() || 'this person';
+  return text.replace(/\{\{\s*name\s*\}\}/gi, () => name);
 };
 
 /** Gendered words in a prayer, which would read wrongly for half the people prayed for. Placeholders are ignored. */
@@ -15,23 +19,30 @@ export const gendered = (text: string): string[] => {
   return Array.from(new Set((clean.match(/\b(he|she|his|her|hers|him|himself|herself)\b/gi) ?? []).map((word) => word.toLowerCase())));
 };
 
-export interface ParsedVerse { prayer: string; reference: string; problem: string | null }
+export interface ParsedVerse { title: string; prayer: string; reference: string; problem: string | null }
 
 /**
- * Pasted verses: blocks separated by a blank line. The last line of a block, starting with "-", is the reference
- * ("- Eph 1:17-18"); everything above it is the prayer.
+ * Pasted verses: blocks separated by a line of three or more equals signs. Each block starts with a `Title:` line and a `Ref:` line
+ * (in either order); everything else is the prayer, kept exactly as typed (blank lines and bullets included).
  */
 export const parseBulkVerses = (raw: string): ParsedVerse[] => raw
-  .split(/\r?\n\s*\r?\n/)
-  .map((block) => block.trim())
-  .filter(Boolean)
+  .split(/\r?\n\s*={3,}\s*\r?\n/)
+  .map((block) => block.replace(/^\s*\n+|\s+$/g, ''))
+  .filter((block) => block.trim())
   .map((block) => {
-    const lines = block.split(/\r?\n/).map((line) => line.trimEnd());
-    const last = lines[lines.length - 1].trim();
-    if (lines.length < 2 || !/^[-–—]\s*\S/.test(last)) return { prayer: lines.join(' ').trim(), reference: '', problem: 'No reference. Put it on the last line, starting with a dash.' };
-    const reference = last.replace(/^[-–—]\s*/, '').trim();
-    const prayer = lines.slice(0, -1).join(' ').replace(/\s+/g, ' ').trim();
-    return { prayer, reference, problem: prayer ? null : 'No prayer text.' };
+    let title = '';
+    let reference = '';
+    const body: string[] = [];
+    for (const line of block.split(/\r?\n/)) {
+      const t = line.match(/^\s*title\s*:\s*(.*)$/i);
+      const r = line.match(/^\s*ref(?:erence)?\s*:\s*(.*)$/i);
+      if (t && !title) title = t[1].trim();
+      else if (r && !reference) reference = r[1].trim();
+      else body.push(line.trimEnd());
+    }
+    const prayer = body.join('\n').replace(/^\s*\n+|\s+$/g, '');
+    const problem = !title ? 'No title. Add a line starting with Title:' : !reference ? 'No reference. Add a line starting with Ref:' : !prayer ? 'No prayer text.' : null;
+    return { title, prayer, reference, problem };
   });
 
 export const initialsOf = (name: string) => name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join('') || '?';
@@ -67,8 +78,27 @@ export const mmss = (ms: number): string => {
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
 };
 
-export const PRAYER_TYPE_LABEL: Record<'VERSE' | 'FAITH_PROJECT' | 'LIVE', string> = {
-  VERSE: 'Verse and picture',
-  FAITH_PROJECT: 'Faith project',
+export const PRAYER_TYPE_LABEL: Record<'PRAYER' | 'LIVE', string> = {
+  PRAYER: 'Prayer',
   LIVE: 'Live prayer',
 };
+
+/** A slot as the wizard saves it, with any changes on top (used to switch a slot on or off without touching the rest). */
+export const slotToInput = (slot: PrayerSlot, patch: Partial<PrayerSlotInput> = {}): PrayerSlotInput => ({
+  id: slot.id,
+  name: slot.name ?? '',
+  time: slot.time,
+  slotType: slot.slotType,
+  timerMinutes: slot.timerMinutes,
+  joinWindowMinutes: slot.joinWindowMinutes,
+  targetMode: slot.targetMode,
+  notify: slot.notify,
+  active: slot.active,
+  blocks: slot.blocks,
+  audienceAll: slot.audienceAll,
+  hubIds: slot.hubIds,
+  telegramLink: slot.telegramLink ?? '',
+  liveWaitMinutes: slot.liveWaitMinutes,
+  liveMessage: slot.liveMessage ?? '',
+  ...patch,
+});

@@ -17,7 +17,10 @@ const PrayPage: React.FC<{ homePath: string }> = ({ homePath }) => {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const requested = params.get('s');
-  const { refresh, markAnswered } = usePrayerSignal();
+  const { signal, refresh, markAnswered } = usePrayerSignal();
+  // The prayer the signal says is open: a push opens this page without a session in the link, and the signal may arrive after the page,
+  // so the page loads again when it does.
+  const signalSession = requested ? null : (signal?.open?.sessionId ?? null);
   const [data, setData] = useState<PrayerNow | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -28,7 +31,7 @@ const PrayPage: React.FC<{ homePath: string }> = ({ homePath }) => {
 
   const load = useCallback(async () => {
     try {
-      let next = await prayerSlotApi.now(requested);
+      let next = await prayerSlotApi.now(requested ?? signalSession);
       offsetRef.current = Date.parse(next.serverNow) - Date.now();
       // Opening an open prayer is the check-in.
       setJoinError('');
@@ -46,7 +49,7 @@ const PrayPage: React.FC<{ homePath: string }> = ({ homePath }) => {
       const message = err instanceof Error ? err.message : '';
       setLoadError(message && message !== 'SESSION_EXPIRED' ? message : 'Could not load this prayer. Please try again.');
     } finally { setLoading(false); }
-  }, [requested]);
+  }, [requested, signalSession]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -155,8 +158,7 @@ const PrayPage: React.FC<{ homePath: string }> = ({ homePath }) => {
       model={{
         slotLabel: session.name || clockLabel(lagosClock(session.opensAt)),
         person: data.person ?? null,
-        projectText: data.projectText ?? null,
-        verse: data.verse ?? null,
+        blocks: data.blocks ?? [],
         counts,
         timerMinutes: session.timerMinutes,
         checkedInAtMs: data.me ? Date.parse(data.me.checkedInAt) : null,

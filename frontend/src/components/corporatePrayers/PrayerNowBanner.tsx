@@ -10,7 +10,8 @@ const PrayerNowBanner: React.FC<{ to: string; className?: string }> = ({ to, cla
   const live = open.slotType === 'LIVE';
   return (
     <Link
-      to={to}
+      // The session goes along so a support working in Practice lands on the Practice prayer.
+      to={`${to}?s=${open.sessionId}`}
       className={`flex items-center gap-3 rounded-[20px] bg-gradient-to-br from-[#1b1038] to-[#0b1020] p-4 text-white shadow-md active:scale-[0.99] ${className}`}
       data-wt="prayer-now"
     >

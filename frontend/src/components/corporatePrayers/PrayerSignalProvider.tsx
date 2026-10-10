@@ -9,7 +9,8 @@ import LivePrayerPopup from './LivePrayerPopup';
 // One minute-by-minute check for the whole signed-in app. It is a single tiny call (visible tabs only, jittered, never
 // stacked: FLOW_MAP rule 51), read by the Home banner and the live-prayer pop-up, so it is one poll however many places show it.
 
-const PrayerSignalProvider: React.FC<{ audience: 'participant' | 'staff'; children: React.ReactNode }> = ({ audience, children }) => {
+// A support working in Practice passes the Practice cohort, so they receive Practice prayers there.
+const PrayerSignalProvider: React.FC<{ audience: 'participant' | 'staff'; cohortId?: string | null; children: React.ReactNode }> = ({ audience, cohortId = null, children }) => {
   const { user } = useAuth();
   const [signal, setSignal] = useState<PrayerSignal | null>(null);
   // Admins who do not also support are not counted in prayers, so they are not asked.
@@ -25,12 +26,12 @@ const PrayerSignalProvider: React.FC<{ audience: 'participant' | 'staff'; childr
   const refresh = useCallback(async () => {
     const mine = ++issued.current;
     try {
-      const next = await prayerSlotApi.signal();
+      const next = await prayerSlotApi.signal(cohortId);
       if (mine <= ignoreUpTo.current || mine < applied.current) return;
       applied.current = mine;
       setSignal(next);
     } catch { /* keep the last answer; the next check tries again */ }
-  }, []);
+  }, [cohortId]);
 
   useEffect(() => { if (enabled) void refresh(); }, [enabled, refresh]);
   usePolling(refresh, enabled ? 60000 : null);

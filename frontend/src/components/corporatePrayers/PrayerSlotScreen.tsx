@@ -1,17 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import type { PrayerCounts, PrayerPerson } from '../../types';
+import type { PrayerCounts, PrayerPerson, PrayerResolvedBlock } from '../../types';
 import { gradientFor, initialsOf, mmss, renderPrayer } from '../../utils/prayerText';
 import Spinner from '../Spinner';
+import PrayerText from './PrayerText';
 
-// The prayer screen: the person (photo under a dark gradient, or a coloured circle with initials), what they are
-// believing God for, the verse prayer with their name, a timer, live counts and Amen. Used for the real thing and,
+// The prayer screen: the person (photo under a dark gradient, or a coloured circle with initials), then the slot's template in order
+// (verse prayers with their name, and the faith project as written), a timer, live counts and Amen. Used for the real thing and,
 // with sample data, for the admin Preview, so the two cannot drift apart.
 
 export interface PrayerScreenModel {
   slotLabel: string;
   person: PrayerPerson | null;
-  projectText: string | null;
-  verse: { prayer: string; reference: string } | null;
+  blocks: PrayerResolvedBlock[];
   counts: PrayerCounts;
   timerMinutes: number;
   /** When this person opened the slot (ms since epoch, server time). Null in a preview: the timer sits at full. */
@@ -52,7 +52,7 @@ const PrayerSlotScreen: React.FC<Props> = ({ model, clockOffsetMs, onAmen, onLea
   const timeUp = endsAt !== null && remaining <= 0;
   // The ring starts full and drains as the time goes.
   const left = endsAt !== null ? Math.min(1, Math.max(0, remaining / totalMs)) : 1;
-  const { verse, projectText, counts } = model;
+  const { blocks, counts } = model;
   const name = person?.fullName ?? 'the cohort';
   const [from, to] = gradientFor(name);
 
@@ -82,18 +82,19 @@ const PrayerSlotScreen: React.FC<Props> = ({ model, clockOffsetMs, onAmen, onLea
         </div>
 
         <div className="flex-1 space-y-5 px-6 pb-44 pt-3">
-          {projectText && (
-            <section className="rounded-[20px] bg-white/10 p-4 backdrop-blur">
-              <h2 className="text-[11.5px] font-semibold uppercase tracking-[0.1em] text-white/60">What they are believing God for</h2>
-              <p className="mt-1.5 whitespace-pre-line text-[17px] leading-[1.55]">{projectText}</p>
-            </section>
-          )}
-          {verse ? (
-            <section>
-              <p className="text-[19px] leading-[1.6] text-white/95">{renderPrayer(verse.prayer, person?.firstName ?? 'everyone')}</p>
-              <p className="mt-2 text-sm font-semibold text-orange-300">{verse.reference}</p>
-            </section>
+          {blocks.some((block) => block.type === 'VERSE' || !!block.text) ? blocks.map((block, index) => (block.type === 'FAITH_PROJECT' ? (
+            block.text ? (
+              <section key={index} className="rounded-[20px] bg-white/10 p-4 backdrop-blur">
+                <h2 className="text-[11.5px] font-semibold uppercase tracking-[0.1em] text-white/60">What they are believing God for</h2>
+                <p className="mt-1.5 whitespace-pre-line text-[17px] leading-[1.55]">{block.text}</p>
+              </section>
+            ) : null
           ) : (
+            <section key={index}>
+              <PrayerText text={renderPrayer(block.prayer, person?.fullName ?? 'everyone')} className="text-[19px] leading-[1.6] text-white/95" />
+              <p className="mt-2 text-sm font-semibold text-orange-300">{block.reference}</p>
+            </section>
+          ))) : (
             <p className="text-[15px] leading-[1.55] text-white/70">{person ? 'Pray for them in your own words.' : 'No one is lined up for this prayer today. Pray for the cohort.'}</p>
           )}
           <div className="flex flex-wrap gap-2">

@@ -8,7 +8,8 @@ import PageLoader from '../components/PageLoader';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
-import { practiceApi } from '../services/api';
+import AppOverflowMenu from '../components/AppOverflowMenu';
+import { corporatePrayersApi, practiceApi } from '../services/api';
 import { PRACTICE_ROLE_LABEL, PRACTICE_SCENARIOS } from '../constants/practiceScenarios';
 import type { PracticeOverview, PracticeOverviewMember } from '../types';
 
@@ -60,6 +61,19 @@ const AdminPracticePage: React.FC = () => {
   useEffect(() => { void load(); }, [load]);
   usePolling(() => load(true), 8000);
 
+  // Opens a short test prayer for the admin's practice participants and for the admin as a practice support, so the pop-up, the banner
+  // and the notification can be seen as each of them would get it. It never reaches real people.
+  const sendTestPrayer = async (kind: 'PRAYER' | 'LIVE') => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const result = await corporatePrayersApi.sendTestPrayer(kind);
+      toast({ message: result.pushed ? 'Test prayer sent. Check your phone and step into a practice participant.' : 'Test prayer opened. Push notifications are not set up here, so there is no phone alert.' });
+    } catch (e) {
+      toast({ tone: 'error', message: e instanceof Error ? e.message : 'Could not send the test prayer.' });
+    } finally { setBusy(false); }
+  };
+
   const toggle = async () => {
     if (!data || busy) return;
     const next = !data.on;
@@ -95,6 +109,7 @@ const AdminPracticePage: React.FC = () => {
         back={{ label: 'Settings', fallbackTo: '/settings' }}
         subtitle="A read-only record of who is using Practice. People reset their own practice."
         action={data && canEdit && (
+          <div className="flex items-center gap-2">
           <button
             type="button"
             role="switch"
@@ -108,6 +123,11 @@ const AdminPracticePage: React.FC = () => {
               <span className={`absolute top-[3px] h-[18px] w-[18px] rounded-full bg-white shadow transition-all ${data.on ? 'left-[21px]' : 'left-[3px]'}`} />
             </span>
           </button>
+          <AppOverflowMenu align="right" items={[
+            { label: 'Send test prayer', onClick: () => { void sendTestPrayer('PRAYER'); } },
+            { label: 'Send test live prayer', onClick: () => { void sendTestPrayer('LIVE'); } },
+          ]} />
+          </div>
         )}
       />
       {error && <p className="mb-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}

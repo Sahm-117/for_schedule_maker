@@ -9052,6 +9052,11 @@ export const practiceApi = {
 const prayerError = (rawMessage: string | undefined, fallback: string): Error => {
   const msg = rawMessage || '';
   if (msg.includes('SESSION_EXPIRED')) return new Error('SESSION_EXPIRED');
+  const clash = msg.match(/HUB_CLASH:\s*([^\n"]+)/);
+  if (clash) {
+    const who = clash[1].trim();
+    return new Error(who === 'everyone' ? 'Another slot at this time already goes to everyone.' : `${who} already ${who.includes(',') ? 'have' : 'has'} a slot at this time.`);
+  }
   const known: Array<[string, string]> = [
     ['SLOT_TIME_TAKEN', 'Another slot is already at that time.'],
     ['SLOT_HAS_HISTORY', 'This slot has already run, so it can only be switched off.'],
@@ -9059,6 +9064,18 @@ const prayerError = (rawMessage: string | undefined, fallback: string): Error =>
     ['INVALID_TIMER', 'The timer must be between 1 and 120 minutes.'],
     ['INVALID_WINDOW', 'The join window must be between 1 and 240 minutes.'],
     ['NAME_TOO_LONG', 'Keep the name under 40 characters.'],
+    ['AUDIENCE_REQUIRED', 'Choose who this goes to: everyone, or at least one hub.'],
+    ['INVALID_HUB', 'One of the chosen hubs is not in this cohort.'],
+    ['BLOCKS_REQUIRED', 'Add at least one verse or the faith project to the template.'],
+    ['TOO_MANY_BLOCKS', 'A template can hold up to 8 items.'],
+    ['ONE_PROJECT_ONLY', 'Only one faith project can be in a template.'],
+    ['VERSE_NOT_FOUND', 'One of the chosen verses no longer exists.'],
+    ['LINK_REQUIRED', 'Add the Telegram link for this live prayer.'],
+    ['TITLE_REQUIRED', 'Give the verse a title.'],
+    ['TITLE_TOO_LONG', 'Keep the title under 60 characters.'],
+    ['TITLE_TAKEN', 'Another verse already has that title.'],
+    ['ADD_A_VERSE_FIRST', 'Add at least one verse to the library first.'],
+    ['NO_PRACTICE_COHORT', 'Practice has not been set up yet.'],
     ['PRAYER_REQUIRED', 'Write the prayer.'],
     ['REFERENCE_REQUIRED', 'Add the reference, such as Eph 1:17-18.'],
     ['PRAYER_TOO_LONG', 'That prayer is too long. Keep it under 1,500 characters.'],
@@ -9084,13 +9101,12 @@ export const corporatePrayersApi = {
     if (error) throw prayerError(error.message, 'Could not load corporate prayers.');
     return data as import('../types').PrayerOverview;
   },
-  async saveSlot(cohortId: string, input: {
-    id: string | null; name: string; time: string; slotType: import('../types').PrayerSlotType; timerMinutes: number; joinWindowMinutes: number;
-    targetMode: import('../types').PrayerTargetMode | null; notify: boolean; active: boolean;
-  }): Promise<void> {
+  async saveSlot(cohortId: string, input: import('../types').PrayerSlotInput): Promise<void> {
     const { error } = await supabase.rpc('upsert_prayer_slot', {
       p_token: getSessionToken(), p_cohort_id: cohortId, p_id: input.id, p_name: input.name, p_time: input.time, p_type: input.slotType,
       p_timer: input.timerMinutes, p_window: input.joinWindowMinutes, p_target_mode: input.targetMode, p_notify: input.notify, p_active: input.active,
+      p_blocks: input.blocks, p_audience_all: input.audienceAll, p_hub_ids: input.hubIds,
+      p_telegram: input.telegramLink, p_wait: input.liveWaitMinutes, p_message: input.liveMessage,
     });
     if (error) throw prayerError(error.message, 'Could not save the slot.');
   },
@@ -9103,11 +9119,11 @@ export const corporatePrayersApi = {
     if (error) throw prayerError(error.message, 'Could not load the verses.');
     return (data ?? []) as import('../types').PrayerVerse[];
   },
-  async saveVerse(input: { id: string | null; prayer: string; reference: string; active: boolean }): Promise<void> {
-    const { error } = await supabase.rpc('upsert_prayer_verse', { p_token: getSessionToken(), p_id: input.id, p_prayer: input.prayer, p_reference: input.reference, p_active: input.active });
+  async saveVerse(input: { id: string | null; title: string; prayer: string; reference: string; active: boolean }): Promise<void> {
+    const { error } = await supabase.rpc('upsert_prayer_verse', { p_token: getSessionToken(), p_id: input.id, p_title: input.title, p_prayer: input.prayer, p_reference: input.reference, p_active: input.active });
     if (error) throw prayerError(error.message, 'Could not save the verse.');
   },
-  async addVerses(items: Array<{ prayer: string; reference: string }>): Promise<number> {
+  async addVerses(items: Array<{ title: string; prayer: string; reference: string }>): Promise<number> {
     const { data, error } = await supabase.rpc('add_prayer_verses', { p_token: getSessionToken(), p_items: items });
     if (error) throw prayerError(error.message, 'Could not add the verses.');
     return Number(data ?? 0);
@@ -9125,6 +9141,12 @@ export const corporatePrayersApi = {
       p_token: getSessionToken(), p_cohort_id: cohortId, p_telegram: input.telegramLink, p_wait: input.liveWaitMinutes, p_message: input.liveMessage,
     });
     if (error) throw prayerError(error.message, 'Could not save the live prayer settings.');
+  },
+  /** Practice only: opens a 30-minute test prayer for the admin's practice participants and the admin. */
+  async sendTestPrayer(kind: 'PRAYER' | 'LIVE'): Promise<{ sessionId: string; participants: number; pushed: boolean }> {
+    const { data, error } = await supabase.rpc('practice_send_test_prayer', { p_token: getSessionToken(), p_kind: kind, p_link: null });
+    if (error) throw prayerError(error.message, 'Could not send the test prayer.');
+    return data as { sessionId: string; participants: number; pushed: boolean };
   },
   async coverage(cohortId: string): Promise<import('../types').PrayerCoverage> {
     const { data, error } = await supabase.rpc('prayer_coverage', { p_token: getSessionToken(), p_cohort_id: cohortId });
@@ -9147,8 +9169,8 @@ export const corporatePrayersApi = {
 };
 
 export const prayerSlotApi = {
-  async signal(): Promise<import('../types').PrayerSignal> {
-    const { data, error } = await supabase.rpc('corporate_prayer_signal', { p_token: getSessionToken() });
+  async signal(cohortId: string | null = null): Promise<import('../types').PrayerSignal> {
+    const { data, error } = await supabase.rpc('corporate_prayer_signal', { p_token: getSessionToken(), p_cohort: cohortId });
     if (error) throw prayerError(error.message, 'Could not check for prayers.');
     return (data ?? { open: null }) as import('../types').PrayerSignal;
   },

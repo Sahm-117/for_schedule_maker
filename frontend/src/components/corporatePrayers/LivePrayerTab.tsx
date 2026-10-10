@@ -1,78 +1,48 @@
-import React, { useEffect, useState } from 'react';
-import Spinner from '../Spinner';
-import { useToast } from '../Toast';
+import React from 'react';
+import AppOverflowMenu from '../AppOverflowMenu';
 import { usePermissions } from '../../hooks/usePermissions';
-import { corporatePrayersApi } from '../../services/api';
-import type { PrayerOverview } from '../../types';
-import { Field, INPUT, Notice, PRIMARY_BTN } from './ui';
+import type { PrayerOverview, PrayerSlot } from '../../types';
+import { clockLabel } from '../../utils/prayerText';
+import { PRIMARY_BTN } from './ui';
 
-// The live prayer (Telegram): the link, the wait before "Prayed" unlocks, and the one line shown above the link.
+// The live prayers (Telegram), one per live slot: each has its own link, wait and audience, set when you add or edit the slot.
 
-const LivePrayerTab: React.FC<{ overview: PrayerOverview; cohortId: string; onReload: () => void }> = ({ overview, cohortId, onReload }) => {
-  const toast = useToast();
+const LivePrayerTab: React.FC<{ overview: PrayerOverview; onEdit: (slot: PrayerSlot) => void; onAdd: () => void }> = ({ overview, onEdit, onAdd }) => {
   const { can } = usePermissions();
+  const canAdd = can('corporate_prayers', 'add');
   const canEdit = can('corporate_prayers', 'edit');
-  const [link, setLink] = useState(overview.settings.telegramLink ?? '');
-  const [wait, setWait] = useState(String(overview.settings.liveWaitMinutes));
-  const [message, setMessage] = useState(overview.settings.liveMessage ?? '');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    setLink(overview.settings.telegramLink ?? '');
-    setWait(String(overview.settings.liveWaitMinutes));
-    setMessage(overview.settings.liveMessage ?? '');
-  }, [overview.settings.telegramLink, overview.settings.liveWaitMinutes, overview.settings.liveMessage]);
-
-  const hasLiveSlot = overview.slots.some((slot) => slot.slotType === 'LIVE' && slot.active);
-  const looksTelegram = !link.trim() || /^https:\/\/(t\.me|telegram\.me|telegram\.org)\//i.test(link.trim());
-
-  const save = async () => {
-    const minutes = Math.round(Number(wait));
-    if (!Number.isFinite(minutes) || minutes < 0 || minutes > 60) { setError('The wait must be between 0 and 60 minutes.'); return; }
-    setSaving(true);
-    setError('');
-    try {
-      await corporatePrayersApi.saveSettings(cohortId, { telegramLink: link.trim(), liveWaitMinutes: minutes, liveMessage: message.trim() });
-      toast({ message: 'Live prayer settings saved' });
-      onReload();
-    } catch (err) { setError(err instanceof Error ? err.message : 'Could not save.'); }
-    finally { setSaving(false); }
-  };
+  const live = overview.slots.filter((slot) => slot.slotType === 'LIVE');
+  const hubName = (id: string) => overview.hubs.find((hub) => hub.id === id)?.name ?? 'A hub';
 
   return (
-    <div className="max-w-xl space-y-5">
-      <section className="surface-card space-y-4 p-5">
-        <div>
-          <h2 className="text-base font-bold text-gray-900">Live prayer on Telegram</h2>
-          <p className="mt-1 text-[13px] leading-normal text-gray-500">At the live slot, everyone sees a pop-up with this link. Someone is waiting on Telegram to lead. The pop-up cannot be closed until they tap Prayed.</p>
+    <div className="max-w-2xl space-y-4">
+      <div>
+        <h2 className="text-base font-bold text-gray-900">Live prayers on Telegram</h2>
+        <p className="mt-1 text-[13px] leading-normal text-gray-500">At a live slot, the hubs you chose see a pop-up with that slot’s link. It cannot be closed until they tap Prayed. For a different link per hub, make a live slot for each hub at the same time.</p>
+      </div>
+      {live.length === 0 ? (
+        <div className="rounded-2xl bg-gray-50/80 px-4 py-10 text-center">
+          <p className="text-sm text-gray-500">No live prayers yet. Add a slot and choose the Live prayer type.</p>
+          {canAdd && <button type="button" onClick={onAdd} className={`${PRIMARY_BTN} mt-3`}>Add a slot</button>}
         </div>
-        <fieldset disabled={!canEdit} className="space-y-4">
-        {hasLiveSlot && !link.trim() && <Notice tone="warn">There is a live slot but no link yet, so the pop-up will not appear. Add the link and save.</Notice>}
-        <Field label="Telegram link" htmlFor="live-link" hint="A t.me link to the group, channel or call.">
-          <input id="live-link" type="url" inputMode="url" value={link} onChange={(event) => setLink(event.target.value)} className={INPUT} placeholder="https://t.me/…" />
-        </Field>
-        {!looksTelegram && <Notice tone="warn">This does not look like a Telegram link. You can still save it.</Notice>}
-        {link.trim() && (
-          <p className="text-[13px] text-gray-600">
-            <a href={link.trim()} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary underline-offset-2 hover:underline">Open the link to test it</a>
-            . I cannot check from here that a call link joins the call directly, so test it with a real link before the first live prayer.
-          </p>
-        )}
-        <Field label="Prayed unlocks after (minutes)" htmlFor="live-wait" hint="Counted from the moment they tap the Telegram link. 0 unlocks it at once.">
-          <input id="live-wait" type="number" inputMode="numeric" min={0} max={60} value={wait} onChange={(event) => setWait(event.target.value)} className={`${INPUT} sm:w-32`} />
-        </Field>
-        <Field label="Line above the link" htmlFor="live-message" hint="Optional. Up to 120 characters.">
-          <input id="live-message" value={message} maxLength={120} onChange={(event) => setMessage(event.target.value)} className={INPUT} placeholder="Join the live prayer on Telegram" />
-        </Field>
-        {error && <Notice tone="error">{error}</Notice>}
-        {canEdit && (
-          <button type="button" onClick={() => { void save(); }} disabled={saving} className={PRIMARY_BTN}>
-            {saving ? <span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span> : 'Save'}
-          </button>
-        )}
-        </fieldset>
-      </section>
+      ) : (
+        <ul className="space-y-3">
+          {live.map((slot) => (
+            <li key={slot.id} className={`surface-card flex items-start justify-between gap-3 p-4 ${slot.active ? '' : 'opacity-60'}`}>
+              <div className="min-w-0 space-y-1">
+                <p className="text-lg font-extrabold tracking-tight text-gray-900">{clockLabel(slot.time)}<span className="ml-2 text-sm font-medium text-gray-500">{slot.name || ''}</span></p>
+                <p className="text-[13px] text-gray-700"><span className="font-semibold">Goes to:</span> {slot.audienceAll ? 'Everyone' : slot.hubIds.map(hubName).join(', ')}</p>
+                <p className="truncate text-[13px] text-gray-600">{slot.telegramLink}</p>
+                <p className="text-xs text-gray-500">Prayed unlocks {slot.liveWaitMinutes === 0 ? 'at once' : `${slot.liveWaitMinutes} min after the link is tapped`}{slot.active ? '' : ' · Off'}</p>
+                {slot.telegramLink && (
+                  <a href={slot.telegramLink} target="_blank" rel="noopener noreferrer" className="inline-block text-[13px] font-semibold text-primary underline-offset-2 hover:underline">Open the link to test it</a>
+                )}
+              </div>
+              {canEdit && <AppOverflowMenu align="right" items={[{ label: 'Edit', onClick: () => onEdit(slot) }]} />}
+            </li>
+          ))}
+        </ul>
+      )}
       <p className="text-[13px] text-gray-500">If someone cannot open Telegram, a way out appears for them ten minutes after they opened the pop-up.</p>
     </div>
   );
