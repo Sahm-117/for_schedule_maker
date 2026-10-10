@@ -117,10 +117,15 @@ const RegistrationOverviewCards: React.FC<{
 
   // The people (and who has signed in) are read again whenever the contacts the page holds are refreshed,
   // so the cards never mix a new contact list with an old participant list. Switching cohort clears them.
+  // A request that dies (a phone coming back from the background, a dropped signal) is tried once more
+  // before anything is shown. If a refresh still fails while numbers are already on screen, those stay:
+  // the error only replaces the cards when there is nothing to show.
   const load = useCallback(() => {
     const mine = ++request.current;
     setFailed(false);
-    Promise.all([participantsApi.getAll({ cohortId }), participantPushApi.getSignedInIds(cohortId)])
+    const fetchAll = () => Promise.all([participantsApi.getAll({ cohortId }), participantPushApi.getSignedInIds(cohortId)]);
+    fetchAll()
+      .catch(() => new Promise<void>((resolve) => { window.setTimeout(resolve, 1500); }).then(fetchAll))
       .then(([p, ids]) => { if (mine === request.current) setPeople({ participants: p.participants, signedIn: new Set(ids) }); })
       .catch(() => { if (mine === request.current) setFailed(true); });
   }, [cohortId]);
@@ -138,7 +143,7 @@ const RegistrationOverviewCards: React.FC<{
   onOverviewRef.current = onOverview;
   useEffect(() => { onOverviewRef.current?.(overview); }, [overview]);
 
-  if (failed) {
+  if (failed && !people) {
     return (
       <div className="surface-card p-5 text-sm text-gray-600">
         Couldn't check who has signed in, so the registration numbers aren't shown (a wrong number is worse than none).{' '}
