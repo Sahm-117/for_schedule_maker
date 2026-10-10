@@ -5,8 +5,8 @@ import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import FilterBar, { describeFilters, type FilterGroup } from '../components/filters/FilterBar';
 import { useUrlFilters } from '../hooks/useUrlFilters';
-import { cohortsApi, groupsApi, participantsApi, settingsApi, supportKindApi, supportSessionsApi, supportTagsApi, usersApi } from '../services/api';
-import type { Group, Participant, User, GroupCallPlatform, SupportKind, SupportSession, SupportTag } from '../types';
+import { cohortsApi, groupDiscussionApi, groupsApi, participantsApi, settingsApi, supportHubsApi, supportKindApi, supportSessionsApi, supportTagsApi, usersApi } from '../services/api';
+import type { Group, OnboardingProgressParticipant, Participant, User, GroupCallPlatform, SupportKind, SupportSession, SupportTag } from '../types';
 import ModalShell from '../components/followups/ModalShell';
 import ConfirmationModal from '../components/ConfirmationModal';
 import AppOverflowMenu from '../components/AppOverflowMenu';
@@ -28,6 +28,8 @@ import { normalizeLink } from '../utils/links';
 import Spinner from '../components/Spinner';
 import { genderAgeLine, hasSupportRole } from '../utils/people';
 import TeenMoveModal from '../components/groups/TeenMoveModal';
+import GroupOnboardingStrip from '../components/groups/GroupOnboardingStrip';
+import { ONBOARDING_CHIP_LABEL, summarizeGroupOnboarding, type GroupOnboardingSummary, type OnboardingChip } from '../utils/groupOnboarding';
 import { useToast } from '../components/Toast';
 import { isTeenAgeRange } from '../utils/groupingRules';
 
@@ -70,6 +72,7 @@ const TrainingNotice: React.FC<{ supportName: string; attended: number; total: n
 );
 
 const groupNameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+const ONBOARDING_CHIPS: OnboardingChip[] = ['overdue', 'in_progress', 'not_started', 'onboarded'];
 const NO_SUPPORT_OPTION = '__no_support__';
 
 const sortGroupsByName = (groups: Group[]) =>
@@ -472,6 +475,12 @@ const AdminGroupsContent: React.FC = () => {
   const [trainingSessions, setTrainingSessions] = useState<SupportSession[]>([]);
   const [trainingAttendance, setTrainingAttendance] = useState<Array<{ sessionId: string; userId: string; status: string }>>([]);
   const [minTrainingsAttended, setMinTrainingsAttended] = useState(DEFAULT_PROGRAMME_RULES.minTrainingsAttended);
+  // Onboarding progress for the glance on each card. null = could not be loaded: the cards simply show no strip.
+  const [onboardingProgress, setOnboardingProgress] = useState<Map<string, OnboardingProgressParticipant> | null>(null);
+  // Which hub each support belongs to (a card names it next to the support). Empty if it could not be loaded.
+  const [hubNameByUser, setHubNameByUser] = useState<Record<string, string>>({});
+  const [assignedAtByGroup, setAssignedAtByGroup] = useState<Record<string, string>>({});
+  const [onboardingMaxDays, setOnboardingMaxDays] = useState(DEFAULT_PROGRAMME_RULES.onboardingMaxDays);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Group | null>(null);
@@ -487,7 +496,7 @@ const AdminGroupsContent: React.FC = () => {
   // /groups?group=<id>, so the URL — not local state — decides what's in view.
   // That keeps the link shareable and survives a refresh.
   // Each filter takes several choices at once and lives in the address (`?group=` is what the Supports page links to).
-  const [filters, setFilters] = useUrlFilters(['group', 'support', 'type', 'people']);
+  const [filters, setFilters] = useUrlFilters(['group', 'support', 'type', 'people', 'onboarding']);
 
   // `silent` background refreshes (triggered by realtime liveRevision bumps)
   // update the data in place WITHOUT flipping `loading`, so the grid doesn't
@@ -496,7 +505,7 @@ const AdminGroupsContent: React.FC = () => {
     if (!activeCohort) { setLoading(false); return; }
     if (!silent) setLoading(true);
     try {
-      const [{ groups: allGs }, { participants: ps }, { users }, { sessions: ts, attendance: ta }, rules, teenOn, members, kindMap, tagList] = await Promise.all([
+      const [{ groups: allGs }, { participants: ps }, { users }, { sessions: ts, attendance: ta }, rules, teenOn, members, kindMap, tagList, progressRes, hubList, hubMemberships] = await Promise.all([
         groupsApi.getAll({ cohortId: activeCohort.id, includeArchived: showArchived, includeTeenGroups: true }),
         participantsApi.getAll({ cohortId: activeCohort.id }),
         usersApi.getAll(),
@@ -506,6 +515,9 @@ const AdminGroupsContent: React.FC = () => {
         cohortsApi.getMembers(activeCohort.id).then((r) => new Set(r.users.map((u) => u.id))).catch(() => null),
         supportKindApi.getForCohort(activeCohort.id).then((r) => r.kinds).catch(() => null),
         supportTagsApi.getAll().then((r) => r.tags).catch(() => null),
+        groupDiscussionApi.cohortOnboardingProgress(activeCohort.id).then((r) => r.participants).catch(() => null),
+        supportHubsApi.getAll(activeCohort.id).then((r) => r.hubs).catch(() => null),
+        supportHubsApi.getMembershipsForCohort(activeCohort.id).then((r) => r.memberships).catch(() => null),
       ]);
       setCohortMemberIds(members);
       setSupportKinds(kindMap);
@@ -532,6 +544,16 @@ const AdminGroupsContent: React.FC = () => {
       setTrainingSessions(ts);
       setTrainingAttendance(ta);
       setMinTrainingsAttended(rules.minTrainingsAttended);
+      setOnboardingMaxDays(rules.onboardingMaxDays);
+      const hubNames = new Map((hubList ?? []).map((hub) => [hub.id, hub.name]));
+      const byUser: Record<string, string> = {};
+      (hubMemberships ?? []).forEach((m) => {
+        const name = hubNames.get(m.hubId);
+        if (name) byUser[m.userId] = byUser[m.userId] ? `${byUser[m.userId]}, ${name}` : name;
+      });
+      setHubNameByUser(byUser);
+      setOnboardingProgress(progressRes ? new Map(progressRes.map((row) => [row.participantId, row])) : null);
+      if (progressRes) setAssignedAtByGroup(await groupsApi.getAssignedDates(gs.map((g) => g.id)).catch(() => ({} as Record<string, string>)));
     } catch { /* ignore */ }
     finally { if (!silent) setLoading(false); }
   }, [activeCohort, showArchived]);
@@ -598,12 +620,26 @@ const AdminGroupsContent: React.FC = () => {
     return map;
   }, [participants]);
 
+  // Onboarding glance per adult group (teen groups have no onboarding).
+  const onboardingByGroup = useMemo(() => {
+    const map = new Map<string, GroupOnboardingSummary>();
+    if (!onboardingProgress) return map;
+    groups.forEach((g) => {
+      if (g.isTeenGroup) return;
+      const memberIds = (membersByGroupId.get(g.id) ?? []).map((p) => p.id);
+      const summary = summarizeGroupOnboarding(memberIds, onboardingProgress, assignedAtByGroup[g.id] ?? null, onboardingMaxDays);
+      if (summary) map.set(g.id, summary);
+    });
+    return map;
+  }, [groups, membersByGroupId, onboardingProgress, assignedAtByGroup, onboardingMaxDays]);
+
   // Does this group fit one chosen choice of one filter group?
   const groupFits = (key: string, choice: string, g: Group): boolean => {
     switch (key) {
       case 'group': return g.id === choice;
       case 'support': return choice === NO_SUPPORT_OPTION ? !g.supportId : g.supportId === choice;
       case 'type': return choice === 'teen' ? !!g.isTeenGroup : !g.isTeenGroup;
+      case 'onboarding': return onboardingByGroup.get(g.id)?.chip === choice;
       case 'people': return choice === 'empty' ? (membersByGroupId.get(g.id)?.length ?? 0) === 0 : (membersByGroupId.get(g.id)?.length ?? 0) > 0;
       default: return true;
     }
@@ -621,6 +657,9 @@ const AdminGroupsContent: React.FC = () => {
         label: 'Support',
         options: [opt('support', NO_SUPPORT_OPTION, 'No support assigned'), ...supportUsers.map((u) => opt('support', u.id, u.name))],
       });
+    }
+    if (onboardingByGroup.size > 0) {
+      out.push({ key: 'onboarding', label: 'Onboarding', options: ONBOARDING_CHIPS.map((chip) => opt('onboarding', chip, ONBOARDING_CHIP_LABEL[chip])) });
     }
     out.push({ key: 'people', label: 'Members', options: [opt('people', 'empty', 'Empty'), opt('people', 'has', 'Has participants')] });
     return out;
@@ -661,6 +700,27 @@ const AdminGroupsContent: React.FC = () => {
 
       {activeCohort && !loading && (
         <div data-wt="groups-filters" className="mb-4">
+          {onboardingByGroup.size > 0 && (
+            <div data-wt="groups-onboarding-summary" className="mb-3 flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold text-gray-500">Onboarding</span>
+              {ONBOARDING_CHIPS.map((chip) => {
+                const count = groups.filter((g) => onboardingByGroup.get(g.id)?.chip === chip).length;
+                const active = (filters.onboarding ?? []).includes(chip);
+                return (
+                  <button
+                    key={chip}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => setFilters({ ...filters, onboarding: active ? [] : [chip] })}
+                    className={`inline-flex min-h-[32px] items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold active:scale-95 ${active ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'}`}
+                  >
+                    {ONBOARDING_CHIP_LABEL[chip]}
+                    <span className={`rounded-full px-1.5 text-[11px] ${active ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'}`}>{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
           <FilterBar
             groups={filterGroups}
             value={filters}
@@ -701,6 +761,7 @@ const AdminGroupsContent: React.FC = () => {
                     <h3 className="truncate font-bold text-gray-900">{g.name}</h3>
                     <p className={`truncate text-xs ${g.supportName ? 'text-gray-500' : 'text-neutral-400'}`}>
                       {g.supportName || 'No support assigned'}
+                      {g.supportId && hubNameByUser[g.supportId] && <span className="text-gray-400"> · {hubNameByUser[g.supportId]}</span>}
                     </p>
                     {g.archivedAt && <p className="mt-1 text-[11px] font-semibold text-amber-700">Archived</p>}
                   </div>
@@ -722,6 +783,8 @@ const AdminGroupsContent: React.FC = () => {
                     />
                   </div>
                 </div>
+
+                {onboardingByGroup.get(g.id) && <GroupOnboardingStrip summary={onboardingByGroup.get(g.id)!} maxDays={onboardingMaxDays} />}
 
                 {/* Members always visible at a glance — name + phone cards. */}
                 {members.length === 0 ? (
@@ -757,7 +820,10 @@ const AdminGroupsContent: React.FC = () => {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <h3 className="truncate font-bold text-gray-900">{g.name}</h3>
-                      <p className="truncate text-xs text-gray-500">{g.supportName || 'No support assigned'}</p>
+                      <p className="truncate text-xs text-gray-500">
+                        {g.supportName || 'No support assigned'}
+                        {g.supportId && hubNameByUser[g.supportId] && <span className="text-gray-400"> · {hubNameByUser[g.supportId]}</span>}
+                      </p>
                     </div>
                     <div className="flex flex-shrink-0 items-center gap-1.5">
                       <span className="rounded-full bg-pink-100/80 px-2.5 py-0.5 text-xs font-semibold text-pink-700">Teen</span>

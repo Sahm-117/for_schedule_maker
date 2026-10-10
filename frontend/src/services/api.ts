@@ -706,6 +706,7 @@ export const participantsApi = USE_SUPABASE ? supabaseParticipantsApi : {
 };
 
 export const groupsApi = USE_SUPABASE ? supabaseGroupsApi : {
+  async getAssignedDates(_groupIds: string[]): Promise<Record<string, string>> { return {}; },
   async getAll(_options?: any): Promise<{ groups: import('../types').Group[] }> { return { groups: [] }; },
   async create(_input: any): Promise<never> { return peopleUnavailable(); },
   async update(_id: string, _input: any): Promise<never> { return peopleUnavailable(); },

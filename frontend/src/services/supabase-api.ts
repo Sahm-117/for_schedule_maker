@@ -5427,6 +5427,25 @@ const syncGroupTag = async (
 };
 
 export const groupsApi = {
+  /**
+   * When each group's support was last assigned: the start of its onboarding window (the Supports
+   * page counts days from the same event). A group with no such event is simply absent.
+   */
+  async getAssignedDates(groupIds: string[]): Promise<Record<string, string>> {
+    if (groupIds.length === 0) return {};
+    const { data, error } = await supabase
+      .from('OnboardingEvent')
+      .select('groupId, createdAt')
+      .eq('type', 'GROUP_ASSIGNED')
+      .in('groupId', groupIds)
+      .order('createdAt', { ascending: false });
+    if (error) throw new Error(error.message);
+    const latest: Record<string, string> = {};
+    for (const row of (data || []) as Array<{ groupId: string | null; createdAt: string }>) {
+      if (row.groupId && !latest[row.groupId]) latest[row.groupId] = row.createdAt;
+    }
+    return latest;
+  },
   // Teen groups (a Teen Support's teens, Sunday attendance only) stay out unless asked for,
   // so meetings, recaps, prayer and the group builder never see them.
   async getAll(options?: { cohortId?: string; includeArchived?: boolean; includeTeenGroups?: boolean }): Promise<{ groups: import('../types').Group[] }> {
