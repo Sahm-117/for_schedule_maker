@@ -430,6 +430,7 @@ export const rejectedChangesApi = USE_SUPABASE ? supabaseRejectedChangesApi : {
 // In-app Notifications API
 export const notificationsApi = USE_SUPABASE ? supabaseNotificationsApi : {
   async markTapped(_title: string, _body: string): Promise<void> { return undefined; },
+  async getSignal(): Promise<string> { throw new Error('no signal'); },
   async getMine(): Promise<{ notifications: import('../types').Notification[]; unreadCount: number }> {
     const response = await api.get('/notifications/me');
     return response.data;

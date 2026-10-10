@@ -1,6 +1,6 @@
 # Polling load-shedding for the free database
 
-Two commits: (1) `usePolling` and the participant/staff pollers; (2) the follow-up below (dead Realtime listeners, label N+1, caching, leftover pollers).
+Three commits: (1) `usePolling` and the participant/staff pollers; (2) the follow-up below (dead Realtime listeners, label N+1, caching, leftover pollers); (3) the backend part (policies, notification signal, storage cache, pg_net bloat).
 
 ## Summary
 - Worry: many people on the app at once (a Sunday register, a group meeting, and later the 9pm prayer) on the free Supabase tier. A review plus a timing test
@@ -36,8 +36,25 @@ Two commits: (1) `usePolling` and the participant/staff pollers; (2) the follow-
 - **Not done:** throttling the launch writes (`recordAppState`, push-subscription re-save). Each is one small upsert per launch, and the app-state answer drives the Get-the-app sheet, so caching or skipping it risked
   wrong sheets for no measured gain. Revisit only if the write rate shows in the Supabase usage page.
 
+## Backend part (third commit), all applied live and verified
+- **`20261010140000_rls_wrap_helper_calls.sql`: the biggest single win.** All 93 row-level-security policies in `public` called `app_is_staff()`, `app_is_admin()` or `app_current_user_id()` bare, so
+  Postgres ran a session lookup for every row it checked. A staff read of the 836 activities took 41 ms of database time; wrapped as `(SELECT ...)` it takes 0.41 ms (100x). The same people see the same
+  rows: before applying, a rolled-back test compared row counts for all 84 tables with policies, as four viewers (no token, admin, support, participant), 336 pairs, all identical. After applying, a live
+  check showed an admin reads 836 and can update, while no token and a participant read 0 and update 0. FLOW_MAP rule 52.
+  **Rollback:** run `docs/handoffs/2026-10-10_rls_policies_before.sql`, which holds every policy's exact text from before the change (also reversible per policy by removing the `(SELECT ...)` around the helper call).
+- **`20261010120000_notification_signal.sql`:** index `idx_notification_user_created ("userId", "createdAt" DESC)` (the list's real sort; the older index has `isRead` in the middle) and
+  `my_notifications_signal()` returning `{unread, latestId, latestAt}`, granted to `anon, authenticated` like its siblings. 117 bytes against 16,271 for the full list, 0.13 ms against 0.31 ms. The staff
+  notification check (`AppDataContext`) asks this first and downloads the list only when the answer changes; if the function is missing it falls back to the full fetch, so deploy order does not matter.
+- **`20261010130000_storage_cache_control.sql`:** the 146 files in the `resources` bucket with a timestamp in the name (resources, manuals, templates, class teacher photos, timestamped avatars) now have
+  `cacheControl: max-age=31536000` (were `max-age=3600`, and `no-cache` for 7 manuals). 13 old avatars with fixed names keep 1 hour. This changes only the header the storage service sends;
+  nothing is renamed or removed. **Not verified from here:** the sandbox cannot reach the storage host, so I could not read the new header back. Check one file in a browser's network tab (Cache-Control should
+  show `max-age=31536000`); the CDN may keep serving the old header for a while. To roll back set `metadata.cacheControl` back to `max-age=3600` (the 7 manuals were `no-cache`).
+- **Operational, no migration:** `VACUUM FULL net._http_response`. The pg_net response table was 14 MB for 72 live rows (92 kB of data; autovacuum last ran in August) and its own cleanup `DELETE` was the most
+  expensive statement in the database (about 120 ms a call, ~27k calls). It is now 136 kB, all 72 rows kept. If `pg_stat_statements` shows that statement getting slow again, run it again.
+- Not changed: the participant notification bell (60 s, visible only), and `app_is_staff()` itself (still a session lookup per statement, which is now once).
+
 ## Live changes
-None. Frontend only. No migration, no function deployed.
+Migrations applied live: `20261010120000_notification_signal`, `20261010130000_storage_cache_control`, `20261010140000_rls_wrap_helper_calls`. Plus the one-off `VACUUM FULL net._http_response`. No edge function deployed.
 
 ## How it was tested
 Browser test with a mocked backend and a fake clock, on the old and the new code:
@@ -49,9 +66,8 @@ Follow-up tests (same harness): opening the admin Dashboard with 12 supports sen
 NOT tested against the deployed backend, with real logins, or under real concurrent load (no load generator here). The stale-response guard was reasoned through, not exercised in a browser.
 
 ## Open items
-- Backend ideas that need approval: an index on `Notification (userId, createdAt DESC)` and a lighter "anything new?" function (`my_notifications` is ~16 ms and ~14 KB a call); re-label existing storage objects
-  with a long cache lifetime; trim `net._http_response` (14 MB for 36 live rows, about a third of the database); EXPLAIN the row-level-security cost (78 of 93 policies call `app_is_staff()` bare, not as
-  `(select app_is_staff())`).
+- The `AppSession` lookup in `app_is_staff()` still runs once per statement; if sessions grow far past a few thousand, check its `tokenHash` index.
+- Participant bell still downloads its full list each minute; a signal like the staff one would cut that too.
 - If load is still a problem after the next busy Sunday: a small `participant_live` function (register open, meeting live, prayer focus) for polling, so the full `participant_home` loads only on open and on return. Needs a migration and approval.
 - Design the 9pm prayer screen to run its countdown on the client, poll slowly with jitter, and batch its writes.
 - The Supabase free tier has no daily backups and pauses a project after about a week with no activity. Export your data on a schedule.

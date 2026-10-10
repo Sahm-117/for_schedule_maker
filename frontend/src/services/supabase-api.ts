@@ -1773,6 +1773,19 @@ export const notificationsApi = {
     const unreadCount = notifications.filter((n) => !n.isRead).length;
     return { notifications, unreadCount };
   },
+  /**
+   * A few bytes saying whether anything changed (unread count + newest id), so the background
+   * check does not download the whole list. Throws if the function is not there, and the caller
+   * then falls back to getMine.
+   */
+  async getSignal(): Promise<string> {
+    const me = getCurrentUserFromStorage();
+    if (!me?.id) return '0|';
+    const { data, error } = await supabase.rpc('my_notifications_signal');
+    if (error) throw new Error(error.message);
+    const signal = (data ?? {}) as { unread?: number; latestId?: string | null };
+    return `${signal.unread ?? 0}|${signal.latestId ?? ''}`;
+  },
   async markAllRead(): Promise<{ updatedCount: number }> {
     const me = getCurrentUserFromStorage();
     if (!me?.id) return { updatedCount: 0 };

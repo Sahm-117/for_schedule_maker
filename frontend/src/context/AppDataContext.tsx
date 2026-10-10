@@ -319,10 +319,21 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // never fire (they used to, on paper, and kept a websocket open for nothing). A change
   // made elsewhere reaches a person through a notification: this check finds it and offers
   // the "Refresh" prompt, and pages that need to stay current poll for themselves.
+  // The check asks a tiny question first ("anything new?", about 100 bytes) and downloads the
+  // whole list (about 15 KB) only when the answer changed. If the question cannot be asked
+  // (an older database), it fetches the list as before.
+  const lastNotificationSignalRef = useRef<string | null>(null);
   useEffect(() => {
     seenNotificationIdsRef.current = null; // a different person: start fresh
+    lastNotificationSignalRef.current = null;
   }, [user?.id]);
-  usePolling(() => refreshNotifications(), user ? 30000 : null);
+  usePolling(async () => {
+    let signal: string | null = null;
+    try { signal = await notificationsApi.getSignal(); } catch { signal = null; }
+    if (signal !== null && signal === lastNotificationSignalRef.current) return;
+    await refreshNotifications();
+    lastNotificationSignalRef.current = signal;
+  }, user ? 30000 : null);
   // The Community unread dot.
   usePolling(() => refreshHubActivity(), user ? 60000 : null);
 

@@ -578,6 +578,12 @@ duplicating the logic anywhere else is a bug waiting to happen.
     learns of changes elsewhere through the notification check (30 s) and its "Refresh" prompt. Per-person label lookups for a list go through
     `usersApi.withLabels(users)` (one query), never `getUserLabels` per person. Uploads to storage pass `cacheControl` (their paths are
     timestamped, so never overwritten), and `vercel.json` serves the hashed `/assets/*` as immutable. Frontend only; no migration.
+52. **Row-level-security policies call the session helpers wrapped: `(SELECT app_is_staff())`, `(SELECT app_is_admin())`, `(SELECT app_current_user_id())`, never bare.**
+    Bare, Postgres runs the lookup once per ROW (a staff read of 836 activities took ~41 ms; wrapped, ~0.4 ms), so a busy day on the free instance is
+    spent re-checking the same session. The result cannot change inside one statement, so the wrapped form lets the same people see the same rows. Every
+    policy was rewritten in `20261010140000_rls_wrap_helper_calls.sql` (93 policies, row counts proven identical for 84 tables across no-token, admin,
+    support and participant viewers); write new policies the wrapped way. The background notification check asks `my_notifications_signal()` (about 100 bytes: unread
+    count and newest id, `20261010120000_notification_signal.sql`) and downloads the list only when that changes.
 
 ## 5. Edge functions and schedules
 
