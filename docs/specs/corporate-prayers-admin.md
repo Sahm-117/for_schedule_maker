@@ -1,6 +1,6 @@
 # Corporate Prayers: admin page (build spec)
 
-Status: **built (11 Oct 2026), not yet applied or pushed**: see `docs/handoffs/2026-10-11_corporate-prayers.md` for what was built, how it was tested and the defaults chosen for section 10. The text below is the spec as written. Written 10 Oct 2026 from the product quiz and the code as it stands at `fd95cfa`.
+Status: **built and applied live (11 Oct 2026)**: see `docs/handoffs/2026-10-11_corporate-prayers.md` for what was built, how it was tested and the defaults chosen for section 10. The text below is the spec as written. Written 10 Oct 2026 from the product quiz and the code as it stands at `fd95cfa`.
 Part 1 of the original plan (opt-out, start week, pop-up) is already live (FLOW_MAP rules 49 and 50). This file is Part 2, the admin page, plus the data
 and functions it needs, and the contracts Parts 3 (the slot screen) and 4 (the 9pm pop-up) rely on.
 

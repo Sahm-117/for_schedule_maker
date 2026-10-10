@@ -13,10 +13,11 @@ Built from `docs/specs/corporate-prayers-admin.md` (Parts 2, 3 and 4 of the pray
 - Guide entries (admin, support, participant), page tour `admin:corporate-prayers`, FLOW_MAP rule 54.
 
 ## Live changes
-**NONE YET.** Everything is committed locally and NOT pushed. The migration `supabase/migrations/20261011100000_corporate_prayers.sql` is written and tested but **not applied to the live database**.
-**Order matters (the earlier deploy-order lesson):** apply the migration first, then push. If the frontend ships first, the admin page shows "Could not load" and the prayer signal fails quietly (nothing breaks), but nothing can be set up.
-Applying it: creates 8 locked tables (`CorporatePrayerSlot`, `Verse`, `Setting`, `Session`, `Target`, `Checkin`, `Cycle`, `Skip`), the functions, and the cron job `corporate_prayer_slots_every_minute` (does nothing until a notifying slot exists).
-No edge function is new or changed. Rollback: drop those tables and functions and `cron.unschedule('corporate_prayer_slots_every_minute')`.
+**Applied live on 11 Oct 2026** (Management API, one transaction): `supabase/migrations/20261011100000_corporate_prayers.sql`. It created 8 locked tables (`CorporatePrayerSlot`, `Verse`, `Setting`, `Session`, `Target`, `Checkin`, `Cycle`, `Skip`: row-level security on, the public key has no privileges on them),
+the functions (19 callable with a session token, 19 internal helpers the public key cannot call) and the cron job `corporate_prayer_slots_every_minute` (jobid 17, every minute; returns at once until a notifying slot exists).
+Checked live afterwards: the full 43-check scenario was run against the applied schema inside a transaction that always rolls back, and passed; the tables are empty, the cohort's dates and the Faith project settings are untouched, and no start week is set, so nothing runs and nobody is notified until an admin sets it up.
+The frontend was pushed after the migration, so the new functions exist when the page loads. No edge function is new or changed.
+**Rollback:** drop those tables and functions and run `select cron.unschedule('corporate_prayer_slots_every_minute')`. Nothing else was changed.
 
 ## How it was tested
 - **Database**: the migration plus a scenario script run inside one transaction that always rolls back (nothing was kept). 43 checks pass: duplicate time refused; participant and support blocked from admin functions; bad token gets nothing; one session per slot per day;
@@ -26,7 +27,7 @@ No edge function is new or changed. Rollback: drop those tables and functions an
 - **Browser** (mocked backend, fake clock for the live wait): admin page at desktop and 390 px (add slot, duplicate time message, bulk verses with a problem flagged then fixed, save the live link, coverage numbers, preview with the name in capitals, no horizontal scroll, no page errors);
   participant flow (banner, open, checked in, project and verse shown, Amen, thanks, Done, banner gone); support route the same; live pop-up (appears and checks in, cannot be closed, Prayed disabled before the link and during the 5-minute wait, enabled after, closes). Screenshots checked by eye.
 - `npm run build`, the type check (only the 27 old errors), lint on the new files, `git diff --check`.
-- **NOT tested**: against the live database or with real logins; real push delivery (the notifier and `notify-users` were not run for real); real Telegram links; many people opening a slot at the same second (the biggest risk, see below); the admin page with real hubs and a full cohort.
+- **NOT tested**: with real logins or real participants (the live schema was tested only by the rolled-back scenario); real push delivery (the notifier and `notify-users` were not run for real); real Telegram links; many people opening a slot at the same second (the biggest risk, see below); the admin page with real hubs and a full cohort.
 
 ## Code review (done before committing) and what changed because of it
 A review of the staged change found real problems, all fixed and re-tested: the teen test was narrower than the one the age-bracket trigger uses and ignored teen groups (now the same labels plus teen-group membership); replacing an opted-out person on read could race and rewrite a closed
