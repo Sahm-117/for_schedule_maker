@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import PrayerSignalProvider from '../corporatePrayers/PrayerSignalProvider';
 import { createPortal } from 'react-dom';
 import { Navigate, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
@@ -328,7 +329,9 @@ const ParticipantShell: React.FC = () => {
   return (
     <ParticipantAppProvider>
       <ToastProvider>
-        <ShellLayout />
+        <PrayerSignalProvider audience="participant">
+          <ShellLayout />
+        </PrayerSignalProvider>
       </ToastProvider>
     </ParticipantAppProvider>
   );

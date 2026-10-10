@@ -591,6 +591,18 @@ duplicating the logic anywhere else is a bug waiting to happen.
     step with the most people still to do (earliest on a tie). Teen groups and empty groups show no strip (rule 22). The summary row above the filters and the Onboarding filter use the
     same chip (`?onboarding=`). If the onboarding data cannot be loaded the strip, summary row and filter are simply hidden (and a stale `?onboarding=` in the address is ignored); if only the assigned dates fail, the page says day counts are unavailable. A failed background refresh keeps the data already on the page. The support's hub name (from `HubMembership`) follows the support's name.
     Frontend only; it reads `cohort_onboarding_progress` and `OnboardingEvent`.
+54. **Corporate prayers run from the admin module; one rotation decides who is prayed for.** Admin sets slots (time, type VERSE / FAITH_PROJECT / LIVE, timer, join window,
+    cohort-wide or per-hub) on `/corporate-prayers`; the start week and the opt-out pop-up timing still live in `FaithProjectSetting` (the page edits them; the Faith project settings
+    sheet only links to it). From `faith_prayers_start_date` to the cohort end date, a slot's session for the day is made once (`ensure_prayer_session`, advisory-locked) the first time
+    anyone needs it, or by the per-minute `notify_prayer_slots()` a minute before it opens (cron `corporate_prayer_slots_every_minute`, which does nothing unless a notifying slot is about to open).
+    Two pools, each with its own cycle number: FAITH (a saved faith project with text) for faith-project slots, NAME (every participant) for verse slots; both skip teens, tests and
+    `prayerConsent = 'OUT'`. `prayer_pick` chooses the person longest since last prayed for who has no turn this cycle, never the same person twice on one day, and starts the next cycle when
+    everyone has had one; in hub mode each hub (a participant's hub is their group's support's hub; none = NO_HUB) gets a different person that day. A chosen person who opts out before
+    anyone opens the slot is replaced. People counted and notified: participants with a working login (not teens, not tests) and anyone holding the Support role; plain admins are not.
+    Opening the prayer screen checks you in, Amen checks you out (`corporate_prayer_join` / `_amen`), counts are numbers only, polled slowly (rule 51). The LIVE slot is a required pop-up
+    (priority 28) that cannot be closed: "Prayed" unlocks N minutes after the Telegram link tap (`CorporatePrayerSetting.liveWaitMinutes`), with an exit after ten minutes if the link would not
+    open; it never appears without a Telegram link. Notifications go through `notify-users` (both channels, rule 10). Tables are locked outright; every function takes `p_token`, admin
+    functions need an ADMIN session. Source: `20261011100000_corporate_prayers.sql`, `docs/specs/corporate-prayers-admin.md`.
 
 ## 5. Edge functions and schedules
 

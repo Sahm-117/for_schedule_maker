@@ -1,6 +1,6 @@
 # Corporate Prayers: admin page (build spec)
 
-Status: **spec only. Nothing in this file is built.** Written 10 Oct 2026 from the product quiz and the code as it stands at `fd95cfa`.
+Status: **built (11 Oct 2026), not yet applied or pushed**: see `docs/handoffs/2026-10-11_corporate-prayers.md` for what was built, how it was tested and the defaults chosen for section 10. The text below is the spec as written. Written 10 Oct 2026 from the product quiz and the code as it stands at `fd95cfa`.
 Part 1 of the original plan (opt-out, start week, pop-up) is already live (FLOW_MAP rules 49 and 50). This file is Part 2, the admin page, plus the data
 and functions it needs, and the contracts Parts 3 (the slot screen) and 4 (the 9pm pop-up) rely on.
 
@@ -297,3 +297,12 @@ Counts must be readable by participants, whose sessions differ from staff sessio
 6. Guide content, tour, FLOW_MAP rule, handoff.
 
 Then Part 3 (slot screen, counts, notifications) and Part 4 (9pm pop-up) in that order. Ship the database part first and the page with a fallback that hides the page if the functions are missing (the earlier deploy-order lesson).
+
+
+## As built: where it differs from this spec
+- Verse and picture slots are always one person for everyone (the hub-or-cohort choice is only on faith-project slots).
+- Admins who also hold the Support role are counted; plain admins are not (open question 5, default).
+- Reordering verses uses up and down arrows, not drag handles.
+- Slot-time notifications come from a per-minute SQL job that calls the existing `notify-users` function, so there is no new edge function.
+- A tiny `corporate_prayer_signal` function (asked every minute by the open app) drives the Home banner and the live pop-up.
+- The Coverage tab's hub table lists each hub's participants and supports; it does not show who each hub is praying for today.

@@ -2085,3 +2085,86 @@ export interface BirthdayList {
   /** People with no birthday on file yet. */
   missing: { supports: number; participants: number };
 }
+
+// ---- Corporate prayers ----
+
+export type PrayerSlotType = 'VERSE' | 'FAITH_PROJECT' | 'LIVE';
+export type PrayerTargetMode = 'COHORT' | 'HUB';
+export type PrayerPool = 'FAITH' | 'NAME';
+
+export interface PrayerCounts { joined: number; praying: number; amen: number }
+
+export interface PrayerSlot {
+  id: string;
+  name: string | null;
+  /** HH:MM, Africa/Lagos. */
+  time: string;
+  slotType: PrayerSlotType;
+  timerMinutes: number;
+  joinWindowMinutes: number;
+  targetMode: PrayerTargetMode | null;
+  notify: boolean;
+  active: boolean;
+  hasHistory: boolean;
+  today: { sessionId: string; opensAt: string; closesAt: string; counts: PrayerCounts } | null;
+}
+
+export interface PrayerOverview {
+  startWeekNumber: number | null;
+  popupDaysBefore: number;
+  startDate: string | null;
+  endDate: string | null;
+  today: string;
+  running: boolean;
+  settings: { telegramLink: string | null; liveWaitMinutes: number; liveMessage: string | null };
+  slots: PrayerSlot[];
+  verses: { total: number; active: number };
+  pools: { FAITH: number; NAME: number };
+  counted: { participants: number; supports: number };
+}
+
+export interface PrayerVerse { id: string; prayer: string; reference: string; sortOrder: number; active: boolean; used: number }
+
+export interface PrayerPerson { id: string; fullName: string; firstName: string; avatarUrl: string | null }
+
+export interface PrayerLiveInfo { telegramLink: string | null; waitMinutes: number; message: string | null }
+
+export interface PrayerNext { slotId: string; name: string | null; slotType: PrayerSlotType; opensAt: string }
+
+/** The one answer the prayer screen is drawn from (corporate_prayer_now). */
+export interface PrayerNow {
+  role?: 'PARTICIPANT' | 'SUPPORT';
+  serverNow: string;
+  state: 'none' | 'upcoming' | 'open' | 'closed';
+  session?: { id: string; name: string | null; slotType: PrayerSlotType; timerMinutes: number; opensAt: string; closesAt: string };
+  person?: PrayerPerson | null;
+  projectText?: string | null;
+  verse?: { prayer: string; reference: string } | null;
+  me?: { checkedInAt: string; amenAt: string | null; linkTappedAt: string | null } | null;
+  counts?: PrayerCounts;
+  live?: PrayerLiveInfo | null;
+  next?: PrayerNext | null;
+}
+
+/** The tiny minute-by-minute answer (corporate_prayer_signal). */
+export interface PrayerSignal {
+  open: { sessionId: string; slotType: PrayerSlotType; opensAt: string; closesAt: string; checkedIn: boolean; amen: boolean; serverNow: string } | null;
+  next?: PrayerNext | null;
+}
+
+export interface PrayerCoveragePerson { id: string; name: string; skipped?: boolean; lastOn: string | null }
+
+export interface PrayerCoverage {
+  cycles: Partial<Record<PrayerPool, { cycleNo: number; total: number; done: number }>> | null;
+  notYet: Partial<Record<PrayerPool, PrayerCoveragePerson[]>> | null;
+  doneList: Partial<Record<PrayerPool, PrayerCoveragePerson[]>> | null;
+  hubs: Array<{ hubKey: string; name: string; participants: number; supports: number }>;
+}
+
+export interface PrayerPreview {
+  slot: { id: string; name: string | null; time: string; slotType: PrayerSlotType; timerMinutes: number };
+  person: PrayerPerson | null;
+  projectText: string | null;
+  verse: { prayer: string; reference: string } | null;
+  live: PrayerLiveInfo | null;
+}

@@ -62,6 +62,8 @@ const AdminRotaPage = lazy(() => import('./pages/AdminRotaPage'));
 const AdminAllocationPage = lazy(() => import('./pages/AdminAllocationPage'));
 const AdminAttendancePage = lazy(() => import('./pages/AdminAttendancePage'));
 const AdminFaithProjectsPage = lazy(() => import('./pages/AdminFaithProjectsPage'));
+const AdminCorporatePrayersPage = lazy(() => import('./pages/AdminCorporatePrayersPage'));
+const PrayPage = lazy(() => import('./pages/PrayPage'));
 const AdminGroupPrayersPage = lazy(() => import('./pages/AdminGroupPrayersPage'));
 const SupportMobilisationPage = lazy(() => import('./pages/SupportMobilisationPage'));
 const SupportAttendancePage = lazy(() => import('./pages/SupportAttendancePage'));
@@ -111,6 +113,7 @@ function App() {
             <Route path="/me/journey" element={<Suspense fallback={<RouteFallback />}><ParticipantJourneyPage /></Suspense>} />
             <Route path="/me/group" element={<Suspense fallback={<RouteFallback />}><ParticipantGroupPage /></Suspense>} />
             <Route path="/me/faith" element={<Suspense fallback={<RouteFallback />}><ParticipantFaithPage /></Suspense>} />
+            <Route path="/me/pray" element={<Suspense fallback={<RouteFallback />}><PrayPage homePath="/me" /></Suspense>} />
             <Route path="/me/resources" element={<Suspense fallback={<RouteFallback />}><ParticipantResourcesPage /></Suspense>} />
             <Route path="/me/people" element={<Suspense fallback={<RouteFallback />}><ParticipantPeoplePage /></Suspense>} />
             <Route path="/me/profile" element={<Suspense fallback={<RouteFallback />}><ParticipantProfilePage /></Suspense>} />
@@ -158,6 +161,8 @@ function App() {
             <Route path="/allocation" element={<Suspense fallback={<RouteFallback />}><AdminAllocationPage /></Suspense>} />
             <Route path="/attendance" element={<Suspense fallback={<RouteFallback />}><AdminAttendancePage /></Suspense>} />
             <Route path="/faith-projects" element={<Suspense fallback={<RouteFallback />}><AdminFaithProjectsPage /></Suspense>} />
+            <Route path="/corporate-prayers" element={<Suspense fallback={<RouteFallback />}><AdminCorporatePrayersPage /></Suspense>} />
+            <Route path="/support/pray" element={<Suspense fallback={<RouteFallback />}><PrayPage homePath="/support" /></Suspense>} />
             <Route path="/group-prayers" element={<Suspense fallback={<RouteFallback />}><AdminGroupPrayersPage /></Suspense>} />
             <Route path="/onboarding" element={<Suspense fallback={<RouteFallback />}><AdminOnboardingPage /></Suspense>} />
             <Route path="/birthdays" element={<Suspense fallback={<RouteFallback />}><AdminBirthdaysPage /></Suspense>} />

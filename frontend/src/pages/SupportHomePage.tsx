@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import PrayerNowBanner from '../components/corporatePrayers/PrayerNowBanner';
 import { Navigate, NavLink } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import LinkText from '../components/LinkText';
@@ -374,6 +375,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
 
       <div className="flex flex-wrap items-start gap-5">
         <div className="flex min-w-0 flex-[1_1_480px] flex-col gap-4">
+          <PrayerNowBanner to="/support/pray" />
           <ProfileCompletionStrip user={user} variant="home" />
 
           <section data-wt="home-metrics" className="rounded-[22px] border border-[#ffdeca] bg-white p-5 shadow-[0_2px_6px_-2px_rgba(17,24,39,0.08)]">

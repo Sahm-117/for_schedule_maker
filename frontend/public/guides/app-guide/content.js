@@ -721,17 +721,115 @@ window.GUIDE_CONTENT = {
         "categories",
         "corporate prayer",
         "start week",
-        "pop-up"
+        "pop-up",
+        "corporate prayers"
        ],
        "steps": [
-        "Tap the gear icon (**Faith Project settings**) at the top of the page.",
-        "Under **Corporate prayers**, choose the week it starts in and how many days before it the pop-up begins, then **Save**.",
-        "Add or archive categories if you need to."
+        "Open **Corporate prayers** in the sidebar (under Engagement). On the **Schedule** tab, choose the week it starts in and how many days before it the pop-up begins, then **Save**.",
+        "To change categories, tap the gear icon (**Faith Project settings**) at the top of the Faith projects page."
        ],
        "result": "A few days before that week's class day, every participant gets a pop-up they must answer: **I'm fine with this** or **Opt out**. From that day, saved projects are prayed for unless the person opted out.",
        "tips": [
         "The **Write-it-by date** is only a soft date. Projects can still be saved after it."
        ]
+      }
+     ]
+    },
+    {
+     "id": "corporate-prayers",
+     "title": "Corporate prayers",
+     "where": "Sidebar → Engagement → Corporate prayers",
+     "summary": "Set when the cohort prays together, what is prayed, and who is prayed for. Everyone gets a notification, a prayer screen with a timer, and an Amen button.",
+     "tasks": [
+      {
+       "id": "cp-slots",
+       "q": "How do I set up the daily prayer times?",
+       "keywords": [
+        "corporate prayers",
+        "slots",
+        "prayer times",
+        "timer",
+        "schedule"
+       ],
+       "steps": [
+        "Open **Corporate prayers → Schedule**. Choose the week prayers start in and **Save**.",
+        "Tap **Add slot**. Choose a type: **Verse and picture**, **Faith project** or **Live prayer**.",
+        "Set the time (Lagos), the timer (15 minutes by default) and how long people can still join, then **Save slot**."
+       ],
+       "result": "The slot runs every day from the start week. Participants and supports get a notification when it opens. You can switch a slot off without deleting it.",
+       "tips": [
+        "Two slots cannot be at the same time.",
+        "Faith project slots can be **One person for everyone** or **A different person per hub**."
+       ]
+      },
+      {
+       "id": "cp-verses",
+       "q": "How do I add the verses that are prayed?",
+       "keywords": [
+        "verses",
+        "prayers",
+        "library",
+        "name",
+        "bulk"
+       ],
+       "steps": [
+        "Open the **Verses** tab and tap **Add verse**, or **Add several** to paste many at once.",
+        "Write the prayer. Type **{{NAME}}** where the person's first name goes in capitals, or **{{Name}}** as written.",
+        "Add the reference, such as Eph 1:17-18, and save."
+       ],
+       "result": "Slots use the verses in order, one after another, then start again. Everyone sees the same verse. A faith project is shown exactly as the person wrote it, above the verse.",
+       "tips": [
+        "Avoid words like he or she in a prayer: it is read for men and women alike.",
+        "Use the arrows to change the order."
+       ]
+      },
+      {
+       "id": "cp-live",
+       "q": "How do I set up the live prayer on Telegram?",
+       "keywords": [
+        "live prayer",
+        "telegram",
+        "link",
+        "pop-up",
+        "prayed"
+       ],
+       "steps": [
+        "Add a slot of type **Live prayer** for the time it happens.",
+        "Open the **Live prayer** tab, paste the Telegram link and choose how many minutes after they tap it that **Prayed** unlocks.",
+        "Tap the link in the tab to test it, then **Save**."
+       ],
+       "result": "At that time everyone sees a pop-up with the link. It cannot be closed until they tap **Prayed**, which unlocks after the wait. If the link is missing, the pop-up does not appear.",
+       "tips": [
+        "Test the link with a real call before the first live prayer."
+       ]
+      },
+      {
+       "id": "cp-coverage",
+       "q": "How do I see who has been prayed for?",
+       "keywords": [
+        "coverage",
+        "cycle",
+        "restart",
+        "hubs",
+        "skip"
+       ],
+       "steps": [
+        "Open the **Coverage** tab.",
+        "Each list shows how many people have had a turn this cycle and who is still to come.",
+        "Use **Skip this cycle** for someone who should wait, or **Restart the cycle** to start everyone again."
+       ],
+       "result": "When everyone has had a turn, the next cycle starts by itself. People who opted out are never shown. Today's joined and Amen counts are at the top."
+      },
+      {
+       "id": "cp-preview",
+       "q": "Can I see what a slot looks like before it goes live?",
+       "keywords": [
+        "preview"
+       ],
+       "steps": [
+        "Open the **Preview** tab, choose a slot and a person (or **Next in rotation**)."
+       ],
+       "result": "You see exactly what people see, with sample counts. Nothing is sent and the rotation does not move."
       }
      ]
     },
@@ -3674,6 +3772,34 @@ window.GUIDE_CONTENT = {
        "shot": "support-help-menu.jpg"
       }
      ]
+    },
+    {
+     "id": "corporate-prayers",
+     "title": "Corporate prayers",
+     "where": "Home, or the notification when a prayer opens",
+     "summary": "When a prayer opens, you get a notification. Open it to see who is being prayed for, pray with the timer, and tap Amen when you are done.",
+     "tasks": [
+      {
+       "id": "cp-join",
+       "q": "How do I join a corporate prayer?",
+       "keywords": [
+        "corporate prayer",
+        "pray",
+        "amen",
+        "timer",
+        "join"
+       ],
+       "steps": [
+        "When a prayer opens you get a notification, and a **Time to pray** card appears at the top of Home. Tap **Join**.",
+        "Pray for the person shown, using the verse and what they are believing God for. The ring counts down your time.",
+        "Tap **Amen** when you are done. You can also leave any time."
+       ],
+       "result": "You are counted as praying from the moment you open it, and as having said Amen when you tap it. Everyone sees the totals, never names.",
+       "tips": [
+        "For the live prayer, a pop-up asks you to join on Telegram. **Prayed** unlocks a few minutes after you open the link."
+       ]
+      }
+     ]
     }
    ]
   },
@@ -4292,6 +4418,34 @@ window.GUIDE_CONTENT = {
         "You can edit or delete your own testimonies at any time."
        ],
        "shot": "participant-testimony-new.jpg"
+      }
+     ]
+    },
+    {
+     "id": "corporate-prayers",
+     "title": "Corporate prayers",
+     "where": "Home, or the notification when a prayer opens",
+     "summary": "When a prayer opens, you get a notification. Open it to see who is being prayed for, pray with the timer, and tap Amen when you are done.",
+     "tasks": [
+      {
+       "id": "cp-join",
+       "q": "How do I join a corporate prayer?",
+       "keywords": [
+        "corporate prayer",
+        "pray",
+        "amen",
+        "timer",
+        "join"
+       ],
+       "steps": [
+        "When a prayer opens you get a notification, and a **Time to pray** card appears at the top of Home. Tap **Join**.",
+        "Pray for the person shown, using the verse and what they are believing God for. The ring counts down your time.",
+        "Tap **Amen** when you are done. You can also leave any time."
+       ],
+       "result": "You are counted as praying from the moment you open it, and as having said Amen when you tap it. Everyone sees the totals, never names.",
+       "tips": [
+        "For the live prayer, a pop-up asks you to join on Telegram. **Prayed** unlocks a few minutes after you open the link."
+       ]
       }
      ]
     },

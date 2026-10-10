@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import ModalShell from '../followups/ModalShell';
-import AppSelect from '../AppSelect';
 import { useToast } from '../Toast';
-import { useAppData } from '../../context/AppDataContext';
+import { NavLink } from 'react-router-dom';
 import { faithProjectCategoriesApi, faithProjectSettingsApi } from '../../services/api';
 import type { FaithProjectCategory, FaithProjectSettings } from '../../types';
 import Spinner from '../Spinner';
@@ -25,10 +24,6 @@ const toInputValue = (value: string | null) => {
 
 const FaithProjectSettingsModal: React.FC<Props> = ({ isOpen, onClose, cohortId, categories, settings, onChanged }) => {
   const toast = useToast();
-  const { weeks } = useAppData();
-  const [startWeek, setStartWeek] = useState(settings.prayersStartWeekNumber ? String(settings.prayersStartWeekNumber) : '');
-  const [daysBefore, setDaysBefore] = useState(String(settings.prayerPopupDaysBefore));
-  const [savingPrayers, setSavingPrayers] = useState(false);
   const [deadline, setDeadline] = useState(toInputValue(settings.deadlineAt));
   const [categoryName, setCategoryName] = useState('');
   const [savingDeadline, setSavingDeadline] = useState(false);
@@ -38,8 +33,6 @@ const FaithProjectSettingsModal: React.FC<Props> = ({ isOpen, onClose, cohortId,
   useEffect(() => {
     if (!isOpen) return;
     setDeadline(toInputValue(settings.deadlineAt));
-    setStartWeek(settings.prayersStartWeekNumber ? String(settings.prayersStartWeekNumber) : '');
-    setDaysBefore(String(settings.prayerPopupDaysBefore));
     setCategoryName('');
     setError('');
     // Only when the dialog opens: saving one section must not reset what is typed in another.
@@ -59,24 +52,6 @@ const FaithProjectSettingsModal: React.FC<Props> = ({ isOpen, onClose, cohortId,
       toast({ message: deadline ? 'Write-it-by date saved' : 'Write-it-by date cleared' });
     } catch (err) { setError(err instanceof Error ? err.message : 'Could not save the date.'); }
     finally { setSavingDeadline(false); }
-  };
-
-  const savePrayers = async () => {
-    if (!daysBefore.trim() || !Number.isFinite(Number(daysBefore))) { setError('Enter how many days before, from 0 to 30.'); return; }
-    const days = Math.min(30, Math.max(0, Math.round(Number(daysBefore))));
-    setSavingPrayers(true);
-    setError('');
-    try {
-      const { settings: saved } = await faithProjectSettingsApi.set(cohortId, {
-        deadlineAt: settings.deadlineAt,
-        prayersStartWeekNumber: startWeek ? Number(startWeek) : null,
-        prayerPopupDaysBefore: days,
-      });
-      onChanged(saved, categories);
-      setDaysBefore(String(days));
-      toast({ message: startWeek ? `Corporate prayers start in Week ${startWeek}` : 'Corporate prayers start date cleared' });
-    } catch (err) { setError(err instanceof Error ? err.message : 'Could not save the corporate prayers settings.'); }
-    finally { setSavingPrayers(false); }
   };
 
   const addCategory = async () => {
@@ -120,21 +95,10 @@ const FaithProjectSettingsModal: React.FC<Props> = ({ isOpen, onClose, cohortId,
 
         <section className="border-t border-gray-100 pt-5">
           <h3 className="text-sm font-bold text-gray-900">Corporate prayers</h3>
-          <p className="mt-1 text-[13px] leading-normal text-gray-500">From the class day of this week, saved faith projects are prayed for unless the participant opts out. A few days before, everyone gets a pop-up they must answer: &ldquo;I&apos;m fine with this&rdquo; or &ldquo;Opt out&rdquo;.</p>
-          <div className="mt-3 space-y-3">
-            <AppSelect
-              label="Starts in"
-              value={startWeek}
-              onChange={setStartWeek}
-              options={[{ value: '', label: 'Not set yet' }, ...[...weeks].sort((a, b) => a.weekNumber - b.weekNumber).map((week) => ({ value: String(week.weekNumber), label: `Week ${week.weekNumber}${week.classDate ? ` · class ${new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' }).format(new Date(`${week.classDate.slice(0, 10)}T12:00:00`))}` : ''}` }))]}
-              placeholder="Not set yet"
-            />
-            <label className="block">
-              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Pop-up starts this many days before</span>
-              <input type="number" inputMode="numeric" min={0} max={30} value={daysBefore} onChange={(event) => setDaysBefore(event.target.value)} className="min-h-[44px] w-28 rounded-xl border border-gray-200 px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" />
-            </label>
-            <button type="button" onClick={() => { void savePrayers(); }} disabled={savingPrayers} className="min-h-[44px] rounded-xl bg-primary px-4 text-sm font-semibold text-white disabled:opacity-60">{savingPrayers ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save'}</button>
-          </div>
+          <p className="mt-1 text-[13px] leading-normal text-gray-500">
+            The start week, the opt-out pop-up timing, the daily slots and the verses now live on their own page.
+          </p>
+          <NavLink to="/corporate-prayers" onClick={onClose} className="mt-2 inline-block text-sm font-semibold text-primary">Open Corporate prayers →</NavLink>
         </section>
 
         <section className="border-t border-gray-100 pt-5">

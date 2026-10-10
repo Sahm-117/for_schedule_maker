@@ -203,6 +203,10 @@ export const PAGE_TOURS: Record<string, TourStep[]> = {
     { target: wt('faith-status'), title: 'Filter by status', body: 'Tap a status to see only those projects. Tap it again to clear the filter.', optional: true },
     { target: wt('page-action'), title: 'Export', body: 'Download the faith projects to share or keep.', optional: true },
   ],
+  'admin:corporate-prayers': [
+    { target: wt('cp-status'), title: 'Where things stand', body: 'Whether prayers are running, and anything still missing: a start week, a slot or a verse.' },
+    { target: wt('page-action'), title: 'Add a slot', body: 'Each slot runs every day: a time, a type (verse, faith project or live) and a timer. People are notified when it opens.', optional: true },
+  ],
   'admin:announcements': [
     { target: wt('page-action'), title: 'Send an update', body: 'Write an announcement for supports, participants or everyone. You can also pin it to their Home for a while.' },
     { target: wt('announcements-history'), title: 'What’s been sent', body: 'Every announcement so far, newest first.' },

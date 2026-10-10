@@ -164,6 +164,7 @@ const adminNavGroups: NavGroup[] = [
       { to: '/follow-ups', label: 'Follow-ups', icon: ICONS.followups, adminOnly: true },
       { to: '/feedback', label: 'Feedback', icon: ICONS.feedback, adminOnly: true },
       { to: '/surveys', label: 'Surveys', icon: ICONS.feedback, adminOnly: true },
+      { to: '/corporate-prayers', label: 'Corporate prayers', icon: ICONS.prayer, adminOnly: true },
       { to: '/birthdays', label: 'Birthdays', icon: ICONS.birthdays, adminOnly: true },
       { to: '/community', label: 'Community', icon: ICONS.hub },
     ],

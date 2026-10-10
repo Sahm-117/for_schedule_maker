@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import PrayerNowBanner from '../components/corporatePrayers/PrayerNowBanner';
 import { NavLink, useNavigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import ScriptureCarousel from '../components/ScriptureCarousel';
@@ -275,6 +276,7 @@ const ParticipantHomePage: React.FC = () => {
 
       <div className="flex flex-col gap-4">
         <AppSetupBanner enable={push.enable} />
+        <PrayerNowBanner to="/me/pray" />
         {home.groupMeetingLive && (
           // Tapping the banner opens the meeting on My Group; Join still goes
           // straight to the call link.

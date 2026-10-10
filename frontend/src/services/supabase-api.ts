@@ -9032,3 +9032,135 @@ export const practiceApi = {
     if (error) throw new Error(error.message);
   },
 };
+
+// ---- Corporate prayers ----
+// Admin side: slots, verses, settings, coverage, preview. Prayer side: the signal, the screen's data, check-in and Amen.
+const prayerError = (rawMessage: string | undefined, fallback: string): Error => {
+  const msg = rawMessage || '';
+  if (msg.includes('SESSION_EXPIRED')) return new Error('SESSION_EXPIRED');
+  const known: Array<[string, string]> = [
+    ['SLOT_TIME_TAKEN', 'Another slot is already at that time.'],
+    ['SLOT_HAS_HISTORY', 'This slot has already run, so it can only be switched off.'],
+    ['INVALID_TIME', 'Enter a time such as 05:50.'],
+    ['INVALID_TIMER', 'The timer must be between 1 and 120 minutes.'],
+    ['INVALID_WINDOW', 'The join window must be between 1 and 240 minutes.'],
+    ['NAME_TOO_LONG', 'Keep the name under 40 characters.'],
+    ['PRAYER_REQUIRED', 'Write the prayer.'],
+    ['REFERENCE_REQUIRED', 'Add the reference, such as Eph 1:17-18.'],
+    ['PRAYER_TOO_LONG', 'That prayer is too long. Keep it under 1,500 characters.'],
+    ['PRAYER_AND_REFERENCE_REQUIRED', 'Every verse needs a prayer and a reference.'],
+    ['VERSE_IN_USE', 'This verse has been used, so it can only be switched off.'],
+    ['LINK_MUST_BE_HTTPS', 'The link must start with https://'],
+    ['INVALID_WAIT', 'The wait must be between 0 and 60 minutes.'],
+    ['MESSAGE_TOO_LONG', 'Keep the pop-up line under 120 characters.'],
+    ['NOT_ALLOWED', 'You do not have access to this.'],
+    ['NOT_OPEN_YET', 'This prayer has not opened yet.'],
+    ['ENDED', 'This prayer has ended.'],
+    ['NOT_CHECKED_IN', 'Open the prayer first.'],
+    ['OPEN_THE_LINK_FIRST', 'Open the Telegram link first.'],
+    ['TOO_EARLY', 'Not yet. Keep praying a little longer.'],
+  ];
+  for (const [code, text] of known) if (msg.includes(code)) return new Error(text);
+  return new Error(fallback);
+};
+
+export const corporatePrayersApi = {
+  async overview(cohortId: string): Promise<import('../types').PrayerOverview> {
+    const { data, error } = await supabase.rpc('corporate_prayer_overview', { p_token: getSessionToken(), p_cohort_id: cohortId });
+    if (error) throw prayerError(error.message, 'Could not load corporate prayers.');
+    return data as import('../types').PrayerOverview;
+  },
+  async saveSlot(cohortId: string, input: {
+    id: string | null; name: string; time: string; slotType: import('../types').PrayerSlotType; timerMinutes: number; joinWindowMinutes: number;
+    targetMode: import('../types').PrayerTargetMode | null; notify: boolean; active: boolean;
+  }): Promise<void> {
+    const { error } = await supabase.rpc('upsert_prayer_slot', {
+      p_token: getSessionToken(), p_cohort_id: cohortId, p_id: input.id, p_name: input.name, p_time: input.time, p_type: input.slotType,
+      p_timer: input.timerMinutes, p_window: input.joinWindowMinutes, p_target_mode: input.targetMode, p_notify: input.notify, p_active: input.active,
+    });
+    if (error) throw prayerError(error.message, 'Could not save the slot.');
+  },
+  async deleteSlot(id: string): Promise<void> {
+    const { error } = await supabase.rpc('delete_prayer_slot', { p_token: getSessionToken(), p_id: id });
+    if (error) throw prayerError(error.message, 'Could not delete the slot.');
+  },
+  async listVerses(): Promise<import('../types').PrayerVerse[]> {
+    const { data, error } = await supabase.rpc('list_prayer_verses', { p_token: getSessionToken() });
+    if (error) throw prayerError(error.message, 'Could not load the verses.');
+    return (data ?? []) as import('../types').PrayerVerse[];
+  },
+  async saveVerse(input: { id: string | null; prayer: string; reference: string; active: boolean }): Promise<void> {
+    const { error } = await supabase.rpc('upsert_prayer_verse', { p_token: getSessionToken(), p_id: input.id, p_prayer: input.prayer, p_reference: input.reference, p_active: input.active });
+    if (error) throw prayerError(error.message, 'Could not save the verse.');
+  },
+  async addVerses(items: Array<{ prayer: string; reference: string }>): Promise<number> {
+    const { data, error } = await supabase.rpc('add_prayer_verses', { p_token: getSessionToken(), p_items: items });
+    if (error) throw prayerError(error.message, 'Could not add the verses.');
+    return Number(data ?? 0);
+  },
+  async reorderVerses(ids: string[]): Promise<void> {
+    const { error } = await supabase.rpc('reorder_prayer_verses', { p_token: getSessionToken(), p_ids: ids });
+    if (error) throw prayerError(error.message, 'Could not reorder the verses.');
+  },
+  async deleteVerse(id: string): Promise<void> {
+    const { error } = await supabase.rpc('delete_prayer_verse', { p_token: getSessionToken(), p_id: id });
+    if (error) throw prayerError(error.message, 'Could not delete the verse.');
+  },
+  async saveSettings(cohortId: string, input: { telegramLink: string; liveWaitMinutes: number; liveMessage: string }): Promise<void> {
+    const { error } = await supabase.rpc('set_corporate_prayer_settings', {
+      p_token: getSessionToken(), p_cohort_id: cohortId, p_telegram: input.telegramLink, p_wait: input.liveWaitMinutes, p_message: input.liveMessage,
+    });
+    if (error) throw prayerError(error.message, 'Could not save the live prayer settings.');
+  },
+  async coverage(cohortId: string): Promise<import('../types').PrayerCoverage> {
+    const { data, error } = await supabase.rpc('prayer_coverage', { p_token: getSessionToken(), p_cohort_id: cohortId });
+    if (error) throw prayerError(error.message, 'Could not load coverage.');
+    return data as import('../types').PrayerCoverage;
+  },
+  async restartCycle(cohortId: string, pool: import('../types').PrayerPool): Promise<void> {
+    const { error } = await supabase.rpc('restart_prayer_cycle', { p_token: getSessionToken(), p_cohort_id: cohortId, p_pool: pool });
+    if (error) throw prayerError(error.message, 'Could not restart the cycle.');
+  },
+  async skipPerson(cohortId: string, participantId: string, skip: boolean): Promise<void> {
+    const { error } = await supabase.rpc('skip_prayer_person', { p_token: getSessionToken(), p_cohort_id: cohortId, p_participant_id: participantId, p_skip: skip });
+    if (error) throw prayerError(error.message, 'Could not update that person.');
+  },
+  async preview(slotId: string, participantId: string | null): Promise<import('../types').PrayerPreview> {
+    const { data, error } = await supabase.rpc('prayer_preview', { p_token: getSessionToken(), p_slot_id: slotId, p_participant_id: participantId });
+    if (error) throw prayerError(error.message, 'Could not build the preview.');
+    return data as import('../types').PrayerPreview;
+  },
+};
+
+export const prayerSlotApi = {
+  async signal(): Promise<import('../types').PrayerSignal> {
+    const { data, error } = await supabase.rpc('corporate_prayer_signal', { p_token: getSessionToken() });
+    if (error) throw prayerError(error.message, 'Could not check for prayers.');
+    return (data ?? { open: null }) as import('../types').PrayerSignal;
+  },
+  async now(sessionId: string | null): Promise<import('../types').PrayerNow> {
+    const { data, error } = await supabase.rpc('corporate_prayer_now', { p_token: getSessionToken(), p_session: sessionId });
+    if (error) throw prayerError(error.message, 'Could not load this prayer. Please try again.');
+    return data as import('../types').PrayerNow;
+  },
+  async join(sessionId: string): Promise<import('../types').PrayerCounts> {
+    const { data, error } = await supabase.rpc('corporate_prayer_join', { p_token: getSessionToken(), p_session: sessionId });
+    if (error) throw prayerError(error.message, 'Could not join this prayer.');
+    return (data as { counts: import('../types').PrayerCounts }).counts;
+  },
+  async amen(sessionId: string, withoutLink = false): Promise<import('../types').PrayerCounts> {
+    const { data, error } = await supabase.rpc('corporate_prayer_amen', { p_token: getSessionToken(), p_session: sessionId, p_without_link: withoutLink });
+    if (error) throw prayerError(error.message, 'Could not save that. Please try again.');
+    return (data as { counts: import('../types').PrayerCounts }).counts;
+  },
+  async linkTap(sessionId: string): Promise<string> {
+    const { data, error } = await supabase.rpc('corporate_prayer_link_tap', { p_token: getSessionToken(), p_session: sessionId });
+    if (error) throw prayerError(error.message, 'Could not record that.');
+    return (data as { linkTappedAt: string }).linkTappedAt;
+  },
+  async counts(sessionId: string): Promise<{ counts: import('../types').PrayerCounts; state: 'upcoming' | 'open' | 'closed'; serverNow: string }> {
+    const { data, error } = await supabase.rpc('corporate_prayer_counts', { p_token: getSessionToken(), p_session: sessionId });
+    if (error) throw prayerError(error.message, 'Could not refresh the counts.');
+    return data as { counts: import('../types').PrayerCounts; state: 'upcoming' | 'open' | 'closed'; serverNow: string };
+  },
+};
