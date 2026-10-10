@@ -13,14 +13,14 @@ export const BIRTHDAY_QUOTES: Array<{ text: string; ref: string }> = [
 export const GRAPHIC_W = 1080;
 export const GRAPHIC_H = 1350;
 
-const ORANGE = '#FF914D';
+export const ORANGE = '#FF914D';
 const MONTHS_SHORT = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-const ORANGE_DEEP = '#E5822D';
-const BURNT = '#C2410C';
-const GOLD = '#FFD27A';
-const INK = '#1D1D1F';
+export const ORANGE_DEEP = '#E5822D';
+export const BURNT = '#C2410C';
+export const GOLD = '#FFD27A';
+export const INK = '#1D1D1F';
 
-const SANS = 'Montserrat, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+export const SANS = 'Montserrat, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 const SERIF = SANS;
 
 // Montserrat ships with the app (public/fonts/montserrat) so the picture looks the same on every phone.
@@ -29,7 +29,7 @@ const FACES: Array<[number, 'normal' | 'italic', string]> = [
   [400, 'italic', 'Montserrat-400i'], [600, 'italic', 'Montserrat-600i'],
 ];
 let fontsReady: Promise<void> | null = null;
-const loadFonts = (): Promise<void> => {
+export const loadFonts = (): Promise<void> => {
   if (!fontsReady) {
     fontsReady = Promise.all(FACES.map(async ([weight, style, file]) => {
       const face = new FontFace('Montserrat', `url(/fonts/montserrat/${file}.woff2) format("woff2")`, { weight: String(weight), style });
@@ -40,13 +40,13 @@ const loadFonts = (): Promise<void> => {
 };
 
 // A small seeded random so the same person always gets the same arrangement of confetti.
-const seeded = (seed: string) => {
+export const seeded = (seed: string) => {
   let h = 2166136261;
   for (let i = 0; i < seed.length; i += 1) { h ^= seed.charCodeAt(i); h = Math.imul(h, 16777619); }
   return () => { h += 0x6d2b79f5; let t = h; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 };
 
-const loadImage = (src: string, cors: boolean): Promise<HTMLImageElement | null> =>
+export const loadImage = (src: string, cors: boolean): Promise<HTMLImageElement | null> =>
   new Promise((resolve) => {
     const img = new Image();
     if (cors) img.crossOrigin = 'anonymous';
@@ -57,12 +57,12 @@ const loadImage = (src: string, cors: boolean): Promise<HTMLImageElement | null>
 
 // A photo the browser cached earlier from a plain <img> may be stored without CORS headers and then fail here.
 // One retry with a throwaway query string fetches a fresh, CORS-readable copy.
-const loadPhoto = async (url: string): Promise<HTMLImageElement | null> =>
+export const loadPhoto = async (url: string): Promise<HTMLImageElement | null> =>
   (await loadImage(url, true)) ?? loadImage(`${url}${url.includes('?') ? '&' : '?'}cors=1`, true);
 
-const initialsOf = (name: string): string => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('');
+export const initialsOf = (name: string): string => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('');
 
-const star = (ctx: CanvasRenderingContext2D, x: number, y: number, r: number, color: string) => {
+export const star = (ctx: CanvasRenderingContext2D, x: number, y: number, r: number, color: string) => {
   ctx.save();
   ctx.translate(x, y);
   ctx.fillStyle = color;
@@ -76,7 +76,7 @@ const star = (ctx: CanvasRenderingContext2D, x: number, y: number, r: number, co
   ctx.restore();
 };
 
-const balloon = (ctx: CanvasRenderingContext2D, x: number, y: number, rx: number, color: string, lean: number) => {
+export const balloon = (ctx: CanvasRenderingContext2D, x: number, y: number, rx: number, color: string, lean: number) => {
   const ry = rx * 1.22;
   ctx.save();
   ctx.translate(x, y);
@@ -104,7 +104,7 @@ const balloon = (ctx: CanvasRenderingContext2D, x: number, y: number, rx: number
   ctx.restore();
 };
 
-const roundRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) => {
+export const roundRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) => {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
   ctx.arcTo(x + w, y, x + w, y + h, r);
@@ -114,7 +114,7 @@ const roundRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.closePath();
 };
 
-const spaced = (ctx: CanvasRenderingContext2D, px: number) => { if ('letterSpacing' in ctx) (ctx as unknown as { letterSpacing: string }).letterSpacing = `${px}px`; };
+export const spaced = (ctx: CanvasRenderingContext2D, px: number) => { if ('letterSpacing' in ctx) (ctx as unknown as { letterSpacing: string }).letterSpacing = `${px}px`; };
 
 /** Wraps text into lines no wider than maxWidth with the current font. */
 const wrap = (ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] => {

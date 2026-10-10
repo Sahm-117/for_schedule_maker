@@ -9,6 +9,7 @@ import Avatar from '../components/Avatar';
 import AttendanceCountdownCard from '../components/participantApp/AttendanceCountdownCard';
 import ConfettiBurst from '../components/participantApp/ConfettiBurst';
 import VenueMapModal from '../components/participantApp/VenueMapModal';
+import ReadyGraphicSheet from '../components/participantApp/ReadyGraphicSheet';
 import NextClassCard, { hasClassCard } from '../components/participantApp/NextClassCard';
 import Spinner from '../components/Spinner';
 import ClassManualReader from '../components/classManual/ClassManualReader';
@@ -60,6 +61,7 @@ const ParticipantHomePage: React.FC = () => {
   const [goalSaving, setGoalSaving] = useState(false);
   const [introOpen, setIntroOpen] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
+  const [giftOpen, setGiftOpen] = useState(false);
   const [onboarding, setOnboarding] = useState<OnboardingState | null>(null);
   // Once attended the list is gone for good, so stop re-reading the state on every focus.
   const attendedRef = useRef(false);
@@ -446,12 +448,22 @@ const ParticipantHomePage: React.FC = () => {
             {!onboarding ? (
               <div className="flex justify-center py-4"><Spinner /></div>
             ) : onboarding.readyConfirmed || onboarding.completed ? (
+              <>
               <div className="flex items-center gap-3">
                 <span className="grid h-8 w-8 flex-none place-items-center rounded-full bg-emerald-500 text-white" aria-hidden="true">
                   <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="m5 12 5 5L20 7" /></svg>
                 </span>
                 <h2 className="text-lg font-bold text-gray-900">You're ready for class</h2>
               </div>
+              <button type="button" onClick={() => setGiftOpen(true)} className="mt-3 flex min-h-[56px] w-full items-center gap-3 rounded-[16px] border border-[#ffdeca] bg-gradient-to-br from-[#fff1e6] to-[#ffe0cc] px-3.5 py-3 text-left shadow-[0_6px_18px_-10px_rgba(194,65,12,0.5)]">
+                <span className="grid h-10 w-10 flex-none place-items-center rounded-full bg-primary text-white"><svg viewBox="0 0 24 24" className="h-[22px] w-[22px]" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 11h16v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-9ZM3 7.5A1.5 1.5 0 0 1 4.5 6H19.5A1.5 1.5 0 0 1 21 7.5V11H3V7.5ZM12 6v15M12 6c-1.2-3-5-3-5-1s3 1 5 1Zm0 0c1.2-3 5-3 5-1s-3 1-5 1Z" /></svg></span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-bold text-[#9a4a12]">Your gift is ready</span>
+                  <span className="block text-xs text-[#9a6a4b]">Make your "I'm fully ready" picture and share it</span>
+                </span>
+                <span className="ml-auto text-[#c2410c]" aria-hidden="true">&#8250;</span>
+              </button>
+              </>
             ) : (
               <>
             <div className="flex items-baseline gap-2">
@@ -488,6 +500,13 @@ const ParticipantHomePage: React.FC = () => {
                 {confirming ? <Spinner className="h-4 w-4" /> : <span className="grid h-6 w-6 flex-none place-items-center rounded-full border-2 border-current" aria-hidden="true" />}
                 <span>I have all I need to be ready for class{firstClassDate ? ` on ${formatDateLabel(firstClassDate)}` : ''}</span>
               </button>
+              <div className="mt-1 flex min-h-[56px] items-center gap-3 rounded-[16px] border border-dashed border-[#ecd6c6] bg-[#fffaf6] px-3.5 py-3" aria-label="A gift unlocks when every step is done">
+                <span className="grid h-10 w-10 flex-none place-items-center rounded-full bg-[#f3e6dc] text-[#b79a85]"><svg viewBox="0 0 24 24" className="h-[22px] w-[22px]" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 11h16v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-9ZM3 7.5A1.5 1.5 0 0 1 4.5 6H19.5A1.5 1.5 0 0 1 21 7.5V11H3V7.5ZM12 6v15M12 6c-1.2-3-5-3-5-1s3 1 5 1Zm0 0c1.2-3 5-3 5-1s-3 1-5 1Z" /></svg></span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-bold text-[#8a6a55]">A gift waits at the end</span>
+                  <span className="block text-xs text-[#a58b78]">Finish every step to unlock your own "I'm fully ready" picture</span>
+                </span>
+              </div>
             </div>
               </>
             )}
@@ -555,6 +574,7 @@ const ParticipantHomePage: React.FC = () => {
         )}
       </div>
       {confetti && <ConfettiBurst onDone={() => setConfetti(false)} />}
+      {giftOpen && <ReadyGraphicSheet name={home.participant.name} photoUrl={home.profile.avatarUrl} cohortName={home.cohort?.name} onClose={() => setGiftOpen(false)} />}
       {mapOpen && <VenueMapModal acknowledged={!!onboarding?.venueMapAcknowledged} onAcknowledge={acknowledgeMap} onClose={() => setMapOpen(false)} />}
       {introOpen && introManual && <ClassManualReader content={introManual} onClose={() => setIntroOpen(false)} />}
     </div>
