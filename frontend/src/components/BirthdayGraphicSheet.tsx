@@ -9,7 +9,7 @@ import type { BirthdayPerson } from '../types';
 const hashOf = (s: string): number => { let h = 0; for (let i = 0; i < s.length; i += 1) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; };
 const fileName = (name: string) => `birthday-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'graphic'}.png`;
 
-const BirthdayGraphicSheet: React.FC<{ person: BirthdayPerson; onClose: () => void }> = ({ person, onClose }) => {
+const BirthdayGraphicSheet: React.FC<{ person: BirthdayPerson; roleLabel: string; onClose: () => void }> = ({ person, roleLabel, onClose }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [quoteIdx, setQuoteIdx] = useState(() => hashOf(person.id) % BIRTHDAY_QUOTES.length);
   const [drawing, setDrawing] = useState(true);
@@ -22,11 +22,11 @@ const BirthdayGraphicSheet: React.FC<{ person: BirthdayPerson; onClose: () => vo
     let cancelled = false;
     setDrawing(true);
     setError('');
-    drawBirthdayGraphic(canvas, { name: person.name, photoUrl: person.avatarUrl, quote: BIRTHDAY_QUOTES[quoteIdx] })
+    drawBirthdayGraphic(canvas, { name: person.name, photoUrl: person.avatarUrl, month: person.month, day: person.day, roleLabel, quote: BIRTHDAY_QUOTES[quoteIdx] })
       .then((r) => { if (!cancelled) { setPhotoUsed(r.photoUsed); setDrawing(false); } })
       .catch((e) => { if (!cancelled) { setError(e instanceof Error ? e.message : 'Could not make the graphic.'); setDrawing(false); } });
     return () => { cancelled = true; };
-  }, [person.name, person.avatarUrl, quoteIdx]);
+  }, [person.name, person.avatarUrl, person.month, person.day, roleLabel, quoteIdx]);
 
   const toBlob = (): Promise<Blob> => new Promise((resolve, reject) => {
     const canvas = canvasRef.current;

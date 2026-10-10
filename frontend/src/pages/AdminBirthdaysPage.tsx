@@ -186,7 +186,7 @@ const AdminBirthdaysPage: React.FC = () => {
           )}
         </>
       )}
-      {graphicFor && <BirthdayGraphicSheet person={graphicFor} onClose={() => setGraphicFor(null)} />}
+      {graphicFor && <BirthdayGraphicSheet person={graphicFor} roleLabel={tab === 'supports' ? 'FOF Support' : 'FOF Participant'} onClose={() => setGraphicFor(null)} />}
     </div>
   );
 };

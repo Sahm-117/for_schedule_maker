@@ -1,5 +1,5 @@
-// The birthday graphic: a fixed template drawn on a canvas. It takes a name, a photo (optional) and a quote,
-// nothing else. 1080 x 1350 (4:5) so it sits well on WhatsApp status, Instagram and a group chat.
+// The birthday graphic: a fixed template drawn on a canvas. It takes a name, a photo (optional), the date, a role label and a quote.
+// Look: a big tone-on-tone "HAPPY BIRTHDAY" wall, a tilted card with a pill-shaped photo and a date badge, the name on a banner. 1080 x 1350 (4:5) so it sits well on WhatsApp status, Instagram and a group chat.
 
 export const BIRTHDAY_QUOTES: Array<{ text: string; ref: string }> = [
   { text: 'The Lord bless you and keep you.', ref: 'Numbers 6:24' },
@@ -14,10 +14,9 @@ export const GRAPHIC_W = 1080;
 export const GRAPHIC_H = 1350;
 
 const ORANGE = '#FF914D';
+const MONTHS_SHORT = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 const ORANGE_DEEP = '#E5822D';
 const BURNT = '#C2410C';
-const PEACH = '#FFC9A3';
-const CREAM = '#FFF1E6';
 const GOLD = '#FFD27A';
 const INK = '#1D1D1F';
 
@@ -61,76 +60,40 @@ const balloon = (ctx: CanvasRenderingContext2D, x: number, y: number, rx: number
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(lean);
-  // string
-  ctx.strokeStyle = 'rgba(120, 70, 30, 0.35)';
-  ctx.lineWidth = 3;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 4;
   ctx.beginPath();
   ctx.moveTo(0, ry);
-  ctx.bezierCurveTo(-18, ry + 50, 22, ry + 100, -6, ry + 170);
+  ctx.bezierCurveTo(-14, ry + 30, 16, ry + 55, -4, ry + 90);
   ctx.stroke();
-  // body
   ctx.fillStyle = color;
   ctx.beginPath();
   ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
   ctx.fill();
-  // knot
   ctx.beginPath();
   ctx.moveTo(0, ry - 2);
-  ctx.lineTo(-10, ry + 14);
-  ctx.lineTo(10, ry + 14);
+  ctx.lineTo(-8, ry + 12);
+  ctx.lineTo(8, ry + 12);
   ctx.closePath();
   ctx.fill();
-  // shine
-  ctx.fillStyle = 'rgba(255,255,255,0.45)';
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
   ctx.beginPath();
   ctx.ellipse(-rx * 0.38, -ry * 0.4, rx * 0.16, ry * 0.26, -0.5, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 };
 
-const partyHat = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number, angle: number) => {
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(angle);
-  const w = size * 0.78;
-  const h = size;
-  ctx.shadowColor = 'rgba(120, 60, 10, 0.22)';
-  ctx.shadowBlur = 18;
-  ctx.shadowOffsetY = 8;
-  ctx.fillStyle = ORANGE;
+const roundRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) => {
   ctx.beginPath();
-  ctx.moveTo(0, -h);
-  ctx.lineTo(w / 2, 0);
-  ctx.lineTo(-w / 2, 0);
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
   ctx.closePath();
-  ctx.fill();
-  ctx.shadowColor = 'transparent';
-  // stripes
-  ctx.save();
-  ctx.clip();
-  ctx.fillStyle = 'rgba(255,255,255,0.8)';
-  for (let i = 0; i < 3; i += 1) {
-    const yy = -h * (0.22 + i * 0.26);
-    ctx.beginPath();
-    ctx.moveTo(-w, yy);
-    ctx.lineTo(w, yy - h * 0.1);
-    ctx.lineTo(w, yy - h * 0.1 + h * 0.07);
-    ctx.lineTo(-w, yy + h * 0.07);
-    ctx.closePath();
-    ctx.fill();
-  }
-  ctx.restore();
-  // brim and pom-pom
-  ctx.fillStyle = GOLD;
-  ctx.beginPath();
-  ctx.ellipse(0, 0, w / 2 + 6, 12, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = CREAM;
-  ctx.beginPath();
-  ctx.arc(0, -h - 6, size * 0.1, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
 };
+
+const spaced = (ctx: CanvasRenderingContext2D, px: number) => { if ('letterSpacing' in ctx) (ctx as unknown as { letterSpacing: string }).letterSpacing = `${px}px`; };
 
 /** Wraps text into lines no wider than maxWidth with the current font. */
 const wrap = (ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] => {
@@ -147,6 +110,11 @@ const wrap = (ctx: CanvasRenderingContext2D, text: string, maxWidth: number): st
 export interface BirthdayGraphicInput {
   name: string;
   photoUrl?: string | null;
+  /** 1 to 12 and the day of the month. */
+  month: number;
+  day: number;
+  /** Short label on the pill above the name, e.g. "Support". */
+  roleLabel: string;
   quote: { text: string; ref: string };
 }
 
@@ -162,134 +130,196 @@ export const drawBirthdayGraphic = async (canvas: HTMLCanvasElement, input: Birt
   ]);
   const rand = seeded(input.name);
   const cx = GRAPHIC_W / 2;
-  const photoY = 585;
-  const photoR = 255;
 
-  // Background: warm paper with a soft glow behind the photo.
-  const bg = ctx.createLinearGradient(0, 0, 0, GRAPHIC_H);
-  bg.addColorStop(0, '#FFF8F1');
-  bg.addColorStop(0.55, '#FFE9D6');
-  bg.addColorStop(1, '#FFD8BA');
+  // Background: orange to burnt orange, with a soft light from the top left.
+  const bg = ctx.createLinearGradient(0, 0, GRAPHIC_W, GRAPHIC_H);
+  bg.addColorStop(0, '#FF9A55');
+  bg.addColorStop(0.55, '#E5782A');
+  bg.addColorStop(1, '#B93C0A');
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, GRAPHIC_W, GRAPHIC_H);
-  const glow = ctx.createRadialGradient(cx, photoY, photoR * 0.5, cx, photoY, photoR * 2.3);
-  glow.addColorStop(0, 'rgba(255,255,255,0.95)');
-  glow.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = glow;
+  const light = ctx.createRadialGradient(200, 100, 40, 200, 100, 900);
+  light.addColorStop(0, 'rgba(255,255,255,0.25)');
+  light.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = light;
   ctx.fillRect(0, 0, GRAPHIC_W, GRAPHIC_H);
-  // Big soft blobs in the corners.
-  ctx.fillStyle = 'rgba(255, 145, 77, 0.16)';
-  ctx.beginPath(); ctx.arc(-60, 1240, 330, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(1130, 1330, 280, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = 'rgba(255, 210, 122, 0.22)';
-  ctx.beginPath(); ctx.arc(1150, 120, 260, 0, Math.PI * 2); ctx.fill();
 
-  // Balloons either side of the photo.
-  balloon(ctx, 150, 360, 70, ORANGE, -0.12);
-  balloon(ctx, 255, 250, 58, PEACH, 0.1);
-  balloon(ctx, 95, 560, 52, GOLD, -0.2);
-  balloon(ctx, 930, 330, 72, PEACH, 0.12);
-  balloon(ctx, 835, 235, 56, ORANGE_DEEP, -0.1);
-  balloon(ctx, 990, 560, 52, ORANGE, 0.2);
-
-  // Confetti, kept clear of the photo ring and the lower text.
-  const palette = [ORANGE, PEACH, GOLD, ORANGE_DEEP, '#FFFFFF'];
-  for (let i = 0; i < 70; i += 1) {
-    const x = rand() * GRAPHIC_W;
-    const y = rand() * 880 + 40;
-    const d = Math.hypot(x - cx, y - photoY);
-    if (d < photoR + 60) continue;
-    const color = palette[Math.floor(rand() * palette.length)];
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(rand() * Math.PI);
-    ctx.fillStyle = color;
-    ctx.globalAlpha = 0.85;
-    const kind = rand();
-    if (kind < 0.4) { ctx.fillRect(-7, -3, 14, 6); } else if (kind < 0.75) { ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); ctx.fill(); } else { ctx.restore(); star(ctx, x, y, 12 + rand() * 8, color); continue; }
-    ctx.restore();
-  }
-  star(ctx, cx - 330, photoY - 250, 26, '#FFFFFF');
-  star(ctx, cx + 335, photoY + 215, 30, GOLD);
-  star(ctx, cx - 315, photoY + 230, 20, ORANGE);
-
-  // Header: crest and the programme line.
-  if (crest) ctx.drawImage(crest, cx - 36, 62, 72, 72);
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = BURNT;
-  ctx.font = `700 22px ${SANS}`;
-  if ('letterSpacing' in ctx) (ctx as unknown as { letterSpacing: string }).letterSpacing = '5px';
-  ctx.fillText('FOUNDATION OF FAITH', cx, 170);
-  ctx.fillStyle = '#A85A2A';
-  ctx.font = `600 18px ${SANS}`;
-  ctx.fillText('THE COVENANT NATION · IKORODU', cx, 200);
-  if ('letterSpacing' in ctx) (ctx as unknown as { letterSpacing: string }).letterSpacing = '0px';
-
-  // Photo: white ring, soft shadow, then the picture (or initials).
+  // The wall of words: HAPPY / BIRTHDAY repeated, tone on tone, each row shifted.
   ctx.save();
-  ctx.shadowColor = 'rgba(150, 70, 10, 0.3)';
-  ctx.shadowBlur = 50;
-  ctx.shadowOffsetY = 22;
-  ctx.fillStyle = '#FFFFFF';
-  ctx.beginPath(); ctx.arc(cx, photoY, photoR + 20, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.09)';
+  ctx.font = `900 190px ${SANS}`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  const words = ['HAPPY', 'BIRTHDAY'];
+  for (let row = 0; row < 8; row += 1) {
+    const w = words[row % 2];
+    const unit = ctx.measureText(`${w}  `).width;
+    let x = -((row * 173) % unit) - unit;
+    while (x < GRAPHIC_W) { ctx.fillText(w, x, 190 + row * 175); x += unit; }
+  }
+  ctx.restore();
+
+  // Fine grain so the gradient does not look flat.
+  for (let i = 0; i < 9000; i += 1) {
+    ctx.fillStyle = rand() > 0.5 ? 'rgba(255,255,255,0.07)' : 'rgba(80,20,0,0.07)';
+    ctx.fillRect(rand() * GRAPHIC_W, rand() * GRAPHIC_H, 2, 2);
+  }
+
+  // The card: a tilted gold card behind, the cream card in front.
+  const cardX = 150;
+  const cardY = 120;
+  const cardW = 780;
+  const cardH = 880;
+  ctx.save();
+  ctx.translate(cx, cardY + cardH / 2);
+  ctx.rotate(0.07);
+  ctx.shadowColor = 'rgba(90, 25, 0, 0.3)';
+  ctx.shadowBlur = 40;
+  ctx.shadowOffsetY = 18;
+  ctx.fillStyle = GOLD;
+  roundRect(ctx, -cardW / 2, -cardH / 2, cardW, cardH, 60);
+  ctx.fill();
   ctx.restore();
   ctx.save();
-  ctx.beginPath(); ctx.arc(cx, photoY, photoR, 0, Math.PI * 2); ctx.clip();
+  ctx.shadowColor = 'rgba(90, 25, 0, 0.35)';
+  ctx.shadowBlur = 50;
+  ctx.shadowOffsetY = 22;
+  ctx.fillStyle = '#FFF4E8';
+  roundRect(ctx, cardX, cardY, cardW, cardH, 60);
+  ctx.fill();
+  ctx.restore();
+
+  // Side lettering and balloons, as on a playing card.
+  ctx.fillStyle = BURNT;
+  ctx.font = `700 21px ${SANS}`;
+  ctx.textAlign = 'center';
+  spaced(ctx, 9);
+  for (const x of [cardX + 50, cardX + cardW - 50]) {
+    ctx.save();
+    ctx.translate(x, cardY + cardH / 2 - 10);
+    ctx.rotate(Math.PI / 2);
+    ctx.fillText('HAPPY BIRTHDAY!!!', 0, 7);
+    ctx.restore();
+  }
+  spaced(ctx, 0);
+  balloon(ctx, cardX + 56, cardY + 58, 22, BURNT, -0.15);
+  balloon(ctx, cardX + cardW - 56, cardY + cardH - 120, 22, BURNT, 0.15);
+
+  // Pill-shaped photo with an orange ring.
+  const pw = 450;
+  const ph = 620;
+  const px = cx - pw / 2;
+  const py = cardY + 70;
+  ctx.fillStyle = ORANGE;
+  roundRect(ctx, px - 14, py - 14, pw + 28, ph + 28, (pw + 28) / 2);
+  ctx.fill();
+  ctx.save();
+  roundRect(ctx, px, py, pw, ph, pw / 2);
+  ctx.clip();
   if (photo) {
-    const s = Math.max((photoR * 2) / photo.width, (photoR * 2) / photo.height);
+    const s = Math.max(pw / photo.width, ph / photo.height);
     const w = photo.width * s;
     const h = photo.height * s;
-    ctx.drawImage(photo, cx - w / 2, photoY - h / 2 - h * 0.04, w, h);
+    ctx.drawImage(photo, cx - w / 2, py - (h - ph) * 0.3, w, h);
   } else {
-    const g = ctx.createLinearGradient(cx - photoR, photoY - photoR, cx + photoR, photoY + photoR);
+    const g = ctx.createLinearGradient(px, py, px + pw, py + ph);
     g.addColorStop(0, '#FFB27D');
     g.addColorStop(1, ORANGE_DEEP);
     ctx.fillStyle = g;
-    ctx.fillRect(cx - photoR, photoY - photoR, photoR * 2, photoR * 2);
+    ctx.fillRect(px, py, pw, ph);
     ctx.fillStyle = '#FFFFFF';
-    ctx.font = `700 190px ${SANS}`;
+    ctx.font = `800 190px ${SANS}`;
+    ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(initialsOf(input.name), cx, photoY + 6);
+    ctx.fillText(initialsOf(input.name), cx, py + ph / 2 + 6);
     ctx.textBaseline = 'alphabetic';
   }
   ctx.restore();
-  // Dotted ring just outside the white border.
-  ctx.fillStyle = ORANGE;
-  for (let i = 0; i < 48; i += 1) {
-    const a = (i / 48) * Math.PI * 2;
-    ctx.beginPath();
-    ctx.arc(cx + Math.cos(a) * (photoR + 44), photoY + Math.sin(a) * (photoR + 44), i % 2 ? 4 : 6, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  partyHat(ctx, cx + 165, photoY - photoR + 52, 135, 0.38);
 
-  // Headline and name.
+  // Date badge overlapping the photo's lower right.
+  const bx = px + pw - 30;
+  const by = py + ph - 70;
+  ctx.save();
+  ctx.shadowColor = 'rgba(90, 25, 0, 0.3)';
+  ctx.shadowBlur = 20;
+  ctx.shadowOffsetY = 8;
+  ctx.fillStyle = '#FFFFFF';
+  ctx.beginPath(); ctx.arc(bx, by, 76, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = ORANGE;
+  ctx.lineWidth = 6;
+  ctx.beginPath(); ctx.arc(bx, by, 68, 0, Math.PI * 2); ctx.stroke();
   ctx.textAlign = 'center';
   ctx.fillStyle = BURNT;
-  ctx.font = `italic 400 112px ${SERIF}`;
-  ctx.fillText('Happy Birthday', cx, 1000);
-  let size = 78;
+  ctx.font = `700 24px ${SANS}`;
+  spaced(ctx, 4);
+  ctx.fillText(MONTHS_SHORT[(input.month - 1 + 12) % 12], bx + 2, by - 14);
+  spaced(ctx, 0);
   ctx.fillStyle = INK;
-  ctx.font = `700 ${size}px ${SANS}`;
-  while (ctx.measureText(input.name).width > 920 && size > 44) { size -= 2; ctx.font = `700 ${size}px ${SANS}`; }
-  ctx.fillText(input.name, cx, 1092);
+  ctx.font = `800 54px ${SANS}`;
+  ctx.fillText(String(input.day).padStart(2, '0'), bx, by + 38);
 
-  // Quote, bottom left, small and quiet.
+  // Role pill and name banner, overlapping the card's lower edge.
+  const bannerY = cardY + cardH + 50;
+  const bannerX = 130;
+  const bannerW = GRAPHIC_W - 260;
+  ctx.save();
+  ctx.shadowColor = 'rgba(90, 25, 0, 0.3)';
+  ctx.shadowBlur = 24;
+  ctx.shadowOffsetY = 10;
+  ctx.fillStyle = '#FFF4E8';
+  roundRect(ctx, bannerX, bannerY + 4, bannerW, 104, 20);
+  ctx.fill();
+  ctx.restore();
+  ctx.font = `600 26px ${SERIF}`;
+  const pillText = input.roleLabel;
+  ctx.font = `italic 600 26px ${SERIF}`;
+  const pillW = ctx.measureText(pillText).width + 70;
+  ctx.save();
+  ctx.shadowColor = 'rgba(90, 25, 0, 0.3)';
+  ctx.shadowBlur = 14;
+  ctx.shadowOffsetY = 6;
+  ctx.fillStyle = ORANGE_DEEP;
+  roundRect(ctx, bannerX + 10, bannerY - 46, pillW, 52, 26);
+  ctx.fill();
+  ctx.restore();
+  ctx.fillStyle = '#FFFFFF';
   ctx.textAlign = 'left';
-  ctx.fillStyle = '#7A4A2A';
-  ctx.font = `italic 400 29px ${SERIF}`;
-  const lines = wrap(ctx, `“${input.quote.text}”`, 640);
-  const lineH = 40;
-  const top = 1330 - 60 - lines.length * lineH - 14;
-  lines.forEach((l, i) => ctx.fillText(l, 70, top + i * lineH));
-  ctx.fillStyle = BURNT;
-  ctx.font = `700 20px ${SANS}`;
-  ctx.fillText(input.quote.ref.toUpperCase(), 70, top + lines.length * lineH + 8);
-  // A little flourish bottom right.
-  star(ctx, 960, 1235, 24, ORANGE);
-  star(ctx, 1010, 1190, 14, GOLD);
-  star(ctx, 915, 1195, 11, PEACH);
+  ctx.fillText(`\u2013 ${pillText}`, bannerX + 36, bannerY - 10);
+  const label = input.name.toUpperCase();
+  let size = 52;
+  ctx.fillStyle = INK;
+  ctx.font = `800 ${size}px ${SANS}`;
+  spaced(ctx, 2);
+  while (ctx.measureText(label).width > bannerW - 60 && size > 28) { size -= 2; ctx.font = `800 ${size}px ${SANS}`; }
+  ctx.textAlign = 'center';
+  ctx.fillText(label, cx, bannerY + 4 + 52 + size * 0.34);
+  spaced(ctx, 0);
+
+  // Footer: quote bottom left, crest and programme bottom right.
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#FFF1E6';
+  ctx.font = `italic 400 25px ${SERIF}`;
+  const lines = wrap(ctx, `\u201C${input.quote.text}\u201D`, 560).slice(0, 3);
+  const lineH = 34;
+  const qTop = 1240;
+  lines.forEach((l, i) => ctx.fillText(l, 70, qTop + i * lineH));
+  ctx.fillStyle = GOLD;
+  ctx.font = `700 17px ${SANS}`;
+  spaced(ctx, 3);
+  ctx.fillText(input.quote.ref.toUpperCase(), 70, qTop + lines.length * lineH + 6);
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#FFF1E6';
+  ctx.font = `700 15px ${SANS}`;
+  ctx.fillText('FOUNDATION OF FAITH', 1010, 1296);
+  ctx.font = `600 13px ${SANS}`;
+  ctx.fillText('THE COVENANT NATION \u00B7 IKORODU', 1010, 1318);
+  spaced(ctx, 0);
+  if (crest) ctx.drawImage(crest, 1010 - 62, 1214, 62, 62);
+
+  star(ctx, 60, 1100, 16, GOLD);
+  star(ctx, 1030, 90, 20, '#FFFFFF');
+  star(ctx, 55, 70, 14, '#FFFFFF');
 
   return { photoUsed: !!photo };
 };

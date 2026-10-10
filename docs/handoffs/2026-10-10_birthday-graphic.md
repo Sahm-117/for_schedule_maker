@@ -2,7 +2,7 @@
 
 ## Summary
 - Admin **Birthdays** page: a "Next up" card suggests whoever celebrates soonest (within 14 days) on the tab being viewed, with a **Make graphic** button; every row also has a balloon button.
-- The sheet draws a fixed template on a canvas (1080 x 1350): FOF and Covenant Nation crest and line, balloons, confetti, party hat, the person's **photo in a ring** (initials if there is none or it will not load), "Happy Birthday" and the **name**, and a scripture quote at the **bottom left**. "Try another quote" cycles six scriptures; the same person always gets the same confetti.
+- The sheet draws a fixed template on a canvas (1080 x 1350), a blend of two reference posters: a tone-on-tone wall of "HAPPY BIRTHDAY" on an orange gradient, a tilted cream card with a pill-shaped **photo** (initials if none or it will not load), a **date badge** (month and day), side lettering and balloons, a role pill ("FOF Support" / "FOF Participant") over a **name** banner, and a scripture quote at the **bottom left** with the crest and "Foundation of Faith · The Covenant Nation · Ikorodu" bottom right. "Try another quote" cycles six scriptures; the grain is seeded by name.
 - **Download** saves a PNG; **Share** opens the phone's share sheet with the picture (falls back to download where files cannot be shared).
 
 ## Live changes
