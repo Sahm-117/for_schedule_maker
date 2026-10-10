@@ -34,9 +34,12 @@ interface Props {
 const RING = 2 * Math.PI * 40;
 
 const PrayerSlotScreen: React.FC<Props> = ({ model, clockOffsetMs, onAmen, onLeave, busy = false, error = '', embedded = false }) => {
+  const { person } = model;
   const [tick, setTick] = useState(() => Date.now());
   // Amen ends the prayer, so a tap on it asks first (a slip of the thumb would close the screen).
   const [confirming, setConfirming] = useState(false);
+  const prayerKey = `${person?.id ?? ''}|${model.checkedInAtMs ?? ''}`;
+  useEffect(() => { setConfirming(false); }, [prayerKey, model.amenDone]);
   // A clock that only ticks locally, to redraw the countdown. It does not call the server.
   useEffect(() => {
     const timer = window.setInterval(() => setTick(Date.now()), 1000);
@@ -49,7 +52,7 @@ const PrayerSlotScreen: React.FC<Props> = ({ model, clockOffsetMs, onAmen, onLea
   const timeUp = endsAt !== null && remaining <= 0;
   // The ring starts full and drains as the time goes.
   const left = endsAt !== null ? Math.min(1, Math.max(0, remaining / totalMs)) : 1;
-  const { person, verse, projectText, counts } = model;
+  const { verse, projectText, counts } = model;
   const name = person?.fullName ?? 'the cohort';
   const [from, to] = gradientFor(name);
 
@@ -66,7 +69,7 @@ const PrayerSlotScreen: React.FC<Props> = ({ model, clockOffsetMs, onAmen, onLea
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-[#0b1020] via-[#0b1020]/60 to-black/10" />
           <div className="absolute inset-x-0 top-0 flex items-center justify-between px-4 pt-[max(12px,env(safe-area-inset-top))]">
-            <button type="button" onClick={onLeave} className="inline-flex min-h-[40px] items-center gap-1 rounded-full bg-black/35 px-3.5 text-[13px] font-semibold text-white backdrop-blur active:scale-95">
+            <button type="button" onClick={onLeave} disabled={busy} className="inline-flex min-h-[40px] items-center gap-1 rounded-full bg-black/35 px-3.5 text-[13px] font-semibold text-white backdrop-blur active:scale-95">
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="m15 18-6-6 6-6" /></svg>
               Leave
             </button>
@@ -109,6 +112,7 @@ const PrayerSlotScreen: React.FC<Props> = ({ model, clockOffsetMs, onAmen, onLea
           ) : confirming ? (
             <div className="flex flex-col items-center gap-3 text-center">
               <p className="text-[17px] font-semibold">Are you done praying?</p>
+              <p className="-mt-1 text-[13px] text-white/70">{timeUp ? 'Time is up' : `${mmss(remaining)} left`}</p>
               <div className="flex w-full gap-3">
                 <button type="button" onClick={() => setConfirming(false)} disabled={busy} className="flex h-[54px] min-w-0 flex-1 items-center justify-center rounded-full bg-white/15 text-[16px] font-semibold text-white active:scale-[0.98] disabled:opacity-60">Not yet</button>
                 <button type="button" onClick={onAmen} disabled={busy} className="flex h-[54px] min-w-0 flex-1 items-center justify-center rounded-full bg-white text-[16px] font-bold text-[#0b1020] active:scale-[0.98] disabled:opacity-60">
@@ -125,7 +129,7 @@ const PrayerSlotScreen: React.FC<Props> = ({ model, clockOffsetMs, onAmen, onLea
                 </svg>
                 <span className="absolute inset-0 grid place-items-center text-[17px] font-bold tabular-nums">{timeUp ? 'Done' : mmss(remaining)}</span>
               </div>
-              <button type="button" onClick={() => setConfirming(true)} className="flex h-[58px] min-w-0 flex-1 items-center justify-center rounded-full bg-white text-[17px] font-bold text-[#0b1020] transition active:scale-[0.98]">Amen</button>
+              <button type="button" onClick={() => setConfirming(true)} disabled={busy} className="flex h-[58px] min-w-0 flex-1 items-center justify-center rounded-full bg-white text-[17px] font-bold text-[#0b1020] transition active:scale-[0.98] disabled:opacity-60">Amen</button>
             </div>
           )}
         </div>

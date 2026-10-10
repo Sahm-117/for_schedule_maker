@@ -969,7 +969,7 @@ window.GUIDE_CONTENT = {
         "Under the chip, the five-step bar (Intro, Map, Guide, Profile, Ready) fills as members get through each step, and the card says which step most people are still waiting on.",
         "The card also names the **hub** of the group's support, so you know who to call."
        ],
-       "result": "A group is **Onboarded** when every member has finished. It turns **Overdue** when it is not onboarded and more than 7 days have passed since its support was assigned (the same limit the Supports page and the Dashboard use).",
+       "result": "A group is **Onboarded** when every member has finished. It turns **Overdue** when it is not onboarded and more than 7 days have passed since its support was assigned (7 is the default limit, the same one the Supports page and the Dashboard use).",
        "tips": [
         "A group with no members has no chip, because there is nothing to measure yet."
        ]
@@ -3816,7 +3816,7 @@ window.GUIDE_CONTENT = {
      "id": "corporate-prayers",
      "title": "Corporate prayers",
      "where": "Home, or the notification when a prayer opens",
-     "summary": "When a prayer opens, you get a notification. Open it to see who is being prayed for, pray with the timer, and tap Amen when you are done.",
+     "summary": "When a prayer opens, you get a notification. Open it to see who is being prayed for, pray with the timer, and tap Amen when you are done (it asks you to confirm).",
      "tasks": [
       {
        "id": "cp-join",
@@ -3831,7 +3831,7 @@ window.GUIDE_CONTENT = {
        "steps": [
         "When a prayer opens you get a notification, and a **Time to pray** card appears at the top of Home. Tap **Join**.",
         "Pray for the person shown, using the verse and what they are believing God for. The ring counts down your time.",
-        "Tap **Amen** when you are done. You can also leave any time."
+        "Tap **Amen** when you are done, then **Yes, Amen** when it asks \"Are you done praying?\". Tap **Not yet** to keep praying. You can also leave any time."
        ],
        "result": "You are counted as praying from the moment you open it, and as having said Amen when you tap it. Everyone sees the totals, never names.",
        "tips": [
@@ -4464,7 +4464,7 @@ window.GUIDE_CONTENT = {
      "id": "corporate-prayers",
      "title": "Corporate prayers",
      "where": "Home, or the notification when a prayer opens",
-     "summary": "When a prayer opens, you get a notification. Open it to see who is being prayed for, pray with the timer, and tap Amen when you are done.",
+     "summary": "When a prayer opens, you get a notification. Open it to see who is being prayed for, pray with the timer, and tap Amen when you are done (it asks you to confirm).",
      "tasks": [
       {
        "id": "cp-join",
@@ -4479,7 +4479,7 @@ window.GUIDE_CONTENT = {
        "steps": [
         "When a prayer opens you get a notification, and a **Time to pray** card appears at the top of Home. Tap **Join**.",
         "Pray for the person shown, using the verse and what they are believing God for. The ring counts down your time.",
-        "Tap **Amen** when you are done. You can also leave any time."
+        "Tap **Amen** when you are done, then **Yes, Amen** when it asks \"Are you done praying?\". Tap **Not yet** to keep praying. You can also leave any time."
        ],
        "result": "You are counted as praying from the moment you open it, and as having said Amen when you tap it. Everyone sees the totals, never names.",
        "tips": [
