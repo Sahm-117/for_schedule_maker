@@ -480,6 +480,8 @@ const AdminGroupsContent: React.FC = () => {
   // Which hub each support belongs to (a card names it next to the support). Empty if it could not be loaded.
   const [hubNameByUser, setHubNameByUser] = useState<Record<string, string>>({});
   const [assignedAtByGroup, setAssignedAtByGroup] = useState<Record<string, string>>({});
+  // False when the assigned dates could not be read: day counts and Overdue are then unknown, and the page says so.
+  const [assignedDatesKnown, setAssignedDatesKnown] = useState(true);
   const [onboardingMaxDays, setOnboardingMaxDays] = useState(DEFAULT_PROGRAMME_RULES.onboardingMaxDays);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
@@ -505,8 +507,13 @@ const AdminGroupsContent: React.FC = () => {
     if (!activeCohort) { setLoading(false); return; }
     if (!silent) setLoading(true);
     try {
-      const [{ groups: allGs }, { participants: ps }, { users }, { sessions: ts, attendance: ta }, rules, teenOn, members, kindMap, tagList, progressRes, hubList, hubMemberships] = await Promise.all([
-        groupsApi.getAll({ cohortId: activeCohort.id, includeArchived: showArchived, includeTeenGroups: true }),
+      // The assigned dates need the group ids, so they start as soon as the groups arrive and overlap the other requests.
+      const groupsRequest = groupsApi.getAll({ cohortId: activeCohort.id, includeArchived: showArchived, includeTeenGroups: true });
+      const assignedRequest = groupsRequest
+        .then((res) => groupsApi.getAssignedDates(res.groups.filter((g) => !g.isTeenGroup).map((g) => g.id)))
+        .catch(() => null);
+      const [{ groups: allGs }, { participants: ps }, { users }, { sessions: ts, attendance: ta }, rules, teenOn, members, kindMap, tagList, progressRes, hubList, hubMemberships, assignedDates] = await Promise.all([
+        groupsRequest,
         participantsApi.getAll({ cohortId: activeCohort.id }),
         usersApi.getAll(),
         supportSessionsApi.getForCohort(activeCohort.id, ['PRE_COHORT_TRAINING']),
@@ -518,6 +525,7 @@ const AdminGroupsContent: React.FC = () => {
         groupDiscussionApi.cohortOnboardingProgress(activeCohort.id).then((r) => r.participants).catch(() => null),
         supportHubsApi.getAll(activeCohort.id).then((r) => r.hubs).catch(() => null),
         supportHubsApi.getMembershipsForCohort(activeCohort.id).then((r) => r.memberships).catch(() => null),
+        assignedRequest,
       ]);
       setCohortMemberIds(members);
       setSupportKinds(kindMap);
@@ -545,15 +553,20 @@ const AdminGroupsContent: React.FC = () => {
       setTrainingAttendance(ta);
       setMinTrainingsAttended(rules.minTrainingsAttended);
       setOnboardingMaxDays(rules.onboardingMaxDays);
-      const hubNames = new Map((hubList ?? []).map((hub) => [hub.id, hub.name]));
-      const byUser: Record<string, string> = {};
-      (hubMemberships ?? []).forEach((m) => {
-        const name = hubNames.get(m.hubId);
-        if (name) byUser[m.userId] = byUser[m.userId] ? `${byUser[m.userId]}, ${name}` : name;
-      });
-      setHubNameByUser(byUser);
-      setOnboardingProgress(progressRes ? new Map(progressRes.map((row) => [row.participantId, row])) : null);
-      if (progressRes) setAssignedAtByGroup(await groupsApi.getAssignedDates(gs.map((g) => g.id)).catch(() => ({} as Record<string, string>)));
+      // A background refresh that fails keeps what the page already had; only a first load clears it.
+      if (hubList && hubMemberships) {
+        const hubNames = new Map(hubList.map((hub) => [hub.id, hub.name]));
+        const byUser: Record<string, string> = {};
+        hubMemberships.forEach((m) => {
+          const name = hubNames.get(m.hubId);
+          if (name) byUser[m.userId] = byUser[m.userId] ? `${byUser[m.userId]}, ${name}` : name;
+        });
+        setHubNameByUser(byUser);
+      } else if (!silent) setHubNameByUser({});
+      if (progressRes) setOnboardingProgress(new Map(progressRes.map((row) => [row.participantId, row])));
+      else if (!silent) setOnboardingProgress(null);
+      if (assignedDates) { setAssignedAtByGroup(assignedDates); setAssignedDatesKnown(true); }
+      else if (!silent) { setAssignedAtByGroup({}); setAssignedDatesKnown(false); }
     } catch { /* ignore */ }
     finally { if (!silent) setLoading(false); }
   }, [activeCohort, showArchived]);
@@ -627,11 +640,17 @@ const AdminGroupsContent: React.FC = () => {
     groups.forEach((g) => {
       if (g.isTeenGroup) return;
       const memberIds = (membersByGroupId.get(g.id) ?? []).map((p) => p.id);
-      const summary = summarizeGroupOnboarding(memberIds, onboardingProgress, assignedAtByGroup[g.id] ?? null, onboardingMaxDays);
+      const summary = summarizeGroupOnboarding(memberIds, onboardingProgress, g.supportId ? (assignedAtByGroup[g.id] ?? null) : null, onboardingMaxDays);
       if (summary) map.set(g.id, summary);
     });
     return map;
   }, [groups, membersByGroupId, onboardingProgress, assignedAtByGroup, onboardingMaxDays]);
+
+  const onboardingCounts = useMemo(() => {
+    const counts: Record<OnboardingChip, number> = { overdue: 0, in_progress: 0, not_started: 0, onboarded: 0 };
+    onboardingByGroup.forEach((summary) => { counts[summary.chip] += 1; });
+    return counts;
+  }, [onboardingByGroup]);
 
   // Does this group fit one chosen choice of one filter group?
   const groupFits = (key: string, choice: string, g: Group): boolean => {
@@ -645,7 +664,7 @@ const AdminGroupsContent: React.FC = () => {
     }
   };
   // Within a filter any chosen choice matches; every filter that has a choice must match.
-  const displayedGroups = groups.filter((g) => Object.entries(filters).every(([key, choices]) => choices.length === 0 || choices.some((c) => groupFits(key, c, g))));
+  const displayedGroups = groups.filter((g) => Object.entries(filters).every(([key, choices]) => choices.length === 0 || (key === 'onboarding' && onboardingByGroup.size === 0) || choices.some((c) => groupFits(key, c, g))));
   const filterGroups: FilterGroup[] = (() => {
     const opt = (key: string, value: string, label: string) => ({ value, label, count: groups.filter((g) => groupFits(key, value, g)).length });
     const out: FilterGroup[] = [];
@@ -704,14 +723,14 @@ const AdminGroupsContent: React.FC = () => {
             <div data-wt="groups-onboarding-summary" className="mb-3 flex flex-wrap items-center gap-2">
               <span className="text-xs font-semibold text-gray-500">Onboarding</span>
               {ONBOARDING_CHIPS.map((chip) => {
-                const count = groups.filter((g) => onboardingByGroup.get(g.id)?.chip === chip).length;
+                const count = onboardingCounts[chip];
                 const active = (filters.onboarding ?? []).includes(chip);
                 return (
                   <button
                     key={chip}
                     type="button"
                     aria-pressed={active}
-                    onClick={() => setFilters({ ...filters, onboarding: active ? [] : [chip] })}
+                    onClick={() => { const current = filters.onboarding ?? []; setFilters({ ...filters, onboarding: active ? current.filter((c) => c !== chip) : [...current, chip] }); }}
                     className={`inline-flex min-h-[32px] items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold active:scale-95 ${active ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'}`}
                   >
                     {ONBOARDING_CHIP_LABEL[chip]}
@@ -719,6 +738,7 @@ const AdminGroupsContent: React.FC = () => {
                   </button>
                 );
               })}
+              {!assignedDatesKnown && <span className="text-[11px] text-amber-700">Day counts unavailable, so Overdue can’t be shown.</span>}
             </div>
           )}
           <FilterBar

@@ -20,7 +20,7 @@ const GroupOnboardingStrip: React.FC<{ summary: GroupOnboardingSummary; maxDays:
   const days = daysSinceAssigned === null ? null : `${daysSinceAssigned} day${daysSinceAssigned === 1 ? '' : 's'}`;
   const detail = [
     `${onboarded} of ${members} onboarded`,
-    chip === 'overdue' && days ? `${days} since assigned` : chip !== 'onboarded' && days ? `day ${daysSinceAssigned! + 1} of ${maxDays}` : null,
+    chip === 'overdue' && days ? (daysSinceAssigned! > maxDays ? `${days} since assigned` : `just over ${maxDays} days since assigned`) : chip !== 'onboarded' && days ? `day ${daysSinceAssigned! + 1} of ${maxDays}` : null,
   ].filter(Boolean).join(' · ');
   const label = `Onboarding ${ONBOARDING_CHIP_LABEL[chip].toLowerCase()}. ${detail}. ${ONBOARDING_STEPS.map((step, i) => `${step.label} ${stepCounts[i]} of ${members}`).join(', ')}.`;
   return (
@@ -32,10 +32,12 @@ const GroupOnboardingStrip: React.FC<{ summary: GroupOnboardingSummary; maxDays:
       <div className="flex gap-1" aria-hidden="true">
         {ONBOARDING_STEPS.map((step, index) => {
           const share = stepCounts[index] / members;
+          // Only a finished step looks finished: 199 of 200 must not round up to a full bar.
+          const width = share === 1 ? 100 : share === 0 ? 0 : Math.min(94, Math.max(8, Math.round(share * 100)));
           return (
-            <div key={step.key} className="min-w-0 flex-1">
+            <div key={step.key} className="min-w-0 flex-1" title={`${step.label}: ${stepCounts[index]} of ${members}`}>
               <div className="h-1.5 overflow-hidden rounded-full bg-gray-200">
-                <div className={`h-full rounded-full ${share === 1 ? 'bg-emerald-500' : 'bg-emerald-400/80'}`} style={{ width: `${Math.round(share * 100)}%` }} />
+                <div className={`h-full rounded-full ${share === 1 ? 'bg-emerald-500' : 'bg-emerald-400/80'}`} style={{ width: `${width}%` }} />
               </div>
               <p className="mt-0.5 truncate text-[10px] leading-none text-gray-400">{step.label}</p>
             </div>

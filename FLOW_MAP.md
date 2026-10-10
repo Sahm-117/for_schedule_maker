@@ -586,10 +586,10 @@ duplicating the logic anywhere else is a bug waiting to happen.
     count and newest id, `20261010120000_notification_signal.sql`) and downloads the list only when that changes.
 53. **A group's card shows its onboarding status, and the hub of its support.** Adult groups with members show a chip (`summarizeGroupOnboarding`,
     `utils/groupOnboarding.ts`): Onboarded (every member has finished: `completed`, or all five steps Intro / Map / Guide / Profile / Ready), Overdue (not onboarded and more than
-    `onboardingMaxDays`, 7 by default, days since the group's support was last assigned, i.e. its latest `GROUP_ASSIGNED` `OnboardingEvent`), Not started (nobody has done any step),
+    `onboardingMaxDays`, 7 by default, EXACT days (fractions count, as in `evaluateSupports`) since the group's support was last assigned, i.e. its latest `GROUP_ASSIGNED` `OnboardingEvent`; a group with no support has no clock and is never Overdue), Not started (nobody has done any step),
     otherwise In progress. A member with no onboarding row counts as having done nothing. The five segments fill by the share of members past each step and "Waiting on" names the
     step with the most people still to do (earliest on a tie). Teen groups and empty groups show no strip (rule 22). The summary row above the filters and the Onboarding filter use the
-    same chip (`?onboarding=`). If the onboarding data cannot be loaded the strip, summary row and filter are simply hidden. The support's hub name (from `HubMembership`) follows the support's name.
+    same chip (`?onboarding=`). If the onboarding data cannot be loaded the strip, summary row and filter are simply hidden (and a stale `?onboarding=` in the address is ignored); if only the assigned dates fail, the page says day counts are unavailable. A failed background refresh keeps the data already on the page. The support's hub name (from `HubMembership`) follows the support's name.
     Frontend only; it reads `cohort_onboarding_progress` and `OnboardingEvent`.
 
 ## 5. Edge functions and schedules

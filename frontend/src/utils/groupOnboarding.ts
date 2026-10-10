@@ -53,11 +53,13 @@ export const summarizeGroupOnboarding = (
   const stepCounts = ONBOARDING_STEPS.map((step) => rows.filter((row) => row && (row.completed || row[step.key])).length);
   const onboarded = rows.filter((row) => row && (row.completed || ONBOARDING_STEPS.every((step) => row[step.key]))).length;
   const assignedMs = assignedAt ? new Date(assignedAt).getTime() : NaN;
-  const daysSinceAssigned = Number.isNaN(assignedMs) ? null : Math.max(0, Math.floor((now.getTime() - assignedMs) / DAY_MS));
+  // Overdue is judged on exact days, the way the Supports page and the dashboard do; the card shows whole days.
+  const exactDays = Number.isNaN(assignedMs) ? null : Math.max(0, (now.getTime() - assignedMs) / DAY_MS);
+  const daysSinceAssigned = exactDays === null ? null : Math.floor(exactDays);
 
   let chip: OnboardingChip;
   if (onboarded === memberIds.length) chip = 'onboarded';
-  else if (daysSinceAssigned !== null && daysSinceAssigned > maxDays) chip = 'overdue';
+  else if (exactDays !== null && exactDays > maxDays) chip = 'overdue';
   else if (stepCounts.every((count) => count === 0)) chip = 'not_started';
   else chip = 'in_progress';
 
