@@ -20,8 +20,24 @@ const BURNT = '#C2410C';
 const GOLD = '#FFD27A';
 const INK = '#1D1D1F';
 
-const SANS = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
-const SERIF = 'Georgia, "Times New Roman", serif';
+const SANS = 'Montserrat, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+const SERIF = SANS;
+
+// Montserrat ships with the app (public/fonts/montserrat) so the picture looks the same on every phone.
+const FACES: Array<[number, 'normal' | 'italic', string]> = [
+  [600, 'normal', 'Montserrat-600'], [700, 'normal', 'Montserrat-700'], [800, 'normal', 'Montserrat-800'], [900, 'normal', 'Montserrat-900'],
+  [400, 'italic', 'Montserrat-400i'], [600, 'italic', 'Montserrat-600i'],
+];
+let fontsReady: Promise<void> | null = null;
+const loadFonts = (): Promise<void> => {
+  if (!fontsReady) {
+    fontsReady = Promise.all(FACES.map(async ([weight, style, file]) => {
+      const face = new FontFace('Montserrat', `url(/fonts/montserrat/${file}.woff2) format("woff2")`, { weight: String(weight), style });
+      document.fonts.add(await face.load());
+    })).then(() => undefined, () => { fontsReady = null; });
+  }
+  return fontsReady;
+};
 
 // A small seeded random so the same person always gets the same arrangement of confetti.
 const seeded = (seed: string) => {
@@ -131,6 +147,7 @@ export const drawBirthdayGraphic = async (target: HTMLCanvasElement, input: Birt
   canvas.height = GRAPHIC_H;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('This browser cannot draw the graphic.');
+  await loadFonts();
   const [photo, crest] = await Promise.all([
     input.photoUrl ? loadPhoto(input.photoUrl) : Promise.resolve(null),
     loadImage('/logo-crest.webp', false),
@@ -280,7 +297,7 @@ export const drawBirthdayGraphic = async (target: HTMLCanvasElement, input: Birt
   ctx.restore();
   const pillText = input.roleLabel;
   ctx.font = `italic 600 26px ${SERIF}`;
-  const pillW = ctx.measureText(pillText).width + 70;
+  const pillW = ctx.measureText(pillText).width + 72;
   ctx.save();
   ctx.shadowColor = 'rgba(90, 25, 0, 0.3)';
   ctx.shadowBlur = 14;
@@ -291,7 +308,7 @@ export const drawBirthdayGraphic = async (target: HTMLCanvasElement, input: Birt
   ctx.restore();
   ctx.fillStyle = '#FFFFFF';
   ctx.textAlign = 'left';
-  ctx.fillText(`\u2013 ${pillText}`, bannerX + 36, bannerY - 10);
+  ctx.fillText(pillText, bannerX + 36, bannerY - 10);
   const label = input.name.toUpperCase();
   let size = 52;
   ctx.fillStyle = INK;
@@ -307,7 +324,7 @@ export const drawBirthdayGraphic = async (target: HTMLCanvasElement, input: Birt
   // Footer: quote bottom left, crest and programme bottom right.
   ctx.textAlign = 'left';
   ctx.fillStyle = '#FFF1E6';
-  ctx.font = `italic 400 25px ${SERIF}`;
+  ctx.font = `italic 400 23px ${SERIF}`;
   const all = wrap(ctx, `\u201C${input.quote.text}\u201D`, 560);
   const lines = all.slice(0, 3);
   if (all.length > 3) lines[2] = `${lines[2].replace(/[\s,;.]+$/, '')}\u2026`;
@@ -321,9 +338,9 @@ export const drawBirthdayGraphic = async (target: HTMLCanvasElement, input: Birt
   ctx.textAlign = 'right';
   ctx.fillStyle = '#FFF1E6';
   ctx.font = `700 15px ${SANS}`;
-  ctx.fillText('FOUNDATION OF FAITH', 1010, 1296);
+  ctx.fillText('THE COVENANT NATION', 1010, 1296);
   ctx.font = `600 13px ${SANS}`;
-  ctx.fillText('THE COVENANT NATION \u00B7 IKORODU', 1010, 1318);
+  ctx.fillText('IKORODU', 1010, 1318);
   spaced(ctx, 0);
   if (crest) ctx.drawImage(crest, 1010 - 62, 1214, 62, 62);
 

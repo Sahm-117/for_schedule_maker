@@ -20,3 +20,4 @@
 - The headline uses a serif italic (Georgia where present); on Android it falls back to the system serif.
 - Review fixes: Share runs inside the tap (the picture is made right after drawing); a replaced draw can no longer paint over the visible one; a photo the browser cached without CORS gets one retry; a quote longer than 3 lines ends with an ellipsis; a very long name is shortened with an ellipsis instead of overflowing. The migration file is named 20261013100000 (it was applied live on 10 Oct).
 - The "Next up" card follows the active tab and hides while searching or filtering, by design.
+- Wording and type: the footer reads "The Covenant Nation" / "Ikorodu" (no FOF anywhere on the graphic), the role pill is just "Support" or "Participant", no dashes in the graphic text, and everything is set in Montserrat (six subsetted files in `frontend/public/fonts/montserrat/`, loaded before drawing).
