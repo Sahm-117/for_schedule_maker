@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import AppSelect from './AppSelect';
+import { useGroupMeetingLimits } from '../hooks/useGroupMeetingLimits';
+import { MEETING_DAYS, formatDuration, startTimeOptions } from '../utils/groupMeetingLimits';
 
 export type MeetingSlot = {
   meetingDay: string | null;
@@ -15,12 +17,6 @@ interface Props {
   anySlot?: boolean;
 }
 
-const DAY_OPTIONS = [
-  { value: 'WEDNESDAY', label: 'Wednesday' },
-  { value: 'FRIDAY', label: 'Friday' },
-  { value: 'SATURDAY', label: 'Saturday' },
-];
-
 const ALL_DAY_OPTIONS = [
   { value: 'MONDAY', label: 'Monday' },
   { value: 'TUESDAY', label: 'Tuesday' },
@@ -32,27 +28,6 @@ const ALL_DAY_OPTIONS = [
 ];
 
 const ANY_DURATION_OPTIONS = [30, 45, 60, 75, 90, 120, 150, 180].map((m) => ({ value: String(m), label: m < 60 ? `${m} minutes` : m === 60 ? '1 hour' : m % 60 === 0 ? `${m / 60} hours` : `${Math.floor(m / 60)} h ${m % 60} min` }));
-
-const DURATION_OPTIONS = [
-  { value: '45', label: '45 minutes' },
-  { value: '60', label: '1 hour' },
-];
-
-// 5:00 PM – 8:15 PM in 15-min steps (latest start that ends by 9pm for a 45-min meeting)
-const TIME_OPTIONS = (() => {
-  const opts: { value: string; label: string }[] = [];
-  for (let h = 17; h <= 20; h++) {
-    const steps = h === 20 ? [0, 15] : [0, 15, 30, 45];
-    for (const m of steps) {
-      const value = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-      const displayH = h > 12 ? h - 12 : h;
-      const displayM = String(m).padStart(2, '0');
-      const ampm = h >= 12 ? 'PM' : 'AM';
-      opts.push({ value, label: `${displayH}:${displayM} ${ampm}` });
-    }
-  }
-  return opts;
-})();
 
 export const formatMeetingSlot = (slot: { meetingDay?: string | null; meetingTime?: string | null; meetingDurationMins?: number | null }): string | null => {
   if (!slot.meetingDay || !slot.meetingTime) return null;
@@ -67,6 +42,11 @@ export const formatMeetingSlot = (slot: { meetingDay?: string | null; meetingTim
 
 const GroupMeetingSlotEditor: React.FC<Props> = ({ value, onChange, disabled, anySlot = false }) => {
   const [expanded, setExpanded] = useState(false);
+  // The back-office limits (Settings > Group call limits) decide what the pickers offer, unless this is an admin-set meeting.
+  const limits = useGroupMeetingLimits();
+  // A slot saved before the limits changed stays selectable, so it is never shown as blank.
+  const withCurrent = (options: Array<{ value: string; label: string }>, current: string | null | undefined, label?: string) =>
+    current && !options.some((o) => o.value === current) ? [{ value: current, label: label ?? current }, ...options] : options;
 
   const summary = formatMeetingSlot(value);
 
@@ -110,7 +90,7 @@ const GroupMeetingSlotEditor: React.FC<Props> = ({ value, onChange, disabled, an
           <AppSelect
             value={value.meetingDay ?? ''}
             onChange={(v) => update({ meetingDay: v || null })}
-            options={[{ value: '', label: '— Pick a day —' }, ...(anySlot ? ALL_DAY_OPTIONS : DAY_OPTIONS)]}
+            options={[{ value: '', label: '— Pick a day —' }, ...(anySlot ? ALL_DAY_OPTIONS : withCurrent(MEETING_DAYS.filter((d) => limits.days.includes(d.value)), value.meetingDay, MEETING_DAYS.find((d) => d.value === value.meetingDay)?.label))]}
             placeholder="Day"
             compact
           />
@@ -128,7 +108,7 @@ const GroupMeetingSlotEditor: React.FC<Props> = ({ value, onChange, disabled, an
             <AppSelect
               value={value.meetingTime ?? ''}
               onChange={(v) => update({ meetingTime: v || null })}
-              options={[{ value: '', label: '— Pick a time —' }, ...TIME_OPTIONS]}
+              options={[{ value: '', label: '— Pick a time —' }, ...withCurrent(startTimeOptions(limits), value.meetingTime, value.meetingTime ? formatMeetingSlot({ meetingDay: 'X', meetingTime: value.meetingTime })?.split(' · ')[1] : undefined)]}
               placeholder="Time"
               compact
             />
@@ -139,7 +119,7 @@ const GroupMeetingSlotEditor: React.FC<Props> = ({ value, onChange, disabled, an
           <AppSelect
             value={value.meetingDurationMins ? String(value.meetingDurationMins) : ''}
             onChange={(v) => update({ meetingDurationMins: v ? Number(v) : null })}
-            options={[{ value: '', label: '— Pick duration —' }, ...(anySlot ? (value.meetingDurationMins && !ANY_DURATION_OPTIONS.some((o) => o.value === String(value.meetingDurationMins)) ? [{ value: String(value.meetingDurationMins), label: `${value.meetingDurationMins} minutes` }, ...ANY_DURATION_OPTIONS] : ANY_DURATION_OPTIONS) : DURATION_OPTIONS)]}
+            options={[{ value: '', label: '— Pick duration —' }, ...(anySlot ? (value.meetingDurationMins && !ANY_DURATION_OPTIONS.some((o) => o.value === String(value.meetingDurationMins)) ? [{ value: String(value.meetingDurationMins), label: `${value.meetingDurationMins} minutes` }, ...ANY_DURATION_OPTIONS] : ANY_DURATION_OPTIONS) : withCurrent(limits.durations.map((m) => ({ value: String(m), label: formatDuration(m) })), value.meetingDurationMins ? String(value.meetingDurationMins) : null, value.meetingDurationMins ? formatDuration(value.meetingDurationMins) : undefined))]}
             placeholder="Duration"
             compact
           />

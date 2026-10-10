@@ -2273,6 +2273,22 @@ export const settingsApi = {
 
   // Sunday class start time shown in the Sat/Sun participant nudges
   // (Settings > Programme > Timings).
+  // Limits on the day, time and length a group call can be set to (Settings > Group call limits).
+  async getGroupMeetingLimits(): Promise<import('../utils/groupMeetingLimits').GroupMeetingLimits> {
+    const { data, error } = await supabase.from('AppSetting').select('value').eq('settingKey', 'group_meeting_limits').maybeSingle();
+    if (error) throw new Error(error.message);
+    const { normalizeMeetingLimits } = await import('../utils/groupMeetingLimits');
+    return normalizeMeetingLimits((data as { value?: unknown } | null)?.value);
+  },
+
+  async setGroupMeetingLimits(limits: import('../utils/groupMeetingLimits').GroupMeetingLimits): Promise<import('../utils/groupMeetingLimits').GroupMeetingLimits> {
+    const { normalizeMeetingLimits } = await import('../utils/groupMeetingLimits');
+    const value = normalizeMeetingLimits(limits);
+    const { error } = await supabase.from('AppSetting').upsert([{ settingKey: 'group_meeting_limits', value, updatedAt: new Date().toISOString() }], { onConflict: 'settingKey' });
+    if (error) throw new Error(error.message);
+    return value;
+  },
+
   async getClassStartTime(): Promise<string> {
     const { data, error } = await supabase
       .from('AppSetting')

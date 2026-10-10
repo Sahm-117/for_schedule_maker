@@ -6,6 +6,7 @@ import { DEFAULT_GROUPING_RULES } from '../utils/groupingRules';
 import { DEFAULT_RECAP_RELEASE_TIMES } from '../utils/recapReleaseTimes';
 import { DEFAULT_CLASS_FEEDBACK_TIMES } from '../utils/classFeedbackTimes';
 import { DEFAULT_CLASS_START_TIME } from '../utils/classStartTime';
+import { DEFAULT_GROUP_MEETING_LIMITS } from '../utils/groupMeetingLimits';
 import { DEFAULT_CHURCH_DEPARTMENTS } from '../constants/departments';
 
 // Import Supabase API
@@ -551,6 +552,8 @@ export const settingsApi = USE_SUPABASE ? supabaseSettingsApi : {
   async getClassFeedbackTimes(): Promise<import('../utils/classFeedbackTimes').ClassFeedbackTimes> { return { ...DEFAULT_CLASS_FEEDBACK_TIMES }; },
   async setClassFeedbackTimes(times: import('../utils/classFeedbackTimes').ClassFeedbackTimes): Promise<import('../utils/classFeedbackTimes').ClassFeedbackTimes> { return times; },
   async getClassStartTime(): Promise<string> { return DEFAULT_CLASS_START_TIME; },
+  async getGroupMeetingLimits(): Promise<import('../utils/groupMeetingLimits').GroupMeetingLimits> { return DEFAULT_GROUP_MEETING_LIMITS; },
+  async setGroupMeetingLimits(limits: import('../utils/groupMeetingLimits').GroupMeetingLimits): Promise<import('../utils/groupMeetingLimits').GroupMeetingLimits> { return limits; },
   async setClassStartTime(time: string): Promise<string> { return time; },
   async getScriptureStartDay(): Promise<number> {
     return 1;

@@ -72,7 +72,7 @@ const NeedSupportButton: React.FC<{ inline?: boolean; className?: string; cohort
           </svg>
         </button>
       ) : (
-        <div className={`pointer-events-none fixed inset-x-0 bottom-24 z-40 flex justify-end px-4 lg:bottom-6 lg:px-6 ${className}`}>
+        <div className={`pointer-events-none fixed inset-x-0 bottom-[calc(6rem+var(--fof-fab-raise,0px))] z-40 flex justify-end px-4 lg:bottom-6 lg:px-6 ${className}`}>
           <button
             type="button"
             onClick={() => setOpen(true)}

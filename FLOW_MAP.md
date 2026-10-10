@@ -652,6 +652,9 @@ duplicating the logic anywhere else is a bug waiting to happen.
     opens `ReadyGraphicSheet` (their photo or initials, name, "I'm fully ready for FOF N class", Download and Share). The card is separate from the Get ready card, so it stays after the Get ready card goes away at first attendance.
     Drawn in the browser (`utils/readyGraphic.ts`), nothing stored. Frontend only.
 
+61. **Group call times are limited from Settings > Group call limits.** `AppSetting` `group_meeting_limits` = allowed days, earliest start, latest end, allowed lengths (default: Wednesday, Friday, Saturday; 5:00 PM to 9:00 PM; 45 minutes or 1 hour). The meeting-time picker (`GroupMeetingSlotEditor`, `GroupCallCard`) offers only what fits, and the database trigger `group_meeting_limits_guard` on `Group` refuses a change that does not,
+    for everyone except admins (admins and hub meetings can use any slot). The check runs only when a group's day, time or length is changed, so a group already outside the limits keeps working and can still have its call link edited. Source: `20261014300000_group_meeting_limits.sql`.
+
 ## 5. Edge functions and schedules
 
 All functions authenticate with the session token (`x-session-token`) or the

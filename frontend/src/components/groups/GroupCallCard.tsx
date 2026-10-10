@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import GroupMeetingSlotEditor, { type MeetingSlot } from '../GroupMeetingSlotEditor';
+import { useGroupMeetingLimits } from '../../hooks/useGroupMeetingLimits';
+import { describeMeetingLimits, meetingSlotProblem } from '../../utils/groupMeetingLimits';
 import InfoTip from '../InfoTip';
 import { groupsApi } from '../../services/api';
 import type { Group, GroupCallPlatform } from '../../types';
@@ -80,6 +82,7 @@ export const MeetingCallCard: React.FC<MeetingCallCardProps> = ({
   anySlot = false,
   live = false,
 }) => {
+  const limits = useGroupMeetingLimits();
   const callLink = savedCallLink?.trim() || fallbackLink?.trim() || null;
   const hasSetup = !!callLink && !!slot.meetingDay && !!slot.meetingTime;
   const savedPlatform: GroupCallPlatform = callPlatform ?? platformFromLink(callLink) ?? 'WHATSAPP';
@@ -113,6 +116,9 @@ export const MeetingCallCard: React.FC<MeetingCallCardProps> = ({
       setError('Add the call link and meeting time before saving.');
       return;
     }
+    // The back-office limits (Settings > Group call limits); admin-set meetings are not held to them.
+    const problem = anySlot ? null : meetingSlotProblem(slotDraft, limits);
+    if (problem) { setError(problem); return; }
     setSaving(true);
     setError('');
     try {
@@ -153,7 +159,7 @@ export const MeetingCallCard: React.FC<MeetingCallCardProps> = ({
               <div>
               <div className="mb-1.5 flex items-center gap-2">
                 <span className="text-[13px] font-semibold text-gray-900">Day and time</span>
-                <InfoTip label="Meeting time rules">{anySlot ? 'Admins can set any day, time and length.' : 'Meetings run on Wednesday, Friday or Saturday, between 5 and 9 pm, for 45 minutes to 1 hour.'}</InfoTip>
+                <InfoTip label="Meeting time rules">{anySlot ? 'Admins can set any day, time and length.' : describeMeetingLimits(limits)}</InfoTip>
               </div>
               <GroupMeetingSlotEditor value={slotDraft} onChange={setSlotDraft} anySlot={anySlot} />
               </div>

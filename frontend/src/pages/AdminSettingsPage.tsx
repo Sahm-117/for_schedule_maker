@@ -17,6 +17,7 @@ import Spinner from '../components/Spinner';
 import FollowUpAssignmentSettings from '../components/followups/FollowUpAssignmentSettings';
 import TeenSettingsCard from '../components/followups/TeenSettingsCard';
 import PracticeModeCard from '../components/settings/PracticeModeCard';
+import GroupCallLimitsCard from '../components/settings/GroupCallLimitsCard';
 
 // Every section on this page reads the same way: a compact summary of what is
 // currently set, and nothing editable until you press Edit. Save writes and
@@ -870,6 +871,7 @@ const AdminSettingsPage: React.FC = () => {
       <div className="mb-6 columns-1 gap-4 xl:columns-2">
         <div data-wt="settings-rules" className="mb-4 break-inside-avoid"><ProgrammeRulesCard /></div>
         <div data-wt="settings-timings" className="mb-4 break-inside-avoid"><RecapTimingsCard /></div>
+        <div data-wt="settings-group-call-limits" className="mb-4 break-inside-avoid"><GroupCallLimitsCard /></div>
         <div data-wt="settings-ai" className="mb-4 break-inside-avoid"><AiSettingsCard /></div>
         <div data-wt="settings-departments" className="mb-4 break-inside-avoid"><ChurchDepartmentsCard /></div>
         <div data-wt="settings-contact" className="mb-4 break-inside-avoid"><SupportContactCard /></div>

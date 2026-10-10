@@ -170,6 +170,13 @@ const DiscussionFeedView: React.FC<DiscussionFeedViewProps> = ({ feed, actions, 
   const [autoLoads, setAutoLoads] = useState(0);
 
   const canPost = feed.canPost && !!actions.post;
+  // On a phone the round Need support button floats over the bottom right corner. While the message box is showing, lift
+  // that button above it so the box (and its send button) can use the full width instead of leaving a gap on the right.
+  useEffect(() => {
+    if (!canPost) return undefined;
+    document.body.style.setProperty('--fof-fab-raise', `calc(env(safe-area-inset-bottom, 0px) + ${practiceOn ? 168 : 112}px)`);
+    return () => { document.body.style.removeProperty('--fof-fab-raise'); };
+  }, [canPost, practiceOn]);
   const canReply = feed.canPost && !!actions.reply;
   const canModerate = feed.canModerate && !!actions.moderate;
   const reported = useMemo(() => new Map(feed.openReports.map((r) => [r.postId, r])), [feed.openReports]);
@@ -551,7 +558,7 @@ const DiscussionFeedView: React.FC<DiscussionFeedViewProps> = ({ feed, actions, 
               </button>
             </div>
           )}
-          <div className="flex items-end gap-2 pr-[72px] lg:pr-0">
+          <div className="flex items-end gap-2">
             <MentionTextarea
               textareaRef={composerRef}
               value={draft}
