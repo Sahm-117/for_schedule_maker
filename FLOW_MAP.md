@@ -161,7 +161,9 @@ duplicating the logic anywhere else is a bug waiting to happen.
 12. **Attendance windows shut themselves.** The per-minute cron closes Sunday
     and meeting windows; late counts as missed unless an admin excuses it,
     and records lock after close (`attendance_record_lock`). Never
-    back-date attendance around a closed window.
+    back-date attendance around a closed window. An admin Reopen of a timed
+    week starts a fresh window (`reopen_shared_attendance`), otherwise the job
+    would finalise it again within a minute.
 13. **Deleting a support hands over first.** Group support links clear and
     follow-ups hand over before a user row can go
     (`user_clear_group_support_before_delete`, support-delete handover
