@@ -657,6 +657,11 @@ duplicating the logic anywhere else is a bug waiting to happen.
 61. **Group call times are limited from Settings > Group call limits.** `AppSetting` `group_meeting_limits` = allowed days, plus an earliest and latest start for each day (`dayTimes`; a day without its own times uses the top-level `earliestStart`/`latestStart`; default: Wednesday, Friday, Saturday, 5:00 PM to 9:00 PM). Call length is not limited; a row saved with the old `latestEnd` is read as the latest start. The meeting-time picker (`GroupMeetingSlotEditor`, `GroupCallCard`) offers only the start times that fit the picked day, and the database trigger `group_meeting_limits_guard` on `Group` refuses a change that does not,
     for everyone except admins (admins and hub meetings can use any slot). The check runs only when a group's day or time is changed, so a group already outside the limits keeps working and can still have its call link edited. Source: `20261014300000_group_meeting_limits.sql`, `20261015100000_group_meeting_limits_per_day.sql`.
 
+62. **Telegram is a backup copy of the bell, for people who connected it.** Staff, admins and participants connect from their profile (Connect Telegram -> one-time code, valid 15 minutes -> bot "Start"; `telegram_connect_code`, `telegram_link_chat`); nobody gets a message before pressing Start. Every row written to `Notification` or `ParticipantNotification`
+    (edge functions, triggers and cron jobs alike) fires `telegram_after_notification` / `telegram_after_participant_notification`, which call the `telegram-send` edge function through `invoke_telegram_send` (vault secrets, same as prayers). The message is the same title and body plus "Open the FOF Ops app to respond." (no link: a link would open a browser, not the installed app).
+    Participants flagged test or in a Practice cohort are skipped (rule 14). A person can pause (`telegram_set_enabled`), `/stop`, or disconnect; blocking the bot switches the link off (`telegram-webhook`, `telegram-send` on a 403). Tables `TelegramLink` (User) and `ParticipantTelegramLink` (Participant) have one foreign key each and `TelegramLinkCode` none, so no table joins User and Participant (rule 55).
+    The bot token and webhook secret are Supabase secrets (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`), never in code. `telegram-webhook` is deployed with `--no-verify-jwt` and checks the Telegram secret header; `telegram-send` accepts only a service-role token. Source: `20261016100000_telegram_notifications.sql`.
+
 ## 5. Edge functions and schedules
 
 All functions authenticate with the session token (`x-session-token`) or the
@@ -670,6 +675,7 @@ form secret, never bare anon access.
 | `daily-checks` | Daily nudges (reports, attendance, escalations); runs via cron-job.org with `CRON_SECRET`, not pg_cron |
 | `send-announcement` | Admin broadcast with audience, scope, hub, and group filters; popup acks |
 | `notify-users` | Generic sender (userIds, role plus cohort, participantIds) |
+| `telegram-webhook`, `telegram-send` | Telegram bot inbox (Start/Stop/blocked) and the Telegram copy of each notification (rule 62) |
 | `notify-followup-*` (4) | Assignment, issues, terminal states (LOGIN_ISSUE also pages hub IT), completions |
 | `notify-hub`, `notify-onboarding-event` | Hub mentions/threads, onboarding events (the faith project review functions were removed with the review chain, rule 49) |
 | `sync-lead-to-sheet` | Push a contact back to the Google Sheet; records sync state |

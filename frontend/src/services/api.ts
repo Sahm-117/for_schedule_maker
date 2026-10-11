@@ -85,6 +85,7 @@ import {
   scriptureEngagementApi as supabaseScriptureEngagementApi,
   announcementPopupsApi as supabaseAnnouncementPopupsApi,
   appNudgeApi as supabaseAppNudgeApi,
+  telegramApi as supabaseTelegramApi,
   followUpRelatedApi as supabaseFollowUpRelatedApi,
   aiApi as supabaseAiApi,
   profileFieldsApi as supabaseProfileFieldsApi,
@@ -1111,6 +1112,8 @@ export const birthdaysApi = supabaseBirthdaysApi;
 export const scriptureEngagementApi = supabaseScriptureEngagementApi;
 export const announcementPopupsApi = supabaseAnnouncementPopupsApi;
 export const appNudgeApi = supabaseAppNudgeApi;
+export const telegramApi = supabaseTelegramApi;
+export type { TelegramStatus } from './supabase-api';
 export const followUpRelatedApi = supabaseFollowUpRelatedApi;
 
 export const participantPushApi = USE_SUPABASE ? supabaseParticipantPushApi : {

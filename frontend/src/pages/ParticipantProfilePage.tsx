@@ -18,6 +18,7 @@ import { useSearchParams } from 'react-router-dom';
 import type { ProfileFieldEntry } from '../types';
 import Spinner from '../components/Spinner';
 import PasswordInput from '../components/PasswordInput';
+import TelegramCard from '../components/TelegramCard';
 
 // Participant profile: how complete it is, their photo and details (including any
 // fields the FOF team requested), their programme, reminders and password.
@@ -460,6 +461,8 @@ const ParticipantProfilePage: React.FC = () => {
             </div>
           </div>
         </section>
+
+        <TelegramCard />
 
         <div data-wt="pp-reminders">
         <Fold title="Reminders" summary={reminderSummary}>

@@ -8,6 +8,7 @@ import { followUpLoginIssuesApi, groupsApi, usersApi } from '../services/api';
 import type { User } from '../types';
 import NotificationSettings from '../components/NotificationSettings';
 import AppStatusCard from '../components/AppStatusCard';
+import TelegramCard from '../components/TelegramCard';
 import { useAuth } from '../hooks/useAuth';
 import Avatar from '../components/Avatar';
 import { applyTheme, DEFAULT_THEME, THEME_SWATCHES } from '../utils/theme';
@@ -329,6 +330,8 @@ const SupportProfileContent: React.FC<{ user: User }> = ({ user }) => {
           </div>
 
           <AppStatusCard />
+
+          <TelegramCard />
 
           <div data-wt="profile-notifications">
             <SectionLabel>Reminders</SectionLabel>

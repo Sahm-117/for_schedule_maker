@@ -18,6 +18,7 @@ import FollowUpAssignmentSettings from '../components/followups/FollowUpAssignme
 import TeenSettingsCard from '../components/followups/TeenSettingsCard';
 import PracticeModeCard from '../components/settings/PracticeModeCard';
 import GroupCallLimitsCard from '../components/settings/GroupCallLimitsCard';
+import TelegramCard from '../components/TelegramCard';
 
 // Every section on this page reads the same way: a compact summary of what is
 // currently set, and nothing editable until you press Edit. Save writes and
@@ -883,6 +884,7 @@ const AdminSettingsPage: React.FC = () => {
       <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Just for you</h2>
       <div className="mb-6 columns-1 gap-4 xl:columns-2">
         <div className="mb-4 break-inside-avoid"><AppStatusCard /></div>
+        <div className="mb-4 break-inside-avoid"><TelegramCard /></div>
         <div data-wt="settings-notifications" className="mb-4 break-inside-avoid"><NotificationSettings isOpen onClose={() => {}} embedded /></div>
       </div>
     </div>

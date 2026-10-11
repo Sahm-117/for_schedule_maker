@@ -3044,6 +3044,29 @@ export const notificationSettingsApi = {
   },
 };
 
+// Telegram copy of notifications (staff and participants share these). Connecting is a one-time code the bot receives on "Start".
+export interface TelegramStatus { connected: boolean; enabled: boolean; blocked: boolean; eligible: boolean }
+export const telegramApi = {
+  async status(): Promise<TelegramStatus> {
+    const { data, error } = await supabase.rpc('telegram_status', { p_token: getSessionToken() });
+    if (error) throw new Error(error.message);
+    return data as TelegramStatus;
+  },
+  async connectCode(): Promise<string> {
+    const { data, error } = await supabase.rpc('telegram_connect_code', { p_token: getSessionToken() });
+    if (error) throw new Error(error.message);
+    return data as string;
+  },
+  async setEnabled(enabled: boolean): Promise<void> {
+    const { error } = await supabase.rpc('telegram_set_enabled', { p_token: getSessionToken(), p_enabled: enabled });
+    if (error) throw new Error(error.message);
+  },
+  async disconnect(): Promise<void> {
+    const { error } = await supabase.rpc('telegram_disconnect', { p_token: getSessionToken() });
+    if (error) throw new Error(error.message);
+  },
+};
+
 // Supports: their participants who have signed in but still need the app (not installed, or alerts off).
 export const appNudgeApi = {
   async mine(): Promise<import('../types').AppNudgePerson[]> {
