@@ -730,7 +730,7 @@ const SupportCard: React.FC<{
       </div>
       <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-gray-500">
         <OnboardingBar stages={stages} fallback={onboardingText} late={onboarding.late || !onboarding.allOnboarded} />
-        {!onboarding.meetingSet && <p className="mt-1 text-[11px] font-semibold text-amber-700">No group meeting time set yet, so onboarding is not complete.</p>}
+        {!onboarding.meetingSet && <p className="basis-full text-[11px] font-semibold text-amber-700">No group meeting time set yet, so onboarding is not complete.</p>}
         {isTeenSupport && <TeenSupportPill />}
         {training.total > 0 && <TrainingPill name={supportName} userId={evaluation.supportId} sessions={training.sessions} attendance={training.attendance} />}
       </div>
