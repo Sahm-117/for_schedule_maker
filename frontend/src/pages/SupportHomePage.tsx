@@ -173,12 +173,13 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
     }
   };
 
-  // Next hub meeting (hub-only supports only): the soonest upcoming meeting
-  // slot across every hub they cover — an IT support on 2+ hubs sees the
-  // nearer one, not just the first hub returned.
+  // Next hub meeting (hub-only supports only): the meeting of the hub they belong to. An IT support
+  // who also covers other hubs only as IT still sees their own hub's meeting, not the nearest one
+  // across everything they cover. With no hub of their own, the soonest across the hubs they cover.
   const nextHubMeeting = useMemo(() => {
     if (!isHubOnlySupport) return null;
-    const hubs = hubsList.map((h) => h.hub).filter((h): h is NonNullable<typeof h> => !!h);
+    const ownHubs = hubsList.filter((h) => h.members.some((m) => m.userId === user.id));
+    const hubs = (ownHubs.length > 0 ? ownHubs : hubsList).map((h) => h.hub).filter((h): h is NonNullable<typeof h> => !!h);
     const withSlot = hubs.filter((h) => h.meetingDay && h.meetingTime);
     if (withSlot.length === 0) return { hub: hubs[0] ?? null };
     const soonest = withSlot.reduce((best, h) => {
@@ -186,7 +187,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
       return t < best.time ? { hub: h, time: t } : best;
     }, { hub: withSlot[0], time: nextOccurrence(withSlot[0].meetingDay!, withSlot[0].meetingTime!, tickNow) });
     return { hub: soonest.hub };
-  }, [isHubOnlySupport, hubsList, tickNow]);
+  }, [isHubOnlySupport, hubsList, tickNow, user.id]);
 
   // Role reminder cards — "You're a Recap Lead", one per job the support
   // holds; always shown while they hold it. One card per JOB, not per

@@ -660,6 +660,7 @@ duplicating the logic anywhere else is a bug waiting to happen.
 63. **The Prayer Lead's own prayer screen opens only once the meeting is on.** A Prayer Lead without full hub access (`HubMeetingPanel.tsx`) sees "Prayer opens here once the hub meeting starts" until attendance has been taken for the week, prayer has started, or it is within 15 minutes before the hub's meeting slot to its end: the same test follow-along viewers already use (`showFollowAlongPrayer`). Hub Leads and assistants with attendance permission are not gated. Frontend only.
 64. **Hub message alerts say who sent them.** `post_hub_message` prefixes the alert title (bell and push) with "Hub Lead · ", "Assistant Hub Lead · " or "Admin · ", decided from the sender and the hub's `leadUserId` / `assistantLeadUserId`. The stored `HubMessage.subject` is unchanged and earlier alerts are not rewritten (`20261016300000_hub_message_sender_label.sql`).
 65. **A support's profile popup shows Call and WhatsApp for everyone except participants.** `HubAuthorProfileModal` shows them when the viewer is not a participant and the profile is a support with a phone number. Frontend only.
+66. **An IT support's "Next hub meeting" on their Home is their own hub's.** `SupportHomePage.tsx` uses the hub they are a member of (`HubMembership`); hubs they cover only as IT support never replace it. Only a hub-only support with no hub of their own sees the soonest meeting across the hubs they cover. Frontend only.
 
 ## 5. Edge functions and schedules
 
