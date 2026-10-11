@@ -3,6 +3,7 @@ import ModalShell from './followups/ModalShell';
 import Avatar from './Avatar';
 import Spinner from './Spinner';
 import { useAuth } from '../hooks/useAuth';
+import { buildWhatsAppLink } from '../utils/phone';
 import { useAppData } from '../context/AppDataContext';
 import { usersApi, groupsApi } from '../services/api';
 import type { Group, Participant, User } from '../types';
@@ -23,7 +24,7 @@ const formatLastActive = (iso?: string | null) => {
 };
 
 const HubAuthorProfileModal: React.FC<HubAuthorProfileModalProps> = ({ userId, isOpen, onClose, onUserUpdated }) => {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user: viewer } = useAuth();
   // Group and participants are always the ones in the cohort being viewed.
   const { activeCohort } = useAppData();
   const cohortId = activeCohort?.id ?? null;
@@ -69,6 +70,11 @@ const HubAuthorProfileModal: React.FC<HubAuthorProfileModalProps> = ({ userId, i
 
     return () => { cancelled = true; };
   }, [isOpen, userId, cohortId, isAdmin]);
+
+  // Anyone except a participant can reach a support straight from their profile.
+  const canContact = viewer?.role !== 'PARTICIPANT' && profileUser?.role === 'SUPPORT' && !!profileUser.phone;
+  const waLink = canContact ? buildWhatsAppLink(profileUser?.phone, `Hi ${profileUser?.name.split(' ')[0]}, `) : null;
+  const telLink = canContact ? `tel:${profileUser?.phone?.replace(/[^\d+]/g, '')}` : null;
 
   // Admins fill in a support's details here when the support hasn't done it themselves.
   const canEdit = isAdmin && profileUser?.role === 'SUPPORT';
@@ -202,6 +208,23 @@ const HubAuthorProfileModal: React.FC<HubAuthorProfileModalProps> = ({ userId, i
               </>
             ) : profileUser.avatarUrl && <p className="mt-1 text-xs text-gray-400">Tap photo to view full size</p>}
           </div>
+
+          {canContact && (
+            <div className="flex items-center justify-center gap-2">
+              {telLink && (
+                <a href={telLink} aria-label={`Call ${profileUser.name}`} className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-200 active:scale-95">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                  Call
+                </a>
+              )}
+              {waLink && (
+                <a href={waLink} target="_blank" rel="noreferrer" aria-label={`WhatsApp ${profileUser.name}`} className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100/80 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 active:scale-95">
+                  <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.71.45 3.36 1.3 4.82L2 22l5.4-1.42a9.87 9.87 0 004.64 1.18h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.85 9.85 0 0012.04 2zm5.8 14.03c-.24.68-1.4 1.3-1.94 1.38-.5.08-1.12.11-1.8-.11-.42-.13-.96-.31-1.65-.6-2.9-1.25-4.8-4.17-4.94-4.36-.14-.19-1.18-1.57-1.18-3 0-1.42.75-2.12 1.01-2.41.27-.29.58-.36.78-.36.19 0 .39 0 .55.01.18.01.42-.07.65.5.24.58.81 2 .88 2.15.07.15.12.32.02.51-.09.19-.14.31-.28.48-.14.17-.29.37-.42.5-.14.14-.28.29-.12.57.16.28.72 1.19 1.55 1.93 1.06.94 1.96 1.24 2.24 1.38.28.14.44.12.6-.07.16-.19.68-.79.87-1.07.18-.27.36-.22.6-.13.24.09 1.55.73 1.82.86.27.14.44.2.51.32.07.11.07.65-.17 1.32z" /></svg>
+                  WhatsApp
+                </a>
+              )}
+            </div>
+          )}
 
           {canEdit && (
             <div>

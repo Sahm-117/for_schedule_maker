@@ -284,17 +284,17 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
 
   useEffect(() => { void loadPrayerFocus(); }, [loadPrayerFocus]);
 
-  // Follow-along only shows the prayer part once the meeting is actually on:
-  // attendance has been taken for this week, it's the hub's meeting time, or
-  // prayer has already started. Until then, re-check every 10s so it appears
-  // as soon as the lead marks the first person.
+  // Follow-along viewers and a Prayer Lead without full access only get the prayer part once the
+  // meeting is actually on: attendance has been taken for this week, it's the hub's meeting time,
+  // or prayer has already started. Until then, re-check every 10s so it appears as soon as the
+  // lead marks the first person.
   const [now, setNow] = useState(() => new Date());
   const attendanceTaken = Object.keys(marks).length > 0;
   const prayerStarted = !!prayerFocus.faithProjectId || prayerFocus.hubPrayerDone || prayerFocus.prayerFinished;
   const showFollowAlongPrayer = attendanceTaken || prayerStarted
     || isInMeetingWindow(meetingDay, meetingTime, meetingDurationMins, now);
   useEffect(() => {
-    if (!isFollowAlong || !hubId || weekId === null || attendanceTaken) return undefined;
+    if (!(isFollowAlong || isPrayerLead) || !hubId || weekId === null || attendanceTaken) return undefined;
     return startPolling(() => {
       setNow(new Date());
       return supportSessionsApi.getForHubWeek(hubId, weekId)
@@ -307,7 +307,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
         })
         .catch(() => { /* try again next tick */ });
     }, 10000);
-  }, [isFollowAlong, hubId, weekId, attendanceTaken]);
+  }, [isFollowAlong, isPrayerLead, hubId, weekId, attendanceTaken]);
 
   useEffect(() => {
     if (!hubId || weekId === null) return undefined;
@@ -868,7 +868,11 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
             })}
           </div>
         </section>
-        {step === PRAYER_STEP && isPrayerLead ? prayerStepContent : step === RECAP_STEP ? recapStepContent : (
+        {step === PRAYER_STEP && isPrayerLead ? (showFollowAlongPrayer ? prayerStepContent : (
+          <section className={`${CARD} text-center`}>
+            <p className="text-sm text-gray-500">Prayer opens here once the hub meeting starts.</p>
+          </section>
+        )) : step === RECAP_STEP ? recapStepContent : (
           <section className={CARD}>
             <p className="text-sm text-gray-500">Pick a step above.</p>
           </section>

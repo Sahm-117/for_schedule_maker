@@ -303,7 +303,7 @@ duplicating the logic anywhere else is a bug waiting to happen.
     or Login shared only) as No response when they cannot reach them (`CAN_PARK_AFTER_SIGN_UP`; not
     Login issue, which has an open issue with IT, and not Access confirmed, which the API refuses for
     a non-admin): the same release applies, and they wait under No response on the admin Follow-ups
-    table. Such an adult is only grouped by the builder once they have signed in (rule 29). If they
+    table. Such an adult can be grouped by the builder whether or not they have signed in (rule 29). If they
     then choose a password they become ACCESS_CONFIRMED and the flag clears
     (`confirm_followup_access_on_password_set`). Undo puts them back through the form gate (rule 1),
     so a contact with no form on file cannot be restored by the support and the screen says so.
@@ -326,19 +326,13 @@ duplicating the logic anywhere else is a bug waiting to happen.
     Source: `20261007200000_followup_no_response_flag.sql`, `20261008110000_no_response_next_cohort_count.sql`,
     `20261008120000_no_response_next_cohort_all.sql`,
     `20261008020000_password_set_confirms_parked_contacts.sql`.
-29. **Only people who have signed in are grouped, and running groups are topped up first.** The group
+29. **Everyone not in a group can be grouped (signed in or not), and running groups are topped up first.** The group
     builder takes the participants it is given (the Groups page loads only the cohort's Active ones, and
-    leaves teens to their Teen Supports) who are not in a group, and of those only people whose login is
-    confirmed: they chose their own password (`ParticipantAccount.passwordSetAt`, as on the support
-    Get-them-on-the-app card) and the account is on. This is compulsory for creating groups. The one exception is
-    the "Planning only" switch (off by default, People step): it includes everyone ungrouped so the draft shows
-    the groups and supports a cohort will need; such a draft shows a banner and is only a view: it cannot be saved (so it never
-    overwrites the cohort's real draft) or created (its create button is disabled, and `create()` refuses unless
-    every person in the draft has a confirmed sign-in). Switching the mode clears the draft, so it must be rebuilt. Everyone else
-    stays Active and ungrouped and is picked up by a later build once they sign in.
+    leaves teens to their Teen Supports) who are not in a group. There is no sign-in requirement and no
+    "Planning only" mode (both were removed): someone who has not chosen a password or finished onboarding is grouped like
+    anyone else, and every draft can be saved and created. (`participants_signed_in` is no longer read by the builder.)
     On the Draft step, new groups still without a support are counted by the gender of their people (male, female,
-    mixed) and can be filtered by that; the filter falls back to all groups once none is left. If the sign-in check
-    cannot be loaded, building is blocked rather than grouping everyone. Before making new groups, the
+    mixed) and can be filtered by that; the filter falls back to all groups once none is left. Before making new groups, the
     builder tops up running groups that have people and space (a switch, on by default): each person goes
     to the group with the closest ages, never past the group's largest size and never against a gender,
     age-range or tag rule; the group's support and existing members are never changed. Whoever does not
@@ -408,7 +402,7 @@ duplicating the logic anywhere else is a bug waiting to happen.
     (before a cohort starts) and Follow-ups → Overview show the same `RegistrationOverviewCards`, worked out by
     `computeRegistrationOverview` from the cohort's participants, not from follow-up statuses.
     Registered = an active, non-test participant in the cohort. ADULTS: Logged in = they chose their own
-    password and the login is on (`participants_signed_in`, the same check as the group builder); Still to log
+    password and the login is on (`participants_signed_in`); Still to log
     in = registered minus logged in, listed by reason (login sent, login not sent yet, not reachable / stopped /
     joining next cohort, marked as logged in by hand but never signed in). TEENS get no login details, so their
     sign-in is never counted: a teen is Onboarded (by their Teen Support, status Teen onboarded), No response
@@ -513,8 +507,7 @@ duplicating the logic anywhere else is a bug waiting to happen.
     someone into one needs "All groups". Frontend only (`GroupEngineWizard.tsx`).
 44. **A support left without a group can be given an empty group on the Draft step.** "Make a group for each" in Supports
     without a group adds one empty draft group per unused support (named after the next free "Group n"), and each support in that
-    list also has its own "Make a group" button for just that one; people are then moved in by hand. A group still empty at the end is not created; the Draft step says so ("N empty groups are not
-    created yet") and an empty group has a Remove button. Empty groups are their own bucket in the gender chips ("Empty
+    list also has its own "Make a group" button for just that one; people are then moved in by hand. A group made this way and still empty at the end is created empty too (to be filled later; the Draft step says "N empty groups will be created"); an empty group that already exists is left alone, and an empty draft group has a Remove button. Empty groups are their own bucket in the gender chips ("Empty
     groups"; Female + Male + Mixed + Empty = All groups) and stay on screen in every gender view, because they are where
     people get moved to. A support with only an empty group still counts as spare for hub coverage. Frontend only
     (`GroupEngineWizard.tsx`).
@@ -663,6 +656,10 @@ duplicating the logic anywhere else is a bug waiting to happen.
     (edge functions, triggers and cron jobs alike) fires `telegram_after_notification` / `telegram_after_participant_notification`, which call the `telegram-send` edge function through `invoke_telegram_send` (vault secrets, same as prayers). The message is the same title and body plus "Open the FOF Ops app to respond." (no link: a link would open a browser, not the installed app).
     Participants flagged test or in a Practice cohort are skipped (rule 14). A person can pause (`telegram_set_enabled`), `/stop`, or disconnect; blocking the bot switches the link off (`telegram-webhook`, `telegram-send` on a 403). Tables `TelegramLink` (User) and `ParticipantTelegramLink` (Participant) have one foreign key each and `TelegramLinkCode` none, so no table joins User and Participant (rule 55).
     The bot token and webhook secret are Supabase secrets (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`), never in code. `telegram-webhook` is deployed with `--no-verify-jwt` and checks the Telegram secret header; `telegram-send` accepts only a service-role token. Source: `20261016100000_telegram_notifications.sql`.
+
+63. **The Prayer Lead's own prayer screen opens only once the meeting is on.** A Prayer Lead without full hub access (`HubMeetingPanel.tsx`) sees "Prayer opens here once the hub meeting starts" until attendance has been taken for the week, prayer has started, or it is within 15 minutes before the hub's meeting slot to its end: the same test follow-along viewers already use (`showFollowAlongPrayer`). Hub Leads and assistants with attendance permission are not gated. Frontend only.
+64. **Hub message alerts say who sent them.** `post_hub_message` prefixes the alert title (bell and push) with "Hub Lead · ", "Assistant Hub Lead · " or "Admin · ", decided from the sender and the hub's `leadUserId` / `assistantLeadUserId`. The stored `HubMessage.subject` is unchanged and earlier alerts are not rewritten (`20261016300000_hub_message_sender_label.sql`).
+65. **A support's profile popup shows Call and WhatsApp for everyone except participants.** `HubAuthorProfileModal` shows them when the viewer is not a participant and the profile is a support with a phone number. Frontend only.
 
 ## 5. Edge functions and schedules
 
