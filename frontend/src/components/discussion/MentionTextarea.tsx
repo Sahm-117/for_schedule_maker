@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Avatar from '../Avatar';
 import { linkifyText } from '../LinkText';
 import type { DiscussionMember, DiscussionMention } from '../../types';
@@ -73,6 +73,16 @@ const MentionTextarea: React.FC<MentionTextareaProps> = ({ value, onChange, ment
   // until the text changes again (the key-up that follows must not reopen it).
   const navigated = useRef(false);
   const dismissedText = useRef<string | null>(null);
+  // The "/" button beside the box opens the same list without typing anything.
+  const hasPicker = !!slashItems && slashItems.length > 0;
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!pickerOpen) return undefined;
+    const away = (e: PointerEvent) => { if (!rootRef.current?.contains(e.target as Node)) setPickerOpen(false); };
+    document.addEventListener('pointerdown', away);
+    return () => document.removeEventListener('pointerdown', away);
+  }, [pickerOpen]);
 
   // "@" at the start or after a space, followed by up to 30 non-space characters, right before the caret.
   const updateQuery = (text: string, caret: number) => {
@@ -85,14 +95,19 @@ const MentionTextarea: React.FC<MentionTextareaProps> = ({ value, onChange, ment
     navigated.current = false;
   };
 
-  const slashMatches = slash === null || !slashItems ? [] : slashItems.filter((i) => i.label.toLowerCase().includes(slash.toLowerCase()));
+  const slashMatches = pickerOpen && slashItems ? slashItems : (slash === null || !slashItems ? [] : slashItems.filter((i) => i.label.toLowerCase().includes(slash.toLowerCase())));
 
   const pickSlash = (item: SlashItem) => {
     const el = ref.current;
     const caret = el?.selectionStart ?? value.length;
-    const before = value.slice(0, caret).replace(SLASH_AT_CARET, (_m, lead: string) => lead + item.text);
+    const beforeCaret = value.slice(0, caret);
+    // After a typed "/" the starter replaces it; from the button it goes in at the caret, after a space if needed.
+    const before = SLASH_AT_CARET.test(beforeCaret)
+      ? beforeCaret.replace(SLASH_AT_CARET, (_m, lead: string) => lead + item.text)
+      : beforeCaret + (beforeCaret && !/\s$/.test(beforeCaret) ? ' ' : '') + item.text;
     onChange(before + value.slice(caret));
     setSlash(null);
+    setPickerOpen(false);
     requestAnimationFrame(() => {
       el?.focus();
       el?.setSelectionRange(before.length, before.length);
@@ -117,8 +132,7 @@ const MentionTextarea: React.FC<MentionTextareaProps> = ({ value, onChange, ment
     });
   };
 
-  return (
-    <div className="relative min-w-0 flex-1">
+  const textareaEl = (
       <textarea
         ref={ref}
         autoFocus={autoFocus}
@@ -126,13 +140,13 @@ const MentionTextarea: React.FC<MentionTextareaProps> = ({ value, onChange, ment
         rows={rows}
         maxLength={2000}
         placeholder={placeholder}
-        onChange={(e) => { onChange(e.target.value); updateQuery(e.target.value, e.target.selectionStart); }}
+        onChange={(e) => { setPickerOpen(false); onChange(e.target.value); updateQuery(e.target.value, e.target.selectionStart); }}
         onKeyDown={(e) => {
           if (slashMatches.length === 0) return;
           if (e.key === 'ArrowDown') { e.preventDefault(); navigated.current = true; setActive((a) => (a + 1) % slashMatches.length); }
           else if (e.key === 'ArrowUp') { e.preventDefault(); navigated.current = true; setActive((a) => (a - 1 + slashMatches.length) % slashMatches.length); }
           else if (e.key === 'Enter' && navigated.current) { e.preventDefault(); pickSlash(slashMatches[Math.min(active, slashMatches.length - 1)]); }
-          else if (e.key === 'Escape') { e.preventDefault(); dismissedText.current = e.currentTarget.value; setSlash(null); }
+          else if (e.key === 'Escape') { e.preventDefault(); dismissedText.current = e.currentTarget.value; setSlash(null); setPickerOpen(false); }
         }}
         onKeyUp={(e) => {
           // Moving through the menu (or closing it) must not reset it.
@@ -143,6 +157,25 @@ const MentionTextarea: React.FC<MentionTextareaProps> = ({ value, onChange, ment
         onBlur={() => window.setTimeout(() => { setQuery(null); setSlash(null); }, 150)}
         className={className}
       />
+  );
+
+  return (
+    <div ref={rootRef} className={`relative min-w-0 flex-1 ${hasPicker ? 'flex items-end gap-2' : ''}`}>
+      {hasPicker && (
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => { setSlash(null); setPickerOpen((open) => !open); }}
+          aria-label="Conversation starters"
+          aria-haspopup="listbox"
+          aria-expanded={pickerOpen}
+          title="Conversation starters"
+          className={`grid h-10 w-10 flex-none place-items-center rounded-full border text-[18px] font-semibold leading-none transition active:scale-95 ${pickerOpen ? 'border-primary bg-primary/10 text-primary' : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'}`}
+        >
+          /
+        </button>
+      )}
+      {hasPicker ? <div className="min-w-0 flex-1">{textareaEl}</div> : textareaEl}
       {slashMatches.length > 0 && (
         <ul role="listbox" aria-label="Conversation starters" className="absolute bottom-full left-0 right-0 z-20 mb-2 max-h-[min(50vh,320px)] overflow-y-auto rounded-2xl bg-white p-1.5 shadow-[0_12px_32px_-8px_rgba(17,24,39,0.25)] ring-1 ring-black/5">
           <li role="presentation" className="px-2.5 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Conversation starters</li>
