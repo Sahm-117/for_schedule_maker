@@ -51,6 +51,7 @@ const TeenLoginPhone: React.FC<{ participant: Participant }> = ({ participant })
   };
 
   const link = 'text-[12.5px] font-semibold text-primary disabled:opacity-50';
+  const iconBtn = 'grid h-9 w-9 place-items-center rounded-full text-gray-500 transition hover:bg-gray-100 hover:text-gray-800 disabled:opacity-50';
   return (
     <div className="mt-3 rounded-xl bg-gray-50 px-3 py-2.5" data-teen-login>
       <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Their own number to sign in</p>
@@ -76,8 +77,12 @@ const TeenLoginPhone: React.FC<{ participant: Participant }> = ({ participant })
       ) : state.status === 'SET' ? (
         <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1">
           <span className="text-[14px] font-semibold text-gray-800">{state.ownPhone}</span>
-          <button type="button" onClick={() => { setValue(state.ownPhone ?? ''); setEditing(true); }} disabled={saving} className={link}>Change</button>
-          <button type="button" onClick={() => { void remove(); }} disabled={saving} className="text-[12.5px] font-semibold text-gray-500 disabled:opacity-50">Remove</button>
+          <button type="button" onClick={() => { setValue(state.ownPhone ?? ''); setEditing(true); }} disabled={saving} aria-label="Change their number" title="Change number" className={iconBtn}>
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M16.9 3.6a2 2 0 0 1 2.8 2.8L8 18.1 4 19l.9-4L16.9 3.6Z" /></svg>
+          </button>
+          <button type="button" onClick={() => { void remove(); }} disabled={saving} aria-label="Remove their number" title="Remove number" className={iconBtn}>
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4 7h16M9 7V4.5h6V7m-8 0 .8 12a1 1 0 0 0 1 .9h6.4a1 1 0 0 0 1-.9L17 7M10 11v5m4-5v5" /></svg>
+          </button>
         </div>
       ) : (
         <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1">
