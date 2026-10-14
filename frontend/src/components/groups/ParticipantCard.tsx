@@ -40,7 +40,7 @@ const initialsOf = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 
 const TEXT_INPUT = 'w-full rounded-xl border border-gray-200 px-3.5 py-3 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20';
 
 // Bottom sheet in the design's style, portalled so no ancestor can clip it.
-const Sheet: React.FC<{
+export const Sheet: React.FC<{
   open: boolean;
   onClose: () => void;
   title: string;

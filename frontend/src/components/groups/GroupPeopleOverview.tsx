@@ -6,6 +6,7 @@ import { myHubApi } from '../../services/api';
 import { supportProfileChecklist } from '../../utils/people';
 import { buildParticipantMessageLink } from '../../utils/phone';
 import WhatsAppIcon from '../WhatsAppIcon';
+import FaithProjectPopover from '../faithProjects/FaithProjectPopover';
 import type { FaithProjectStatus, HubGroupOverview } from '../../types';
 import { FAITH_PROJECT_STATUS_LABEL } from '../../utils/participantApp';
 
@@ -42,6 +43,8 @@ const GroupPeopleOverview: React.FC<{ groupId: string }> = ({ groupId }) => {
   const [data, setData] = useState<HubGroupOverview | null>(null);
   const [error, setError] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
+  // Whose Faith Project is open in the popover.
+  const [faithFor, setFaithFor] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -135,12 +138,16 @@ const GroupPeopleOverview: React.FC<{ groupId: string }> = ({ groupId }) => {
                 const stepsDone = PROGRESS_STEPS.filter((s) => p.onboarding[s.key]).length;
                 return (
                   <li key={p.participantId}>
+                    {/* The whole row opens the details; the Faith project chip is its own button on top, so it can open the project instead. */}
+                    <div className="relative">
                     <button
                       type="button"
                       onClick={() => setOpenId(open ? null : p.participantId)}
                       aria-expanded={open}
-                      className="flex w-full items-center gap-3 py-3 text-left"
-                    >
+                      aria-label={`${open ? 'Hide' : 'Show'} details for ${p.name}`}
+                      className="absolute inset-0 h-full w-full rounded-xl"
+                    />
+                    <div className="pointer-events-none relative flex w-full items-center gap-3 py-3 text-left">
                       <Avatar name={p.name} avatarUrl={p.avatarUrl} size="sm" />
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center gap-1.5">
@@ -151,7 +158,13 @@ const GroupPeopleOverview: React.FC<{ groupId: string }> = ({ groupId }) => {
                           {p.onboarding.completed
                             ? <span className="rounded-full bg-emerald-100/80 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">Onboarded</span>
                             : <span className="rounded-full bg-amber-100/80 px-2.5 py-0.5 text-xs font-semibold text-amber-700">Onboarding {stepsDone}/{PROGRESS_STEPS.length}</span>}
-                          <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${fp.cls}`}>Faith project: {fp.label.toLowerCase()}</span>
+                          <button
+                            type="button"
+                            onClick={() => setFaithFor({ id: p.participantId, name: p.name })}
+                            title="Open faith project"
+                            aria-label={`Open ${p.name}'s faith project`}
+                            className={`pointer-events-auto rounded-full px-2.5 py-0.5 text-xs font-semibold ${fp.cls} hover:brightness-95`}
+                          >Faith project: {fp.label.toLowerCase()}</button>
                         </span>
                       </span>
                       <span className="flex-none text-right">
@@ -159,7 +172,8 @@ const GroupPeopleOverview: React.FC<{ groupId: string }> = ({ groupId }) => {
                         <span className="block text-[11px] text-gray-400">attended</span>
                       </span>
                       <svg className={`h-4 w-4 flex-none text-gray-400 transition ${open ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 6l6 6-6 6" /></svg>
-                    </button>
+                    </div>
+                    </div>
                     {open && (
                       <div className="mb-3 ml-11 rounded-2xl bg-[#f6f7f9] px-4 py-3">
                         {messageLink ? (
@@ -196,6 +210,7 @@ const GroupPeopleOverview: React.FC<{ groupId: string }> = ({ groupId }) => {
           </>
         )}
       </section>
+      <FaithProjectPopover participant={faithFor} onClose={() => setFaithFor(null)} />
     </>
   );
 };

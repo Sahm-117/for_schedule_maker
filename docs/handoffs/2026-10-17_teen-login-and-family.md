@@ -10,6 +10,7 @@ Teens use the normal participant app again (the Teen Welcome / WhatsApp page is 
 ## Also in this stretch (frontend only, local until pushed)
 - Admin Users page on a phone: role chips now sit under the details, so a person with several roles no longer squeezes their name and date (rule: none, layout fix).
 - "Access confirmed" / "Not signed in yet" chip on the admin Groups page's member rows and on My Group participant cards (FLOW_MAP rule 68). Reads the existing `participants_signed_in`. Richer states (login issued but never used, no login at all) are not shown yet.
+- Faith project chip on the group people overview (admin / hub lead view of a group) opens the project in a popover (`FaithProjectPopover`, FLOW_MAP rule 69); the rest of the row still expands the details. Not tested with a real hub lead account (their read permission on Faith Projects was not checked).
 
 ## Live changes
 **Applied live (17 Oct 2026):** `20261017100000_teen_login_phone.sql` (after a rolled-back run of 20 checks; the same 20 checks passed again against the live functions, rolled back) and `20261017110000_discussion_summary_with_teen_groups.sql` (the admin Dashboard "Discussions this week" line counts teen groups again; checked rolled back: 23 groups incl. 5 teen, a teen-group post counts). No edge function deployed.

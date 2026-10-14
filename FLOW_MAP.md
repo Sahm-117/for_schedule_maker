@@ -671,6 +671,8 @@ duplicating the logic anywhere else is a bug waiting to happen.
 
 68. **Group views show whether a participant has "Access confirmed".** `AccessChip` reads `participantPushApi.getSignedInIds(cohortId)` (`participants_signed_in`: who has chosen their own password) and shows "Access confirmed" or "Not signed in yet" on the admin Groups page's member rows (adult and teen groups) and on each My Group participant card. While the list has not loaded, or fails, no chip is shown (never a guess). Frontend only; no new database function.
 
+69. **Tapping a Faith project chip opens that project in a popover, on the page it is tapped.** `FaithProjectPopover` takes a participant and loads the project and its edit history itself (read-only, via `faithProjectsApi.getByParticipant` / `getVersions`), so any page can use it. The group people overview (`GroupPeopleOverview`, used by admins and hub leads) uses it: the chip is its own button over the row, and the rest of the row still opens the details. My Group's participant card keeps its own sheet (with the category picker). Frontend only.
+
 ## 5. Edge functions and schedules
 
 All functions authenticate with the session token (`x-session-token`) or the
