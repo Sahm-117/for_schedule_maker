@@ -673,6 +673,8 @@ duplicating the logic anywhere else is a bug waiting to happen.
 
 69. **Tapping a Faith project chip opens that project in a popover, on the page it is tapped.** `FaithProjectPopover` takes a participant and loads the project and its edit history itself (read-only, via `faithProjectsApi.getByParticipant` / `getVersions`), so any page can use it. The group people overview (`GroupPeopleOverview`, used by admins and hub leads) uses it: the chip is its own button over the row, and the rest of the row still opens the details. My Group's participant card keeps its own sheet (with the category picker). Frontend only.
 
+70. **Opening a page starts at the top; going back returns to where you were.** `ScrollToTop` remembers a page's scroll position just before you leave it (it wraps `history.pushState` / `replaceState` and listens to `popstate`) and, on a back navigation (`POP`), scrolls to it again, retrying for about three seconds while the page's list loads and stopping as soon as the person scrolls. Forward navigation and links still start at the top; query-string changes (tabs, filters) still keep the position. The browser's own scroll restoration is switched off. Frontend only.
+
 ## 5. Edge functions and schedules
 
 All functions authenticate with the session token (`x-session-token`) or the
