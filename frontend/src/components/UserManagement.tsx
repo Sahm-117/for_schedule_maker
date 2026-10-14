@@ -29,8 +29,8 @@ const ROLE_BADGE: Record<string, string> = {
 // STAFF is the Team member role: it sees the modules their custom roles allow.
 type StaffRole = 'ADMIN' | 'SUPPORT' | 'STAFF';
 const rolesOf = (user: User): StaffRole[] => (user.roles && user.roles.length > 0 ? user.roles : [user.role as StaffRole]);
-const RoleBadges: React.FC<{ user: User; customNames?: string[] }> = ({ user, customNames = [] }) => (
-  <span className="inline-flex flex-wrap justify-end gap-1">
+const RoleBadges: React.FC<{ user: User; customNames?: string[]; align?: 'start' | 'end' }> = ({ user, customNames = [], align = 'end' }) => (
+  <span className={`inline-flex flex-wrap gap-1 ${align === 'start' ? 'justify-start' : 'justify-end'}`}>
     {rolesOf(user).map((role) => (
       <span key={role} className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${ROLE_BADGE[role]}`}>{ROLE_LABEL[role]}</span>
     ))}
@@ -778,10 +778,11 @@ const UserManagement: React.FC<UserManagementProps> = ({
                           <p className="text-xs text-gray-400 mt-0.5">
                             {user.createdAt ? formatDate(user.createdAt) : ''}
                           </p>
+                          {/* Roles sit under the details so several of them never squeeze the name. */}
+                          <div className="mt-2"><RoleBadges user={user} customNames={customNamesFor(user.id)} align="start" /></div>
                         </div>
-                        {/* Role badge + hamburger */}
+                        {/* Hamburger */}
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          <RoleBadges user={user} customNames={customNamesFor(user.id)} />
                           {hasRowActions && (
                             <div>
                               <button
