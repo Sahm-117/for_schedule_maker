@@ -147,7 +147,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
           console.error('Failed to load prayer statuses:', err);
           return { statuses: [] as GroupPrayerStatus[] };
         }),
-        groupsApi.getAll({ cohortId: activeCohort.id }).catch(() => ({ groups: [] as Group[] })),
+        groupsApi.getAll({ cohortId: activeCohort.id, includeTeenGroups: true }).catch(() => ({ groups: [] as Group[] })),
         faithProjectCategoriesApi.getAll(activeCohort.id).catch(() => ({ categories: [] as FaithProjectCategory[] })),
       ]);
       let groupStatusRes = groupStatusInitial;
@@ -499,7 +499,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
               <SegmentedTabs
                 tabs={[
                   { key: 'discussion', label: 'Discussion', dot: discussionUnseen > 0 },
-                  { key: 'prayers', label: 'Group meetings', shortLabel: 'Meetings' },
+                  ...(selectedGroupData?.isTeenGroup ? [] : [{ key: 'prayers', label: 'Group meetings', shortLabel: 'Meetings' }]),
                   { key: 'faith', label: 'Participants', shortLabel: 'People' },
                 ]}
                 active={activeTab}

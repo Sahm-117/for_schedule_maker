@@ -243,8 +243,11 @@ duplicating the logic anywhere else is a bug waiting to happen.
     keeps the linked participant in exactly one group, the owner's teen group (leaving any adult group), while the
     contact is TEENAGER / TEEN_ONBOARDED, owned and not archived; out of all of them
     otherwise. Teen groups never have meetings, recaps, prayer or onboarding:
-    `groupsApi.getAll` (unless `includeTeenGroups`), `getForSupport` and
-    `resolveSupportScopedGroups` leave them out. A Teen Support's Attendance page
+    `groupsApi.getAll` (unless `includeTeenGroups`) and `getForSupport` leave them out.
+    A Teen Support still sees their teens on My Group and Home: `resolveSupportScopedGroups`
+    (the support's own groups, which feeds `participantsApi.getAll({ supportId })`) includes their
+    teen group, and My Group loads groups with `includeTeenGroups`; it shows Discussion and People
+    but no Group meetings tab or onboarding. Its "only one group" guess still never picks a teen group. A Teen Support's Attendance page
     lists only their teens by default, with "All teens" (any Teen Support may mark any
     teen; `mark_shared_attendance` only needs a staff session) and "Everyone" beside it. Source:
     `20261007100000_teen_groups.sql`, `20261007120000_teen_group_sync_fixes.sql`.

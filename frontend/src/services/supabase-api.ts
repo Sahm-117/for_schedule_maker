@@ -4708,12 +4708,12 @@ const PARTICIPANT_SELECT = `
   followUp:FollowUpContact(registrationStatus)
 `.trim();
 
+// A support's own groups, a Teen Support's teen group included (the guess below never picks a teen group).
 const resolveSupportScopedGroups = async (supportId: string, cohortId?: string | null): Promise<import('../types').Group[]> => {
   let directQuery = supabase
     .from('Group')
     .select(GROUP_SELECT)
     .eq('supportId', supportId)
-    .eq('isTeenGroup', false)
     .is('archivedAt', null)
     .order('name', { ascending: true });
 
