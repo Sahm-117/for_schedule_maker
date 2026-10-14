@@ -65,6 +65,8 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
   // migration is applied.
   const [noAlertsIds, setNoAlertsIds] = useState<Set<string>>(new Set());
   const [notInstalledIds, setNotInstalledIds] = useState<Set<string>>(new Set());
+  // Who has chosen their own password (access confirmed). Null until it loads; if it fails no chip is shown.
+  const [signedInIds, setSignedInIds] = useState<Set<string> | null>(null);
   const [appDetails, setAppDetails] = useState<Record<string, ParticipantAppInfo>>({});
   // Until these have loaded (or if they fail) a card must not claim someone was never seen.
   const [appDetailsLoaded, setAppDetailsLoaded] = useState(false);
@@ -195,6 +197,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
       setCheckIns(checkInsRes.checkIns);
       setNoAlertsIds(new Set(unreachableIds));
       participantPushApi.getNotInstalledIds().then((ids) => setNotInstalledIds(new Set(ids))).catch(() => { /* no tags */ });
+      participantPushApi.getSignedInIds(activeCohort.id).then((ids) => setSignedInIds(new Set(ids))).catch(() => setSignedInIds(null));
       participantPushApi.getAppDetails().then((details) => { setAppDetails(details); setAppDetailsLoaded(true); }).catch(() => { /* details are only a hint */ });
       setFaithHelpRequests(faithHelpRes.requests);
       setTestimonies(testimoniesRes.testimonies);
@@ -601,6 +604,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
                 reflectedAt={reflectionActivity.find((entry) => entry.participantId === participant.id && entry.weekId === selectedWeek?.id)?.createdAt ?? null}
                 helpRequest={checkIns.find((entry) => entry.participantId === participant.id && entry.response === 'NEED_HELP' && !entry.handledAt) ?? null}
                 noAlerts={noAlertsIds.has(participant.id)}
+                accessConfirmed={signedInIds ? signedInIds.has(participant.id) : null}
                 notInstalled={notInstalledIds.has(participant.id)}
                 appInfo={appDetails[participant.id]}
                 appInfoLoaded={appDetailsLoaded}

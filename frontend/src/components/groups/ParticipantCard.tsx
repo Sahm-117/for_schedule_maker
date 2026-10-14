@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import TeenLoginPhone from './TeenLoginPhone';
+import AccessChip from './AccessChip';
 import { createPortal } from 'react-dom';
 import ModalShell from '../followups/ModalShell';
 import InfoTip from '../InfoTip';
@@ -285,6 +286,8 @@ interface ParticipantCardProps {
   onHelpHandled?: (checkIn: ParticipantCheckIn) => void;
   /** Has an active app login but no saved push subscription — can't get alerts. */
   noAlerts?: boolean;
+  /** Has chosen their own password (access confirmed); null while unknown. */
+  accessConfirmed?: boolean | null;
   /** Signed in, but never opened the app from their Home Screen. */
   notInstalled?: boolean;
   /** Their phone type and when the app was last opened, for the line under the tags. */
@@ -324,6 +327,7 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
   helpRequest,
   onHelpHandled,
   noAlerts,
+  accessConfirmed,
   notInstalled,
   appInfo,
   appInfoLoaded,
@@ -528,6 +532,7 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
           <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-semibold text-neutral-600">Archived</span>
         )}
         <RetakingChip participant={participant} matches={retakeMatches} onUpdate={updateRetake} />
+        <AccessChip confirmed={accessConfirmed} />
         {notInstalled && (
           <NotOpenedTag className="px-2.5 py-1 text-[11px]" />
         )}

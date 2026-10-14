@@ -7,6 +7,10 @@ Teens use the normal participant app again (the Teen Welcome / WhatsApp page is 
 - **Several teens on one guardian number**: after a guardian-number sign-in a "Who is this?" screen lets them pick a teen (switch later from the menu). A teen who signs in with their own number never sees the others. Guardians see everything the teen sees.
 - Also in this stretch (separate commit): a a Teen Support's own teens now load on My Group and Home (the group lookup skipped teen groups).
 
+## Also in this stretch (frontend only, local until pushed)
+- Admin Users page on a phone: role chips now sit under the details, so a person with several roles no longer squeezes their name and date (rule: none, layout fix).
+- "Access confirmed" / "Not signed in yet" chip on the admin Groups page's member rows and on My Group participant cards (FLOW_MAP rule 68). Reads the existing `participants_signed_in`. Richer states (login issued but never used, no login at all) are not shown yet.
+
 ## Live changes
 **Applied live (17 Oct 2026):** `20261017100000_teen_login_phone.sql` (after a rolled-back run of 20 checks; the same 20 checks passed again against the live functions, rolled back) and `20261017110000_discussion_summary_with_teen_groups.sql` (the admin Dashboard "Discussions this week" line counts teen groups again; checked rolled back: 23 groups incl. 5 teen, a teen-group post counts). No edge function deployed.
 `20261017100000` adds: `AppSession."viaTeenNumber"`, table `ParticipantLoginPhone` (locked), `sign_in` (replaced), `participant_family`, `participant_switch`, `teen_login_state`, `teen_login_phone_set`, private helpers `teen_login_staff_allowed`, `teen_family_members`. Rollback notes are at the top of the file.

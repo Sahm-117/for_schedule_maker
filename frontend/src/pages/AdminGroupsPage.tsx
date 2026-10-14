@@ -6,13 +6,14 @@ import { usePermissions } from '../hooks/usePermissions';
 import { useAppData } from '../context/AppDataContext';
 import FilterBar, { describeFilters, type FilterGroup } from '../components/filters/FilterBar';
 import { useUrlFilters } from '../hooks/useUrlFilters';
-import { cohortsApi, groupDiscussionApi, groupsApi, participantsApi, settingsApi, supportHubsApi, supportKindApi, supportSessionsApi, supportTagsApi, usersApi } from '../services/api';
+import { cohortsApi, groupDiscussionApi, groupsApi, participantPushApi, participantsApi, settingsApi, supportHubsApi, supportKindApi, supportSessionsApi, supportTagsApi, usersApi } from '../services/api';
 import type { Group, OnboardingProgressParticipant, Participant, User, GroupCallPlatform, SupportKind, SupportSession, SupportTag } from '../types';
 import ModalShell from '../components/followups/ModalShell';
 import ConfirmationModal from '../components/ConfirmationModal';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import AppSelect from '../components/AppSelect';
 import Avatar from '../components/Avatar';
+import AccessChip from '../components/groups/AccessChip';
 import GroupsExportPopup from '../components/groups/GroupsExportPopup';
 import GroupEngineWizard from '../components/groups/GroupEngineWizard';
 import NewGroupChooser from '../components/groups/NewGroupChooser';
@@ -459,6 +460,8 @@ const AdminGroupsContent: React.FC = () => {
   const [groups, setGroups] = useState<Group[]>([]);
   // A Teen Support's teens, kept apart: no meetings or recaps, Sunday attendance only.
   const [teenGroups, setTeenGroups] = useState<Group[]>([]);
+  // Who has chosen their own password (access confirmed). Null until it loads; if it fails no chip is shown.
+  const [signedInIds, setSignedInIds] = useState<Set<string> | null>(null);
   const [movingTeen, setMovingTeen] = useState<{ participantId: string; name: string } | null>(null);
   const toast = useToast();
   const [teenFlowOn, setTeenFlowOn] = useState(false);
@@ -611,6 +614,11 @@ const AdminGroupsContent: React.FC = () => {
     if (!didInitialLoad.current) { didInitialLoad.current = true; return; }
     void load(true);
   }, [liveRevision, load]);
+  // Access confirmed: refreshed with the page, quietly (a failure just hides the chips).
+  useEffect(() => {
+    if (!activeCohort?.id) { setSignedInIds(null); return; }
+    participantPushApi.getSignedInIds(activeCohort.id).then((ids) => setSignedInIds(new Set(ids))).catch(() => setSignedInIds(null));
+  }, [activeCohort?.id, liveRevision]);
 
   const handleArchive = async () => {
     if (!archiveTarget) return;
@@ -836,6 +844,7 @@ const AdminGroupsContent: React.FC = () => {
                           <p className="truncate text-sm font-semibold leading-tight text-gray-900">{p.fullName}</p>
                           <p className="truncate text-xs text-gray-400">{[p.phone, genderAgeLine(p)].filter(Boolean).join(' · ')}</p>
                         </div>
+                        <AccessChip confirmed={signedInIds ? signedInIds.has(p.id) : null} />
                       </div>
                     ))}
                   </div>
@@ -890,6 +899,7 @@ const AdminGroupsContent: React.FC = () => {
                             <p className="truncate text-sm font-semibold leading-tight text-gray-900">{p.fullName}</p>
                             <p className="truncate text-xs text-gray-400">{[p.guardianPhone ?? p.phone, genderAgeLine(p)].filter(Boolean).join(' · ')}</p>
                           </div>
+                          <AccessChip confirmed={signedInIds ? signedInIds.has(p.id) : null} />
                           {canEdit && (
                             <button
                               type="button"
