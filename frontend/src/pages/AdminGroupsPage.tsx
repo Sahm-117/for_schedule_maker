@@ -864,6 +864,17 @@ const AdminGroupsContent: React.FC = () => {
                       </p>
                     </div>
                     <div className="flex flex-shrink-0 items-center gap-1.5">
+                      {g.supportId && (
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/group-view/${g.supportId}?cohort=${g.cohortId}`)}
+                          aria-label={`Read the discussion of ${g.name}`}
+                          title="Open group & discussion"
+                          className="grid h-8 w-8 place-items-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+                        >
+                          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-3.9A8 8 0 1 1 20 12Z" /></svg>
+                        </button>
+                      )}
                       <span className="rounded-full bg-pink-100/80 px-2.5 py-0.5 text-xs font-semibold text-pink-700">Teen</span>
                       <span className="rounded-full bg-sky-100/80 px-2.5 py-0.5 text-xs font-semibold text-sky-700">{g.participantCount ?? members.length}</span>
                     </div>

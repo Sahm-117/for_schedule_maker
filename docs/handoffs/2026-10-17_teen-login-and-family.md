@@ -5,11 +5,11 @@ Teens use the normal participant app again (the Teen Welcome / WhatsApp page is 
 - The **guardian signs in first** on their number (`Participant.phone`), as today.
 - A Teen Support can then add the **teen's own number** on the teen's card in My Group ("Their own number to sign in"). It is a second number on the **same login and password**, not a second account. It stays locked ("waiting for their parent or guardian") until someone on the guardian number has chosen a password.
 - **Several teens on one guardian number**: after a guardian-number sign-in a "Who is this?" screen lets them pick a teen (switch later from the menu). A teen who signs in with their own number never sees the others. Guardians see everything the teen sees.
-- Also in this stretch (separate commit): a Teen Support's own teens now load on My Group and Home (the group lookup skipped teen groups).
+- Also in this stretch (separate commit): a a Teen Support's own teens now load on My Group and Home (the group lookup skipped teen groups).
 
 ## Live changes
-**Not applied yet.** The migration `20261017100000_teen_login_phone.sql` is in the repo and was run live inside a transaction that always rolled back (20 checks passed, nothing kept). Until it is applied the new RPCs do not exist: the app falls back safely (no picker, the card row stays hidden), but own-number sign-in is not available.
-The migration adds: `AppSession."viaTeenNumber"`, table `ParticipantLoginPhone` (locked), `sign_in` (replaced), `participant_family`, `participant_switch`, `teen_login_state`, `teen_login_phone_set`, private helpers `teen_login_staff_allowed`, `teen_family_members`. Rollback notes are at the top of the file.
+**Applied live (17 Oct 2026):** `20261017100000_teen_login_phone.sql` (after a rolled-back run of 20 checks; the same 20 checks passed again against the live functions, rolled back) and `20261017110000_discussion_summary_with_teen_groups.sql` (the admin Dashboard "Discussions this week" line counts teen groups again; checked rolled back: 23 groups incl. 5 teen, a teen-group post counts). No edge function deployed.
+`20261017100000` adds: `AppSession."viaTeenNumber"`, table `ParticipantLoginPhone` (locked), `sign_in` (replaced), `participant_family`, `participant_switch`, `teen_login_state`, `teen_login_phone_set`, private helpers `teen_login_staff_allowed`, `teen_family_members`. Rollback notes are at the top of the file.
 
 ## Decisions and why
 - Own number = alias on the same account (the request said "log in with that login"); no second password, so no changes to set/change-password code.
@@ -22,6 +22,6 @@ The migration adds: `AppSession."viaTeenNumber"`, table `ParticipantLoginPhone` 
 - **Not tested:** real accounts on live data after the migration is applied; push notifications on a shared phone; first-time Welcome guide appearing over the picker (it does, then the picker).
 
 ## Open items
-- Apply the migration, then smoke-test with one real teen.
+- Smoke-test with one real teen after the first guardian sign-in.
 - Of 20 active teens, 19 have no guardian number recorded (number owner unknown); for them `Participant.phone` may be the teen's own. The guardian-first lock still applies.
-- Teen group discussion: the discussion works for a teen group (teens and their Teen Support) because it is generic over groups; admin summary still skips teen groups (rule 37). Decide whether to keep it.
+- Teen group discussion is on: it works for a teen group (teens and their Teen Support) because it is generic over groups. Admin now sees it: the Dashboard line counts teen groups and the teen cards on the admin Groups page have an icon that opens the group and its discussion (rule 37). Not browser-tested end to end on live data; a hub lead's view of a teen group was not checked.

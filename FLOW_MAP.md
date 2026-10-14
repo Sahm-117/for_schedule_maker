@@ -455,9 +455,11 @@ duplicating the logic anywhere else is a bug waiting to happen.
     or searchable on that list (the database, and the contacts and people lists a support can open elsewhere,
     still carry them). A Wrong Number contact shows
     a Wrong number chip. Source: `SupportMobilisationPage`, `formRegistrationsApi`.
-37. **Teen groups are left out of the admin "Discussions this week" line.** They have no in-app discussion (they use
-    WhatsApp), so `admin_discussion_summary` skips `Group.isTeenGroup`; with only teen groups the line is hidden.
-    Source: `20261009100000_discussion_summary_no_teen_groups.sql`.
+37. **Teen groups count in the admin "Discussions this week" line again.** (They were left out while teens used WhatsApp,
+    `20261009100000`.) Teens are back in the app and their group discussion works like any other (the discussion functions are
+    generic over groups), so `admin_discussion_summary` counts every active group of the cohort, teen groups included, and the
+    admin Groups page's teen cards have an icon that opens the group and its discussion (`/group-view/:supportId`).
+    Source: `20261017110000_discussion_summary_with_teen_groups.sql`.
 
 38. **A class can carry a graphic and a teacher, and the participant home shows them as the "Next class" card.** Staff
     add them in the week editor on the Cohorts page (`Week.classGraphicUrl`, `teacherName`, `teacherRole`, `teacherBio`,
