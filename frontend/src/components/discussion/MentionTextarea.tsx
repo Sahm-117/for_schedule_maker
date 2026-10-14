@@ -23,14 +23,14 @@ const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\
 export const MentionText: React.FC<{ text: string; mentions?: DiscussionMention[] }> = ({ text, mentions }) => {
   const names = Array.from(new Set((mentions ?? []).map((m) => m.name).filter((n): n is string => !!n)))
     .sort((a, b) => b.length - a.length);
-  if (names.length === 0) return <>{linkifyText(text)}</>;
+  if (names.length === 0) return <>{linkifyText(text, { images: true })}</>;
   const pattern = new RegExp(`(@(?:${names.map(escapeRegExp).join('|')}))`, 'g');
   return (
     <>
       {text.split(pattern).map((part, i) => (
         i % 2 === 1
           ? <span key={i} className="font-semibold text-primary">{part}</span>
-          : <React.Fragment key={i}>{linkifyText(part)}</React.Fragment>
+          : <React.Fragment key={i}>{linkifyText(part, { images: true })}</React.Fragment>
       ))}
     </>
   );
@@ -69,14 +69,20 @@ const MentionTextarea: React.FC<MentionTextareaProps> = ({ value, onChange, ment
   const [query, setQuery] = useState<string | null>(null);
   const [slash, setSlash] = useState<string | null>(null);
   const [active, setActive] = useState(0);
+  // Enter only picks after the person has moved through the menu with the arrow keys; Escape keeps it closed
+  // until the text changes again (the key-up that follows must not reopen it).
+  const navigated = useRef(false);
+  const dismissedText = useRef<string | null>(null);
 
   // "@" at the start or after a space, followed by up to 30 non-space characters, right before the caret.
   const updateQuery = (text: string, caret: number) => {
     const match = /(^|\s)@([^\s@]{0,30})$/.exec(text.slice(0, caret));
     setQuery(match ? match[2] : null);
-    const slashMatch = slashItems && slashItems.length > 0 ? SLASH_AT_CARET.exec(text.slice(0, caret)) : null;
+    const slashMatch = slashItems && slashItems.length > 0 && dismissedText.current !== text ? SLASH_AT_CARET.exec(text.slice(0, caret)) : null;
+    if (dismissedText.current !== null && dismissedText.current !== text) dismissedText.current = null;
     setSlash(slashMatch ? slashMatch[2] : null);
     setActive(0);
+    navigated.current = false;
   };
 
   const slashMatches = slash === null || !slashItems ? [] : slashItems.filter((i) => i.label.toLowerCase().includes(slash.toLowerCase()));
@@ -123,14 +129,14 @@ const MentionTextarea: React.FC<MentionTextareaProps> = ({ value, onChange, ment
         onChange={(e) => { onChange(e.target.value); updateQuery(e.target.value, e.target.selectionStart); }}
         onKeyDown={(e) => {
           if (slashMatches.length === 0) return;
-          if (e.key === 'ArrowDown') { e.preventDefault(); setActive((a) => (a + 1) % slashMatches.length); }
-          else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((a) => (a - 1 + slashMatches.length) % slashMatches.length); }
-          else if (e.key === 'Enter') { e.preventDefault(); pickSlash(slashMatches[Math.min(active, slashMatches.length - 1)]); }
-          else if (e.key === 'Escape') { e.preventDefault(); setSlash(null); }
+          if (e.key === 'ArrowDown') { e.preventDefault(); navigated.current = true; setActive((a) => (a + 1) % slashMatches.length); }
+          else if (e.key === 'ArrowUp') { e.preventDefault(); navigated.current = true; setActive((a) => (a - 1 + slashMatches.length) % slashMatches.length); }
+          else if (e.key === 'Enter' && navigated.current) { e.preventDefault(); pickSlash(slashMatches[Math.min(active, slashMatches.length - 1)]); }
+          else if (e.key === 'Escape') { e.preventDefault(); dismissedText.current = e.currentTarget.value; setSlash(null); }
         }}
         onKeyUp={(e) => {
-          // Moving through the menu must not reset it.
-          if (slashMatches.length > 0 && ['ArrowDown', 'ArrowUp', 'Enter', 'Escape'].includes(e.key)) return;
+          // Moving through the menu (or closing it) must not reset it.
+          if (['ArrowDown', 'ArrowUp', 'Enter', 'Escape'].includes(e.key) && (slashMatches.length > 0 || dismissedText.current !== null)) return;
           updateQuery(e.currentTarget.value, e.currentTarget.selectionStart);
         }}
         onClick={(e) => updateQuery(e.currentTarget.value, e.currentTarget.selectionStart)}

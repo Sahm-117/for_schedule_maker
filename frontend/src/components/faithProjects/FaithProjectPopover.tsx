@@ -18,7 +18,7 @@ const CHIP: Record<string, string> = {
 const FaithProjectPopover: React.FC<{ participant: { id: string; name: string } | null; onClose: () => void }> = ({ participant, onClose }) => {
   const [project, setProject] = useState<FaithProject | null>(null);
   const [versions, setVersions] = useState<FaithProjectVersion[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {

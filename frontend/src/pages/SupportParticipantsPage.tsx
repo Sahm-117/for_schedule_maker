@@ -66,7 +66,8 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
   const [noAlertsIds, setNoAlertsIds] = useState<Set<string>>(new Set());
   const [notInstalledIds, setNotInstalledIds] = useState<Set<string>>(new Set());
   // Who has chosen their own password (access confirmed). Null until it loads; if it fails no chip is shown.
-  const [signedInIds, setSignedInIds] = useState<Set<string> | null>(null);
+  const [signedIn, setSignedIn] = useState<{ cohortId: string; ids: Set<string> } | null>(null);
+  const signedInIds = signedIn && signedIn.cohortId === activeCohortId ? signedIn.ids : null;
   const [appDetails, setAppDetails] = useState<Record<string, ParticipantAppInfo>>({});
   // Until these have loaded (or if they fail) a card must not claim someone was never seen.
   const [appDetailsLoaded, setAppDetailsLoaded] = useState(false);
@@ -197,7 +198,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
       setCheckIns(checkInsRes.checkIns);
       setNoAlertsIds(new Set(unreachableIds));
       participantPushApi.getNotInstalledIds().then((ids) => setNotInstalledIds(new Set(ids))).catch(() => { /* no tags */ });
-      participantPushApi.getSignedInIds(activeCohort.id).then((ids) => setSignedInIds(new Set(ids))).catch(() => setSignedInIds(null));
+      participantPushApi.getSignedInIds(activeCohort.id).then((ids) => setSignedIn({ cohortId: activeCohort.id, ids: new Set(ids) })).catch(() => setSignedIn(null));
       participantPushApi.getAppDetails().then((details) => { setAppDetails(details); setAppDetailsLoaded(true); }).catch(() => { /* details are only a hint */ });
       setFaithHelpRequests(faithHelpRes.requests);
       setTestimonies(testimoniesRes.testimonies);

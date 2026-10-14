@@ -13,7 +13,8 @@ export const useTodaysScripture = (cohortStartDate: string | null | undefined, e
     let cancelled = false;
     Promise.all([settingsApi.getScripturesEnabled(), settingsApi.getScriptureStartDay(), scripturesApi.getAll()])
       .then(([on, startDay, { scriptures }]) => {
-        if (cancelled || !on) return;
+        if (cancelled) return;
+        if (!on) { setToday(null); return; }
         const all = scriptures.map((s) => ({ dayNumber: s.dayNumber, imageUrl: s.imageUrl }));
         const position = scripturePosition(scriptureDayIndex(cohortStartDate, new Date()), startDay, all.length);
         const found = position ? scriptureForDay(all, position) : null;

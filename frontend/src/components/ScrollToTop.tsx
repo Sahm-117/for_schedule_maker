@@ -18,6 +18,13 @@ import { useLocation, useNavigationType } from 'react-router-dom';
 
 // Where each visited history entry was scrolled to when it was left (by its router key).
 const positions = new Map<string, number>();
+const MAX_POSITIONS = 100;
+const rememberPosition = (key: string, y: number) => {
+  positions.delete(key);
+  positions.set(key, y);
+  // Keep only the most recent pages, so a long session does not grow this without end.
+  while (positions.size > MAX_POSITIONS) positions.delete(positions.keys().next().value as string);
+};
 
 const ScrollToTop: React.FC = () => {
   const { pathname, hash, key } = useLocation();
@@ -34,7 +41,7 @@ const ScrollToTop: React.FC = () => {
 
   // Remember the page being left, at the moment of leaving (before the next page replaces it).
   useEffect(() => {
-    const remember = () => { positions.set(keyRef.current, window.scrollY); };
+    const remember = () => { rememberPosition(keyRef.current, window.scrollY); };
     const { pushState, replaceState } = window.history;
     window.history.pushState = function patchedPush(this: History, ...args: Parameters<History['pushState']>) { remember(); return pushState.apply(this, args); };
     window.history.replaceState = function patchedReplace(this: History, ...args: Parameters<History['replaceState']>) {
@@ -50,11 +57,17 @@ const ScrollToTop: React.FC = () => {
     };
   }, []);
 
+  const previousPath = useRef<string | null>(null);
+
   useEffect(() => {
+    const pathChanged = previousPath.current !== pathname;
+    previousPath.current = pathname;
     if (hash) return undefined;
     const saved = navigationType === 'POP' ? positions.get(key) : undefined;
     if (saved === undefined || saved <= 0) {
-      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      // A new page (or the first load) starts at the top. Going back to a page that was at the top, or a
+      // query-string-only step (tabs, filters), is left where it is.
+      if (pathChanged) window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
       return undefined;
     }
 
@@ -67,7 +80,7 @@ const ScrollToTop: React.FC = () => {
     const attempt = () => {
       if (stopped) return;
       window.scrollTo({ top: saved, left: 0, behavior: 'auto' });
-      if (Math.abs(window.scrollY - saved) > 2 && tries < 30) {
+      if (Math.abs(window.scrollY - saved) > 2 && tries < 50) {
         tries += 1;
         timer = window.setTimeout(attempt, 100);
       }
@@ -82,9 +95,7 @@ const ScrollToTop: React.FC = () => {
       window.removeEventListener('touchstart', stop);
       window.removeEventListener('keydown', stop);
     };
-    // Only a change of page counts (not a query-string change), as before.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname, hash]);
+  }, [key, pathname, hash, navigationType]);
 
   return null;
 };

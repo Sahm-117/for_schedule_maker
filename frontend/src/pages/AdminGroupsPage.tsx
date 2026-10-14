@@ -461,7 +461,8 @@ const AdminGroupsContent: React.FC = () => {
   // A Teen Support's teens, kept apart: no meetings or recaps, Sunday attendance only.
   const [teenGroups, setTeenGroups] = useState<Group[]>([]);
   // Who has chosen their own password (access confirmed). Null until it loads; if it fails no chip is shown.
-  const [signedInIds, setSignedInIds] = useState<Set<string> | null>(null);
+  const [signedIn, setSignedIn] = useState<{ cohortId: string; ids: Set<string> } | null>(null);
+  const signedInIds = signedIn && signedIn.cohortId === activeCohort?.id ? signedIn.ids : null;
   const [movingTeen, setMovingTeen] = useState<{ participantId: string; name: string } | null>(null);
   const toast = useToast();
   const [teenFlowOn, setTeenFlowOn] = useState(false);
@@ -616,8 +617,13 @@ const AdminGroupsContent: React.FC = () => {
   }, [liveRevision, load]);
   // Access confirmed: refreshed with the page, quietly (a failure just hides the chips).
   useEffect(() => {
-    if (!activeCohort?.id) { setSignedInIds(null); return; }
-    participantPushApi.getSignedInIds(activeCohort.id).then((ids) => setSignedInIds(new Set(ids))).catch(() => setSignedInIds(null));
+    const cohortId = activeCohort?.id;
+    if (!cohortId) return undefined;
+    let cancelled = false;
+    participantPushApi.getSignedInIds(cohortId)
+      .then((ids) => { if (!cancelled) setSignedIn({ cohortId, ids: new Set(ids) }); })
+      .catch(() => { if (!cancelled) setSignedIn(null); });
+    return () => { cancelled = true; };
   }, [activeCohort?.id, liveRevision]);
 
   const handleArchive = async () => {

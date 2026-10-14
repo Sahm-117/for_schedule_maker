@@ -210,7 +210,7 @@ const GroupPeopleOverview: React.FC<{ groupId: string }> = ({ groupId }) => {
           </>
         )}
       </section>
-      <FaithProjectPopover participant={faithFor} onClose={() => setFaithFor(null)} />
+      <FaithProjectPopover key={faithFor?.id ?? 'none'} participant={faithFor} onClose={() => setFaithFor(null)} />
     </>
   );
 };
