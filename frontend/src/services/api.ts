@@ -1051,10 +1051,14 @@ export const hubApi = USE_SUPABASE ? supabaseHubApi : {
 export const participantAccountsApi = USE_SUPABASE ? supabaseParticipantAccountsApi : {
   async getLoginDetails(_target: { participantId?: string | null; followUpContactId?: string | null }, _options?: { issue?: boolean; newCode?: boolean }): Promise<never> { return peopleUnavailable(); },
   async setOwnPassword(_newPassword: string): Promise<never> { return peopleUnavailable(); },
+  async getTeenLoginState(_participantIds: string[]): Promise<import('../types').TeenLoginState[]> { return []; },
+  async setTeenLoginPhone(_participantId: string, _phone: string | null, _remove?: boolean): Promise<never> { return peopleUnavailable(); },
 };
 
 export const participantAppApi = USE_SUPABASE ? supabaseParticipantAppApi : {
   async getTeenInfo(): Promise<import('../types').ParticipantTeenInfo> { return { isTeen: false }; },
+  async getFamily(): Promise<import('../types').TeenFamilyMember[]> { return []; },
+  async switchTo(_participantId: string): Promise<void> { return peopleUnavailable(); },
   async getHome(): Promise<never> { return peopleUnavailable(); },
   async getPeople(): Promise<never> { return peopleUnavailable(); },
   async getReadySteps(): Promise<string[]> { return []; },

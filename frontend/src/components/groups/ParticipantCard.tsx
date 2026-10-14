@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import TeenLoginPhone from './TeenLoginPhone';
 import { createPortal } from 'react-dom';
 import ModalShell from '../followups/ModalShell';
 import InfoTip from '../InfoTip';
@@ -559,6 +560,7 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
           </span>
         )}
       </div>
+      <TeenLoginPhone participant={participant} />
       {onboarding && (
         <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
           {onboarding.completed ? (

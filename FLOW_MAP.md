@@ -103,7 +103,7 @@ duplicating the logic anywhere else is a bug waiting to happen.
    share a number and an email) and every participant aged "10 - 17":
    teens may share a number, usually a parent's
    (`20261006170000_teens_share_phone_and_abimbola.sql`). Sign-in tries the password across every
-   same-number row, newest cohort first. Never add email login: duplicate
+   same-number row, newest cohort first (a teen's own number too: rule 67). Never add email login: duplicate
    emails exist. Source: `20261004180000_shared_phone_signin.sql`.
 4. **Same-gender assignment with a load cap.** Unassigned contacts go to a
    same-gender support with room, introducer first, then fewest open. Cap
@@ -271,7 +271,7 @@ duplicating the logic anywhere else is a bug waiting to happen.
     "quiet" Teen Supports (`teen_quiet_bypass_until`, read by `teen_quiet_bypass()`); then the
     normal quiet check returns by itself. Source: `20261007140000_teen_enable_move.sql`,
     `20261007150000_teen_assignment_ignore_quiet.sql`, `20261007160000_teen_quiet_bypass_once.sql`.
-25. **A teen with an app login only sees the Teen Welcome page.** While teen handling is on,
+25. **(Replaced by rule 67: teens use the app again.) A teen with an app login only sees the Teen Welcome page.** While teen handling is on,
     `participant_teen_info` returns `isTeen` for a participant whose follow-up contact is
     TEENAGER / TEEN_ONBOARDED; `ParticipantShell` then renders `TeenWelcomePage` (their Teen
     Support's name and a WhatsApp link, what happens next, Log out) instead of the app, on every
@@ -664,6 +664,8 @@ duplicating the logic anywhere else is a bug waiting to happen.
 64. **Hub message alerts say who sent them.** `post_hub_message` prefixes the alert title (bell and push) with "Hub Lead · ", "Assistant Hub Lead · " or "Admin · ", decided from the sender and the hub's `leadUserId` / `assistantLeadUserId`. The stored `HubMessage.subject` is unchanged and earlier alerts are not rewritten (`20261016300000_hub_message_sender_label.sql`).
 65. **A support's profile popup shows Call and WhatsApp for everyone except participants.** `HubAuthorProfileModal` shows them when the viewer is not a participant and the profile is a support with a phone number. Frontend only.
 66. **An IT support's "Next hub meeting" on their Home is their own hub's.** `SupportHomePage.tsx` uses the hub they are a member of (`HubMembership`); hubs they cover only as IT support never replace it. Only a hub-only support with no hub of their own sees the soonest meeting across the hubs they cover. Frontend only.
+
+67. **Teens use the app; the guardian signs in first; a teen can have a number of their own; one guardian number can carry several teens.** `ParticipantShell` no longer shows the Teen Welcome page (`participant_teen_info` and `TeenWelcomePage` remain but are unused). The guardian's number is `Participant.phone`. A teen's own number is an alias for the same account and password (`ParticipantLoginPhone`, one per teen, unique across the table and never equal to any `Participant.phone`); `sign_in` matches either number, and a session that came in through the own number carries `AppSession.viaTeenNumber`. A Teen Support (or admin, or the owner of the lead) adds it on the teen's card in My Group (`TeenLoginPhone`, `teen_login_state` / `teen_login_phone_set`), and only after someone on the guardian number, same cohort, has chosen a password (`GUARDIAN_FIRST`). Teens ("10 - 17") of the same cohort on one guardian number get a "Who is this?" choice after a guardian-number sign-in (`participant_family`, `participant_switch`, `FamilyPicker`); the guardian number counts as proved once any teen's password on it matches, and a session through a teen's own number is never offered the others. Guardians see everything the teen sees. Source: `20261017100000_teen_login_phone.sql`.
 
 ## 5. Edge functions and schedules
 

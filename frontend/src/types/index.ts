@@ -1115,6 +1115,20 @@ export interface ParticipantNotification {
   createdAt: string;
 }
 
+/** A teen on the same guardian number as the signed-in teen (the "Who is this?" choice). */
+export interface TeenFamilyMember {
+  id: string;
+  name: string;
+  current: boolean;
+}
+
+/** Where a teen stands on having a number of their own: NONE = can be added, LOCKED = the guardian has not chosen a password yet. */
+export interface TeenLoginState {
+  participantId: string;
+  ownPhone: string | null;
+  status: 'NOT_TEEN' | 'LOCKED' | 'NONE' | 'SET';
+}
+
 /** Whether the signed-in participant is a teen looked after on WhatsApp, and by whom. */
 export interface ParticipantTeenInfo {
   isTeen: boolean;

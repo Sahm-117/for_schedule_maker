@@ -3454,6 +3454,28 @@ export const participantAccountsApi = {
     if (error) throw accountError(error.message, 'Could not save your password. Please try again.');
     return { user: data as User };
   },
+
+  // A teen's own number (a second way into the same login). Staff only; the database checks who may.
+  async getTeenLoginState(participantIds: string[]): Promise<import('../types').TeenLoginState[]> {
+    if (participantIds.length === 0) return [];
+    const { data, error } = await supabase.rpc('teen_login_state', { p_token: getSessionToken(), p_participant_ids: participantIds });
+    if (error) throw accountError(error.message, 'Could not load their login number. Please try again.');
+    return (data as import('../types').TeenLoginState[] | null) ?? [];
+  },
+
+  async setTeenLoginPhone(participantId: string, phone: string | null, remove = false): Promise<import('../types').TeenLoginState> {
+    const { data, error } = await supabase.rpc('teen_login_phone_set', { p_token: getSessionToken(), p_participant_id: participantId, p_phone: phone, p_remove: remove });
+    if (error) {
+      const msg = error.message || '';
+      if (msg.includes('GUARDIAN_FIRST')) throw new Error('Their parent or guardian has to sign in and choose a password first.');
+      if (msg.includes('SAME_AS_GUARDIAN')) throw new Error("That is the guardian's number. Enter the teen's own number.");
+      if (msg.includes('NUMBER_IN_USE')) throw new Error('That number is already used by someone else in the app.');
+      if (msg.includes('BAD_NUMBER')) throw new Error('Enter a valid phone number.');
+      if (msg.includes('NOT_A_TEEN')) throw new Error('Only a teen can have a second number.');
+      throw accountError(msg, 'Could not save the number. Please try again.');
+    }
+    return data as import('../types').TeenLoginState;
+  },
 };
 
 
@@ -3481,6 +3503,25 @@ export const participantAppApi = {
     const { data, error } = await supabase.rpc('participant_teen_info', { p_token: getSessionToken() });
     if (error) throw participantAppError(error.message, 'Could not load your FOF space. Please try again.');
     return data as import('../types').ParticipantTeenInfo;
+  },
+
+  // The teens a guardian can choose between after signing in (empty for everyone else, and while the database
+  // function is not there yet: the app then opens as normal).
+  async getFamily(): Promise<import('../types').TeenFamilyMember[]> {
+    const { data, error } = await supabase.rpc('participant_family', { p_token: getSessionToken() });
+    if (error) return [];
+    return (data as import('../types').TeenFamilyMember[] | null) ?? [];
+  },
+
+  // Open another teen on the same guardian number: a fresh session replaces this one.
+  async switchTo(participantId: string): Promise<void> {
+    const { data, error } = await supabase.rpc('participant_switch', { p_token: getSessionToken(), p_participant_id: participantId });
+    if (error || !data) throw new Error('Could not open that profile. Please try again.');
+    const { token, user } = data as { token: string; user: User };
+    localStorage.setItem(SESSION_TOKEN_KEY, token);
+    localStorage.setItem('accessToken', `mock_token_${user.id}`);
+    localStorage.setItem('refreshToken', `refresh_token_${user.id}`);
+    localStorage.setItem('user', JSON.stringify(user));
   },
 
   async getHome(): Promise<import('../types').ParticipantHome> {

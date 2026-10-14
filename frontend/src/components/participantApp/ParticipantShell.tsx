@@ -27,7 +27,7 @@ import AnnouncementPopupHost from '../AnnouncementPopupHost';
 import { POPUP_PRIORITY, usePopupSlot, useSettled } from '../../utils/popupQueue';
 import { applyTheme } from '../../utils/theme';
 import PageLoader from '../PageLoader';
-import TeenWelcomePage, { useTeenGate } from './TeenWelcomePage';
+import FamilyPicker, { useFamilyChoice, useSwitchTeen } from './FamilyPicker';
 
 // Layout for the participant app: sidebar on desktop, floating bar on mobile, the
 // same look as the support app. Also asks "are you okay?" when their attendance
@@ -116,6 +116,7 @@ const useSessionDismiss = (key: string) => {
 
 const ShellLayout: React.FC = () => {
   const { user, logout } = useAuth();
+  const { canSwitch, switchTeen } = useSwitchTeen();
   const { home, reload } = useParticipantApp();
   const groupMeetingLive = !!home?.groupMeetingLive;
   const location = useLocation();
@@ -209,6 +210,11 @@ const ShellLayout: React.FC = () => {
               <p className="truncate text-sm font-semibold text-gray-900">{user.name}</p>
               <p className="text-xs text-gray-500">Participant</p>
             </div>
+            {canSwitch && (
+              <button type="button" onClick={switchTeen} className="rounded-xl border border-orange-200 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-white">
+                Switch
+              </button>
+            )}
             <button type="button" onClick={logout} className="rounded-xl border border-orange-200 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-white">
               Logout
             </button>
@@ -286,6 +292,12 @@ const ShellLayout: React.FC = () => {
                 {item.label}
               </NavLink>
             ))}
+            {canSwitch && (
+              <button type="button" onClick={() => { setMoreOpen(false); switchTeen(); }} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold text-gray-800 hover:bg-gray-50">
+                <Icon d="M7 16V4m0 0L3 8m4-4 4 4M17 8v12m0 0 4-4m-4 4-4-4" />
+                Switch teen
+              </button>
+            )}
             <button type="button" onClick={() => { setMoreOpen(false); logout(); }} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold text-gray-800 hover:bg-gray-50">
               <Icon d="M15 17l5-5-5-5M20 12H9M12 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7" />
               Sign out
@@ -321,11 +333,12 @@ const ShellLayout: React.FC = () => {
   );
 };
 
-// A teen (10 - 17, while teen handling is on) gets only the Teen Welcome page, never the app.
+// Teens use the app like everyone else. A guardian who signs in on a number several teens share
+// first chooses which teen to open (FLOW_MAP rule 67).
 const ParticipantShell: React.FC = () => {
-  const gate = useTeenGate();
-  if (gate.status === 'loading') return <PageLoader />;
-  if (gate.status === 'teen') return <TeenWelcomePage info={gate.info} />;
+  const { choice, choose, error } = useFamilyChoice();
+  if (choice.status === 'loading') return <PageLoader />;
+  if (choice.status === 'choose') return <FamilyPicker members={choice.members} onChoose={(id) => { void choose(id); }} error={error} />;
   return (
     <ParticipantAppProvider>
       <ToastProvider>
