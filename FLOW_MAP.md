@@ -675,6 +675,8 @@ duplicating the logic anywhere else is a bug waiting to happen.
 
 70. **Opening a page starts at the top; going back returns to where you were.** `ScrollToTop` remembers a page's scroll position just before you leave it (it wraps `history.pushState` / `replaceState` and listens to `popstate`) and, on a back navigation (`POP`), scrolls to it again, retrying for about three seconds while the page's list loads and stopping as soon as the person scrolls. Forward navigation and links still start at the top; query-string changes (tabs, filters) still keep the position. The browser's own scroll restoration is switched off. Frontend only.
 
+71. **A support types "/" in their group message box for conversation starters, with today's scripture first.** Only the group's own support (`feed.access === 'SUPPORT'`, `StaffDiscussionPanel`) gets it. The list is `CONVERSATION_STARTERS` in `utils/conversationStarters.ts` (frontend constants, edited in code). "/" only counts at the start or after a space, so links and words like "and/or" never open it; typing after it filters by name. "Today's scripture" is worked out like the Home card (`useTodaysScripture`: the scriptures switch, the first-day setting, the day opening at 3 pm Lagos) and puts the picture's link and a question in the message. A post that carries an Inspirational Scripture picture link shows the picture itself (`linkifyText`), for everyone who reads the discussion. No database change.
+
 ## 5. Edge functions and schedules
 
 All functions authenticate with the session token (`x-session-token`) or the

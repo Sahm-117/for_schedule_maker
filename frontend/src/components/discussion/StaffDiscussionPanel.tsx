@@ -6,6 +6,10 @@ import IntroComposer, { SUPPORT_INTRO_PROMPTS } from './IntroComposer';
 import DiscussionFeedView, { type DiscussionActions } from './DiscussionFeedView';
 import { groupDiscussionApi } from '../../services/api';
 import { usePermissions } from '../../hooks/usePermissions';
+import { useAppData } from '../../context/AppDataContext';
+import { useTodaysScripture } from '../../hooks/useTodaysScripture';
+import { CONVERSATION_STARTERS, scriptureStarterText } from '../../utils/conversationStarters';
+import type { SlashItem } from './MentionTextarea';
 import { appendOlderPosts, fetchLoadedDiscussionFeed } from '../../utils/discussionFeed';
 import type { DiscussionFeed } from '../../types';
 
@@ -13,6 +17,7 @@ import type { DiscussionFeed } from '../../types';
 // the group's support posts and moderates, admins moderate, hub leads only read.
 const StaffDiscussionPanel: React.FC<{ groupId: string; viewerName: string; viewerAvatarUrl?: string | null; onChanged?: () => void }> = ({ groupId, viewerName, viewerAvatarUrl, onChanged }) => {
   const { can } = usePermissions();
+  const { activeCohort } = useAppData();
   const canEdit = can('groups', 'edit');
   const [feed, setFeed] = useState<DiscussionFeed | null>(null);
   // The refresh needs to know how far back the reader has scrolled.
@@ -71,6 +76,17 @@ const StaffDiscussionPanel: React.FC<{ groupId: string; viewerName: string; view
     return {};
   }, [feed, groupId, canEdit]);
 
+  // Conversation starters for the group's own support: typing "/" in the message box offers them, with
+  // today's Inspirational Scripture first when there is one.
+  const isSupport = feed?.access === 'SUPPORT';
+  const todaysScripture = useTodaysScripture(activeCohort?.startDate, isSupport);
+  const slashItems = useMemo<SlashItem[] | undefined>(() => {
+    if (!isSupport) return undefined;
+    const items: SlashItem[] = CONVERSATION_STARTERS.map((s) => ({ id: s.id, label: s.label, text: s.text }));
+    if (todaysScripture) items.unshift({ id: 'scripture', label: "Today's scripture", text: scriptureStarterText(todaysScripture.imageUrl), imageUrl: todaysScripture.imageUrl });
+    return items;
+  }, [isSupport, todaysScripture]);
+
   const loadMore = async () => {
     const last = feed?.posts[feed.posts.length - 1];
     if (!feed || !last) return;
@@ -121,6 +137,7 @@ const StaffDiscussionPanel: React.FC<{ groupId: string; viewerName: string; view
         loadingMore={loadingMore}
         viewerName={viewerName}
         viewerAvatarUrl={viewerAvatarUrl}
+        slashItems={slashItems}
       />
     </div>
   );

@@ -7,6 +7,10 @@ import React from 'react';
 const URL_PATTERN = /(https?:\/\/[^\s<>()]+|www\.[^\s<>()]+)/g;
 const TRAILING_PUNCT = /[.,;:!?)\]]+$/;
 
+// An Inspirational Scripture picture shared into a post (the "Today's scripture" conversation starter)
+// shows as the picture itself, tappable to open it full size, instead of a long web address.
+const SCRIPTURE_IMAGE = /\/storage\/v1\/object\/public\/resources\/scriptures\//;
+
 const hrefFor = (value: string): string =>
   /^https?:\/\//i.test(value) ? value : `https://${value}`;
 
@@ -21,7 +25,13 @@ export const linkifyText = (text: string): React.ReactNode[] => {
     const trimmed = raw.replace(TRAILING_PUNCT, '');
     const start = match.index;
     if (start > last) nodes.push(text.slice(last, start));
-    if (trimmed) {
+    if (trimmed && SCRIPTURE_IMAGE.test(trimmed)) {
+      nodes.push(
+        <a key={key++} href={hrefFor(trimmed)} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="my-1 block">
+          <img src={hrefFor(trimmed)} alt="Inspirational scripture" loading="lazy" className="max-h-80 w-full max-w-[260px] rounded-2xl object-cover" />
+        </a>,
+      );
+    } else if (trimmed) {
       nodes.push(
         <a
           key={key++}

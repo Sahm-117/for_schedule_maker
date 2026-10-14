@@ -1,6 +1,6 @@
 import Glyph from '../Glyph';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import MentionTextarea, { MentionText, mentionsInText } from './MentionTextarea';
+import MentionTextarea, { MentionText, mentionsInText, type SlashItem } from './MentionTextarea';
 import DiscussionFiltersBar, { EMPTY_DISCUSSION_FILTERS, countDiscussionFilters, discussionRangeBounds, type DiscussionFilterState } from './DiscussionFilters';
 import { createPortal } from 'react-dom';
 import Avatar from '../Avatar';
@@ -36,6 +36,8 @@ interface DiscussionFeedViewProps {
   /** Kept for callers; the chat composer has no avatar. */
   viewerName?: string;
   viewerAvatarUrl?: string | null;
+  /** When given, typing "/" in the message box offers these conversation starters (the group's support only). */
+  slashItems?: SlashItem[];
 }
 
 const REPORT_REASONS: Array<{ value: DiscussionReportReason; label: string }> = [
@@ -144,7 +146,7 @@ interface ReplyTarget {
   autoTag: string | null;
 }
 
-const DiscussionFeedView: React.FC<DiscussionFeedViewProps> = ({ feed, actions, onChanged, onLoadMore, loadingMore }) => {
+const DiscussionFeedView: React.FC<DiscussionFeedViewProps> = ({ feed, actions, onChanged, onLoadMore, loadingMore, slashItems }) => {
   const [draft, setDraft] = useState('');
   const [draftMentions, setDraftMentions] = useState<DiscussionMention[]>([]);
   const [replyTarget, setReplyTarget] = useState<ReplyTarget | null>(null);
@@ -566,8 +568,9 @@ const DiscussionFeedView: React.FC<DiscussionFeedViewProps> = ({ feed, actions, 
               mentions={draftMentions}
               onMentionsChange={setDraftMentions}
               members={feed.members ?? []}
+              slashItems={slashItems}
               rows={1}
-              placeholder={replyTarget ? 'Write a reply…' : 'Message your group…'}
+              placeholder={replyTarget ? 'Write a reply…' : (slashItems && slashItems.length > 0 ? 'Message your group… (type / for ideas)' : 'Message your group…')}
               className="block max-h-[120px] min-h-[40px] w-full resize-none rounded-[20px] border border-gray-200 bg-white px-3.5 py-2 text-[15px] leading-snug outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
             />
             <button
