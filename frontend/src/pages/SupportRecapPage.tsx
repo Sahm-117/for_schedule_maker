@@ -256,9 +256,14 @@ const SupportRecapPage: React.FC = () => {
   // Who teaches each class, from the week editor (a teacher only counts once a name is set).
   const teacherByWeek = useMemo(() => {
     const map = new Map<number, ClassTeacher>();
-    cohortWeeks.forEach((w) => { const t = classTeacher(w.teacherName, w.teacherRole, w.teacherBio, w.teacherPhotoUrl); if (t) map.set(w.weekNumber, t); });
+    cohortWeeks.forEach((w) => {
+      // A Teen Support sees the teen teacher; with none set they see the main teacher, like the teens do.
+      const teenOwn = isTeenSupport ? classTeacher(w.teenTeacherName, w.teenTeacherRole, w.teenTeacherBio, w.teenTeacherPhotoUrl) : null;
+      const t = teenOwn ?? classTeacher(w.teacherName, w.teacherRole, w.teacherBio, w.teacherPhotoUrl);
+      if (t) map.set(w.weekNumber, t);
+    });
     return map;
-  }, [cohortWeeks]);
+  }, [cohortWeeks, isTeenSupport]);
   const [teacherSheet, setTeacherSheet] = useState<{ teacher: ClassTeacher; title: string } | null>(null);
   const openTeacher = (week: SupportRecap) => {
     const teacher = teacherByWeek.get(week.weekNumber);

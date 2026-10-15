@@ -204,7 +204,13 @@ const CohortsPage: React.FC = () => {
   const [teacherRoleDraft, setTeacherRoleDraft] = useState('');
   const [teacherBioDraft, setTeacherBioDraft] = useState('');
   const [teacherPhotoDraft, setTeacherPhotoDraft] = useState<string | null>(null);
-  const [classImageBusy, setClassImageBusy] = useState<'graphic' | 'teacher' | null>(null);
+  // Teens have their own teacher for a class; blank means they see the teacher above.
+  const [teenTeacherNameDraft, setTeenTeacherNameDraft] = useState('');
+  const [teenTeacherRoleDraft, setTeenTeacherRoleDraft] = useState('');
+  const [teenTeacherBioDraft, setTeenTeacherBioDraft] = useState('');
+  const [teenTeacherPhotoDraft, setTeenTeacherPhotoDraft] = useState<string | null>(null);
+  const [teacherAudience, setTeacherAudience] = useState<'adults' | 'teens'>('adults');
+  const [classImageBusy, setClassImageBusy] = useState<'graphic' | 'teacher' | 'teenTeacher' | null>(null);
   const [classImageError, setClassImageError] = useState('');
   const [manualDiscussionPromptDraft, setManualDiscussionPromptDraft] = useState('');
   const [manualAiOpen, setManualAiOpen] = useState(false);
@@ -534,6 +540,11 @@ const CohortsPage: React.FC = () => {
     setTeacherRoleDraft(week.teacherRole || '');
     setTeacherBioDraft(week.teacherBio || '');
     setTeacherPhotoDraft(week.teacherPhotoUrl ?? null);
+    setTeenTeacherNameDraft(week.teenTeacherName || '');
+    setTeenTeacherRoleDraft(week.teenTeacherRole || '');
+    setTeenTeacherBioDraft(week.teenTeacherBio || '');
+    setTeenTeacherPhotoDraft(week.teenTeacherPhotoUrl ?? null);
+    setTeacherAudience('adults');
     setClassImageError('');
     setManualDiscussionPromptDraft(week.manualDiscussionPrompt || '');
     setRecapAudience('adults');
@@ -677,6 +688,10 @@ const CohortsPage: React.FC = () => {
         teacherRole: teacherNameDraft.trim() ? teacherRoleDraft.trim() || null : null,
         teacherBio: teacherNameDraft.trim() ? teacherBioDraft.trim() || null : null,
         teacherPhotoUrl: teacherNameDraft.trim() ? teacherPhotoDraft : null,
+        teenTeacherName: teenTeacherNameDraft.trim() || null,
+        teenTeacherRole: teenTeacherNameDraft.trim() ? teenTeacherRoleDraft.trim() || null : null,
+        teenTeacherBio: teenTeacherNameDraft.trim() ? teenTeacherBioDraft.trim() || null : null,
+        teenTeacherPhotoUrl: teenTeacherNameDraft.trim() ? teenTeacherPhotoDraft : null,
         manualDiscussionPrompt: manualDiscussionPromptDraft.trim() || null,
         teenRecapSummary: teenSummaryDraft.trim() || null,
         teenDiscussionPrompt: teenPromptDraft.trim() || null,
@@ -685,9 +700,11 @@ const CohortsPage: React.FC = () => {
       // Pictures that were replaced or removed are no longer used: tidy them away (best effort).
       const oldWeek = weekEditTarget.week;
       const finalPhoto = teacherNameDraft.trim() ? teacherPhotoDraft : null;
-      keptUploads.current = new Set([classGraphicDraft, finalPhoto].filter((u): u is string => !!u));
+      const finalTeenPhoto = teenTeacherNameDraft.trim() ? teenTeacherPhotoDraft : null;
+      keptUploads.current = new Set([classGraphicDraft, finalPhoto, finalTeenPhoto].filter((u): u is string => !!u));
       if (oldWeek.classGraphicUrl && oldWeek.classGraphicUrl !== classGraphicDraft) void removeClassImage(oldWeek.classGraphicUrl);
       if (oldWeek.teacherPhotoUrl && oldWeek.teacherPhotoUrl !== finalPhoto) void removeClassImage(oldWeek.teacherPhotoUrl);
+      if (oldWeek.teenTeacherPhotoUrl && oldWeek.teenTeacherPhotoUrl !== finalTeenPhoto) void removeClassImage(oldWeek.teenTeacherPhotoUrl);
       await syncCohortWeeks(weekEditTarget.cohortId);
       if (activeCohort?.id === weekEditTarget.cohortId) {
         await reloadWeeks();
@@ -725,7 +742,7 @@ const CohortsPage: React.FC = () => {
   };
 
   // A class picture uploads as soon as it is picked; it only becomes part of the week when the editor is saved.
-  const handleClassImage = async (kind: 'graphic' | 'teacher', file: File) => {
+  const handleClassImage = async (kind: 'graphic' | 'teacher' | 'teenTeacher', file: File) => {
     if (!weekEditTarget) return;
     const weekId = weekEditTarget.week.id;
     setClassImageBusy(kind);
@@ -735,7 +752,7 @@ const CohortsPage: React.FC = () => {
       // The editor may have moved to another week (or closed) while this was uploading: drop the picture then.
       if (editedWeekId.current !== weekId) { void removeClassImage(url); return; }
       sessionUploads.current.push(url);
-      if (kind === 'graphic') setClassGraphicDraft(url); else setTeacherPhotoDraft(url);
+      if (kind === 'graphic') setClassGraphicDraft(url); else if (kind === 'teenTeacher') setTeenTeacherPhotoDraft(url); else setTeacherPhotoDraft(url);
     } catch (error) {
       setClassImageError(error instanceof Error ? error.message : 'Could not upload that picture.');
     } finally {
@@ -1587,44 +1604,69 @@ const CohortsPage: React.FC = () => {
               <div className="rounded-2xl border border-orange-100 p-4">
                 <p className="text-sm font-bold text-gray-900">Class card</p>
                 <p className="mt-0.5 text-xs text-gray-500">Shown to participants on the home page before this class. Everything here is optional; leave it empty and the card stays plain.</p>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <p className="text-xs font-semibold text-gray-600">Class graphic</p>
-                    <div className="mt-1.5 flex items-center gap-3">
-                      <div className="h-16 w-24 flex-none overflow-hidden rounded-xl bg-neutral-100">
-                        {classGraphicDraft && <img src={classGraphicDraft} alt="Class graphic" className="h-full w-full object-cover" />}
-                      </div>
-                      <div className="flex flex-col items-start gap-1">
-                        <label className="cursor-pointer rounded-full border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50">
-                          {classImageBusy === 'graphic' ? 'Uploading…' : classGraphicDraft ? 'Replace' : 'Add graphic'}
-                          <input type="file" accept="image/*" className="hidden" disabled={classImageBusy !== null} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void handleClassImage('graphic', file); }} />
-                        </label>
-                        {classGraphicDraft && <button type="button" onClick={() => setClassGraphicDraft(null)} className="text-xs font-semibold text-red-600">Remove</button>}
-                      </div>
+                <div className="mt-3">
+                  <p className="text-xs font-semibold text-gray-600">Class graphic</p>
+                  <div className="mt-1.5 flex items-center gap-3">
+                    <div className="h-16 w-24 flex-none overflow-hidden rounded-xl bg-neutral-100">
+                      {classGraphicDraft && <img src={classGraphicDraft} alt="Class graphic" className="h-full w-full object-cover" />}
                     </div>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-gray-600">Teacher photo</p>
-                    <div className="mt-1.5 flex items-center gap-3">
-                      <div className="h-16 w-16 flex-none overflow-hidden rounded-full bg-neutral-100">
-                        {teacherPhotoDraft && <img src={teacherPhotoDraft} alt="Teacher" className="h-full w-full object-cover" />}
-                      </div>
-                      <div className="flex flex-col items-start gap-1">
-                        <label className="cursor-pointer rounded-full border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50">
-                          {classImageBusy === 'teacher' ? 'Uploading…' : teacherPhotoDraft ? 'Replace' : 'Add photo'}
-                          <input type="file" accept="image/*" className="hidden" disabled={classImageBusy !== null} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void handleClassImage('teacher', file); }} />
-                        </label>
-                        {teacherPhotoDraft && <button type="button" onClick={() => setTeacherPhotoDraft(null)} className="text-xs font-semibold text-red-600">Remove</button>}
-                      </div>
+                    <div className="flex flex-col items-start gap-1">
+                      <label className="cursor-pointer rounded-full border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50">
+                        {classImageBusy === 'graphic' ? 'Uploading…' : classGraphicDraft ? 'Replace' : 'Add graphic'}
+                        <input type="file" accept="image/*" className="hidden" disabled={classImageBusy !== null} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void handleClassImage('graphic', file); }} />
+                      </label>
+                      {classGraphicDraft && <button type="button" onClick={() => setClassGraphicDraft(null)} className="text-xs font-semibold text-red-600">Remove</button>}
                     </div>
                   </div>
                 </div>
                 {classImageError && <p className="mt-2 text-xs font-semibold text-red-600">{classImageError}</p>}
-                <div className="mt-3 space-y-2">
-                  <input type="text" value={teacherNameDraft} onChange={(event) => setTeacherNameDraft(event.target.value)} placeholder="Teacher's name" maxLength={60} className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none" />
-                  <input type="text" value={teacherRoleDraft} onChange={(event) => setTeacherRoleDraft(event.target.value)} placeholder="Role or title (optional)" maxLength={80} className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none" />
-                  <textarea value={teacherBioDraft} onChange={(event) => setTeacherBioDraft(event.target.value)} placeholder="Two or three lines about them (optional)" rows={3} maxLength={320} className="w-full resize-y rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none" />
-                  <p className="text-[11px] text-gray-500">The photo and bio only show once a name is added.</p>
+
+                {/* Teacher: adults and teens each have their own. Teens fall back to the adult teacher when theirs is empty. */}
+                <div className="mt-4">
+                  <p className="text-xs font-semibold text-gray-600">Teacher</p>
+                  <div className="mt-1.5">
+                    <SegmentedTabs
+                      tabs={[
+                        { key: 'adults', label: teacherNameDraft.trim() ? 'Adults ✓' : 'Adults' },
+                        { key: 'teens', label: teenTeacherNameDraft.trim() ? 'Teens ✓' : 'Teens' },
+                      ]}
+                      active={teacherAudience}
+                      onChange={(key) => setTeacherAudience(key as 'adults' | 'teens')}
+                    />
+                  </div>
+                  {(() => {
+                    const teens = teacherAudience === 'teens';
+                    const photo = teens ? teenTeacherPhotoDraft : teacherPhotoDraft;
+                    const setPhoto = teens ? setTeenTeacherPhotoDraft : setTeacherPhotoDraft;
+                    const name = teens ? teenTeacherNameDraft : teacherNameDraft;
+                    const busyKind = teens ? 'teenTeacher' : 'teacher';
+                    return (
+                      <div className="mt-3">
+                        <div className="flex items-center gap-3">
+                          <div className="h-16 w-16 flex-none overflow-hidden rounded-full bg-neutral-100">
+                            {photo && <img src={photo} alt={teens ? 'Teen teacher' : 'Teacher'} className="h-full w-full object-cover" />}
+                          </div>
+                          <div className="flex flex-col items-start gap-1">
+                            <label className="cursor-pointer rounded-full border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50">
+                              {classImageBusy === busyKind ? 'Uploading…' : photo ? 'Replace' : 'Add photo'}
+                              <input type="file" accept="image/*" className="hidden" disabled={classImageBusy !== null} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void handleClassImage(busyKind, file); }} />
+                            </label>
+                            {photo && <button type="button" onClick={() => setPhoto(null)} className="text-xs font-semibold text-red-600">Remove</button>}
+                          </div>
+                        </div>
+                        <div className="mt-3 space-y-2">
+                          <input type="text" value={name} onChange={(event) => (teens ? setTeenTeacherNameDraft : setTeacherNameDraft)(event.target.value)} placeholder={teens ? "Teen teacher's name" : "Teacher's name"} maxLength={60} className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none" />
+                          <input type="text" value={teens ? teenTeacherRoleDraft : teacherRoleDraft} onChange={(event) => (teens ? setTeenTeacherRoleDraft : setTeacherRoleDraft)(event.target.value)} placeholder="Role or title (optional)" maxLength={80} className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none" />
+                          <textarea value={teens ? teenTeacherBioDraft : teacherBioDraft} onChange={(event) => (teens ? setTeenTeacherBioDraft : setTeacherBioDraft)(event.target.value)} placeholder="Two or three lines about them (optional)" rows={3} maxLength={320} className="w-full resize-y rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none" />
+                          <p className="text-[11px] text-gray-500">
+                            {teens
+                              ? 'Teens and Teen Supports see this teacher. Leave it empty and they see the adult teacher. The photo and bio only show once a name is added.'
+                              : 'Adults and everyone else see this teacher. The photo and bio only show once a name is added.'}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 

@@ -88,6 +88,10 @@ const mapWeekRow = (week: any): Week => {
     teacherRole: week.teacherRole ?? null,
     teacherBio: week.teacherBio ?? null,
     teacherPhotoUrl: week.teacherPhotoUrl ?? null,
+    teenTeacherName: week.teenTeacherName ?? null,
+    teenTeacherRole: week.teenTeacherRole ?? null,
+    teenTeacherBio: week.teenTeacherBio ?? null,
+    teenTeacherPhotoUrl: week.teenTeacherPhotoUrl ?? null,
     manualReleasedEarlyAt: week.manualReleasedEarlyAt ?? null,
     teenRecapSummary: week.teenRecapSummary ?? null,
     teenDiscussionPrompt: week.teenDiscussionPrompt ?? null,
@@ -398,7 +402,7 @@ export const weeksApi = {
     return { week, pendingChanges };
   },
 
-  async update(weekId: number, input: { title?: string | null; recapSummary?: string | null; discussionPrompt?: string | null; recapDocumentUrl?: string | null; recapDocumentName?: string | null; shareWithParticipants?: boolean; participantReleasedEarlyAt?: string | null; expectations?: string | null; manualSummary?: string | null; manualDiscussionPrompt?: string | null; manualDocumentUrl?: string | null; manualDocumentName?: string | null; manualReleasedEarlyAt?: string | null; classGraphicUrl?: string | null; teacherName?: string | null; teacherRole?: string | null; teacherBio?: string | null; teacherPhotoUrl?: string | null; teenRecapSummary?: string | null; teenDiscussionPrompt?: string | null; teenRecapReleaseAt?: string | null }): Promise<{ week: Week }> {
+  async update(weekId: number, input: { title?: string | null; recapSummary?: string | null; discussionPrompt?: string | null; recapDocumentUrl?: string | null; recapDocumentName?: string | null; shareWithParticipants?: boolean; participantReleasedEarlyAt?: string | null; expectations?: string | null; manualSummary?: string | null; manualDiscussionPrompt?: string | null; manualDocumentUrl?: string | null; manualDocumentName?: string | null; manualReleasedEarlyAt?: string | null; classGraphicUrl?: string | null; teacherName?: string | null; teacherRole?: string | null; teacherBio?: string | null; teacherPhotoUrl?: string | null; teenTeacherName?: string | null; teenTeacherRole?: string | null; teenTeacherBio?: string | null; teenTeacherPhotoUrl?: string | null; teenRecapSummary?: string | null; teenDiscussionPrompt?: string | null; teenRecapReleaseAt?: string | null }): Promise<{ week: Week }> {
     const { data, error } = await supabase
       .from('Week')
       .update(input)
@@ -427,7 +431,7 @@ export const weeksApi = {
 
 // A class graphic or a teacher's photo, shrunk in the browser first, stored with the other public images.
 // A new filename each time, so phones never keep showing the old picture.
-export const uploadClassImage = async (cohortId: string, weekId: number, kind: 'graphic' | 'teacher', file: File): Promise<string> => {
+export const uploadClassImage = async (cohortId: string, weekId: number, kind: 'graphic' | 'teacher' | 'teenTeacher', file: File): Promise<string> => {
   const compressed = await resizeImageToJpeg(file, kind === 'graphic' ? 1000 : 640);
   const path = `classes/${cohortId}/${weekId}-${kind}-${Date.now()}.jpg`;
   const { error } = await supabase.storage.from('resources').upload(path, compressed, { cacheControl: '31536000', upsert: false, contentType: 'image/jpeg' });

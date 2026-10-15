@@ -163,6 +163,11 @@ export interface Week {
   teacherRole?: string | null;
   teacherBio?: string | null;
   teacherPhotoUrl?: string | null;
+  /** The teen teacher: shown to teens and Teen Supports in place of the teacher above. Empty = they see the teacher above. */
+  teenTeacherName?: string | null;
+  teenTeacherRole?: string | null;
+  teenTeacherBio?: string | null;
+  teenTeacherPhotoUrl?: string | null;
   /** Set by "Send manual now"; overrides the configured manual release time. */
   manualReleasedEarlyAt?: string | null;
   /** The Teen recap: its own text and/or document, separate from the adult recap. */
