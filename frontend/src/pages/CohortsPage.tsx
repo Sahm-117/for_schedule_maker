@@ -11,7 +11,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { uploadClassImage, removeClassImage, cohortsApi, supportHubsApi, usersApi, weeksApi, groupsApi, participantsApi, followUpContactsApi, recapDocumentsApi, teenRecapDocumentsApi, manualDocumentsApi, earlierClassDocumentsApi, aiApi, settingsApi } from '../services/api';
 import type { Cohort, EarlierClassDocument, FollowUpContact, User, Week } from '../types';
 import { sortByText } from '../utils/sort';
-import { DEFAULT_RECAP_RELEASE_TIMES, formatRecapReleaseAt, recapReleaseAt, type RecapReleaseTimes } from '../utils/recapReleaseTimes';
+import { DEFAULT_RECAP_RELEASE_TIMES, formatRecapReleaseAt, manualReleaseAt, recapReleaseAt, type RecapReleaseTimes } from '../utils/recapReleaseTimes';
 import Spinner from '../components/Spinner';
 import SegmentedTabs from '../components/SegmentedTabs';
 import AppDateTimePicker from '../components/AppDateTimePicker';
@@ -1581,7 +1581,13 @@ const CohortsPage: React.FC = () => {
           const manualDone = !!week?.manualDocumentUrl;
           const recapDone = !!(week?.recapDocumentUrl || recapSummaryDraft.trim());
           const teenRecapDone = !!(week?.teenRecapDocumentUrl || week?.teenRecapSummary?.trim() || week?.teenDiscussionPrompt?.trim());
-          const manualReleaseLabel = `${formatDayTime(recapReleaseTimes.manualDay, recapReleaseTimes.manualTime)}, ahead of the Week ${week?.weekNumber ?? ''} class`;
+          // The class Sunday this week really falls on (the Planner may have moved it), so the manual's date is the real one.
+          const cohortStartIso = cohorts.find((c) => c.id === weekEditTarget?.cohortId)?.startDate?.slice(0, 10) ?? null;
+          const classSunday = week
+            ? (week.classDate ? week.classDate.slice(0, 10) : (cohortStartIso ? new Date(new Date(`${cohortStartIso}T00:00:00Z`).getTime() + (week.weekNumber - 1) * 7 * 86400000).toISOString().slice(0, 10) : null))
+            : null;
+          const manualAt = manualReleaseAt(classSunday, recapReleaseTimes.manualDay, recapReleaseTimes.manualTime);
+          const manualReleaseLabel = `${manualAt ? formatRecapReleaseAt(manualAt) : formatDayTime(recapReleaseTimes.manualDay, recapReleaseTimes.manualTime)}, ahead of the Week ${week?.weekNumber ?? ''} class`;
           const nextLine = !manualDone
             ? `Next: upload the manual · goes out ${manualReleaseLabel}`
             : !recapDone
