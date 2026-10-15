@@ -703,8 +703,9 @@ const CohortsPage: React.FC = () => {
       const finalTeenPhoto = teenTeacherNameDraft.trim() ? teenTeacherPhotoDraft : null;
       keptUploads.current = new Set([classGraphicDraft, finalPhoto, finalTeenPhoto].filter((u): u is string => !!u));
       if (oldWeek.classGraphicUrl && oldWeek.classGraphicUrl !== classGraphicDraft) void removeClassImage(oldWeek.classGraphicUrl);
-      if (oldWeek.teacherPhotoUrl && oldWeek.teacherPhotoUrl !== finalPhoto) void removeClassImage(oldWeek.teacherPhotoUrl);
-      if (oldWeek.teenTeacherPhotoUrl && oldWeek.teenTeacherPhotoUrl !== finalTeenPhoto) void removeClassImage(oldWeek.teenTeacherPhotoUrl);
+      // A picture still used by either teacher is never removed.
+      if (oldWeek.teacherPhotoUrl && oldWeek.teacherPhotoUrl !== finalPhoto && oldWeek.teacherPhotoUrl !== finalTeenPhoto) void removeClassImage(oldWeek.teacherPhotoUrl);
+      if (oldWeek.teenTeacherPhotoUrl && oldWeek.teenTeacherPhotoUrl !== finalTeenPhoto && oldWeek.teenTeacherPhotoUrl !== finalPhoto) void removeClassImage(oldWeek.teenTeacherPhotoUrl);
       await syncCohortWeeks(weekEditTarget.cohortId);
       if (activeCohort?.id === weekEditTarget.cohortId) {
         await reloadWeeks();
@@ -1658,6 +1659,9 @@ const CohortsPage: React.FC = () => {
                           <input type="text" value={name} onChange={(event) => (teens ? setTeenTeacherNameDraft : setTeacherNameDraft)(event.target.value)} placeholder={teens ? "Teen teacher's name" : "Teacher's name"} maxLength={60} className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none" />
                           <input type="text" value={teens ? teenTeacherRoleDraft : teacherRoleDraft} onChange={(event) => (teens ? setTeenTeacherRoleDraft : setTeacherRoleDraft)(event.target.value)} placeholder="Role or title (optional)" maxLength={80} className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none" />
                           <textarea value={teens ? teenTeacherBioDraft : teacherBioDraft} onChange={(event) => (teens ? setTeenTeacherBioDraft : setTeacherBioDraft)(event.target.value)} placeholder="Two or three lines about them (optional)" rows={3} maxLength={320} className="w-full resize-y rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none" />
+                          {!name.trim() && (photo || (teens ? teenTeacherRoleDraft : teacherRoleDraft).trim() || (teens ? teenTeacherBioDraft : teacherBioDraft).trim()) && (
+                            <p className="text-[11px] font-semibold text-amber-700">Add a name, or this {teens ? 'teen ' : ''}teacher's photo, role and bio will not be saved.</p>
+                          )}
                           <p className="text-[11px] text-gray-500">
                             {teens
                               ? 'Teens and Teen Supports see this teacher. Leave it empty and they see the adult teacher. The photo and bio only show once a name is added.'
