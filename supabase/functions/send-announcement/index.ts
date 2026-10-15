@@ -342,8 +342,9 @@ Deno.serve(async (req) => {
       supabase,
       recipientIds.map((userId) => ({
         userId,
-        title: `TCN FOF Ops`,
-        body: `${subject}: ${body}`,
+        // The subject is the title line and the message is the body (the phone already shows "from FOF Ops").
+        title: subject,
+        body,
         path: pathForRole(roleByUser.get(userId)),
         type: 'ANNOUNCEMENT',
       })),
@@ -369,8 +370,8 @@ Deno.serve(async (req) => {
     //    split subscriptions into admin vs support batches and send each with
     //    its own path — kept in sync with the in-app row's path above.
     const buildPayload = (path: string) => JSON.stringify({
-      title: `TCN FOF Ops`,
-      body: `${subject}: ${body}`,
+      title: subject,
+      body,
       icon: '/icon-192.png',
       tag: `fof-announcement-${announcement.id}`,
       cohortId,

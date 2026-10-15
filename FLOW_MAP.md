@@ -681,6 +681,8 @@ duplicating the logic anywhere else is a bug waiting to happen.
 
 73. **Follow-up reminders stop once the cohort has started.** In `push-reminders`, the 8 am "Follow-ups need attention" push and the 9 am / 12 pm / 4 pm / 9 pm "No activity on your follow-ups" nudges only run before the current programme cohort's start date (`cohortHasStarted`); from the start date on they are off. A support's own "Follow-up due" reminders (dates they set on a person) and the other follow-up alerts (new assignment, passed on, issues, "is in the app") are not affected. Deployed as v51, built from the repo as it was live (without the undeployed roles change in the birthday alert) plus this change.
 
+74. **An announcement's phone alert uses the subject as its title and the message as its body, for staff as well as participants.** `send-announcement` used to send the title "TCN FOF Ops" with "subject: message" as the body, which repeated the app name (the phone already shows "from FOF Ops") and wasted the first line. The staff bell row and push are now `title: subject`, `body: message`, like the participant ones. The Telegram backup copy (it forwards the bell row) therefore shows the subject in bold with the message under it. Deployed as `send-announcement` v25 (repo copy was identical to v24).
+
 ## 5. Edge functions and schedules
 
 All functions authenticate with the session token (`x-session-token`) or the
