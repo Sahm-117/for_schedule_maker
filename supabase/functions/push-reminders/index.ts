@@ -64,6 +64,17 @@ const getRunningCohortIds = async (todayISO: string): Promise<Set<string>> => {
   return new Set([currentId])
 }
 
+// Follow-up reminders (the 8 am "Follow-ups need attention" and the "No activity" nudges) are for before a cohort
+// starts. Once the current cohort's start date has passed they stay off. A support's own "Follow-up due" dates
+// are not affected.
+const cohortHasStarted = async (todayISO: string): Promise<boolean> => {
+  const currentId = await getCurrentProgrammeCohortId()
+  if (!currentId) return false
+  const { data, error } = await supabase.from('Cohort').select('startDate').eq('id', currentId).maybeSingle()
+  if (error) throw new Error(error.message)
+  return !!data?.startDate && String(data.startDate).slice(0, 10) <= todayISO
+}
+
 const VAPID_PUBLIC_KEY = Deno.env.get('VAPID_PUBLIC_KEY')!
 const VAPID_PRIVATE_KEY = Deno.env.get('VAPID_PRIVATE_KEY')!
 const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT') || 'mailto:admin@fof.com'
@@ -1219,7 +1230,7 @@ Deno.serve(async (req) => {
     }
 
     // 8:00 AM WAT owner reminder — once per owner per day for open follow-ups.
-    if (!dryRun && lagos.hour === 8 && lagos.minute < 10) {
+    if (!dryRun && lagos.hour === 8 && lagos.minute < 10 && !(await cohortHasStarted(todayISO))) {
       const { data: openContacts } = await supabase
         .from('FollowUpContact')
         .select('id, ownerId, fullName, nextAction, registrationStatus, cohortId')
@@ -1295,7 +1306,7 @@ Deno.serve(async (req) => {
       const naMinutes = naLagos.hour * 60 + naLagos.minute
       const naSlot = [[9, '0900'], [12, '1200'], [16, '1600'], [21, '2100']]
         .find(([hour]) => naMinutes >= (hour as number) * 60 && naMinutes < (hour as number) * 60 + 10)
-      if (naSlot) {
+      if (naSlot && !(await cohortHasStarted(naLagos.isoDate))) {
         const naKind = `NO_ACTIVITY_${naSlot[1]}`
         const cutoffIso = new Date(naClock.getTime() - 24 * 60 * 60 * 1000).toISOString()
         const naCurrentCohortId = await getCurrentProgrammeCohortId()

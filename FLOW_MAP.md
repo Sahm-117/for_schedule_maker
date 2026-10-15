@@ -679,6 +679,8 @@ duplicating the logic anywhere else is a bug waiting to happen.
 
 72. **Teens have their own teacher for a class.** `Week.teenTeacherName / teenTeacherRole / teenTeacherBio / teenTeacherPhotoUrl` sit beside the main teacher and are set in the Cohorts week editor (Class card > Teacher > Adults / Teens; the class graphic is shared). `participant_home` gives a teen (`fof_is_teen_age(ageRange)`: "10 - 17" and the same other spellings the app accepts, such as "Below 18") the teen teacher as the week's `teacher` (so the Next class card, the Journey page and the teacher sheet need no change); with no teen teacher set, or for everyone else, it is the main teacher. A Teen Support sees the teen teacher on the Recap page, with the same fallback. The photo and bio only show once a name is set, as for the main teacher. Source: `20261017120000_teen_class_teacher.sql`, `20261017130000_teen_age_variants.sql`.
 
+73. **Follow-up reminders stop once the cohort has started.** In `push-reminders`, the 8 am "Follow-ups need attention" push and the 9 am / 12 pm / 4 pm / 9 pm "No activity on your follow-ups" nudges only run before the current programme cohort's start date (`cohortHasStarted`); from the start date on they are off. A support's own "Follow-up due" reminders (dates they set on a person) and the other follow-up alerts (new assignment, passed on, issues, "is in the app") are not affected. Deployed as v51, built from the repo as it was live (without the undeployed roles change in the birthday alert) plus this change.
+
 ## 5. Edge functions and schedules
 
 All functions authenticate with the session token (`x-session-token`) or the
