@@ -52,6 +52,7 @@ const HubReportsCard: React.FC<HubReportsCardProps> = ({ cohortId, hubs, members
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
   const [openHubId, setOpenHubId] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(true);
 
   // A new week starting (or the weeks loading late) moves the view to it.
   const latestWeekId = weeks.at(-1)?.id ?? null;
@@ -84,13 +85,18 @@ const HubReportsCard: React.FC<HubReportsCardProps> = ({ cohortId, hubs, members
 
   return (
     <section data-testid="hub-reports" className="mb-5 rounded-[28px] bg-white px-6 py-5 shadow-[0_1px_2px_rgba(17,24,39,0.04),0_12px_32px_-16px_rgba(17,24,39,0.18)]">
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h2 className="text-[17px] font-bold text-gray-900">Hub meeting reports</h2>
-        {week && !loading && !failed && (
-          <span className="text-[13px] text-gray-500">Week {week.weekNumber} · {submitted} of {rows.length} submitted</span>
-        )}
-      </div>
-      {weeks.length > 1 && (
+      <h2 className="text-[17px] font-bold text-gray-900">
+        <button type="button" onClick={() => setExpanded((v) => !v)} aria-expanded={expanded} className="flex w-full flex-wrap items-baseline gap-x-3 gap-y-1 text-left">
+          <span>Hub meeting reports</span>
+          {week && !loading && !failed && (
+            <span className="text-[13px] font-normal text-gray-500">Week {week.weekNumber} · {submitted} of {rows.length} submitted</span>
+          )}
+          <svg className={`ml-auto h-4 w-4 flex-shrink-0 self-center text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m19 9-7 7-7-7" />
+          </svg>
+        </button>
+      </h2>
+      {expanded && weeks.length > 1 && (
         <div className="mt-3 flex flex-wrap gap-1.5" role="group" aria-label="Choose a week">
           {[...weeks].reverse().map((w) => (
             <button
@@ -106,7 +112,7 @@ const HubReportsCard: React.FC<HubReportsCardProps> = ({ cohortId, hubs, members
         </div>
       )}
 
-      {loading ? (
+      {!expanded ? null : loading ? (
         <p className="mt-4 flex items-center gap-1.5 text-sm text-gray-400"><Spinner className="h-3.5 w-3.5" />Loading reports…</p>
       ) : failed ? (
         <p className="mt-4 text-sm text-rose-700">Could not load the reports. Refresh to try again.</p>

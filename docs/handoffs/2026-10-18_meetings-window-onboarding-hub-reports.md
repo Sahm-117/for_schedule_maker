@@ -60,5 +60,10 @@
 - The screens re-check the window every 30 seconds (`useMinuteClock`); while the week is still loading they do not block (the database still checks).
 - Errors come back as `MEETING_WINDOW_CLOSED: <opens>|<closes>`; `friendlyMeetingError` turns them into words.
 
+## Added afterwards (frontend only)
+- Staff step pills (participant profile, Onboarding page, group cards) use `participantStepDone`, so attended means Map, Guide and Ready show done.
+- Group meetings page: `GroupReportsCard` (week chips, Done/Not done, joined, notes, "Read report"). Hubs `HubReportsCard` and this card are accordions, open by default.
+- Open: a group report has text only when a prayer-focus participant was picked; the "concern" in the report is text in that note and does not open a flag.
+
 ## How to pick this up
 Read FLOW_MAP rules 35, 57 and 75–79, then `utils/supportOnboarding.ts` and `utils/meetingWindow.ts`.

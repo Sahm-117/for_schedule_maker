@@ -8,8 +8,11 @@ import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
 import { useAppData } from '../context/AppDataContext';
 import ModalShell from '../components/followups/ModalShell';
-import { groupPrayerFocusApi, groupPrayerStatusApi, groupsApi, meetingAttendanceApi } from '../services/api';
-import type { Group, GroupPrayerFocus, GroupPrayerStatus, MeetingAttendance, MeetingAttendanceStatus, Participant, Week } from '../types';
+import { groupPrayerFocusApi, groupPrayerStatusApi, groupsApi, meetingAttendanceApi, participantNotesApi } from '../services/api';
+import GroupReportsCard from '../components/groups/GroupReportsCard';
+import { cohortMode } from '../components/dashboard/healthModel';
+import { getIdealWeekNumberForCohort } from '../utils/weekFocus';
+import type { Group, GroupPrayerFocus, GroupPrayerStatus, MeetingAttendance, MeetingAttendanceStatus, Participant, ParticipantNote, Week } from '../types';
 import { sortByText } from '../utils/sort';
 import Spinner from '../components/Spinner';
 
@@ -34,6 +37,8 @@ const AdminGroupPrayersContent: React.FC = () => {
   const [filters, setFilters] = useState<FilterValues>({});
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [attendance, setAttendance] = useState<MeetingAttendance[]>([]);
+  const [reports, setReports] = useState<ParticipantNote[]>([]);
+  const [reportsFailed, setReportsFailed] = useState(false);
   const [markTarget, setMarkTarget] = useState<{ group: Group; week: Week } | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -48,6 +53,11 @@ const AdminGroupPrayersContent: React.FC = () => {
         groupPrayerStatusApi.getForCohort(activeCohort.id),
         meetingAttendanceApi.getForWeeks(weekIds).catch(() => ({ records: [] as MeetingAttendance[] })),
       ]);
+      // Written notes arrive after the grid so a slow read never holds the page back.
+      setReportsFailed(false);
+      void participantNotesApi.getMeetingReports(gs.map((g) => g.id))
+        .then((res) => setReports(res.notes))
+        .catch(() => { setReports([]); setReportsFailed(true); });
       setGroups(sortByText(gs, (group) => group.name));
       setFocuses(fs);
       setStatuses(ss);
@@ -85,6 +95,17 @@ const AdminGroupPrayersContent: React.FC = () => {
     return map;
   }, [attendance]);
   const joinedCount = (groupId: string, weekId: number) => joinedMap.get(`${groupId}:${weekId}`) ?? 0;
+
+  // Reports show every week that has started, the current one included, so a report is visible the
+  // night it is sent rather than once the week is over.
+  const reportWeeks = useMemo(() => {
+    if (!activeCohort) return [];
+    const mode = cohortMode(activeCohort);
+    if (mode === 'upcoming') return [];
+    if (mode === 'completed') return cohortWeeks;
+    const current = getIdealWeekNumberForCohort(activeCohort, new Date(), weeks ?? []);
+    return cohortWeeks.filter((w) => w.weekNumber <= current);
+  }, [activeCohort, cohortWeeks, weeks]);
 
   const visibleGroups = useMemo(
     () => sortByText(groups.filter((g) => Object.entries(filters).every(([key, choices]) => choices.length === 0 || choices.some((c) => (key === 'group' ? g.id === c : g.supportId === c)))), (group) => group.name),
@@ -158,6 +179,8 @@ const AdminGroupPrayersContent: React.FC = () => {
               })}
             </div>
           </div>
+
+          <GroupReportsCard groups={groups} weeks={reportWeeks} statuses={statuses} focuses={focuses} attendance={attendance} notes={reports} notesFailed={reportsFailed} />
 
           {/* Filters */}
           <FilterBar groups={filterGroups} value={filters} onChange={setFilters} shown={visibleGroups.length} total={groups.length} noun="groups" />
