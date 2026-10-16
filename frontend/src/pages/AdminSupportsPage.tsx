@@ -19,6 +19,7 @@ import { cohortHasStarted } from '../utils/cohortStarted';
 import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
 import { useAppData } from '../context/AppDataContext';
+import { buildOnboardingReadiness, participantStepDone, type OnboardingReadiness } from '../utils/supportOnboarding';
 import { cohortsApi, followUpContactsApi, groupDiscussionApi, groupsApi, participantNotesApi, settingsApi, supportHubsApi, supportKindApi, supportNotesApi, supportSessionsApi, usersApi } from '../services/api';
 import type { HubMembership, OnboardingProgressParticipant, ParticipantNote, SupportHub, SupportKind, SupportNote, SupportSession, User } from '../types';
 import AppSelect from '../components/AppSelect';
@@ -149,6 +150,7 @@ const AdminSupportsPage: React.FC = () => {
   const [stagesByGroup, setStagesByGroup] = useState<Record<string, StageSummary>>({});
   // Which groups have a meeting day and time (the support's own onboarding step). Empty if it could not be read: then the step is not judged.
   const [meetingSetByGroup, setMeetingSetByGroup] = useState<Record<string, boolean>>({});
+  const [readiness, setReadiness] = useState<OnboardingReadiness | null>(null);
 
   const load = useCallback(async () => {
     if (!activeCohort?.id) { setLoading(false); return; }
@@ -164,10 +166,12 @@ const AdminSupportsPage: React.FC = () => {
         supportSessionsApi.getForCohort(activeCohort.id, ['PRE_COHORT_TRAINING']).catch(() => ({ sessions: [] as SupportSession[], attendance: [] as Array<{ sessionId: string; userId: string; status: string }> })),
         supportKindApi.getForCohort(activeCohort.id).then((res) => res.kinds).catch(() => ({} as Record<string, SupportKind>)),
         cohortsApi.getMembers(activeCohort.id).then((res) => res.users.map((x) => x.id)).catch(() => [] as string[]),
-        groupDiscussionApi.cohortOnboardingProgress(activeCohort.id).then((res) => res.participants).catch(() => [] as OnboardingProgressParticipant[]),
+        groupDiscussionApi.cohortOnboardingProgress(activeCohort.id).catch(() => null),
         groupsApi.getAll({ cohortId: activeCohort.id }).then((res) => res.groups).catch(() => null),
       ]);
       setMeetingSetByGroup(gs ? Object.fromEntries(gs.map((g) => [g.id, !!(g.meetingDay && g.meetingTime)])) : {});
+      // Who counts as onboarded now (attended + profile, the support's steps, admin marks); null if unknown.
+      setReadiness(ob && gs ? buildOnboardingReadiness(ob, gs) : null);
       setHealth(h);
       setPeople(p);
       setRules(r);
@@ -180,7 +184,7 @@ const AdminSupportsPage: React.FC = () => {
       setTrainingAttendance(ts.attendance);
       const participantIds = new Set(p.participants.filter((person) => person.status === 'ACTIVE').map((person) => person.id));
       const byGroup = new Map<string, OnboardingProgressParticipant[]>();
-      ob.forEach((s) => {
+      (ob?.participants ?? []).forEach((s) => {
         if (!s.groupId || !participantIds.has(s.participantId)) return;
         const arr = byGroup.get(s.groupId) ?? [];
         arr.push(s);
@@ -228,7 +232,7 @@ const AdminSupportsPage: React.FC = () => {
     const judged = judgedWeekNumbers(mode, stats, currentWeek);
     const judgedWeeks = health.weeks.filter((w) => judged.includes(w.weekNumber));
     const groupsWithMeeting = health.groups.map((g) => (g.id in meetingSetByGroup ? { ...g, meetingSet: meetingSetByGroup[g.id] } : g));
-    const evaluations = evaluateSupports(people, groupsWithMeeting, health.meetings, judgedWeeks, rules)
+    const evaluations = evaluateSupports(people, groupsWithMeeting, health.meetings, judgedWeeks, rules, new Date(), readiness)
       .sort((a, b) => SEVERITY[a.health] - SEVERITY[b.health] || b.missedWeeks.length - a.missedWeeks.length);
     // A support leading two groups is judged by the weaker one.
     const bySupport = new Map<string, PersonHealth>();
@@ -243,7 +247,7 @@ const AdminSupportsPage: React.FC = () => {
     const notLeading = users.filter((u) => hasSupportRole(u) && u.isActive !== false && cohortMemberIds.has(u.id) && !leading.has(u.id));
     const weekIdByNumber = new Map(health.weeks.map((w) => [w.weekNumber, w.id]));
     return { mode, judged, evaluations, counts, total: bySupport.size, unsupported, notLeading, weekIdByNumber };
-  }, [health, people, rules, users, cohortMemberIds, activeCohort, meetingSetByGroup]);
+  }, [health, people, rules, users, cohortMemberIds, activeCohort, meetingSetByGroup, readiness]);
 
   // Newest report per group+week: a support can submit more than once, and the
   // latest one is what the back office should read.
@@ -603,11 +607,11 @@ interface StageSummary {
 }
 
 const summarizeStages = (statuses: OnboardingProgressParticipant[]): StageSummary => ({
-  introPosted: statuses.length > 0 && statuses.every((s) => s.completed || s.introPosted),
-  venueMapAcknowledged: statuses.length > 0 && statuses.every((s) => s.completed || s.venueMapAcknowledged),
-  introGuideRead: statuses.length > 0 && statuses.every((s) => s.completed || s.introGuideRead),
-  profileComplete: statuses.length > 0 && statuses.every((s) => s.completed || s.profileComplete),
-  readyConfirmed: statuses.length > 0 && statuses.every((s) => s.completed || s.readyConfirmed),
+  introPosted: statuses.length > 0 && statuses.every((s) => participantStepDone(s, 'introPosted')),
+  venueMapAcknowledged: statuses.length > 0 && statuses.every((s) => participantStepDone(s, 'venueMapAcknowledged')),
+  introGuideRead: statuses.length > 0 && statuses.every((s) => participantStepDone(s, 'introGuideRead')),
+  profileComplete: statuses.length > 0 && statuses.every((s) => participantStepDone(s, 'profileComplete')),
+  readyConfirmed: statuses.length > 0 && statuses.every((s) => participantStepDone(s, 'readyConfirmed')),
 });
 
 // Five-segment onboarding bar + short label. Falls back to the sentence when

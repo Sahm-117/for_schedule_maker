@@ -10,6 +10,9 @@ import { useToast } from '../Toast';
 import { supabase } from '../../lib/supabase';
 import { myHubApi, practiceApi, supportSessionsApi } from '../../services/api';
 import { useAppData } from '../../context/AppDataContext';
+import { useAuth } from '../../hooks/useAuth';
+import MeetingWindowNotice from '../groups/MeetingWindowNotice';
+import { friendlyMeetingError, meetingWindowState, useMinuteClock } from '../../utils/meetingWindow';
 import { prefetchPdfEngine, prefetchDocumentFile } from '../../utils/prefetchDocument';
 import type { HubMessage, HubPrayerFocus, HubPrayerListItem, MyHubMember, SupportAttendanceStatus, SupportRecap, Week } from '../../types';
 import { parseTimeToMinutes } from '../../utils/time';
@@ -55,10 +58,9 @@ interface HubMeetingPanelProps {
   isPrayerLead: boolean;
   onSubmit: (weekId: number, notes: string) => Promise<void>;
   onReopen: (weekId: number) => Promise<void>;
-  /** The hub's meeting slot (e.g. SATURDAY, 19:00, 60) — follow-along only shows prayer around it. */
+  /** The hub's meeting slot (e.g. SATURDAY, 19:00) — follow-along only shows prayer around it. */
   meetingDay?: string | null;
   meetingTime?: string | null;
-  meetingDurationMins?: number | null;
 }
 
 type HubMeetingSession = { id: string; notes: string | null; submittedAt: string | null };
@@ -122,14 +124,14 @@ const LiveDot: React.FC<{ label: string }> = ({ label }) => (
 const joinNames = (names: string[]) =>
   names.length <= 1 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 
-// True from 15 minutes before the hub's meeting slot until it ends.
+// True from 15 minutes before the hub's meeting slot until an hour after it starts (meetings have no set length).
 const DAY_NAMES = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
-const isInMeetingWindow = (day: string | null | undefined, time: string | null | undefined, durationMins: number | null | undefined, now: Date) => {
+const isInMeetingWindow = (day: string | null | undefined, time: string | null | undefined, now: Date) => {
   if (!day || !time || DAY_NAMES[now.getDay()] !== day.toUpperCase()) return false;
   const start = parseTimeToMinutes(time);
   if (start === null) return false;
   const nowMins = now.getHours() * 60 + now.getMinutes();
-  return nowMins >= start - 15 && nowMins <= start + (durationMins || 60);
+  return nowMins >= start - 15 && nowMins <= start + 60;
 };
 
 const FollowAlongPrayerCard: React.FC<{ focus: HubPrayerFocus; prayerLeadNames?: string[] }> = ({ focus, prayerLeadNames = [] }) =>
@@ -185,7 +187,6 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
   onReopen,
   meetingDay,
   meetingTime,
-  meetingDurationMins,
 }) => {
   const toast = useToast();
   const isFullAccess = canAttendance;
@@ -292,7 +293,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
   const attendanceTaken = Object.keys(marks).length > 0;
   const prayerStarted = !!prayerFocus.faithProjectId || prayerFocus.hubPrayerDone || prayerFocus.prayerFinished;
   const showFollowAlongPrayer = attendanceTaken || prayerStarted
-    || isInMeetingWindow(meetingDay, meetingTime, meetingDurationMins, now);
+    || isInMeetingWindow(meetingDay, meetingTime, now);
   useEffect(() => {
     if (!(isFollowAlong || isPrayerLead) || !hubId || weekId === null || attendanceTaken) return undefined;
     return startPolling(() => {
@@ -356,7 +357,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
       void channel?.send({ type: 'broadcast', event: 'prayer-focus', payload: {} });
     } catch (err) {
       setPrayerFocus(previous);
-      toast({ tone: 'error', message: err instanceof Error ? err.message : 'Could not set this.' });
+      toast({ tone: 'error', message: err instanceof Error ? friendlyMeetingError(err.message) : 'Could not set this.' });
     } finally {
       prayerWrites.current -= 1;
       lastPrayerWrite.current = Date.now();
@@ -391,7 +392,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
       void channel?.send({ type: 'broadcast', event: 'prayer-focus', payload: {} });
     } catch (err) {
       setPrayerFocus(previous);
-      toast({ tone: 'error', message: err instanceof Error ? err.message : 'Could not save this.' });
+      toast({ tone: 'error', message: err instanceof Error ? friendlyMeetingError(err.message) : 'Could not save this.' });
     } finally {
       prayerWrites.current -= 1;
       lastPrayerWrite.current = Date.now();
@@ -411,7 +412,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
       void channel?.send({ type: 'broadcast', event: 'prayer-focus', payload: {} });
     } catch (err) {
       setPrayerFocus(previous);
-      toast({ tone: 'error', message: err instanceof Error ? err.message : 'Could not finish prayer.' });
+      toast({ tone: 'error', message: err instanceof Error ? friendlyMeetingError(err.message) : 'Could not finish prayer.' });
     } finally {
       prayerWrites.current -= 1;
       lastPrayerWrite.current = Date.now();
@@ -431,7 +432,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
       void channel?.send({ type: 'broadcast', event: 'prayer-focus', payload: {} });
     } catch (err) {
       setPrayerFocus(previous);
-      toast({ tone: 'error', message: err instanceof Error ? err.message : 'Could not undo this.' });
+      toast({ tone: 'error', message: err instanceof Error ? friendlyMeetingError(err.message) : 'Could not undo this.' });
     } finally {
       prayerWrites.current -= 1;
       lastPrayerWrite.current = Date.now();
@@ -457,13 +458,20 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
         delete next[userId];
         return next;
       }), 2000);
-    } catch {
+    } catch (err) {
       setState('error');
+      if (err instanceof Error && /MEETING_(WINDOW_CLOSED|TIME_NOT_SET)/.test(err.message)) toast({ tone: 'error', message: friendlyMeetingError(err.message) });
     }
   };
 
   const week = weeks.find((w) => w.id === weekId) ?? null;
   const weekLabel = week ? `Week ${week.weekNumber}` : 'This week';
+  // The meeting can be recorded from 10 minutes before its time until midnight that day (admins and
+  // Practice any time); outside that the walk-through gives way to a notice.
+  const { isAdmin } = useAuth();
+  const { activeCohort: windowCohort } = useAppData();
+  const clock = useMinuteClock();
+  const windowState = meetingWindowState(meetingDay, meetingTime, week, windowCohort?.startDate, clock, isAdmin || !!windowCohort?.isPractice);
   const recap = useMemo(() => recaps.find((r) => r.weekId === weekId) ?? null, [recaps, weekId]);
   const latestMessage = messages[0] ?? null;
 
@@ -505,6 +513,8 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
       await onSubmit(weekId, trimmedNotes);
       setSession((prev) => ({ id: prev?.id ?? '', notes: trimmedNotes, submittedAt: new Date().toISOString() }));
       setStep(DONE_STEP);
+    } catch (err) {
+      toast({ tone: 'error', message: err instanceof Error ? friendlyMeetingError(err.message) : 'Could not submit the report.' });
     } finally {
       setBusy(false);
     }
@@ -517,6 +527,8 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
       await onReopen(weekId);
       setSession((prev) => (prev ? { ...prev, submittedAt: null } : prev));
       setStep(STEPS.length - 1);
+    } catch (err) {
+      toast({ tone: 'error', message: err instanceof Error ? friendlyMeetingError(err.message) : 'Could not reopen the report.' });
     } finally {
       setReopening(false);
     }
@@ -882,6 +894,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
   }
 
   // ── Full walk-through: hub lead, or assistant with ATTENDANCE permission. ──
+  const blocked = windowState.state !== 'open' && !submitted;
   return (
     <div className="flex flex-col gap-3">
       <section className={CARD}>
@@ -907,7 +920,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
           </div>
         )}
 
-        {!submitted && (
+        {!submitted && !blocked && (
           <div className="mt-3 flex flex-wrap gap-1.5">
             {STEPS.map((label, index) => {
               const current = index === Math.min(step, STEPS.length - 1);
@@ -934,6 +947,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
         )}
       </section>
 
+      {blocked ? <MeetingWindowNotice window={windowState} /> : (<>
       {step === 0 && (
         <section className={CARD}>
           <h3 className="text-[17px] font-semibold text-gray-900">Who's here?</h3>
@@ -1065,6 +1079,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
           </button>
         </div>
       )}
+      </>)}
     </div>
   );
 };

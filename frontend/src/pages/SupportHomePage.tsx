@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import PrayerNowBanner from '../components/corporatePrayers/PrayerNowBanner';
-import { Navigate, NavLink } from 'react-router-dom';
+import { Navigate, NavLink, useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import LinkText from '../components/LinkText';
 import ActivityText from '../components/ActivityText';
@@ -13,6 +13,7 @@ import { getCurrentProgramDayName, getProgramDayIndex } from '../utils/schedule'
 import { sortByText } from '../utils/sort';
 import { nextClassWeek, weekDayDate } from '../utils/participantApp';
 import { normalizeLink } from '../utils/links';
+import SupportOnboardingSteps from '../components/groups/SupportOnboardingSteps';
 import ChecklistTaskMeta from '../components/schedule/ChecklistTaskMeta';
 import TaskNoteSheet from '../components/schedule/TaskNoteSheet';
 import { sortChecklistForHome } from '../utils/checklist';
@@ -85,6 +86,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
   const [faithProjects, setFaithProjects] = useState<FaithProject[]>([]);
   const [helpRequests, setHelpRequests] = useState<ParticipantCheckIn[]>([]);
   const [myGroups, setMyGroups] = useState<Group[]>([]);
+  const navigate = useNavigate();
   const [tickNow, setTickNow] = useState(() => new Date());
   const [completions, setCompletions] = useState<SupportActivityCompletion[]>([]);
   const [completionSavingIds, setCompletionSavingIds] = useState<number[]>([]);
@@ -380,6 +382,15 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
       <div className="flex flex-wrap items-start gap-5">
         <div className="flex min-w-0 flex-[1_1_480px] flex-col gap-4">
           <PrayerNowBanner to="/support/pray" />
+          {/* Getting their group ready comes first, until every step is done. */}
+          {myGroup && (
+            <SupportOnboardingSteps
+              group={myGroup}
+              hideWhenComplete
+              onOpenIntroductions={(introduced) => navigate(`/support/participants?tab=discussion&group=${myGroup.id}${introduced ? '' : '&intro=1'}`)}
+              onOpenMeetings={() => navigate(`/support/participants?tab=prayers&group=${myGroup.id}`)}
+            />
+          )}
           <ProfileCompletionStrip user={user} variant="home" />
 
           <section data-wt="home-metrics" className="rounded-[22px] border border-[#ffdeca] bg-white p-5 shadow-[0_2px_6px_-2px_rgba(17,24,39,0.08)]">
@@ -409,7 +420,6 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
                   meetingDay={nextHubMeeting?.hub?.meetingDay}
                   meetingTime={nextHubMeeting?.hub?.meetingTime}
                   callLink={nextHubMeeting?.hub?.callLink}
-                  durationMins={nextHubMeeting?.hub?.meetingDurationMins}
                   live={!!hubsList.find((h) => h.hub?.id && h.hub.id === nextHubMeeting?.hub?.id)?.meetingLive}
                   now={tickNow}
                 />
@@ -739,14 +749,13 @@ const NextHubMeetingCard: React.FC<{
   meetingDay?: string | null;
   meetingTime?: string | null;
   callLink?: string | null;
-  durationMins?: number | null;
   live?: boolean;
   now?: Date;
-}> = ({ hubName, meetingDay, meetingTime, callLink, durationMins, live = false, now }) => {
+}> = ({ hubName, meetingDay, meetingTime, callLink, live = false, now }) => {
   const when = formatMeetingTime(meetingDay, meetingTime);
   const link = normalizeLink(callLink || '');
   // The call opens 10 minutes before the meeting; the rest of the week it waits.
-  const joinable = isCallJoinable(meetingDay, meetingTime, durationMins, now ?? new Date(), live);
+  const joinable = isCallJoinable(meetingDay, meetingTime, now ?? new Date(), live);
   const style = QUICK_STAT_TONES.green;
   return (
     <div className={`rounded-2xl border p-3.5 ${style.box}`}>

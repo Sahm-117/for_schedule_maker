@@ -1,0 +1,63 @@
+# Meeting recording window, onboarding steps, hub reports
+
+## Summary
+- **Meeting recording window.** A meeting can be recorded only from 10 minutes before its set time until midnight (Lagos) that day; admins any time. It covers adult group meetings, Teen Support meetings and hub meetings (FLOW_MAP rule 77). A group or hub with no day and time cannot record at all. Teen groups now set a day and time on the teen meeting card.
+- **No meeting lengths.** Durations are gone from every screen, and saving a meeting time clears any stored length (rule 78).
+- **Participant Home.** "Get ready" sits above the cards and tiles. After the first class (Present, Late or Left early) only a small "Finish your profile" card is left, and only if the profile is incomplete (rules 35, 75).
+- **One readiness rule for staff.** "Attended + profile complete" counts as ready for the support's "x of y ready", the Groups chip, the Supports page and the dashboard's "groups aren't fully onboarded" warning (rule 75).
+- **Support's "Get your group ready" steps.**
+  - Shown at the top of My Group (every tab) and of the support's Home.
+  - Ticked by the app only.
+  - An admin can mark a step done or undo it from Groups > card menu > Support steps (rule 76).
+- **Hub meeting reports.**
+  - The admin Hubs page has a "Hub meeting reports" card: status, who and when, attendance, prayer, notes, and "Read report" for the full report.
+  - The dashboard has a "Hub reports · Week N" line.
+  - The dashboard's Class attendance and Group meetings tiles show the week in progress "so far" (rule 79).
+
+## Live changes (database)
+- Applied: `20261018100000_support_onboarding_override.sql` (table `SupportOnboardingOverride`, `admin_set_support_onboarding_override`, `onboarding_progress_json` returns `overrides`).
+- `20261018110000_meeting_recording_window.sql` was tested on the live database inside a rolled-back transaction. It is applied together with the frontend push, so supports never see raw error codes on the old screens. **If it is not live, apply it with the push.**
+- Data clean-up (approved: only records made before the cohort start, 11 Oct):
+  - Deleted one group meeting row (prayer and recap ticked on 9 Oct).
+  - Deleted 13 hub attendance marks from 1 Oct, across three hubs.
+  - Deleted two empty hub meeting records from 1 Oct.
+  - Cleared one hub's 4 Oct "prayer finished" time and set its start to its first real mark.
+  - Kept a row created on 10 Oct whose ticks were on 11 Oct, and one hub's notes of unknown date.
+  - A backup was taken in the working session's scratchpad (not in the repo).
+- No edge function changes.
+
+## Decisions and why
+- **Window end.** Recording closes at midnight rather than at a meeting length, because meetings have no length and late marks and Submit must still work that evening. Owner's choice.
+- **Early records.** Only records made before the cohort start were removed (owner's condition). Records made early but after 11 Oct were left, and the window stops new ones.
+- **The window is enforced by triggers, not by the screens alone,** because the app writes `MeetingAttendance` and `GroupPrayerStatus` directly. Requests without an app session token (cron, service key) pass, so automatic finalising keeps working.
+- **Practice cohorts are exempt,** so the Practice walk-throughs still work any time.
+- **Readiness in the dashboard and Supports page** comes from `cohort_onboarding_progress` plus the groups' meeting details. `cohort_people` still has its older `onboarded` flag, which is used only when that data is missing.
+
+## How it was tested
+- `npm run build` passes. `tsc` shows the same errors as the last commit and none in the changed files.
+- **Browser (Playwright) with a mocked backend:**
+  - Admin: Hubs reports card and full-report window, dashboard line and "so far" tiles, the onboarding warning counting only the group that is really behind, Support steps window with Mark done and Undo.
+  - Support: steps on My Group and Home; the meeting notice when open, before the window ("Opens Sat, 17 Oct, 3:50 pm") and with no time set.
+  - Teen card: setting a time.
+  - Participant Home: Get ready above the tiles, and Finish your profile after attending.
+- **Database:** both migrations run against live data in rolled-back transactions.
+  - A non-admin session outside the window is refused.
+  - No time set is refused.
+  - Training sessions are not affected.
+  - System requests pass.
+  - The windows land on the right days: Week 2 meets in the week of the 25 Oct class.
+
+## Open items
+- 10 adult groups and all 5 teen groups had no meeting time on 16 Oct. Once the window rule is live they cannot record until they set one (owner agreed).
+- There is no Week for 18 to 24 Oct (no class), so a meeting held that week has no week to be recorded against.
+- The admin pages for marking meetings (Group meetings page, hub Recap attendance) are not limited; admins can record any time.
+- The per-person step pills on staff cards still show the raw five steps; only the counts and chips use the attended rule.
+- The `meetingDurationMins` columns remain in the database; removing them needs separate approval.
+
+## Gotchas
+- `fof_meeting_window(day, time, weekId)` takes the first meeting day on or after `week_class_date` (a moved class need not be a Sunday); Lagos time is fixed at UTC+1 in `utils/meetingWindow.ts`.
+- The screens re-check the window every 30 seconds (`useMinuteClock`); while the week is still loading they do not block (the database still checks).
+- Errors come back as `MEETING_WINDOW_CLOSED: <opens>|<closes>`; `friendlyMeetingError` turns them into words.
+
+## How to pick this up
+Read FLOW_MAP rules 35, 57 and 75–79, then `utils/supportOnboarding.ts` and `utils/meetingWindow.ts`.

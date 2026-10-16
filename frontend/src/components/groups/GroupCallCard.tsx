@@ -14,15 +14,14 @@ const platformFromLink = (link: string | null | undefined): GroupCallPlatform | 
   return /meet\.google\.com/i.test(link) ? 'GOOGLE_MEET' : 'WHATSAPP';
 };
 
-// "FRIDAY" + "19:00" + 60 → "Friday, 7:00 PM · 60 minutes"
-export const formatMeetingSlot = (day?: string | null, time?: string | null, durationMins?: number | null): string | null => {
+// "FRIDAY" + "19:00" → "Friday, 7:00 PM" (meetings have no set length)
+export const formatMeetingSlot = (day?: string | null, time?: string | null): string | null => {
   if (!day || !time) return null;
   const [h, m] = time.split(':').map(Number);
   const dayLabel = day.charAt(0) + day.slice(1).toLowerCase();
   const ampm = h >= 12 ? 'PM' : 'AM';
   const displayH = h > 12 ? h - 12 : h === 0 ? 12 : h;
-  const base = `${dayLabel}, ${displayH}:${String(m).padStart(2, '0')} ${ampm}`;
-  return durationMins ? `${base} · ${durationMins} minutes` : base;
+  return `${dayLabel}, ${displayH}:${String(m).padStart(2, '0')} ${ampm}`;
 };
 
 export const formatMeetingTime = (day?: string | null, time?: string | null): string | null => {
@@ -37,7 +36,6 @@ export const formatMeetingTime = (day?: string | null, time?: string | null): st
 export interface MeetingSaveInput {
   meetingDay: string | null;
   meetingTime: string | null;
-  meetingDurationMins: number | null;
   callPlatform: GroupCallPlatform;
   callLink: string | null;
 }
@@ -60,7 +58,7 @@ export interface MeetingCallCardProps {
   // Omit to render read-only (no edit/set-up affordance) — e.g. a hub member viewing
   // the lead's meeting.
   onSave?: (input: MeetingSaveInput) => Promise<void>;
-  // Admin-set meetings (hubs, Hub Leads): any day, any time, any length.
+  // Admin-set meetings (hubs, Hub Leads): any day, any time.
   anySlot?: boolean;
   // The meeting is marked live: the call is open whatever the clock says.
   live?: boolean;
@@ -97,7 +95,7 @@ export const MeetingCallCard: React.FC<MeetingCallCardProps> = ({
   useEffect(() => {
     setSlotDraft(slot);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resetKey, slot.meetingDay, slot.meetingTime, slot.meetingDurationMins]);
+  }, [resetKey, slot.meetingDay, slot.meetingTime]);
 
   const startEditing = () => {
     setLinkDraft(callLink ?? '');
@@ -191,14 +189,12 @@ export const MeetingCallCard: React.FC<MeetingCallCardProps> = ({
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-auto overflow-hidden">
             <p className="truncate text-sm font-bold text-gray-900">{meetingTime ?? 'Meeting time not set'}</p>
-            {slot.meetingDurationMins && <p className="mt-0.5 text-xs text-gray-500">{slot.meetingDurationMins} min</p>}
           </div>
           <div className="flex flex-none items-center gap-2">
             <JoinCallButton
               href={normalizeLink(callLink) || '#'}
               day={slot.meetingDay}
               time={slot.meetingTime}
-              durationMins={slot.meetingDurationMins}
               live={live}
               label="Join Call"
               className="inline-flex h-11 min-h-11 shrink-0 items-center justify-center rounded-[10px] bg-primary px-3.5 py-0 text-sm font-semibold leading-none text-white"
@@ -235,12 +231,12 @@ const GroupCallCard: React.FC<GroupCallCardProps> = ({ group, fallbackLink, onGr
   const slot: MeetingSlot = {
     meetingDay: group?.meetingDay ?? null,
     meetingTime: group?.meetingTime ?? null,
-    meetingDurationMins: group?.meetingDurationMins ?? null,
   };
 
   const handleSave = async (input: MeetingSaveInput) => {
     if (!group) throw new Error('Your group is not set up yet. Ask an admin to assign you a group.');
-    const { group: updated } = await groupsApi.update(group.id, input);
+    // Meetings have no set length any more; saving clears an old one.
+    const { group: updated } = await groupsApi.update(group.id, { ...input, meetingDurationMins: null });
     onGroupUpdated(updated);
   };
 

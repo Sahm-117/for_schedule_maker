@@ -1,4 +1,5 @@
 import type { OnboardingProgressParticipant } from '../types';
+import { participantIsReady, participantStepDone } from './supportOnboarding';
 
 // How far along a group's onboarding is, for the card on the Groups page. A group is onboarded when
 // every member has finished; it is overdue when it is not and more than the programme's allowance
@@ -38,7 +39,12 @@ export interface GroupOnboardingSummary {
   waitingOnSupportMeeting: boolean;
 }
 
-export interface SupportOnboardingSteps { introduced: boolean | null; meetingSet: boolean }
+export interface SupportOnboardingSteps {
+  introduced: boolean | null;
+  meetingSet: boolean;
+  /** An admin marked "participants ready" done by hand: the members count as done. */
+  readyOverride?: boolean;
+}
 
 const DAY_MS = 86400000;
 
@@ -56,16 +62,17 @@ export const summarizeGroupOnboarding = (
 ): GroupOnboardingSummary | null => {
   if (memberIds.length === 0) return null;
   const rows = memberIds.map((id) => progress.get(id));
-  // A step counts for a member who has done it or has finished onboarding altogether.
-  const stepCounts = ONBOARDING_STEPS.map((step) => rows.filter((row) => row && (row.completed || row[step.key])).length);
-  const onboarded = rows.filter((row) => row && (row.completed || ONBOARDING_STEPS.every((step) => row[step.key]))).length;
+  // A step counts for a member who has done it, has finished onboarding, or has been to class (then
+  // only the profile is still asked of them; see utils/supportOnboarding).
+  const stepCounts = ONBOARDING_STEPS.map((step) => rows.filter((row) => row && participantStepDone(row, step.key)).length);
+  const onboarded = rows.filter((row) => row && (participantIsReady(row) || ONBOARDING_STEPS.every((step) => row[step.key]))).length;
   const assignedMs = assignedAt ? new Date(assignedAt).getTime() : NaN;
   // Overdue is judged on exact days, the way the Supports page and the dashboard do; the card shows whole days.
   const exactDays = Number.isNaN(assignedMs) ? null : Math.max(0, (now.getTime() - assignedMs) / DAY_MS);
   const daysSinceAssigned = exactDays === null ? null : Math.floor(exactDays);
 
   // A group is onboarded when every member is done AND its support has set a meeting time (the support's own step).
-  const membersDone = onboarded === memberIds.length;
+  const membersDone = onboarded === memberIds.length || !!support.readyOverride;
   let chip: OnboardingChip;
   if (membersDone && support.meetingSet) chip = 'onboarded';
   else if (exactDays !== null && exactDays > maxDays) chip = 'overdue';

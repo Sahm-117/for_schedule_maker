@@ -28,7 +28,7 @@ const LeadsMeetingTab: React.FC<{ cohortId: string }> = ({ cohortId }) => {
   if (error) return <section className={`${SURFACE} px-6 py-6`}><p className="text-[15px] text-gray-500">{error}</p></section>;
   if (!meeting) return <section className={`${SURFACE} flex justify-center px-6 py-10`}><Spinner /></section>;
 
-  const slot = formatMeetingSlot(meeting.meetingDay, meeting.meetingTime, meeting.meetingDurationMins);
+  const slot = formatMeetingSlot(meeting.meetingDay, meeting.meetingTime);
   const href = meeting.callLink?.trim() ? normalizeLink(meeting.callLink.trim()) : null;
   const next = nextOccurrences(meeting.meetingDay, meeting.meetingTime, 2);
 
@@ -42,7 +42,7 @@ const LeadsMeetingTab: React.FC<{ cohortId: string }> = ({ cohortId }) => {
         </p>
         {href && (
           <div className="mt-6 flex flex-col gap-2.5 sm:flex-row">
-            <JoinCallButton href={href} day={meeting.meetingDay} time={meeting.meetingTime} durationMins={meeting.meetingDurationMins} className={PRIMARY} />
+            <JoinCallButton href={href} day={meeting.meetingDay} time={meeting.meetingTime} className={PRIMARY} />
           </div>
         )}
         <p className="mt-5 rounded-2xl bg-[#f5f5f7] px-4 py-3 text-[13px] text-gray-500">

@@ -21,6 +21,7 @@ import { selectedFirst } from '../utils/selectedFirst';
 import { getIdealWeekForCohort, getIdealWeekNumberForCohort } from '../utils/weekFocus';
 import { cohortMode } from '../components/dashboard/healthModel';
 import AttendanceSummaryStrip from '../components/hubs/AttendanceSummaryStrip';
+import HubReportsCard from '../components/hubs/HubReportsCard';
 import MeetingSetModal from '../components/hubs/MeetingSetModal';
 import { formatMeetingSlot } from '../components/groups/GroupCallCard';
 import Spinner from '../components/Spinner';
@@ -498,6 +499,8 @@ const AdminHubsPage: React.FC = () => {
   }, []);
   const [memberships, setMemberships] = useState<HubMembership[]>([]);
   const [supportUsers, setSupportUsers] = useState<User[]>([]);
+  // Every user's name, for who opened and submitted a hub report (a Hub Lead can be an admin).
+  const [nameById, setNameById] = useState<Map<string, string>>(new Map());
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
@@ -540,6 +543,7 @@ const AdminHubsPage: React.FC = () => {
       // Test supports stay out of the pickers, unless they already hold a place.
       const heldIds = [...ms.map((m) => m.userId), ...hs.flatMap((h) => [h.leadUserId, h.assistantLeadUserId, ...(h.recapLeadUserIds ?? []), ...(h.prayerLeadUserIds ?? [])])];
       setSupportUsers(sortByText(pickableUsers(users.filter((u) => hasSupportRole(u)), { keepIds: heldIds }), (u) => u.name));
+      setNameById(new Map(users.map((u) => [u.id, u.name])));
       setGroups(gs);
       setKinds(ks);
       const itSupportEntries = await Promise.all(hs.map((h) => supportHubsApi.getItSupports(h.id).then((res) => res.itSupports).catch(() => [] as HubItSupportEntry[])));
@@ -584,6 +588,18 @@ const AdminHubsPage: React.FC = () => {
     const idealNumber = getIdealWeekNumberForCohort(activeCohort, new Date(), weeks);
     const judged = sorted.filter((w) => w.weekNumber < idealNumber);
     return judged.length > 0 ? judged[judged.length - 1] : null;
+  }, [activeCohort, weeks]);
+
+  // Hub meeting reports show every week that has started, the current one included, so a report is
+  // visible the night it is sent rather than once the week is over.
+  const reportWeeks = useMemo(() => {
+    if (!activeCohort || weeks.length === 0) return [];
+    const sorted = [...weeks].sort((a, b) => a.weekNumber - b.weekNumber);
+    const mode = cohortMode(activeCohort);
+    if (mode === 'upcoming') return [];
+    if (mode === 'completed') return sorted;
+    const current = getIdealWeekNumberForCohort(activeCohort, new Date(), weeks);
+    return sorted.filter((w) => w.weekNumber <= current);
   }, [activeCohort, weeks]);
 
   useEffect(() => {
@@ -715,11 +731,20 @@ const AdminHubsPage: React.FC = () => {
             summaryWeek={summaryWeek}
             recapMarksByHubWeek={recapMarksByHubWeek}
           />
+          {!loading && (
+            <HubReportsCard
+              cohortId={activeCohort.id}
+              hubs={hubs}
+              membersByHub={membersByHub}
+              weeks={reportWeeks}
+              nameById={nameById}
+            />
+          )}
           <section className="mb-5 flex items-center gap-4 rounded-[28px] bg-white px-6 py-5 shadow-[0_1px_2px_rgba(17,24,39,0.04),0_12px_32px_-16px_rgba(17,24,39,0.18)]">
             <div className="min-w-0 flex-1">
               <span className="inline-flex rounded-full bg-violet-100/80 px-2.5 py-1 text-xs font-semibold text-violet-700">Hub Leads meeting</span>
               <p className="mt-2 text-[17px] font-bold text-gray-900">
-                {formatMeetingSlot(leadsMeeting?.meetingDay, leadsMeeting?.meetingTime, leadsMeeting?.meetingDurationMins) ?? 'Not set yet'}
+                {formatMeetingSlot(leadsMeeting?.meetingDay, leadsMeeting?.meetingTime) ?? 'Not set yet'}
               </p>
               <p className="mt-0.5 text-[13px] text-gray-500">
                 {leadsMeeting?.callLink ? 'Link set. Hub Leads meet once a week.' : 'Add a time and link so Hub Leads can join.'}
@@ -906,7 +931,7 @@ const AdminHubsPage: React.FC = () => {
         onClose={() => setLeadsMeetingOpen(false)}
         title="Hub Leads meeting"
         subtitle="One meeting a week for all Hub Leads. Only admins can change it."
-        slot={{ meetingDay: leadsMeeting?.meetingDay ?? null, meetingTime: leadsMeeting?.meetingTime ?? null, meetingDurationMins: leadsMeeting?.meetingDurationMins ?? null }}
+        slot={{ meetingDay: leadsMeeting?.meetingDay ?? null, meetingTime: leadsMeeting?.meetingTime ?? null }}
         callPlatform={leadsMeeting?.callPlatform ?? null}
         callLink={leadsMeeting?.callLink ?? null}
         resetKey={activeCohort?.id ?? ''}
@@ -923,7 +948,7 @@ const AdminHubsPage: React.FC = () => {
         onClose={() => setMeetingTarget(null)}
         title={meetingTarget ? `${meetingTarget.name} meeting` : 'Hub meeting'}
         subtitle="The hub's weekly meeting. Only admins can change it."
-        slot={{ meetingDay: meetingTarget?.meetingDay ?? null, meetingTime: meetingTarget?.meetingTime ?? null, meetingDurationMins: meetingTarget?.meetingDurationMins ?? null }}
+        slot={{ meetingDay: meetingTarget?.meetingDay ?? null, meetingTime: meetingTarget?.meetingTime ?? null }}
         callPlatform={meetingTarget?.callPlatform ?? null}
         callLink={meetingTarget?.callLink ?? null}
         resetKey={meetingTarget?.id ?? ''}
@@ -932,7 +957,7 @@ const AdminHubsPage: React.FC = () => {
         onSave={async (input, notify) => {
           if (!meetingTarget) return;
           await myHubApi.updateMeeting(meetingTarget.id, input, notify);
-          const patch = { meetingDay: input.meetingDay, meetingTime: input.meetingTime, meetingDurationMins: input.meetingDurationMins, callPlatform: input.callPlatform, callLink: input.callLink };
+          const patch = { meetingDay: input.meetingDay, meetingTime: input.meetingTime, meetingDurationMins: null, callPlatform: input.callPlatform, callLink: input.callLink };
           setHubs((prev) => prev.map((x) => (x.id === meetingTarget.id ? { ...x, ...patch } : x)));
         }}
       />

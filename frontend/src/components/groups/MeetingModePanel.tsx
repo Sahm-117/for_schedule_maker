@@ -6,6 +6,8 @@ import InfoTip from '../InfoTip';
 import { meetingAttendanceApi } from '../../services/api';
 import type { FaithProject, Participant, Week } from '../../types';
 import Spinner from '../Spinner';
+import MeetingWindowNotice from './MeetingWindowNotice';
+import { friendlyMeetingError, type MeetingWindowState } from '../../utils/meetingWindow';
 
 type MeetingMark = 'JOINED' | 'EXCUSED' | 'MISSED';
 
@@ -55,6 +57,10 @@ interface MeetingModePanelProps {
   discussionPrompt?: string | null;
   recapDocumentUrl?: string | null;
   recapDocumentName?: string | null;
+  /** When the week's meeting can be recorded; anything but open shows a notice instead of the steps. */
+  windowState?: MeetingWindowState;
+  /** Opens the meeting time editor, for the "no time yet" notice. */
+  onSetTime?: () => void;
 }
 
 // Five-step weekly group meeting flow: Attendance → Prayer → Recap → Notes → Submit.
@@ -79,6 +85,8 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
   discussionPrompt,
   recapDocumentUrl,
   recapDocumentName,
+  windowState,
+  onSetTime,
 }) => {
   const [step, setStep] = useState(submitted ? DONE_STEP : 0);
   const [marks, setMarks] = useState<Record<string, MeetingMark>>({});
@@ -88,6 +96,7 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
   const [docOpen, setDocOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [markError, setMarkError] = useState('');
+  const [submitError, setSubmitError] = useState('');
 
   // Each week starts its own run through the flow.
   useEffect(() => {
@@ -123,7 +132,7 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
         if (previous) next[participantId] = previous; else delete next[participantId];
         return next;
       });
-      setMarkError(err instanceof Error ? err.message : 'That mark could not be saved.');
+      setMarkError(err instanceof Error ? friendlyMeetingError(err.message) : 'That mark could not be saved.');
     }
   };
 
@@ -186,13 +195,19 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
     if (submitted) { setStep(DONE_STEP); return; }
     if (blockedByMarks) return;
     setBusy(true);
+    setSubmitError('');
     try {
       await onSubmit({ summary: summary.trim(), concern: concern.trim() });
       setStep(DONE_STEP);
+    } catch (err) {
+      setSubmitError(err instanceof Error ? friendlyMeetingError(err.message) : 'The report could not be submitted.');
     } finally {
       setBusy(false);
     }
   };
+
+  // Outside the recording window the steps give way to a notice (a submitted week can still be viewed).
+  const blocked = !!windowState && windowState.state !== 'open' && !submitted;
 
   return (
     <div className="flex flex-col gap-3">
@@ -219,7 +234,7 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
           </div>
         )}
 
-        {!submitted && <div className="mt-3 flex flex-wrap gap-1.5">
+        {!submitted && !blocked && <div className="mt-3 flex flex-wrap gap-1.5">
           {STEPS.map((label, index) => {
             const current = index === Math.min(step, STEPS.length - 1);
             const cls = current
@@ -261,6 +276,7 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
         </div>}
       </section>
 
+      {blocked && windowState ? <MeetingWindowNotice window={windowState} onSetTime={onSetTime} /> : (<>
       {step === 0 && (
         <section className={CARD}>
           <h3 className="text-[15px] font-bold text-gray-900">Who joined the meeting?</h3>
@@ -388,6 +404,7 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
           <h3 className="text-[15px] font-bold text-gray-900">Submit</h3>
           <p className="mt-0.5 text-[13px] text-gray-500">Check the summary, then submit the report for {weekLabel}.</p>
           <p className="mt-3 rounded-[14px] bg-[#f6f7f9] p-3.5 text-sm leading-normal text-gray-700">{doneSummary}</p>
+          {submitError && <p className="mt-2 text-sm text-red-600">{submitError}</p>}
           {blockedByMarks && (
             <div className="mt-2.5 flex flex-wrap items-center gap-2 rounded-[14px] bg-amber-100/80 p-3.5 text-sm text-amber-800">
               <span className="min-w-0 flex-1">
@@ -442,6 +459,7 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
           </button>
         </div>
       )}
+      </>)}
     </div>
   );
 };

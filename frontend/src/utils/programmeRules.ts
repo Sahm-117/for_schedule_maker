@@ -11,6 +11,7 @@
 // - Supports: each week they submit the group meeting report and mark attendance.
 //   1 unrecorded week = keep an eye on, 2 = needs attention. Their group must be
 //   fully onboarded within a week of being assigned.
+import type { OnboardingReadiness } from './supportOnboarding';
 
 export interface ProgrammeRules {
   completionAttendancePct: number;
@@ -260,6 +261,9 @@ export const evaluateSupports = (
   judgedWeeks: Array<{ id: number; weekNumber: number }>,
   rules: ProgrammeRules,
   now = new Date(),
+  // When given, "onboarded" follows utils/supportOnboarding (ready participants, the support's own
+  // steps, admin marks), and a group that is ready is never late.
+  readiness?: OnboardingReadiness | null,
 ): SupportEvaluation[] => {
   const activeMembers = new Map<string, string[]>();
   people.participants.forEach((p) => {
@@ -292,12 +296,16 @@ export const evaluateSupports = (
       const o = onboardingBy.get(g.id);
       // A support is onboarded when every member is AND they have set a meeting time for the group.
       const meetingSet = g.meetingSet !== false;
-      const allOnboarded = members.every((m) => onboardedIds.has(m)) && meetingSet;
+      // groupDone already holds all three of the support's steps, participants ready included (seen
+      // by the app or marked by an admin); without it, fall back to who is ready.
+      const allOnboarded = readiness
+        ? (readiness.groupDone.get(g.id) ?? (members.every((m) => readiness.readyIds.has(m)) && meetingSet))
+        : members.every((m) => onboardedIds.has(m)) && meetingSet;
       const start = o?.assignedAt ? new Date(o.assignedAt).getTime() : null;
       // The clock stops only when the whole onboarding is finished, the meeting time included.
       const end = o?.completedAt && meetingSet ? new Date(o.completedAt).getTime() : null;
       const days = start !== null ? Math.max(0, ((end ?? now.getTime()) - start) / DAY_MS) : null;
-      const late = days !== null && days > rules.onboardingMaxDays;
+      const late = days !== null && days > rules.onboardingMaxDays && !(readiness && allOnboarded);
 
       const health: PersonHealth = missedWeeks.length >= rules.supportRedMissedWeeks
         ? 'critical'

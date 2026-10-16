@@ -104,7 +104,6 @@ const ParticipantGroupPage: React.FC = () => {
             <p className="mt-2 text-[22px] font-extrabold text-gray-900">
               {scheduled ? `${titleCaseDay(group.meetingDay)} · ${formatTime(group.meetingTime)}` : 'Waiting on your support to schedule this'}
             </p>
-            {group.meetingDurationMins ? <p className="mt-0.5 text-[13px] text-gray-500">{group.meetingDurationMins} min</p> : null}
 
             {/* The meeting's order, as a simple step line (not buttons). */}
             <ol className="mt-5 grid grid-cols-3" aria-label="How the meeting runs">

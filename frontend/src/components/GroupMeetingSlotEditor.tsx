@@ -6,14 +6,13 @@ import { MEETING_DAYS, startTimeOptions } from '../utils/groupMeetingLimits';
 export type MeetingSlot = {
   meetingDay: string | null;
   meetingTime: string | null;
-  meetingDurationMins: number | null;
 };
 
 interface Props {
   value: MeetingSlot;
   onChange: (slot: MeetingSlot) => void;
   disabled?: boolean;
-  /** Admin-set meetings: any day, any time, any length. Group calls keep the usual limits. */
+  /** Admin-set meetings: any day, any time. Group calls keep the usual limits. */
   anySlot?: boolean;
 }
 
@@ -27,15 +26,14 @@ const ALL_DAY_OPTIONS = [
   { value: 'SUNDAY', label: 'Sunday' },
 ];
 
-export const formatMeetingSlot = (slot: { meetingDay?: string | null; meetingTime?: string | null; meetingDurationMins?: number | null }): string | null => {
+export const formatMeetingSlot = (slot: { meetingDay?: string | null; meetingTime?: string | null }): string | null => {
   if (!slot.meetingDay || !slot.meetingTime) return null;
   const dayLabel = slot.meetingDay.charAt(0) + slot.meetingDay.slice(1).toLowerCase();
   const [h, m] = slot.meetingTime.split(':').map(Number);
   const ampm = h >= 12 ? 'PM' : 'AM';
   const displayH = h > 12 ? h - 12 : h === 0 ? 12 : h;
   const displayM = String(m).padStart(2, '0');
-  const dur = slot.meetingDurationMins === 60 ? '1 hr' : slot.meetingDurationMins ? `${slot.meetingDurationMins} min` : '';
-  return `${dayLabel} · ${displayH}:${displayM} ${ampm}${dur ? ` · ${dur}` : ''}`;
+  return `${dayLabel} · ${displayH}:${displayM} ${ampm}`;
 };
 
 const GroupMeetingSlotEditor: React.FC<Props> = ({ value, onChange, disabled, anySlot = false }) => {

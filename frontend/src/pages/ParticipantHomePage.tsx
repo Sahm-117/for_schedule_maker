@@ -184,7 +184,7 @@ const ParticipantHomePage: React.FC = () => {
 
   const quickTiles: Array<{ key: string; label: string; icon: string; to?: string; href?: string; disabled?: boolean; hint?: string; avatarName?: string; avatarUrl?: string | null }> = [
     // Nothing to join until the support shares the group's call link.
-    groupCallLink && (!callSet || isCallJoinable(group?.meetingDay, group?.meetingTime, group?.meetingDurationMins, now, !!home.groupMeetingLive))
+    groupCallLink && (!callSet || isCallJoinable(group?.meetingDay, group?.meetingTime, now, !!home.groupMeetingLive))
       ? { key: 'call', label: 'Join call', icon: ICON_CALL, href: groupCallLink }
       : { key: 'call', label: 'Join call', icon: ICON_CALL, disabled: true, hint: groupCallLink ? `Opens ${JOIN_LEAD_MINUTES} min before` : undefined },
     supportWaLink
@@ -326,6 +326,81 @@ const ParticipantHomePage: React.FC = () => {
           </section>
         )}
         <AttendanceCountdownCard openWindow={home.openWindow} />
+        {/* Get ready sits above the cards and tiles: it is what to do before the first class. */}
+        {(isPractice || (readyPreStart && onboarding && !onboarding.hasAttended)) && (
+          <section data-wt="ph-get-ready" className={CARD}>
+            {!onboarding ? (
+              <div className="flex justify-center py-4"><Spinner /></div>
+            ) : onboarding.readyConfirmed || onboarding.completed ? (
+              <div className="flex items-center gap-3">
+                <span className="grid h-8 w-8 flex-none place-items-center rounded-full bg-emerald-500 text-white" aria-hidden="true">
+                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="m5 12 5 5L20 7" /></svg>
+                </span>
+                <h2 className="text-lg font-bold text-gray-900">You're ready for class</h2>
+              </div>
+            ) : (
+              <>
+            <div className="flex items-baseline gap-2">
+              <h2 className="text-lg font-bold text-gray-900">Get ready</h2>
+              <span className="ml-auto text-xs font-semibold text-gray-500">{readyDone} of {readyItems.length} done</span>
+            </div>
+            <div className="mt-3 flex flex-col gap-2">
+              {readyItems.map((item) => {
+                const tappable = !!(item.onClick || item.to);
+                const rowClass = `flex min-h-[48px] w-full items-center gap-3 rounded-[14px] border border-[#f1f2f5] px-3.5 py-3 text-left ${tappable ? 'hover:border-[#ffdeca]' : 'opacity-70'}`;
+                const row = (
+                  <>
+                  <span className={`grid h-6 w-6 flex-none place-items-center rounded-full ${item.done ? 'bg-emerald-500 text-white' : 'border-2 border-gray-300'}`} aria-hidden="true">
+                    {item.done && <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="m5 12 5 5L20 7" /></svg>}
+                  </span>
+                  <span className="min-w-0">
+                    <span className={`block text-sm font-semibold ${item.done ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{item.label}</span>
+                    {item.sub && !item.done && <span className="block text-xs text-gray-500">{item.sub}</span>}
+                  </span>
+                  <span className="sr-only">{item.done ? '(done)' : ''}</span>
+                  {tappable && <span className="ml-auto text-gray-300" aria-hidden="true">&#8250;</span>}
+                  </>
+                );
+                if (item.onClick) return <button key={item.key} type="button" onClick={item.onClick} className={rowClass}>{row}</button>;
+                if (item.to) return <NavLink key={item.key} to={item.to} className={rowClass}>{row}</NavLink>;
+                return <div key={item.key} className={rowClass}>{row}</div>;
+              })}
+              <button
+                type="button"
+                onClick={() => void confirmReady()}
+                disabled={!allDone || confirming}
+                className="mt-1 flex min-h-[48px] w-full items-center gap-3 rounded-[14px] bg-primary px-3.5 py-3 text-left text-sm font-semibold text-white disabled:bg-gray-100 disabled:text-gray-400"
+              >
+                {confirming ? <Spinner className="h-4 w-4" /> : <span className="grid h-6 w-6 flex-none place-items-center rounded-full border-2 border-current" aria-hidden="true" />}
+                <span>I have all I need to be ready for class{firstClassDate ? ` on ${formatDateLabel(firstClassDate)}` : ''}</span>
+              </button>
+              <div className="mt-1 flex min-h-[56px] items-center gap-3 rounded-[16px] border border-dashed border-[#ecd6c6] bg-[#fffaf6] px-3.5 py-3" aria-label="The readiness badge unlocks when every step is ticked">
+                <span className="grid h-10 w-10 flex-none place-items-center rounded-full bg-[#f3e6dc] text-[#b79a85]"><svg viewBox="0 0 24 24" className="h-[22px] w-[22px]" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.3 6.8 19.1l1-5.8L3.5 9.2l5.9-.9L12 3Z" /></svg></span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-bold text-[#8a6a55]">{badgeName} waits at the end</span>
+                  <span className="block text-xs text-[#a58b78]">Tick every step above to earn it, with your photo on it</span>
+                </span>
+              </div>
+            </div>
+              </>
+            )}
+          </section>
+        )}
+
+        {!isPractice && readyPreStart && onboarding?.hasAttended && !onboarding.profileComplete && (
+          // After their first class the Get ready list goes; only the profile is still asked for.
+          <NavLink to="/me/profile" data-wt="ph-finish-profile" className="flex min-h-[56px] items-center gap-3 rounded-[18px] border border-[#ffdeca] bg-white px-4 py-3 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
+            <span className="grid h-9 w-9 flex-none place-items-center rounded-full bg-[#ffe8d5] text-[#c2410c]" aria-hidden="true">
+              <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 8a7 7 0 0 1 14 0" /></svg>
+            </span>
+            <span className="min-w-0">
+              <span className="block text-[15px] font-bold text-gray-900">Finish your profile</span>
+              <span className="block text-xs text-gray-500">{onboarding.profileMissing} {onboarding.profileMissing === 1 ? 'thing' : 'things'} left</span>
+            </span>
+            <span className="ml-auto text-gray-300" aria-hidden="true">&#8250;</span>
+          </NavLink>
+        )}
+
         <section data-wt="ph-progress" className="rounded-[22px] border border-[#ffdeca] bg-white p-5 shadow-[0_2px_6px_-2px_rgba(17,24,39,0.08)]">
           <div className="flex flex-wrap items-baseline gap-3">
             <p className="text-xs font-bold uppercase tracking-[0.04em] text-[#9a6a4b]">Programme progress</p>
@@ -454,66 +529,6 @@ const ParticipantHomePage: React.FC = () => {
             );
           })}
         </div>
-
-        {(isPractice || (readyPreStart && onboarding && !onboarding.hasAttended)) && (
-          <section data-wt="ph-get-ready" className={CARD}>
-            {!onboarding ? (
-              <div className="flex justify-center py-4"><Spinner /></div>
-            ) : onboarding.readyConfirmed || onboarding.completed ? (
-              <div className="flex items-center gap-3">
-                <span className="grid h-8 w-8 flex-none place-items-center rounded-full bg-emerald-500 text-white" aria-hidden="true">
-                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="m5 12 5 5L20 7" /></svg>
-                </span>
-                <h2 className="text-lg font-bold text-gray-900">You're ready for class</h2>
-              </div>
-            ) : (
-              <>
-            <div className="flex items-baseline gap-2">
-              <h2 className="text-lg font-bold text-gray-900">Get ready</h2>
-              <span className="ml-auto text-xs font-semibold text-gray-500">{readyDone} of {readyItems.length} done</span>
-            </div>
-            <div className="mt-3 flex flex-col gap-2">
-              {readyItems.map((item) => {
-                const tappable = !!(item.onClick || item.to);
-                const rowClass = `flex min-h-[48px] w-full items-center gap-3 rounded-[14px] border border-[#f1f2f5] px-3.5 py-3 text-left ${tappable ? 'hover:border-[#ffdeca]' : 'opacity-70'}`;
-                const row = (
-                  <>
-                  <span className={`grid h-6 w-6 flex-none place-items-center rounded-full ${item.done ? 'bg-emerald-500 text-white' : 'border-2 border-gray-300'}`} aria-hidden="true">
-                    {item.done && <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="m5 12 5 5L20 7" /></svg>}
-                  </span>
-                  <span className="min-w-0">
-                    <span className={`block text-sm font-semibold ${item.done ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{item.label}</span>
-                    {item.sub && !item.done && <span className="block text-xs text-gray-500">{item.sub}</span>}
-                  </span>
-                  <span className="sr-only">{item.done ? '(done)' : ''}</span>
-                  {tappable && <span className="ml-auto text-gray-300" aria-hidden="true">&#8250;</span>}
-                  </>
-                );
-                if (item.onClick) return <button key={item.key} type="button" onClick={item.onClick} className={rowClass}>{row}</button>;
-                if (item.to) return <NavLink key={item.key} to={item.to} className={rowClass}>{row}</NavLink>;
-                return <div key={item.key} className={rowClass}>{row}</div>;
-              })}
-              <button
-                type="button"
-                onClick={() => void confirmReady()}
-                disabled={!allDone || confirming}
-                className="mt-1 flex min-h-[48px] w-full items-center gap-3 rounded-[14px] bg-primary px-3.5 py-3 text-left text-sm font-semibold text-white disabled:bg-gray-100 disabled:text-gray-400"
-              >
-                {confirming ? <Spinner className="h-4 w-4" /> : <span className="grid h-6 w-6 flex-none place-items-center rounded-full border-2 border-current" aria-hidden="true" />}
-                <span>I have all I need to be ready for class{firstClassDate ? ` on ${formatDateLabel(firstClassDate)}` : ''}</span>
-              </button>
-              <div className="mt-1 flex min-h-[56px] items-center gap-3 rounded-[16px] border border-dashed border-[#ecd6c6] bg-[#fffaf6] px-3.5 py-3" aria-label="The readiness badge unlocks when every step is ticked">
-                <span className="grid h-10 w-10 flex-none place-items-center rounded-full bg-[#f3e6dc] text-[#b79a85]"><svg viewBox="0 0 24 24" className="h-[22px] w-[22px]" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.3 6.8 19.1l1-5.8L3.5 9.2l5.9-.9L12 3Z" /></svg></span>
-                <span className="min-w-0">
-                  <span className="block text-sm font-bold text-[#8a6a55]">{badgeName} waits at the end</span>
-                  <span className="block text-xs text-[#a58b78]">Tick every step above to earn it, with your photo on it</span>
-                </span>
-              </div>
-            </div>
-              </>
-            )}
-          </section>
-        )}
 
         {badgeEarned && (
           <button type="button" data-wt="ph-badge" onClick={() => setGiftOpen(true)} className="flex min-h-[64px] w-full items-center gap-3 rounded-[22px] border border-[#ffdeca] bg-gradient-to-br from-[#fff1e6] to-[#ffe0cc] px-4 py-3.5 text-left shadow-[0_6px_18px_-10px_rgba(194,65,12,0.5)]">

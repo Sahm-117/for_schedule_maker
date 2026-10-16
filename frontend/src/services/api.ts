@@ -712,6 +712,7 @@ export const participantsApi = USE_SUPABASE ? supabaseParticipantsApi : {
 
 export const groupsApi = USE_SUPABASE ? supabaseGroupsApi : {
   async getAssignedDates(_groupIds: string[]): Promise<Record<string, string>> { return {}; },
+  async setMeetingSlot(_groupId: string, _meetingDay: string, _meetingTime: string): Promise<never> { return peopleUnavailable(); },
   async getAll(_options?: any): Promise<{ groups: import('../types').Group[] }> { return { groups: [] }; },
   async create(_input: any): Promise<never> { return peopleUnavailable(); },
   async update(_id: string, _input: any): Promise<never> { return peopleUnavailable(); },
@@ -791,6 +792,7 @@ export const supportNotesApi = USE_SUPABASE ? supabaseSupportNotesApi : {
 export const supportSessionsApi = USE_SUPABASE ? supabaseSupportSessionsApi : {
   async mark(_input: any): Promise<never> { return peopleUnavailable(); },
   async getForHubWeek(_hubId: string, _weekId: number): Promise<{ attendance: Array<{ userId: string; status: import('../types').SupportAttendanceStatus }> }> { return { attendance: [] }; },
+  async getHubReportsForWeek(_cohortId: string, _weekId: number): Promise<{ reports: import('../types').HubWeekReport[]; attendance: Array<{ sessionId: string; userId: string; status: import('../types').SupportAttendanceStatus }> }> { return { reports: [], attendance: [] }; },
   async getForCohort(_cohortId: string | string[], _types: import('../types').SupportSessionType[]): Promise<{ sessions: import('../types').SupportSession[]; attendance: Array<{ sessionId: string; userId: string; status: import('../types').SupportAttendanceStatus }> }> { return { sessions: [], attendance: [] }; },
   async getMyPendingLearned(_userId: string): Promise<{ sessions: import('../types').SupportSession[] }> { return { sessions: [] }; },
   async submitLearned(_sessionId: string, _learned: string, _willApply: string): Promise<void> { return peopleUnavailable(); },
@@ -808,6 +810,7 @@ export const groupDiscussionApi = USE_SUPABASE ? supabaseGroupDiscussionApi : {
   async post(_groupId: string, _body: string, _mentions?: import('../types').DiscussionMention[]): Promise<never> { return peopleUnavailable(); },
   async intro(_groupId: string, _body: string): Promise<never> { return peopleUnavailable(); },
   async onboardingProgress(_groupId: string): Promise<never> { return peopleUnavailable(); },
+  async setSupportStepOverride(_groupId: string, _step: import('../types').SupportOnboardingStep, _done: boolean): Promise<never> { return peopleUnavailable(); },
   async cohortOnboardingProgress(_cohortId: string): Promise<never> { return peopleUnavailable(); },
   async reply(_postId: string, _body: string, _mentions?: import('../types').DiscussionMention[]): Promise<never> { return peopleUnavailable(); },
   async like(_postId: string, _like: boolean): Promise<never> { return peopleUnavailable(); },

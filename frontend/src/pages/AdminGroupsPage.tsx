@@ -31,6 +31,7 @@ import Spinner from '../components/Spinner';
 import { genderAgeLine, hasSupportRole } from '../utils/people';
 import TeenMoveModal from '../components/groups/TeenMoveModal';
 import GroupOnboardingStrip from '../components/groups/GroupOnboardingStrip';
+import SupportStepsOverrideModal from '../components/groups/SupportStepsOverrideModal';
 import { ONBOARDING_CHIP_LABEL, summarizeGroupOnboarding, type GroupOnboardingSummary, type OnboardingChip } from '../utils/groupOnboarding';
 import { useToast } from '../components/Toast';
 import { isTeenAgeRange } from '../utils/groupingRules';
@@ -101,7 +102,7 @@ interface GroupFormModalProps {
 const GroupFormModal: React.FC<GroupFormModalProps> = ({ isOpen, onClose, onSaved, cohortId, existing, supportUsers, testSupportsToggle, trainingCounts, trainingsTotal, minTrainingsAttended, supportKinds }) => {
   const [name, setName] = useState('');
   const [supportId, setSupportId] = useState('');
-  const [slot, setSlot] = useState<MeetingSlot>({ meetingDay: null, meetingTime: null, meetingDurationMins: null });
+  const [slot, setSlot] = useState<MeetingSlot>({ meetingDay: null, meetingTime: null });
   const [callPlatform, setCallPlatform] = useState<GroupCallPlatform>('WHATSAPP');
   const [callLink, setCallLink] = useState('');
   const [saving, setSaving] = useState(false);
@@ -114,7 +115,6 @@ const GroupFormModal: React.FC<GroupFormModalProps> = ({ isOpen, onClose, onSave
       setSlot({
         meetingDay: existing?.meetingDay ?? null,
         meetingTime: existing?.meetingTime ?? null,
-        meetingDurationMins: existing?.meetingDurationMins ?? null,
       });
       setCallPlatform(existing?.callPlatform ?? 'WHATSAPP');
       setCallLink(existing?.callLink ?? '');
@@ -487,6 +487,8 @@ const AdminGroupsContent: React.FC = () => {
   const [onboardingProgress, setOnboardingProgress] = useState<Map<string, OnboardingProgressParticipant> | null>(null);
   // Which groups' supports have posted their introduction (from the same onboarding read). Unknown when missing.
   const [supportIntroByGroup, setSupportIntroByGroup] = useState<Record<string, boolean>>({});
+  const [meetingOverrideGroups, setMeetingOverrideGroups] = useState<Set<string>>(new Set());
+  const [readyOverrideGroups, setReadyOverrideGroups] = useState<Set<string>>(new Set());
   // Which hub each support belongs to (a card names it next to the support). Empty if it could not be loaded.
   const [hubNameByUser, setHubNameByUser] = useState<Record<string, string>>({});
   const [assignedAtByGroup, setAssignedAtByGroup] = useState<Record<string, string>>({});
@@ -498,6 +500,8 @@ const AdminGroupsContent: React.FC = () => {
   const [editing, setEditing] = useState<Group | null>(null);
   const [membersTarget, setMembersTarget] = useState<Group | null>(null);
   const [supportTarget, setSupportTarget] = useState<Group | null>(null);
+  // Admin: the group's support steps, to mark one done by hand.
+  const [stepsTarget, setStepsTarget] = useState<Group | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<Group | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
@@ -575,8 +579,11 @@ const AdminGroupsContent: React.FC = () => {
       } else if (!silent) setHubNameByUser({});
       if (progressRes) {
         setOnboardingProgress(new Map(progressRes.participants.map((row) => [row.participantId, row])));
-        setSupportIntroByGroup(Object.fromEntries((progressRes.groups ?? []).map((row) => [row.groupId, !!row.supportIntroPosted])));
-      } else if (!silent) { setOnboardingProgress(null); setSupportIntroByGroup({}); }
+        // An admin can mark a support's step done by hand (SupportOnboardingOverride); it counts as done here too.
+        setSupportIntroByGroup(Object.fromEntries((progressRes.groups ?? []).map((row) => [row.groupId, !!row.supportIntroPosted || !!row.overrides?.includes('INTRO')])));
+        setMeetingOverrideGroups(new Set((progressRes.groups ?? []).filter((row) => row.overrides?.includes('MEETING')).map((row) => row.groupId)));
+        setReadyOverrideGroups(new Set((progressRes.groups ?? []).filter((row) => row.overrides?.includes('READY')).map((row) => row.groupId)));
+      } else if (!silent) { setOnboardingProgress(null); setSupportIntroByGroup({}); setMeetingOverrideGroups(new Set()); setReadyOverrideGroups(new Set()); }
       if (assignedDates) { setAssignedAtByGroup(assignedDates); setAssignedDatesKnown(true); }
       else if (!silent) { setAssignedAtByGroup({}); setAssignedDatesKnown(false); }
     } catch { /* ignore */ }
@@ -663,12 +670,12 @@ const AdminGroupsContent: React.FC = () => {
       if (g.isTeenGroup) return;
       const memberIds = (membersByGroupId.get(g.id) ?? []).map((p) => p.id);
       // The support's own steps: have they introduced themselves, and have they set a meeting time (a group without a support has nothing to wait on).
-      const supportSteps = { introduced: g.supportId && g.id in supportIntroByGroup ? supportIntroByGroup[g.id] : null, meetingSet: !g.supportId || !!(g.meetingDay && g.meetingTime) };
+      const supportSteps = { introduced: g.supportId && g.id in supportIntroByGroup ? supportIntroByGroup[g.id] : null, meetingSet: !g.supportId || !!(g.meetingDay && g.meetingTime && g.callLink?.trim()) || meetingOverrideGroups.has(g.id), readyOverride: readyOverrideGroups.has(g.id) };
       const summary = summarizeGroupOnboarding(memberIds, onboardingProgress, g.supportId ? (assignedAtByGroup[g.id] ?? null) : null, onboardingMaxDays, supportSteps);
       if (summary) map.set(g.id, summary);
     });
     return map;
-  }, [groups, membersByGroupId, onboardingProgress, assignedAtByGroup, onboardingMaxDays, supportIntroByGroup]);
+  }, [groups, membersByGroupId, onboardingProgress, assignedAtByGroup, onboardingMaxDays, supportIntroByGroup, meetingOverrideGroups, readyOverrideGroups]);
 
   const onboardingCounts = useMemo(() => {
     const counts: Record<OnboardingChip, number> = { overdue: 0, in_progress: 0, not_started: 0, onboarded: 0 };
@@ -827,6 +834,7 @@ const AdminGroupsContent: React.FC = () => {
                             ...(canEdit ? [
                               { label: 'Manage members', onClick: () => setMembersTarget(g) },
                               { label: 'Assign support', onClick: () => setSupportTarget(g) },
+                              ...(g.supportId && !g.isTeenGroup ? [{ label: 'Support steps', onClick: () => setStepsTarget(g) }] : []),
                               { label: 'Edit', onClick: () => { setEditing(g); setFormOpen(true); } },
                               { label: 'Archive group', onClick: () => setArchiveTarget(g), tone: 'danger' as const },
                             ] : []),
@@ -953,6 +961,9 @@ const AdminGroupsContent: React.FC = () => {
         minTrainingsAttended={minTrainingsAttended}
       />
 
+      {stepsTarget && (
+        <SupportStepsOverrideModal group={stepsTarget} onClose={() => setStepsTarget(null)} onChanged={() => { void load(true); }} />
+      )}
       {supportTarget && (
         <AssignSupportModal
           isOpen={!!supportTarget}

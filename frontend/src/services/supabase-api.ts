@@ -5541,6 +5541,17 @@ export const groupsApi = {
     }
     return latest;
   },
+  /** Only the meeting day and time (and clears any old length). Teen groups use it: unlike update(), it does not create a schedule tag for the group. */
+  async setMeetingSlot(groupId: string, meetingDay: string, meetingTime: string): Promise<{ group: import('../types').Group }> {
+    const { data, error } = await supabase
+      .from('Group')
+      .update({ meetingDay, meetingTime, meetingDurationMins: null, updatedAt: new Date().toISOString() })
+      .eq('id', groupId)
+      .select(GROUP_SELECT)
+      .single();
+    if (error || !data) throw new Error(error?.message || 'Failed to save the meeting time');
+    return { group: mapGroup(data) };
+  },
   // Teen groups (a Teen Support's teens, Sunday attendance only) stay out unless asked for,
   // so meetings, recaps, prayer and the group builder never see them.
   async getAll(options?: { cohortId?: string; includeArchived?: boolean; includeTeenGroups?: boolean }): Promise<{ groups: import('../types').Group[] }> {
@@ -6636,6 +6647,40 @@ export const supportSessionsApi = {
     return { attendance: (data as any[]) || [], session: session as { id: string; notes: string | null; submittedAt: string | null } };
   },
 
+  // Admin Hubs page: each hub's meeting report for one week (the Hub Lead's walk-through: attendance,
+  // prayer, notes, then Submit), with every mark on those reports.
+  async getHubReportsForWeek(cohortId: string, weekId: number): Promise<{ reports: import('../types').HubWeekReport[]; attendance: Array<{ sessionId: string; userId: string; status: import('../types').SupportAttendanceStatus }> }> {
+    const { data: sessions, error: sessionsError } = await supabase
+      .from('SupportSession')
+      .select('id, hubId, weekId, notes, submittedAt, submittedById, startedAt, createdById, createdAt, hubPrayerDoneAt, prayerFinishedAt, prayedForFaithProjectIds')
+      .eq('cohortId', cohortId)
+      .eq('type', 'SUNDAY_RECAP')
+      .eq('weekId', weekId);
+    if (sessionsError) throw new Error(sessionsError.message);
+    const reports: import('../types').HubWeekReport[] = ((sessions as any[]) || [])
+      .filter((row) => row.hubId)
+      .map((row) => ({
+        sessionId: row.id,
+        hubId: row.hubId,
+        weekId: row.weekId,
+        notes: row.notes ?? null,
+        submittedAt: row.submittedAt ?? null,
+        submittedById: row.submittedById ?? null,
+        startedAt: row.startedAt ?? row.createdAt ?? null,
+        startedById: row.createdById ?? null,
+        hubPrayerDoneAt: row.hubPrayerDoneAt ?? null,
+        prayerFinishedAt: row.prayerFinishedAt ?? null,
+        prayedForCount: Array.isArray(row.prayedForFaithProjectIds) ? row.prayedForFaithProjectIds.length : 0,
+      }));
+    if (reports.length === 0) return { reports, attendance: [] };
+    const { data: attendance, error: attendanceError } = await supabase
+      .from('SupportSessionAttendance')
+      .select('sessionId, userId, status')
+      .in('sessionId', reports.map((r) => r.sessionId));
+    if (attendanceError) throw new Error(attendanceError.message);
+    return { reports, attendance: (attendance as any[]) || [] };
+  },
+
   // Phase 4 — pre-cohort trainings / get-togethers: every session of the given
   // type(s) in a cohort, plus every mark on them in one call, so the admin
   // Trainings tab, the hub lead's My Hub tab, and the "x/y trainings" badges
@@ -6754,6 +6799,11 @@ export const groupDiscussionApi = {
     const { error } = await supabase.rpc('group_discussion_intro', { p_group_id: groupId, p_body: body });
     if (error) throw new Error(error.message);
   },
+  /** Admins only: mark one of the group's support steps done by hand, or undo it. */
+  async setSupportStepOverride(groupId: string, step: import('../types').SupportOnboardingStep, done: boolean): Promise<void> {
+    const { error } = await supabase.rpc('admin_set_support_onboarding_override', { p_group_id: groupId, p_step: step, p_done: done });
+    if (error) throw new Error(error.message);
+  },
   async onboardingProgress(groupId: string): Promise<import('../types').OnboardingProgress> {
     const { data, error } = await supabase.rpc('group_onboarding_progress', { p_group_id: groupId });
     if (error) throw new Error(error.message);
@@ -6815,12 +6865,13 @@ export const myHubApi = {
     if (error) throw new Error(error.message);
   },
 
-  async updateMeeting(hubId: string, input: { meetingDay: string | null; meetingTime: string | null; meetingDurationMins: number | null; callPlatform: import('../types').GroupCallPlatform | null; callLink: string | null }, notify = false): Promise<{ hub: NonNullable<import('../types').MyHubPayload['hub']> }> {
+  async updateMeeting(hubId: string, input: { meetingDay: string | null; meetingTime: string | null; callPlatform: import('../types').GroupCallPlatform | null; callLink: string | null }, notify = false): Promise<{ hub: NonNullable<import('../types').MyHubPayload['hub']> }> {
     const { data, error } = await supabase.rpc('update_hub_meeting', {
       p_hub_id: hubId,
       p_meeting_day: input.meetingDay,
       p_meeting_time: input.meetingTime,
-      p_meeting_duration_mins: input.meetingDurationMins,
+      // Meetings have no set length any more; saving clears an old one.
+      p_meeting_duration_mins: null,
       p_call_platform: input.callPlatform,
       p_call_link: input.callLink,
       p_notify: notify,
@@ -6837,12 +6888,13 @@ export const myHubApi = {
     return data as import('../types').HubLeadsMeeting;
   },
 
-  async setLeadsMeeting(cohortId: string, input: { meetingDay: string | null; meetingTime: string | null; meetingDurationMins: number | null; callPlatform: import('../types').GroupCallPlatform | null; callLink: string | null }, notify = false): Promise<import('../types').HubLeadsMeeting> {
+  async setLeadsMeeting(cohortId: string, input: { meetingDay: string | null; meetingTime: string | null; callPlatform: import('../types').GroupCallPlatform | null; callLink: string | null }, notify = false): Promise<import('../types').HubLeadsMeeting> {
     const { data, error } = await supabase.rpc('set_hub_leads_meeting', {
       p_cohort_id: cohortId,
       p_meeting_day: input.meetingDay,
       p_meeting_time: input.meetingTime,
-      p_meeting_duration_mins: input.meetingDurationMins,
+      // Meetings have no set length any more; saving clears an old one.
+      p_meeting_duration_mins: null,
       p_call_platform: input.callPlatform,
       p_call_link: input.callLink,
       p_notify: notify,

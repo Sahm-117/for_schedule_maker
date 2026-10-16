@@ -6,6 +6,7 @@ import { useToast } from '../components/Toast';
 import CohortTrendChart from '../components/dashboard/CohortTrendChart';
 import PlannerNowLine from '../components/dashboard/PlannerNowLine';
 import DiscussionNowLine from '../components/dashboard/DiscussionNowLine';
+import HubReportsNowLine from '../components/dashboard/HubReportsNowLine';
 import {
   AttentionList,
   ChecklistRow,
@@ -29,7 +30,8 @@ import NextCohortAssignModal from '../components/followups/NextCohortAssignModal
 import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
 import { useAppData } from '../context/AppDataContext';
-import { announcementsApi, cohortsApi, followUpContactsApi, settingsApi, supportActivityCompletionsApi, teenMeetingsApi, usersApi } from '../services/api';
+import { announcementsApi, cohortsApi, followUpContactsApi, groupDiscussionApi, groupsApi, settingsApi, supportActivityCompletionsApi, teenMeetingsApi, usersApi } from '../services/api';
+import { buildOnboardingReadiness, type OnboardingReadiness } from '../utils/supportOnboarding';
 import { DEFAULT_PROGRAMME_RULES, type CohortPeoplePayload, type ProgrammeRules } from '../utils/programmeRules';
 import type { Announcement, FollowUpContact, SupportActivityCompletion, User } from '../types';
 import { sortByText } from '../utils/sort';
@@ -73,6 +75,7 @@ const AdminDashboardPage: React.FC = () => {
   // Sign-up numbers, worked out the same way as Follow-ups → Overview.
   const [followUpContacts, setFollowUpContacts] = useState<FollowUpContact[] | null>(null);
   const [teenOverview, setTeenOverview] = useState<TeenOverview | null>(null);
+  const [readiness, setReadiness] = useState<OnboardingReadiness | null>(null);
   const [teenMeetings, setTeenMeetings] = useState<Awaited<ReturnType<typeof teenMeetingsApi.getForCohort>> | null>(null);
   const [healthError, setHealthError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -139,6 +142,20 @@ const AdminDashboardPage: React.FC = () => {
 
   useEffect(() => { void loadHealth(); }, [loadHealth, liveRevision]);
 
+  // Onboarding is judged on who is ready now (attended + profile, the support's steps, admin marks).
+  // Loaded on its own so the rest of the dashboard never waits for it; until it arrives the older flags are used.
+  useEffect(() => {
+    if (!activeCohort?.id || !isAdmin) { setReadiness(null); return undefined; }
+    let cancelled = false;
+    Promise.all([
+      groupDiscussionApi.cohortOnboardingProgress(activeCohort.id),
+      groupsApi.getAll({ cohortId: activeCohort.id }).then((res) => res.groups),
+    ])
+      .then(([progress, groups]) => { if (!cancelled) setReadiness(buildOnboardingReadiness(progress, groups)); })
+      .catch(() => { if (!cancelled) setReadiness(null); });
+    return () => { cancelled = true; };
+  }, [activeCohort?.id, isAdmin, liveRevision]);
+
   useEffect(() => {
     announcementsApi.getHistory({ isAdmin: true, cohortId: activeCohort?.id || null })
       .then((res) => setAnnouncements(res.announcements.slice(0, 1)))
@@ -172,8 +189,10 @@ const AdminDashboardPage: React.FC = () => {
       globalPendingChanges.length,
       people,
       rules,
+      new Date(),
+      readiness,
     );
-  }, [health, activeCohort, globalPendingChanges.length, people, rules]);
+  }, [health, activeCohort, globalPendingChanges.length, people, rules, readiness]);
 
   const todaysDay = useMemo(() => {
     if (!activeWeek) return null;
@@ -228,6 +247,7 @@ const AdminDashboardPage: React.FC = () => {
         <div className="space-y-5">
           {isAdmin && <PlannerNowLine />}
           {isAdmin && <DiscussionNowLine />}
+          {isAdmin && <HubReportsNowLine />}
           <div data-wt="dash-strip"><CohortStrip health={health} model={model} cohortName={activeCohort.name} /></div>
 
           <div data-wt="dash-vitals">
@@ -373,9 +393,28 @@ const VitalSigns: React.FC<{ health: CohortHealthPayload; model: DashboardModel 
   // Faith projects take time; don't flag them before the cohort's halfway point.
   const judgeFaith = completed || model.currentWeek > model.stats.length / 2;
 
+  // The week in progress is shown as soon as something is recorded for it ("so far"), without a
+  // good/bad verdict: it is only judged once it is over, as before.
+  const current = completed ? null : model.stats.find((s) => s.weekNumber === model.currentWeek) ?? null;
+  const classNow = current && current.marked > 0 ? current : null;
+  const meetingsNow = current && current.meetingsSubmitted > 0 ? current : null;
+
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <ParticipantsTile health={health} model={model} />
+      {classNow ? (
+        <VitalTile
+          title="Class attendance"
+          status="neutral"
+          statusLabel="This week so far"
+          value={`${classNow.marked}/${classNow.expected}`}
+          unit="marked"
+          detail={`Week ${classNow.weekNumber} · ${classNow.attended} present or late`}
+          to="/attendance"
+        >
+          <Sparkline values={recordingSeries} color={SUNDAY_COLOR} label="Share of participants marked each week" />
+        </VitalTile>
+      ) : (
       <VitalTile
         title="Class attendance"
         status={statusForRegister(recordingRate)}
@@ -389,13 +428,16 @@ const VitalSigns: React.FC<{ health: CohortHealthPayload; model: DashboardModel 
       >
         <Sparkline values={recordingSeries} color={SUNDAY_COLOR} label="Share of participants marked each week" />
       </VitalTile>
+      )}
       <VitalTile
         title="Group meetings"
-        status={statusForRate(meetingRate)}
-        statusLabel={meetingRate === null ? 'No weeks yet' : undefined}
-        value={completed ? pooled.reports : last ? `${last.meetingsSubmitted}/${last.groupsWithMembers}` : '–'}
+        status={meetingsNow ? 'neutral' : statusForRate(meetingRate)}
+        statusLabel={meetingsNow ? 'This week so far' : meetingRate === null ? 'No weeks yet' : undefined}
+        value={meetingsNow ? `${meetingsNow.meetingsSubmitted}/${meetingsNow.groupsWithMembers}` : completed ? pooled.reports : last ? `${last.meetingsSubmitted}/${last.groupsWithMembers}` : '–'}
         unit="reports"
-        detail={completed
+        detail={meetingsNow
+          ? `Week ${meetingsNow.weekNumber} · ${meetingsNow.meetingsSubmitted} ${meetingsNow.meetingsSubmitted === 1 ? 'group has' : 'groups have'} met`
+          : completed
           ? `${pct(meetingRate)}% of ${pooled.slots} expected`
           : last ? `Submitted for Week ${last.weekNumber}` : 'Starts after Week 1'}
         to="/group-prayers"

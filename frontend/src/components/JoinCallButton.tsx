@@ -3,10 +3,9 @@ import { JOIN_LEAD_MINUTES, isCallJoinable } from '../utils/joinWindow';
 
 interface JoinCallButtonProps {
   href: string;
-  /** The meeting's day ("MONDAY"), time ("19:00") and length. Without a day and time the call is always open. */
+  /** The meeting's day ("MONDAY") and time ("19:00"). Without a day and time the call is always open. */
   day?: string | null;
   time?: string | null;
-  durationMins?: number | null;
   /** The meeting is marked live: open whatever the clock says. */
   live?: boolean;
   label?: string;
@@ -18,7 +17,7 @@ interface JoinCallButtonProps {
  * "Join the call" that waits for its time: grey until JOIN_LEAD_MINUTES before
  * the meeting, with a line saying so, and opens by itself when the time comes.
  */
-const JoinCallButton: React.FC<JoinCallButtonProps> = ({ href, day, time, durationMins, live = false, label = 'Join the call', className }) => {
+const JoinCallButton: React.FC<JoinCallButtonProps> = ({ href, day, time, live = false, label = 'Join the call', className }) => {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 30000);
@@ -26,7 +25,7 @@ const JoinCallButton: React.FC<JoinCallButtonProps> = ({ href, day, time, durati
   }, []);
 
   const scheduled = !!(day && time);
-  const open = !scheduled || isCallJoinable(day, time, durationMins, now, live);
+  const open = !scheduled || isCallJoinable(day, time, now, live);
 
   if (open) {
     return <a href={href} target="_blank" rel="noreferrer" className={className}>{label}</a>;

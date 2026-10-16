@@ -1492,6 +1492,23 @@ export interface SupportSession {
   createdAt?: string;
 }
 
+/** One hub's meeting report for one week, as the admin Hubs page shows it. */
+export interface HubWeekReport {
+  sessionId: string;
+  hubId: string;
+  weekId: number;
+  notes: string | null;
+  submittedAt: string | null;
+  submittedById: string | null;
+  /** When the first attendance mark opened the meeting. */
+  startedAt: string | null;
+  startedById: string | null;
+  hubPrayerDoneAt: string | null;
+  prayerFinishedAt: string | null;
+  /** Faith projects the hub prayed for in the meeting. */
+  prayedForCount: number;
+}
+
 export interface SupportSessionAttendance {
   id: string;
   sessionId: string;
@@ -1650,7 +1667,12 @@ export interface OnboardingProgressGroup {
   supportId: string | null;
   supportName: string | null;
   supportIntroPosted: boolean;
+  /** Steps an admin marked done by hand (SupportOnboardingOverride); absent until that change is live. */
+  overrides?: SupportOnboardingStep[];
 }
+
+/** A support's own steps to get their group ready. */
+export type SupportOnboardingStep = 'INTRO' | 'READY' | 'MEETING';
 
 /** group_onboarding_progress / cohort_onboarding_progress. */
 export interface OnboardingProgress {

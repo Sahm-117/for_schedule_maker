@@ -1,5 +1,6 @@
 import type { Cohort } from '../../types';
 import { getIdealWeekNumberForCohort } from '../../utils/weekFocus';
+import type { OnboardingReadiness } from '../../utils/supportOnboarding';
 import {
   MIN_RECORD_COVERAGE,
   evaluateParticipants,
@@ -310,6 +311,7 @@ export const buildDashboardModel = (
   peopleData: CohortPeoplePayload | null,
   rules: ProgrammeRules,
   now = new Date(),
+  readiness: OnboardingReadiness | null = null,
 ): DashboardModel => {
   const mode = cohortMode(cohort, now);
   const stats = buildWeekStats(data, peopleData);
@@ -326,7 +328,7 @@ export const buildDashboardModel = (
     const coverage = sundayRecordCoverage(participants, judgedWeeks.length);
     people = {
       participants,
-      supports: evaluateSupports(peopleData, data.groups, data.meetings, judgedWeeks, rules, now),
+      supports: evaluateSupports(peopleData, data.groups, data.meetings, judgedWeeks, rules, now, readiness),
       coverage,
       judgeable: coverage !== null && coverage >= MIN_RECORD_COVERAGE,
       rules,

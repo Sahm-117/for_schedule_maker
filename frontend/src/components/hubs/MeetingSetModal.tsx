@@ -11,7 +11,7 @@ const MeetingSetModal: React.FC<{
   onClose: () => void;
   title: string;
   subtitle: string;
-  slot: { meetingDay: string | null; meetingTime: string | null; meetingDurationMins: number | null };
+  slot: { meetingDay: string | null; meetingTime: string | null };
   callPlatform: GroupCallPlatform | null;
   callLink: string | null;
   resetKey: string;

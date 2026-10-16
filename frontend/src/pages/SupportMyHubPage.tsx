@@ -503,7 +503,7 @@ const SupportMyHubPage: React.FC = () => {
 
           {tab === 'overview' && (() => {
             const hub = myHub.hub!;
-            const slot = formatMeetingSlot(hub.meetingDay, hub.meetingTime, hub.meetingDurationMins);
+            const slot = formatMeetingSlot(hub.meetingDay, hub.meetingTime);
             const callHref = hub.callLink ? (/^https?:\/\//i.test(hub.callLink) ? hub.callLink : `https://${hub.callLink}`) : null;
             const unacked = isLead ? 0 : myHub.messages.filter((msg) => !msg.ackedByMe && !ackedLocal.has(msg.id)).length;
             const isOpen = (key: string) => openRows[key] ?? (key === 'messages' && unacked > 0);
@@ -524,7 +524,7 @@ const SupportMyHubPage: React.FC = () => {
                 </p>
                 {(callHref || (!isLead && leadWhatsAppLink)) && (
                   <div className="mt-6 flex flex-col gap-2.5 sm:flex-row">
-                    {callHref && <JoinCallButton href={callHref} day={hub.meetingDay} time={hub.meetingTime} durationMins={hub.meetingDurationMins} live={!!myHub.meetingLive} className={PRIMARY} />}
+                    {callHref && <JoinCallButton href={callHref} day={hub.meetingDay} time={hub.meetingTime} live={!!myHub.meetingLive} className={PRIMARY} />}
                     {!isLead && leadWhatsAppLink && <a href={leadWhatsAppLink} target="_blank" rel="noreferrer" className={callHref ? SECONDARY : PRIMARY}>Message {hub.leadName?.split(' ')[0] || 'the lead'}</a>}
                   </div>
                 )}
@@ -748,7 +748,6 @@ const SupportMyHubPage: React.FC = () => {
               onReopen={handleReopenMeeting}
               meetingDay={myHub.hub.meetingDay}
               meetingTime={myHub.hub.meetingTime}
-              meetingDurationMins={myHub.hub.meetingDurationMins}
             />
           )}
 

@@ -80,7 +80,7 @@ const GroupViewPage: React.FC = () => {
 
   const meetingTime = formatMeetingTime(view.meetingDay, view.meetingTime);
   const callHref = normalizeLink(view.callLink?.trim() || '');
-  const details = [view.callPlatform ? PLATFORM_LABEL[view.callPlatform] : null, view.meetingDurationMins ? `${view.meetingDurationMins} minutes` : null].filter(Boolean).join(' · ');
+  const details = view.callPlatform ? PLATFORM_LABEL[view.callPlatform] : '';
 
   return (
     <div className="max-w-2xl">

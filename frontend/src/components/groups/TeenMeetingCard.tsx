@@ -7,6 +7,9 @@ import { classDateIso, lagosTodayIso } from '../../utils/participantApp';
 import { getIdealWeekForCohort } from '../../utils/weekFocus';
 import { sortByText } from '../../utils/sort';
 import Spinner from '../Spinner';
+import GroupMeetingSlotEditor, { formatMeetingSlot, type MeetingSlot } from '../GroupMeetingSlotEditor';
+import MeetingWindowNotice from './MeetingWindowNotice';
+import { friendlyMeetingError, meetingWindowState, useMinuteClock } from '../../utils/meetingWindow';
 
 interface TeenMeetingCardProps {
   userId: string;
@@ -92,6 +95,36 @@ const TeenMeetingCard: React.FC<TeenMeetingCardProps> = ({ userId, userName }) =
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  // The group's meeting day and time, set by the Teen Support like any group; recording opens around it.
+  const [slotEditing, setSlotEditing] = useState(false);
+  const [slotDraft, setSlotDraft] = useState<MeetingSlot>({ meetingDay: null, meetingTime: null });
+  const [slotSaving, setSlotSaving] = useState(false);
+  const [slotError, setSlotError] = useState('');
+  const startSlotEdit = () => {
+    setSlotDraft({ meetingDay: group?.meetingDay ?? null, meetingTime: group?.meetingTime ?? null });
+    setSlotError('');
+    setSlotEditing(true);
+  };
+  const saveSlot = async () => {
+    if (!group) return;
+    if (!slotDraft.meetingDay || !slotDraft.meetingTime) { setSlotError('Pick a day and a time.'); return; }
+    setSlotSaving(true);
+    setSlotError('');
+    try {
+      const { group: updated } = await groupsApi.setMeetingSlot(group.id, slotDraft.meetingDay, slotDraft.meetingTime);
+      setGroup(updated);
+      setSlotEditing(false);
+    } catch (err) {
+      setSlotError(err instanceof Error ? err.message : 'Could not save the meeting time.');
+    } finally {
+      setSlotSaving(false);
+    }
+  };
+  const slotLabel = formatMeetingSlot({ meetingDay: group?.meetingDay, meetingTime: group?.meetingTime });
+  const clock = useMinuteClock();
+  const windowState = meetingWindowState(group?.meetingDay, group?.meetingTime, week, activeCohort?.startDate, clock, !!activeCohort?.isPractice);
+  const canRecord = windowState.state === 'open';
+
   const defaultDay = useMemo(() => {
     if (!activeCohort?.startDate || !week) return today;
     const saturday = addDays(classDateIso(activeCohort.startDate, week), 6);
@@ -167,7 +200,7 @@ const TeenMeetingCard: React.FC<TeenMeetingCardProps> = ({ userId, userName }) =
         }).catch(() => { /* the meeting is saved either way */ });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save the meeting.');
+      setError(err instanceof Error ? friendlyMeetingError(err.message) : 'Could not save the meeting.');
     } finally {
       setSaving(false);
     }
@@ -201,6 +234,29 @@ const TeenMeetingCard: React.FC<TeenMeetingCardProps> = ({ userId, userName }) =
           <p className="mt-1 text-[13px] text-gray-500">Week {week.weekNumber}{week.title ? ` · ${week.title}` : ''}. {recapLine}</p>
           <NavLink to="/support/recap" className="mt-1 inline-block text-[13px] font-semibold text-primary">Open the teen recap and manual</NavLink>
 
+          <div className="mt-3 rounded-2xl bg-[#f5f5f7] px-3.5 py-3">
+            {slotEditing ? (
+              <div className="flex flex-col gap-2.5">
+                <GroupMeetingSlotEditor value={slotDraft} onChange={setSlotDraft} />
+                {slotError && <p className="text-sm text-red-600">{slotError}</p>}
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setSlotEditing(false)} className="min-h-[40px] rounded-xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700">Cancel</button>
+                  <button type="button" onClick={() => { void saveSlot(); }} disabled={slotSaving} className="min-h-[40px] flex-1 rounded-xl bg-primary px-4 text-sm font-semibold text-white disabled:opacity-60">
+                    {slotSaving ? 'Saving…' : 'Save meeting time'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold text-gray-500">Meeting time</p>
+                  <p className="text-sm font-bold text-gray-900">{slotLabel ?? 'Not set yet'}</p>
+                </div>
+                <button type="button" onClick={startSlotEdit} className="min-h-[36px] flex-none rounded-full bg-white px-3.5 text-[13px] font-semibold text-gray-800">{slotLabel ? 'Change' : 'Set time'}</button>
+              </div>
+            )}
+          </div>
+
           {saved?.done && !editing ? (
             <div className="mt-3 rounded-2xl bg-emerald-50 px-4 py-3">
               <p className="text-sm font-semibold text-emerald-800">
@@ -208,8 +264,10 @@ const TeenMeetingCard: React.FC<TeenMeetingCardProps> = ({ userId, userName }) =
               </p>
               <p className="mt-0.5 text-[13px] text-emerald-800">{counts.joined} joined · {counts.excused} excused · {counts.missed} missed</p>
               {saved.notes && <p className="mt-2 whitespace-pre-line text-[13px] text-gray-700">{saved.notes}</p>}
-              <button type="button" onClick={() => setEditing(true)} className="mt-2 text-[13px] font-semibold text-primary">Edit</button>
+              {canRecord && <button type="button" onClick={() => setEditing(true)} className="mt-2 text-[13px] font-semibold text-primary">Edit</button>}
             </div>
+          ) : !canRecord ? (
+            <div className="mt-3"><MeetingWindowNotice window={windowState} onSetTime={startSlotEdit} /></div>
           ) : !editing && !saved?.done ? (
             <button type="button" onClick={() => setEditing(true)} className="mt-3 min-h-[46px] w-full rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white">We met</button>
           ) : (
