@@ -14,7 +14,7 @@ export const participantIsReady = (p: Pick<OnboardingProgressParticipant, 'compl
 
 /** Once they have attended class, the map, the guide and "ready" count as done; the intro and profile still have to be done. */
 export const participantStepDone = (
-  p: OnboardingProgressParticipant,
+  p: Pick<OnboardingProgressParticipant, 'completed' | 'hasAttended' | 'introPosted' | 'venueMapAcknowledged' | 'introGuideRead' | 'profileComplete' | 'readyConfirmed'>,
   key: 'introPosted' | 'venueMapAcknowledged' | 'introGuideRead' | 'profileComplete' | 'readyConfirmed',
 ) => !!p.completed || !!p[key] || (key !== 'profileComplete' && key !== 'introPosted' && !!p.hasAttended);
 

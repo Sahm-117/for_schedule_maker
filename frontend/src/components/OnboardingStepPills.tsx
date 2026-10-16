@@ -1,5 +1,6 @@
 import React from 'react';
 import type { OnboardingState } from '../types';
+import { participantStepDone } from '../utils/supportOnboarding';
 
 type StepKey = 'introPosted' | 'venueMapAcknowledged' | 'introGuideRead' | 'profileComplete' | 'readyConfirmed';
 
@@ -22,9 +23,9 @@ export const StepPill: React.FC<{ label: string; done: boolean }> = ({ label, do
 );
 
 /** Step pills, plus an "Onboarded" pill when all are done. */
-const OnboardingStepPills: React.FC<{ state: Pick<OnboardingState, StepKey | 'completed'> }> = ({ state }) => (
+const OnboardingStepPills: React.FC<{ state: Pick<OnboardingState, StepKey | 'completed' | 'hasAttended'> }> = ({ state }) => (
   <div className="flex flex-wrap items-center gap-1.5">
-    {PROGRESS_STEPS.map((step) => <StepPill key={step.key} label={step.label} done={state[step.key]} />)}
+    {PROGRESS_STEPS.map((step) => <StepPill key={step.key} label={step.label} done={participantStepDone(state, step.key)} />)}
     {state.completed && <span className="rounded-full bg-emerald-100/80 px-2.5 py-1 text-xs font-semibold text-emerald-700">Onboarded</span>}
   </div>
 );

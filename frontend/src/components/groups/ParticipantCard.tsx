@@ -18,6 +18,7 @@ import { FAITH_HELP_REASON_LABELS } from '../../types';
 import type { OnboardingState, DepartmentReferral, FaithHelpRequest, FaithProject, FaithProjectCategory, FaithProjectStatus, FaithProjectVersion, Participant, ParticipantAppInfo, ParticipantCheckIn, ParticipantFlag, ParticipantHandover, ParticipantNote, ParticipantUpdate, RetakeMatch, Testimony } from '../../types';
 import { appUseLine } from '../../utils/appUse';
 import { PROGRESS_STEPS, StepPill } from '../OnboardingStepPills';
+import { participantStepDone } from '../../utils/supportOnboarding';
 import NotOpenedTag from '../participants/NotOpenedTag';
 import Spinner from '../Spinner';
 
@@ -574,7 +575,7 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
               Ready
             </span>
           ) : (
-            PROGRESS_STEPS.map((step) => <StepPill key={step.key} label={step.label} done={onboarding[step.key]} />)
+            PROGRESS_STEPS.map((step) => <StepPill key={step.key} label={step.label} done={participantStepDone(onboarding, step.key)} />)
           )}
         </div>
       )}

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Avatar from '../Avatar';
 import Spinner from '../Spinner';
 import { PROGRESS_STEPS, StepPill } from '../OnboardingStepPills';
+import { participantStepDone } from '../../utils/supportOnboarding';
 import { myHubApi } from '../../services/api';
 import { supportProfileChecklist } from '../../utils/people';
 import { buildParticipantMessageLink } from '../../utils/phone';
@@ -135,7 +136,7 @@ const GroupPeopleOverview: React.FC<{ groupId: string }> = ({ groupId }) => {
                 const pct = data.classesRun > 0 ? Math.round((p.classesAttended / data.classesRun) * 100) : null;
                 const fp = FP_CHIP[p.faithProjectStatus ?? 'NOT_DRAFTED'];
                 const messageLink = buildParticipantMessageLink(p.phone, p.name);
-                const stepsDone = PROGRESS_STEPS.filter((s) => p.onboarding[s.key]).length;
+                const stepsDone = PROGRESS_STEPS.filter((s) => participantStepDone(p.onboarding, s.key)).length;
                 return (
                   <li key={p.participantId}>
                     {/* The whole row opens the details; the Faith project chip is its own button on top, so it can open the project instead. */}
@@ -185,7 +186,7 @@ const GroupPeopleOverview: React.FC<{ groupId: string }> = ({ groupId }) => {
                         )}
                         <p className="text-[12px] font-semibold uppercase tracking-[0.04em] text-gray-500">Onboarding</p>
                         <div className="mt-1.5 flex flex-wrap gap-1.5">
-                          {PROGRESS_STEPS.map((s) => <StepPill key={s.key} label={s.label} done={p.onboarding[s.key]} />)}
+                          {PROGRESS_STEPS.map((s) => <StepPill key={s.key} label={s.label} done={participantStepDone(p.onboarding, s.key)} />)}
                         </div>
                         <p className="mt-3 text-[12px] font-semibold uppercase tracking-[0.04em] text-gray-500">Recent classes</p>
                         {p.recent.length === 0 ? (
