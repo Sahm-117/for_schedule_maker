@@ -3562,6 +3562,11 @@ export const participantAppApi = {
     const { error } = await supabase.rpc('participant_mark_intro_guide_read', { p_token: getSessionToken() });
     if (error) throw participantAppError(error.message, 'Could not save your step.');
   },
+  /** Ticks "Introduce yourself" by hand; refused (SUPPORT_NOT_INTRODUCED) until their support has introduced themselves. */
+  async tickIntro(): Promise<void> {
+    const { error } = await supabase.rpc('participant_tick_intro', { p_token: getSessionToken() });
+    if (error) throw participantAppError(error.message.includes('SUPPORT_NOT_INTRODUCED') ? 'Your support has not started introductions yet.' : error.message, 'Could not save your step.');
+  },
   async ackVenueMap(): Promise<void> {
     const { error } = await supabase.rpc('participant_ack_venue_map', { p_token: getSessionToken() });
     if (error) throw participantAppError(error.message, 'Could not save your step.');

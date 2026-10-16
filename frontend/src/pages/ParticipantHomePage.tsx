@@ -227,6 +227,20 @@ const ParticipantHomePage: React.FC = () => {
   const badgeName = `${cohortLabel(home.cohort?.name)} Readiness Badge`;
   const badgeEarned = !!onboarding && allDone && (onboarding.readyConfirmed || onboarding.completed);
 
+  // After the first class a participant can tick "Introduce yourself" by hand, once their support has introduced themselves.
+  const [tickingIntro, setTickingIntro] = useState(false);
+  const tickIntro = async () => {
+    setTickingIntro(true);
+    try {
+      await participantAppApi.tickIntro();
+      setOnboarding((o) => (o ? { ...o, introPosted: true, introTicked: true } : o));
+    } catch (err) {
+      toast({ message: err instanceof Error ? err.message : 'Could not save your step.', tone: 'error' });
+    } finally {
+      setTickingIntro(false);
+    }
+  };
+
   const acknowledgeMap = async () => {
     await participantAppApi.ackVenueMap();
     setOnboarding((o) => (o ? { ...o, venueMapAcknowledged: true } : o));
@@ -387,19 +401,66 @@ const ParticipantHomePage: React.FC = () => {
           </section>
         )}
 
-        {!isPractice && readyPreStart && onboarding?.hasAttended && !onboarding.profileComplete && (
-          // After their first class the Get ready list goes; only the profile is still asked for.
-          <NavLink to="/me/profile" data-wt="ph-finish-profile" className="flex min-h-[56px] items-center gap-3 rounded-[18px] border border-[#ffdeca] bg-white px-4 py-3 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
-            <span className="grid h-9 w-9 flex-none place-items-center rounded-full bg-[#ffe8d5] text-[#c2410c]" aria-hidden="true">
-              <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 8a7 7 0 0 1 14 0" /></svg>
-            </span>
-            <span className="min-w-0">
-              <span className="block text-[15px] font-bold text-gray-900">Finish your profile</span>
-              <span className="block text-xs text-gray-500">{onboarding.profileMissing} {onboarding.profileMissing === 1 ? 'thing' : 'things'} left</span>
-            </span>
-            <span className="ml-auto text-gray-300" aria-hidden="true">&#8250;</span>
-          </NavLink>
-        )}
+        {!isPractice && readyPreStart && onboarding?.hasAttended && (!onboarding.introPosted || !onboarding.profileComplete) && (() => {
+          // After their first class the map, the guide and "ready for class" go; only an unposted intro
+          // and an unfinished profile are still asked for.
+          const rows = [
+            !onboarding.introPosted && {
+              key: 'intro',
+              label: 'Introduce yourself',
+              sub: onboarding.supportIntroPosted ? 'Say hello to your group' : 'Waiting for your support to start introductions',
+              to: onboarding.supportIntroPosted ? '/me/group?tab=discussion&intro=1' : null,
+              icon: 'M8 10h8M8 14h5m-9 6 3-3h10a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14Z',
+            },
+            !onboarding.profileComplete && {
+              key: 'profile',
+              label: 'Finish your profile',
+              sub: `${onboarding.profileMissing} ${onboarding.profileMissing === 1 ? 'thing' : 'things'} left`,
+              to: '/me/profile',
+              icon: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 8a7 7 0 0 1 14 0',
+            },
+          ].filter(Boolean) as Array<{ key: string; label: string; sub: string; to: string | null; icon: string }>;
+          return (
+            <section data-wt="ph-still-to-do" className="flex flex-col overflow-hidden rounded-[18px] border border-[#ffdeca] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
+              {rows.map((row) => {
+                const inner = (
+                  <>
+                    <span className="grid h-9 w-9 flex-none place-items-center rounded-full bg-[#ffe8d5] text-[#c2410c]" aria-hidden="true">
+                      <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d={row.icon} /></svg>
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-[15px] font-bold text-gray-900">{row.label}</span>
+                      <span className="block text-xs text-gray-500">{row.sub}</span>
+                    </span>
+                    {row.to && row.key !== 'intro' && <span className="ml-auto text-gray-300" aria-hidden="true">&#8250;</span>}
+                  </>
+                );
+                const cls = 'flex min-h-[56px] items-center gap-3 border-t border-[#f4f5f7] px-4 py-3 first:border-t-0';
+                if (row.key === 'intro' && row.to) {
+                  // Post the intro, or tick it if they have already introduced themselves another way.
+                  return (
+                    <div key={row.key} data-wt="ph-todo-intro" className="flex items-center gap-2 border-t border-[#f4f5f7] pr-3 first:border-t-0">
+                      <NavLink to={row.to} className="flex min-h-[56px] min-w-0 flex-1 items-center gap-3 px-4 py-3">{inner}</NavLink>
+                      <button
+                        type="button"
+                        onClick={() => { void tickIntro(); }}
+                        disabled={tickingIntro}
+                        aria-label="I have introduced myself"
+                        title="I have introduced myself"
+                        className="grid h-11 w-11 flex-none place-items-center rounded-full border-2 border-gray-300 text-gray-400 hover:border-emerald-500 hover:text-emerald-600 disabled:opacity-50"
+                      >
+                        {tickingIntro ? <Spinner className="h-4 w-4" /> : <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="m5 12 5 5L20 7" /></svg>}
+                      </button>
+                    </div>
+                  );
+                }
+                return row.to
+                  ? <NavLink key={row.key} to={row.to} data-wt={`ph-todo-${row.key}`} className={cls}>{inner}</NavLink>
+                  : <div key={row.key} data-wt={`ph-todo-${row.key}`} className={`${cls} opacity-70`}>{inner}</div>;
+              })}
+            </section>
+          );
+        })()}
 
         <section data-wt="ph-progress" className="rounded-[22px] border border-[#ffdeca] bg-white p-5 shadow-[0_2px_6px_-2px_rgba(17,24,39,0.08)]">
           <div className="flex flex-wrap items-baseline gap-3">

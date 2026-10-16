@@ -1638,7 +1638,10 @@ export interface DiscussionFeed {
 
 /** Where one participant stands on the five onboarding steps (participant_onboarding_state). */
 export interface OnboardingState {
+  /** Posted their intro in the group, or ticked it themselves (participant_tick_intro). */
   introPosted: boolean;
+  /** Ticked "Introduce yourself" by hand rather than posting. */
+  introTicked?: boolean;
   supportIntroPosted: boolean;
   introGuideRead: boolean;
   profileComplete: boolean;

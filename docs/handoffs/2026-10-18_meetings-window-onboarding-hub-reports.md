@@ -3,8 +3,8 @@
 ## Summary
 - **Meeting recording window.** A meeting can be recorded only from 10 minutes before its set time until midnight (Lagos) that day; admins any time. It covers adult group meetings, Teen Support meetings and hub meetings (FLOW_MAP rule 77). A group or hub with no day and time cannot record at all. Teen groups now set a day and time on the teen meeting card.
 - **No meeting lengths.** Durations are gone from every screen, and saving a meeting time clears any stored length (rule 78).
-- **Participant Home.** "Get ready" sits above the cards and tiles. After the first class (Present, Late or Left early) only a small "Finish your profile" card is left, and only if the profile is incomplete (rules 35, 75).
-- **One readiness rule for staff.** "Attended + profile complete" counts as ready for the support's "x of y ready", the Groups chip, the Supports page and the dashboard's "groups aren't fully onboarded" warning (rule 75).
+- **Participant Home.** "Get ready" sits above the cards and tiles. After the first class (Present, Late or Left early) the map, the guide and "ready for class" go. Only what is still missing stays: "Introduce yourself" (which they can tick themselves once their support has introduced themselves) and "Finish your profile" (rules 35, 75).
+- **One readiness rule for staff.** "Attended + introduced + profile complete" counts as ready for the support's "x of y ready", the Groups chip, the Supports page and the dashboard's "groups aren't fully onboarded" warning (rule 75).
 - **Support's "Get your group ready" steps.**
   - Shown at the top of My Group (every tab) and of the support's Home.
   - Ticked by the app only.
@@ -17,6 +17,7 @@
 ## Live changes (database)
 - Applied: `20261018100000_support_onboarding_override.sql` (table `SupportOnboardingOverride`, `admin_set_support_onboarding_override`, `onboarding_progress_json` returns `overrides`).
 - `20261018110000_meeting_recording_window.sql` was tested on the live database inside a rolled-back transaction. It is applied together with the frontend push, so supports never see raw error codes on the old screens. **If it is not live, apply it with the push.**
+- `20261018120000_participant_intro_tick.sql` (`ParticipantOnboarding.introTickedAt`, `participant_tick_intro`, `participant_onboarding_state` returns `introTicked`) was tested the same way and is applied with the push too.
 - Data clean-up (approved: only records made before the cohort start, 11 Oct):
   - Deleted one group meeting row (prayer and recap ticked on 9 Oct).
   - Deleted 13 hub attendance marks from 1 Oct, across three hubs.
@@ -39,7 +40,7 @@
   - Admin: Hubs reports card and full-report window, dashboard line and "so far" tiles, the onboarding warning counting only the group that is really behind, Support steps window with Mark done and Undo.
   - Support: steps on My Group and Home; the meeting notice when open, before the window ("Opens Sat, 17 Oct, 3:50 pm") and with no time set.
   - Teen card: setting a time.
-  - Participant Home: Get ready above the tiles, and Finish your profile after attending.
+  - Participant Home: Get ready above the tiles; after attending, only "Introduce yourself" (with its tick) and "Finish your profile".
 - **Database:** both migrations run against live data in rolled-back transactions.
   - A non-admin session outside the window is refused.
   - No time set is refused.

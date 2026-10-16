@@ -4,18 +4,19 @@ import type { Group, OnboardingProgress, OnboardingProgressParticipant, SupportO
 // Groups cards, the Supports page and the dashboard warning.
 //
 // A participant is ready once they have finished their steps, or once they have been to class
-// (present, late or left early) and finished their profile: after the first class only the profile
-// is still asked of them. A support's own steps are ticked by the app from what it can see; an admin
+// (present, late or left early), introduced themselves and finished their profile: after the first
+// class the map, the guide and "ready for class" are no longer asked of them. They can tick the intro
+// themselves once their support has introduced themselves. A support's own steps are ticked by the app from what it can see; an admin
 // can mark one done by hand (SupportOnboardingOverride).
 
-export const participantIsReady = (p: Pick<OnboardingProgressParticipant, 'completed' | 'hasAttended' | 'profileComplete'>) =>
-  !!p.completed || (!!p.hasAttended && !!p.profileComplete);
+export const participantIsReady = (p: Pick<OnboardingProgressParticipant, 'completed' | 'hasAttended' | 'profileComplete' | 'introPosted'>) =>
+  !!p.completed || (!!p.hasAttended && !!p.profileComplete && !!p.introPosted);
 
-/** A participant's own step counts as done once they have attended class, except the profile. */
+/** Once they have attended class, the map, the guide and "ready" count as done; the intro and profile still have to be done. */
 export const participantStepDone = (
   p: OnboardingProgressParticipant,
   key: 'introPosted' | 'venueMapAcknowledged' | 'introGuideRead' | 'profileComplete' | 'readyConfirmed',
-) => !!p.completed || !!p[key] || (key !== 'profileComplete' && !!p.hasAttended);
+) => !!p.completed || !!p[key] || (key !== 'profileComplete' && key !== 'introPosted' && !!p.hasAttended);
 
 export interface SupportOnboardingStepState {
   key: SupportOnboardingStep;
