@@ -375,6 +375,8 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const [viewOpen, setViewOpen] = useState(false);
+  // Collapsed, a person is one calm row (ready, project, last seen); tapping opens every detail.
+  const [expanded, setExpanded] = useState(false);
   const showToast = useToast();
   const [referrals, setReferrals] = useState<DepartmentReferral[]>([]);
   const loadReferrals = () => {
@@ -491,10 +493,13 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
     <div className="rounded-[18px] border border-[#eef0f4] bg-white p-4 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
       <div className="flex flex-wrap items-center gap-3">
         <div className="grid h-10 w-10 flex-none place-items-center rounded-full bg-[#fff1e6] text-sm font-bold text-[#c2410c]">{initialsOf(participant.fullName)}</div>
-        <div className="min-w-0 flex-auto">
-          <p className="truncate text-[15px] font-bold text-gray-900">{participant.fullName}</p>
-          <p className="mt-0.5 text-xs text-gray-500">{groupName || 'No group'}</p>
-        </div>
+        <button type="button" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded} className="flex min-w-0 flex-auto items-center gap-2 text-left">
+          <span className="min-w-0 flex-auto">
+            <span className="block truncate text-[15px] font-bold text-gray-900">{participant.fullName}</span>
+            <span className="mt-0.5 block text-xs text-gray-500">{groupName || 'No group'}</span>
+          </span>
+          <svg className={`h-4 w-4 flex-none text-gray-300 transition-transform ${expanded ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.4" d="m9 6 6 6-6 6" /></svg>
+        </button>
         {flag && (
           <button
             type="button"
@@ -528,6 +533,27 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
         </button>
       </div>
 
+      {!expanded && (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {onboarding && (
+            <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${onboarding.completed ? 'bg-emerald-100/80 text-emerald-700' : 'bg-orange-100/80 text-orange-700'}`}>
+              {onboarding.completed ? 'Ready for class' : 'Not ready'}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => setFpOpen(true)}
+            title="Open faith project"
+            className={`inline-flex items-center gap-1.5 rounded-full py-1 pl-2.5 pr-2 text-[11px] font-bold ${chip.cls}`}
+          >
+            <span className="font-semibold opacity-70">Faith project</span>
+            <span>{chip.label}</span>
+          </button>
+          <AccessChip confirmed={accessConfirmed} />
+          {(appLine || appInfoLoaded) && <span className="text-[11.5px] text-gray-500">{appLine || 'Not seen in the app yet'}</span>}
+        </div>
+      )}
+      {expanded && (<>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {participant.status === 'ARCHIVED' && (
           <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-semibold text-neutral-600">Archived</span>
@@ -581,6 +607,7 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
       )}
       {(appLine || appInfoLoaded) && <p className="mt-2 text-[11.5px] text-gray-500">{appLine || 'Not seen in the app yet'}</p>}
 
+      </>)}
       {helpRequest && (
         <div className="mt-2.5 rounded-xl bg-red-100/80 px-[13px] py-3">
           <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-red-700">Asked for help · {shortMoment(helpRequest.createdAt)}</p>

@@ -36,3 +36,9 @@ Type check (no new errors beyond the 7 known) and vite build. Looked at in a bro
 - Home keeps My tasks and Resources rows, and a hub-only support still gets a "Join hub call" row inside the 10-minute window.
 - Open classes hides when there is no next class; schedule day chips are plain pressed buttons.
 - Known, left: the Leads card swallows a failed load silently.
+
+## Addendum 2: My Group, Attendance, and what was checked
+- My Group → People: each person is one row (name, group, ready for class, faith project, access, last seen); tap the name to open every detail. Help requests, faith-help requests, testimonies and flags stay visible while collapsed.
+- Attendance: "N to go" next to the marked count.
+- Compared with the canvas and left as they are because the structure already matches: Classes (next-class card with teacher, manual and recap buttons, past and coming-up lists), Resources (shared hub), Attendance rows.
+- Not changed, not compared in detail: Mobilisation, Follow-ups, Community, Announcements, Notifications.
