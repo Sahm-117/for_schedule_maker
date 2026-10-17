@@ -973,7 +973,6 @@ const CohortsPage: React.FC = () => {
                   {activeCohort.status === 'COMPLETED' && <CohortStatusPill status="COMPLETED" />}
                 </div>
                 <p className="mt-1 text-sm text-gray-500">{activeCohort.description || 'No cohort description yet.'}</p>
-                <p className="mt-1 text-sm text-gray-500">{activeCohort.venue ? `Venue: ${activeCohort.venue}` : 'Venue not set yet.'}</p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-full bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700">
@@ -995,9 +994,6 @@ const CohortsPage: React.FC = () => {
                     </span>
                   </>
                 )}
-                <span className="rounded-full bg-orange-100 px-3 py-1.5 text-xs font-semibold text-orange-700">
-                  {formatDateRange(activeCohort.startDate, activeCohort.endDate)}
-                </span>
               </div>
             </div>
           </div>
@@ -1047,9 +1043,8 @@ const CohortsPage: React.FC = () => {
       <section className="surface-card overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-orange-100 px-5 py-5">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.12em] text-gray-500">Older Cohorts</p>
-            <h2 className="mt-1 text-xl font-bold text-gray-900">Cohort table</h2>
-            <p className="mt-1 text-sm text-gray-500">Previous and parallel cohorts stay visible here in chronological order. Archived cohorts stay tucked away unless you ask to see them.</p>
+            <h2 className="text-xl font-bold text-gray-900">Older cohorts</h2>
+            <p className="mt-1 text-sm text-gray-500">Previous and parallel cohorts, oldest first. Archived ones stay hidden unless you ask.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button

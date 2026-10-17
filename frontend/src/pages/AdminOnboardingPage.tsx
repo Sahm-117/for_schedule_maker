@@ -47,6 +47,7 @@ const AdminOnboardingContent: React.FC = () => {
   const [loading, setLoading] = useState(true);
   // Filter choices (see FilterBar): status (completed / in progress) and group; several of each at once.
   const [filters, setFilters] = useState<FilterValues>({});
+  const [feedOpen, setFeedOpen] = useState(false);
   const [eventLimit, setEventLimit] = useState(5); // "Show more" page size
   const activeCohortId = activeCohort?.id;
 
@@ -149,19 +150,31 @@ const AdminOnboardingContent: React.FC = () => {
             </div>
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-            <MetricCard label="Groups completed" value={`${progress.completedGroups}/${progress.totalGroups}`} tone="bg-emerald-50 text-emerald-700" />
-            <MetricCard label="Participants onboarded" value={progress.onboardedParticipants} tone="bg-sky-50 text-sky-700" />
-            <MetricCard label="Groups in progress" value={Math.max(progress.totalGroups - progress.completedGroups, 0)} tone="bg-amber-50 text-amber-700" />
-            <MetricCard label="Completion rate" value={`${progress.pct}%`} tone="bg-violet-50 text-violet-700" />
-          </div>
+          <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-[#f0f0f2] pt-4 md:grid-cols-4">
+            {[
+              { label: 'Groups completed', value: `${progress.completedGroups}/${progress.totalGroups}` },
+              { label: 'Participants onboarded', value: progress.onboardedParticipants },
+              { label: 'Groups in progress', value: Math.max(progress.totalGroups - progress.completedGroups, 0) },
+              { label: 'Completion rate', value: `${progress.pct}%` },
+            ].map((stat) => (
+              <div key={stat.label}>
+                <dt className="text-xs font-medium text-gray-500">{stat.label}</dt>
+                <dd className="mt-0.5 text-2xl font-bold text-gray-900">{stat.value}</dd>
+              </div>
+            ))}
+          </dl>
         </section>
 
         {/* Recent activity — full width above so group status can use more columns. */}
-        <section className="surface-card flex max-h-[22rem] flex-col p-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Recent activity</p>
-          <h3 className="mt-1 text-lg font-bold text-gray-900">Onboarding event feed</h3>
-          {events.length === 0 ? (
+        <section className="surface-card flex max-h-[26rem] flex-col p-5">
+          <h3 className="text-lg font-bold text-gray-900">
+            <button type="button" onClick={() => setFeedOpen((v) => !v)} aria-expanded={feedOpen} className="flex w-full items-baseline gap-x-3 text-left">
+              <span>Recent activity</span>
+              <span className="text-[13px] font-normal text-gray-500">{events.length === 0 ? 'Nothing yet' : `${events.length} ${events.length === 1 ? 'update' : 'updates'}`}</span>
+              <svg className={`ml-auto h-4 w-4 flex-shrink-0 self-center text-gray-400 transition-transform ${feedOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m19 9-7 7-7-7" /></svg>
+            </button>
+          </h3>
+          {!feedOpen ? null : events.length === 0 ? (
             <div className="mt-4 rounded-2xl bg-gray-50/80 py-12 text-center text-sm text-gray-500">
               No onboarding updates yet.
             </div>
