@@ -104,9 +104,14 @@ const AttendanceSummaryStrip: React.FC<AttendanceSummaryStripProps> = ({
     if (recapSummary.notMarked > 0) recapBreakdownParts.push(`${recapSummary.notMarked} not marked`);
   }
 
+  // Only trainings are left here; without any, there is nothing to show.
+  if (!showTrainings) return null;
+
   return (
     <div className="mb-4 flex flex-col gap-3">
       <div className={`grid gap-3 ${showTrainings ? 'sm:grid-cols-2' : ''}`}>
+        {/* Retired: the Hub meeting reports card shows each week's attendance, so the "Last recap" card is hidden, not deleted. */}
+        {false && (
         <div className="rounded-2xl border border-orange-100 bg-white p-4 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
             {summaryWeek ? `Last recap · Week ${summaryWeek.weekNumber}` : 'Last recap'}
@@ -124,6 +129,7 @@ const AttendanceSummaryStrip: React.FC<AttendanceSummaryStripProps> = ({
             </>
           )}
         </div>
+        )}
         {showTrainings && <div className="rounded-2xl border border-orange-100 bg-white p-4 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Trainings overall</p>
           {!trainingsOverall ? (
@@ -145,7 +151,7 @@ const AttendanceSummaryStrip: React.FC<AttendanceSummaryStripProps> = ({
           onClick={() => setOpen((v) => !v)}
           className="flex w-full items-center justify-between px-3.5 py-2.5 text-sm font-semibold text-gray-700"
         >
-          <span>See week by week</span>
+          <span>Training sessions</span>
           <svg className={`h-4 w-4 flex-shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m19 9-7 7-7-7" />
           </svg>
@@ -153,6 +159,8 @@ const AttendanceSummaryStrip: React.FC<AttendanceSummaryStripProps> = ({
 
         {open && (
           <div className="flex flex-col gap-4 border-t border-orange-100 px-3.5 py-4">
+            {/* Retired with the Last recap card: week-by-week recap attendance lives in Hub meeting reports. */}
+            {false && (
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Recap</p>
               {weekRows.length === 0 ? (
@@ -174,6 +182,7 @@ const AttendanceSummaryStrip: React.FC<AttendanceSummaryStripProps> = ({
                 </ul>
               )}
             </div>
+            )}
             {showTrainings && <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Trainings &amp; get-togethers</p>
               {trainingRows.length === 0 ? (
