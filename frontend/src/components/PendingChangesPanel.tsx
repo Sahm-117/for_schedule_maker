@@ -197,8 +197,8 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
   };
 
   return (
-    <div className="surface-card overflow-hidden">
-      <div className="border-b border-gray-100 p-5">
+    <div className="surface-card">
+      <div className="rounded-t-[inherit] border-b border-gray-100 p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h3 className="text-lg font-semibold text-gray-900">
@@ -245,7 +245,7 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
         )}
 
         {previews.map(({ change, preview }) => (
-          <div key={change.id} className="border border-orange-200 rounded-lg p-4 bg-orange-50">
+          <div key={change.id} className="rounded-2xl border border-gray-100 bg-gray-50/70 p-4">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-2 mb-3">
