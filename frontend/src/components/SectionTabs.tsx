@@ -27,6 +27,7 @@ export const ADMIN_SECTIONS: Array<{ root: string; tabs: SectionTab[] }> = [
     root: '/groups',
     tabs: [
       { to: '/groups', label: 'Groups' },
+      { to: '/group-prayers', label: 'Meetings' },
       { to: '/allocation', label: 'Allocation' },
     ],
   },
@@ -59,14 +60,16 @@ export const sectionMatches = (pathname: string, to: string) => {
   return section.tabs.some((tab) => pathname === tab.to || pathname.startsWith(`${tab.to}/`));
 };
 
-const SectionTabs: React.FC<{ pathname: string; isAdmin: boolean; pendingApprovals: number }> = ({ pathname, isAdmin, pendingApprovals }) => {
-  const section = sectionForPath(pathname);
-  if (!section) return null;
-  const tabs = section.tabs.filter((tab) => !tab.adminOnly || isAdmin);
+/** The tabs this person sees for a page; fewer than two means no strip. */
+export const visibleSectionTabs = (pathname: string, isAdmin: boolean) =>
+  (sectionForPath(pathname)?.tabs ?? []).filter((tab) => !tab.adminOnly || isAdmin);
+
+const SectionTabs: React.FC<{ pathname: string; isAdmin: boolean; pendingApprovals: number; className?: string }> = ({ pathname, isAdmin, pendingApprovals, className = 'mb-5' }) => {
+  const tabs = visibleSectionTabs(pathname, isAdmin);
   if (tabs.length < 2) return null;
 
   return (
-    <nav aria-label="Section" className="-mx-4 mb-5 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+    <nav aria-label="Section" className={`-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0 ${className}`}>
       <div className={`inline-flex min-w-max gap-1 ${TAB_TRAY}`}>
         {tabs.map((tab) => {
           const active = pathname === tab.to;

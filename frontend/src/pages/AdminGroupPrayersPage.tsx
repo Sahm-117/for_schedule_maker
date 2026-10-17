@@ -107,6 +107,15 @@ const AdminGroupPrayersContent: React.FC = () => {
     return cohortWeeks.filter((w) => w.weekNumber <= current);
   }, [activeCohort, cohortWeeks, weeks]);
 
+  // The line under the title says where things stand: this week's count, and who cannot record yet.
+  const headline = useMemo(() => {
+    const current = reportWeeks.at(-1);
+    if (!current || groups.length === 0) return `${activeCohort?.name ?? ''} · Weekly meetings, focus and completion`;
+    const done = groups.filter((g) => statuses.some((s) => s.groupId === g.id && s.weekId === current.id && s.done)).length;
+    const noTime = groups.filter((g) => !g.meetingDay || !g.meetingTime).length;
+    return [`Week ${current.weekNumber}`, `${done} of ${groups.length} done`, noTime > 0 ? `${noTime} ${noTime === 1 ? 'group has' : 'groups have'} no meeting time` : null].filter(Boolean).join(' · ');
+  }, [reportWeeks, groups, statuses, activeCohort?.name]);
+
   const visibleGroups = useMemo(
     () => sortByText(groups.filter((g) => Object.entries(filters).every(([key, choices]) => choices.length === 0 || choices.some((c) => (key === 'group' ? g.id === c : g.supportId === c)))), (group) => group.name),
     [groups, filters]
@@ -142,7 +151,7 @@ const AdminGroupPrayersContent: React.FC = () => {
     <div className="page-content">
       <PageHeader
         title="Group meetings"
-        subtitle={activeCohort ? `${activeCohort.name} · Weekly meetings, focus and completion` : 'No active cohort'}
+        subtitle={!activeCohort ? 'No active cohort' : headline}
       />
 
       {!activeCohort ? (
@@ -180,7 +189,7 @@ const AdminGroupPrayersContent: React.FC = () => {
             </div>
           </div>
 
-          <GroupReportsCard groups={groups} weeks={reportWeeks} statuses={statuses} focuses={focuses} attendance={attendance} notes={reports} notesFailed={reportsFailed} />
+          <GroupReportsCard groups={groups} weeks={reportWeeks} statuses={statuses} focuses={focuses} attendance={attendance} notes={reports} notesFailed={reportsFailed} cohortStartDate={activeCohort?.startDate} />
 
           {/* Filters */}
           <FilterBar groups={filterGroups} value={filters} onChange={setFilters} shown={visibleGroups.length} total={groups.length} noun="groups" />

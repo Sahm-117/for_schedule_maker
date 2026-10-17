@@ -30,7 +30,7 @@ import { normalizeLink } from '../utils/links';
 import Spinner from '../components/Spinner';
 import { genderAgeLine, hasSupportRole } from '../utils/people';
 import TeenMoveModal from '../components/groups/TeenMoveModal';
-import GroupOnboardingStrip from '../components/groups/GroupOnboardingStrip';
+import GroupCard from '../components/groups/GroupCard';
 import SupportStepsOverrideModal from '../components/groups/SupportStepsOverrideModal';
 import { ONBOARDING_CHIP_LABEL, summarizeGroupOnboarding, type GroupOnboardingSummary, type OnboardingChip } from '../utils/groupOnboarding';
 import { useToast } from '../components/Toast';
@@ -727,15 +727,12 @@ const AdminGroupsContent: React.FC = () => {
       <PageHeader
         title="Groups"
         tourId="admin:groups"
-        subtitle={activeCohort ? `${groups.length} groups · ${participants.filter((p) => !p.isTest).length} participants · ${activeCohort.name}` : 'No active cohort'}
+        subtitle={!activeCohort ? 'No active cohort' : onboardingByGroup.size > 0
+          ? [onboardingCounts.overdue > 0 ? `${onboardingCounts.overdue} overdue` : null, onboardingCounts.in_progress > 0 ? `${onboardingCounts.in_progress} in progress` : null, `${participants.filter((p) => !p.isTest).length} participants`].filter(Boolean).join(' · ')
+          : `${groups.length} groups · ${participants.filter((p) => !p.isTest).length} participants`}
         action={
           activeCohort && (
             <div className="flex items-center gap-2">
-              {canEdit && (
-                <button type="button" onClick={() => navigate('/allocation')} className="rounded-2xl bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-200 active:scale-95">
-                  Allocate participants
-                </button>
-              )}
               {canAdd && (
                 <button type="button" onClick={() => setChooserOpen(true)} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white active:scale-95">
                   + New Group
@@ -756,7 +753,15 @@ const AdminGroupsContent: React.FC = () => {
         <div data-wt="groups-filters" className="mb-4">
           {onboardingByGroup.size > 0 && (
             <div data-wt="groups-onboarding-summary" className="mb-3 flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold text-gray-500">Onboarding</span>
+              <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">Onboarding</span>
+              <button
+                type="button"
+                aria-pressed={(filters.onboarding ?? []).length === 0}
+                onClick={() => setFilters({ ...filters, onboarding: [] })}
+                className={`inline-flex min-h-[32px] items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold active:scale-95 ${(filters.onboarding ?? []).length === 0 ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'}`}
+              >
+                All {groups.filter((g) => onboardingByGroup.has(g.id)).length}
+              </button>
               {ONBOARDING_CHIPS.map((chip) => {
                 const count = onboardingCounts[chip];
                 const active = (filters.onboarding ?? []).includes(chip);
@@ -766,7 +771,7 @@ const AdminGroupsContent: React.FC = () => {
                     type="button"
                     aria-pressed={active}
                     onClick={() => { const current = filters.onboarding ?? []; setFilters({ ...filters, onboarding: active ? current.filter((c) => c !== chip) : [...current, chip] }); }}
-                    className={`inline-flex min-h-[32px] items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold active:scale-95 ${active ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'}`}
+                    className={`inline-flex min-h-[32px] items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold active:scale-95 ${active ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'} ${count === 0 && !active ? 'opacity-50' : ''}`}
                   >
                     {ONBOARDING_CHIP_LABEL[chip]}
                     <span className={`rounded-full px-1.5 text-[11px] ${active ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'}`}>{count}</span>
@@ -809,61 +814,30 @@ const AdminGroupsContent: React.FC = () => {
         <div data-wt="groups-grid" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {displayedGroups.map((g) => {
             const members = membersByGroupId.get(g.id) ?? [];
+            const menuItems = g.archivedAt
+              ? (canEdit ? [{ label: 'Restore group', onClick: () => void handleRestore(g) }] : [])
+              : [
+                  ...(g.supportId ? [{ label: 'Open group & discussion', onClick: () => navigate(`/group-view/${g.supportId}?cohort=${g.cohortId}`) }] : []),
+                  ...(canEdit ? [
+                    { label: 'Manage members', onClick: () => setMembersTarget(g) },
+                    { label: 'Assign support', onClick: () => setSupportTarget(g) },
+                    ...(g.supportId && !g.isTeenGroup ? [{ label: 'Support steps', onClick: () => setStepsTarget(g) }] : []),
+                    { label: 'Edit', onClick: () => { setEditing(g); setFormOpen(true); } },
+                    { label: 'Archive group', onClick: () => setArchiveTarget(g), tone: 'danger' as const },
+                  ] : []),
+                ];
             return (
-              <div key={g.id} className="flex flex-col gap-3 surface-card p-5">
-                {/* Header: name + support subtitle on the left; count badge +
-                    overflow menu on the right (mirrors the allocation columns). */}
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <h3 className="truncate font-bold text-gray-900">{g.name}</h3>
-                    <p className={`truncate text-xs ${g.supportName ? 'text-gray-500' : 'text-neutral-400'}`}>
-                      {g.supportName || 'No support assigned'}
-                      {g.supportId && hubNameByUser[g.supportId] && <span className="text-gray-400"> · {hubNameByUser[g.supportId]}</span>}
-                    </p>
-                    {g.archivedAt && <p className="mt-1 text-[11px] font-semibold text-amber-700">Archived</p>}
-                  </div>
-                  <div className="flex flex-shrink-0 items-center gap-1">
-                    <span className="rounded-full bg-sky-100/80 px-2.5 py-0.5 text-xs font-semibold text-sky-700">
-                      {g.participantCount ?? members.length}
-                    </span>
-                    {(() => {
-                      const menuItems = g.archivedAt
-                        ? (canEdit ? [{ label: 'Restore group', onClick: () => void handleRestore(g) }] : [])
-                        : [
-                            ...(g.supportId ? [{ label: 'Open group & discussion', onClick: () => navigate(`/group-view/${g.supportId}?cohort=${g.cohortId}`) }] : []),
-                            ...(canEdit ? [
-                              { label: 'Manage members', onClick: () => setMembersTarget(g) },
-                              { label: 'Assign support', onClick: () => setSupportTarget(g) },
-                              ...(g.supportId && !g.isTeenGroup ? [{ label: 'Support steps', onClick: () => setStepsTarget(g) }] : []),
-                              { label: 'Edit', onClick: () => { setEditing(g); setFormOpen(true); } },
-                              { label: 'Archive group', onClick: () => setArchiveTarget(g), tone: 'danger' as const },
-                            ] : []),
-                          ];
-                      return menuItems.length > 0 ? <AppOverflowMenu align="right" items={menuItems} /> : null;
-                    })()}
-                  </div>
-                </div>
-
-                {onboardingByGroup.get(g.id) && <GroupOnboardingStrip summary={onboardingByGroup.get(g.id)!} maxDays={onboardingMaxDays} showSupport={!!g.supportId} />}
-
-                {/* Members always visible at a glance — name + phone cards. */}
-                {members.length === 0 ? (
-                  <p className="rounded-xl bg-gray-50/80 px-3 py-4 text-center text-xs text-gray-400">No members yet</p>
-                ) : (
-                  <div className="flex flex-col">
-                    {members.map((p) => (
-                      <div key={p.id} className="flex items-center gap-2.5 rounded-2xl px-1 py-1.5">
-                        <Avatar name={p.fullName} avatarUrl={p.avatarUrl} size="sm" />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold leading-tight text-gray-900">{p.fullName}</p>
-                          <p className="truncate text-xs text-gray-400">{[p.phone, genderAgeLine(p)].filter(Boolean).join(' · ')}</p>
-                        </div>
-                        <AccessChip confirmed={signedInIds ? signedInIds.has(p.id) : null} />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <GroupCard
+                key={g.id}
+                group={g}
+                members={members}
+                summary={onboardingByGroup.get(g.id)}
+                maxDays={onboardingMaxDays}
+                hubName={g.supportId ? hubNameByUser[g.supportId] : null}
+                menu={menuItems.length > 0 ? <AppOverflowMenu align="right" items={menuItems} /> : null}
+                signedInIds={signedInIds}
+                progress={onboardingProgress}
+              />
             );
           })}
         </div>

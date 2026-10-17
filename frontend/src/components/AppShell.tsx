@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import SectionTabs, { sectionMatches } from './SectionTabs';
+import { SectionTabsContext } from '../context/SectionTabsContext';
 import LiveNavDot from './LiveNavDot';
 import { createPortal } from 'react-dom';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
@@ -404,6 +405,7 @@ const AppShell: React.FC = () => {
     return (active ?? real[0])?.id ?? null;
   }, [cohorts, activeCohort?.id]);
   const [returningToReal, setReturningToReal] = useState(false);
+
   // Leaving practice from the top bar is asked about first.
   const [confirmPracticeExit, setConfirmPracticeExit] = useState<PracticeExitKind | null>(null);
   const [endingWalkthrough, setEndingWalkthrough] = useState(false);
@@ -436,6 +438,13 @@ const AppShell: React.FC = () => {
   const [openNavGroups, setOpenNavGroups] = useState<OpenNavGroups>({});
   const [moreOpen, setMoreOpen] = useState(false);
   const location = useLocation();
+  // A page header that draws the section tabs itself tells the shell, so they show once.
+  const [tabsOwners, setTabsOwners] = useState(0);
+  const claimTabs = React.useCallback((owned: boolean) => setTabsOwners((n) => Math.max(0, n + (owned ? 1 : -1))), []);
+  const sectionTabsValue = useMemo(
+    () => ({ pathname: location.pathname, isAdmin, pendingApprovals: globalPendingChanges.length, claim: claimTabs }),
+    [location.pathname, isAdmin, globalPendingChanges.length, claimTabs],
+  );
   const navigate = useNavigate();
   // First-login order: password change, Welcome + Home tour, then the notification prompt.
   const { busy: tourBusy } = useTourState();
@@ -923,11 +932,11 @@ const AppShell: React.FC = () => {
               (nav/shell survive) and auto-recovers when the route changes. */}
           <AppSetupBanner audience="staff" enable={enable} className="mb-4" />
           <ErrorBoundary inline resetKey={location.pathname}>
-            {!isSupport && (
+            {!isSupport && tabsOwners === 0 && (
               <SectionTabs pathname={location.pathname} isAdmin={isAdmin} pendingApprovals={globalPendingChanges.length} />
             )}
             {/* A seat switch in Practice remounts the page so it loads the new group and hub. */}
-            <PracticeEntryProvider value={practiceEntry}><React.Fragment key={workspaceRevision}><PermissionGate><Outlet /></PermissionGate></React.Fragment></PracticeEntryProvider>
+            <SectionTabsContext.Provider value={isSupport ? null : sectionTabsValue}><PracticeEntryProvider value={practiceEntry}><React.Fragment key={workspaceRevision}><PermissionGate><Outlet /></PermissionGate></React.Fragment></PracticeEntryProvider></SectionTabsContext.Provider>
           </ErrorBoundary>
         </main>
 

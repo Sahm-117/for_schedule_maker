@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TourHelpButton from './tour/TourHelpButton';
+import SectionTabs, { visibleSectionTabs } from './SectionTabs';
+import { useSectionTabs } from '../context/SectionTabsContext';
 
 interface PageHeaderProps {
   title: string;
@@ -40,30 +42,47 @@ const BackLink: React.FC<{ label: string; fallbackTo: string }> = ({ label, fall
   );
 };
 
-const PageHeader: React.FC<PageHeaderProps> = ({ title, subtitle, action, inlineAction, onHelp, tourId, back }) => (
-  <div className="mb-4 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
-    <div className={`min-w-0 ${inlineAction ? 'sm:flex-1' : ''}`}>
-      {back && <BackLink label={back.label} fallbackTo={back.fallbackTo} />}
-      {/* The "?" sits right beside the page name. */}
-      <div className="flex items-center gap-2.5">
-        <h1 className={inlineAction ? 'page-title min-w-0 truncate' : 'page-title'}>{title}</h1>
-        {tourId && <TourHelpButton tourId={tourId} />}
-        {!tourId && onHelp && (
-          <button
-            type="button"
-            onClick={onHelp}
-            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-orange-200 bg-orange-50 text-sm font-bold text-gray-500 hover:bg-orange-100 active:scale-95"
-            title="Walkthrough"
-          >
-            ?
-          </button>
-        )}
-        {inlineAction && <div className="ml-auto shrink-0">{inlineAction}</div>}
+const PageHeader: React.FC<PageHeaderProps> = ({ title, subtitle, action, inlineAction, onHelp, tourId, back }) => {
+  // Pages in a section (Groups, Participants, Schedule, Resources) show their tabs right under the title.
+  const tabsCtx = useSectionTabs();
+  const showTabs = !!tabsCtx && !back && visibleSectionTabs(tabsCtx.pathname, tabsCtx.isAdmin).length >= 2;
+  const claim = tabsCtx?.claim;
+  useLayoutEffect(() => {
+    if (!showTabs || !claim) return undefined;
+    claim(true);
+    return () => claim(false);
+  }, [showTabs, claim]);
+
+  return (
+    <>
+      <div className={`flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between ${showTabs ? 'mb-4' : 'mb-4 sm:mb-8'}`}>
+        <div className={`min-w-0 ${inlineAction ? 'sm:flex-1' : ''}`}>
+          {back && <BackLink label={back.label} fallbackTo={back.fallbackTo} />}
+          {/* The "?" sits right beside the page name. */}
+          <div className="flex items-center gap-2.5">
+            <h1 className={inlineAction ? 'page-title min-w-0 truncate' : 'page-title'}>{title}</h1>
+            {tourId && <TourHelpButton tourId={tourId} />}
+            {!tourId && onHelp && (
+              <button
+                type="button"
+                onClick={onHelp}
+                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-orange-200 bg-orange-50 text-sm font-bold text-gray-500 hover:bg-orange-100 active:scale-95"
+                title="Walkthrough"
+              >
+                ?
+              </button>
+            )}
+            {inlineAction && <div className="ml-auto shrink-0">{inlineAction}</div>}
+          </div>
+          {subtitle && <p className="page-subtitle">{subtitle}</p>}
+        </div>
+        {action ? <div className="shrink-0" data-wt="page-action">{action}</div> : null}
       </div>
-      {subtitle && <p className="page-subtitle">{subtitle}</p>}
-    </div>
-    {action ? <div className="shrink-0" data-wt="page-action">{action}</div> : null}
-  </div>
-);
+      {showTabs && tabsCtx && (
+        <SectionTabs pathname={tabsCtx.pathname} isAdmin={tabsCtx.isAdmin} pendingApprovals={tabsCtx.pendingApprovals} className="mb-5 sm:mb-6" />
+      )}
+    </>
+  );
+};
 
 export default PageHeader;
