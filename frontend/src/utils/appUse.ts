@@ -36,8 +36,8 @@ export const STAFF_NOT_OPENED_HINT = 'Has never opened the app from their Home S
  */
 export const appUseLine = (info: ParticipantAppInfo | undefined | null): string => {
   if (!info) return '';
-  const phone = info.device ? DEVICE_LABEL[info.device] : '';
-  const seen = info.lastSeenAt ? shortDay(info.lastSeenAt) : '';
+  const phone = deviceLabel(info) ?? '';
+  const seen = lastSeenLabel(info) ?? '';
   return [phone, seen ? `seen ${seen}` : ''].filter(Boolean).join(' · ');
 };
 

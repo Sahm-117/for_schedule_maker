@@ -215,9 +215,11 @@ const GroupDetailSheet: React.FC<Omit<GroupCardProps, 'menu'> & { onClose: () =>
                       <span className="block truncate text-[15px] font-semibold text-gray-900">{p.fullName}</span>
                       <span className="block truncate text-xs text-gray-500">{[p.phone, genderAgeLine(p)].filter(Boolean).join(' · ')}</span>
                       <span className="mt-1.5 flex flex-wrap gap-1">
-                        {row && ONBOARDING_STEPS.map((step) => (
-                          <Chip key={step.key} tone={participantStepDone(row, step.key) ? 'good' : 'warn'} done={participantStepDone(row, step.key)}>{step.label}</Chip>
-                        ))}
+                        {progress && ONBOARDING_STEPS.map((step) => {
+                          // No onboarding row yet means they have done nothing.
+                          const done = row ? participantStepDone(row, step.key) : false;
+                          return <Chip key={step.key} tone={done ? 'good' : 'warn'} done={done}>{step.label}</Chip>;
+                        })}
                         {signedIn === false && <Chip tone="warn">Not signed in</Chip>}
                         {appDetails && (phone ? <Chip tone="plain">{phone}</Chip> : null)}
                         {appDetails && (seen ? <Chip tone="plain">Seen {seen}</Chip> : <Chip tone="warn">Never opened</Chip>)}

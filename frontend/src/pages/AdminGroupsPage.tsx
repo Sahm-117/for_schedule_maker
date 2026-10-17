@@ -635,13 +635,16 @@ const AdminGroupsContent: React.FC = () => {
     return () => { cancelled = true; };
   }, [activeCohort?.id, liveRevision]);
   useEffect(() => {
-    if (!activeCohort?.id) return undefined;
+    // The app details cover participants of active cohorts only; for any other cohort "never opened"
+    // would be a guess, so the phone and last-seen chips are left out.
+    setAppDetails(null);
+    if (!activeCohort?.id || activeCohort.status !== 'ACTIVE') return undefined;
     let cancelled = false;
     participantPushApi.getAppDetails()
       .then((details) => { if (!cancelled) setAppDetails(Object.keys(details).length > 0 ? details : null); })
       .catch(() => { if (!cancelled) setAppDetails(null); });
     return () => { cancelled = true; };
-  }, [activeCohort?.id, liveRevision]);
+  }, [activeCohort?.id, activeCohort?.status, liveRevision]);
 
   const handleArchive = async () => {
     if (!archiveTarget) return;

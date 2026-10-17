@@ -262,11 +262,14 @@ const AdminOnboardingContent: React.FC = () => {
   );
 };
 
+// Retired: the cohort progress card now shows plain stats. Kept commented out, not deleted.
+/*
 const MetricCard: React.FC<{ label: string; value: React.ReactNode; tone: string }> = ({ label, value, tone }) => (
   <div className={`rounded-2xl px-4 py-3 ${tone}`}>
     <p className="text-xs font-semibold uppercase tracking-wide opacity-70">{label}</p>
     <p className="mt-1 text-2xl font-bold">{value}</p>
   </div>
 );
+*/
 
 export default AdminOnboardingPage;
