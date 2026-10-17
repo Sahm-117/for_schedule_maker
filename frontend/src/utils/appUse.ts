@@ -18,6 +18,14 @@ const shortDay = (value: string): string => {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', ...(year !== thisYear ? { year: 'numeric' } : {}), timeZone: LAGOS });
 };
 
+/** "iPhone", "Android"… for a participant's phone, or null when the app has not reported one. */
+export const deviceLabel = (info: ParticipantAppInfo | undefined | null): string | null =>
+  (info?.device ? DEVICE_LABEL[info.device] ?? null : null);
+
+/** "8 Oct": the last time the signed-in app ran for them, or null when it never has. */
+export const lastSeenLabel = (info: ParticipantAppInfo | undefined | null): string | null =>
+  (info?.lastSeenAt ? shortDay(info.lastSeenAt) || null : null);
+
 /** Exported for the staff table, which says the same thing in its own words. */
 export const STAFF_NOT_OPENED_HINT = 'Has never opened the app from their Home Screen.';
 

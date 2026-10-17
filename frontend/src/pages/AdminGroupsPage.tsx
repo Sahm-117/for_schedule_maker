@@ -7,7 +7,7 @@ import { useAppData } from '../context/AppDataContext';
 import FilterBar, { describeFilters, type FilterGroup } from '../components/filters/FilterBar';
 import { useUrlFilters } from '../hooks/useUrlFilters';
 import { cohortsApi, groupDiscussionApi, groupsApi, participantPushApi, participantsApi, settingsApi, supportHubsApi, supportKindApi, supportSessionsApi, supportTagsApi, usersApi } from '../services/api';
-import type { Group, OnboardingProgressParticipant, Participant, User, GroupCallPlatform, SupportKind, SupportSession, SupportTag } from '../types';
+import type { Group, OnboardingProgressParticipant, Participant, ParticipantAppInfo, User, GroupCallPlatform, SupportKind, SupportSession, SupportTag } from '../types';
 import ModalShell from '../components/followups/ModalShell';
 import ConfirmationModal from '../components/ConfirmationModal';
 import AppOverflowMenu from '../components/AppOverflowMenu';
@@ -462,6 +462,8 @@ const AdminGroupsContent: React.FC = () => {
   const [teenGroups, setTeenGroups] = useState<Group[]>([]);
   // Who has chosen their own password (access confirmed). Null until it loads; if it fails no chip is shown.
   const [signedIn, setSignedIn] = useState<{ cohortId: string; ids: Set<string> } | null>(null);
+  // Phone and last-seen for each participant (for the group sheet). Empty or failed: those chips are left out.
+  const [appDetails, setAppDetails] = useState<Record<string, ParticipantAppInfo> | null>(null);
   const signedInIds = signedIn && signedIn.cohortId === activeCohort?.id ? signedIn.ids : null;
   const [movingTeen, setMovingTeen] = useState<{ participantId: string; name: string } | null>(null);
   const toast = useToast();
@@ -630,6 +632,14 @@ const AdminGroupsContent: React.FC = () => {
     participantPushApi.getSignedInIds(cohortId)
       .then((ids) => { if (!cancelled) setSignedIn({ cohortId, ids: new Set(ids) }); })
       .catch(() => { if (!cancelled) setSignedIn(null); });
+    return () => { cancelled = true; };
+  }, [activeCohort?.id, liveRevision]);
+  useEffect(() => {
+    if (!activeCohort?.id) return undefined;
+    let cancelled = false;
+    participantPushApi.getAppDetails()
+      .then((details) => { if (!cancelled) setAppDetails(Object.keys(details).length > 0 ? details : null); })
+      .catch(() => { if (!cancelled) setAppDetails(null); });
     return () => { cancelled = true; };
   }, [activeCohort?.id, liveRevision]);
 
@@ -837,6 +847,7 @@ const AdminGroupsContent: React.FC = () => {
                 menu={menuItems.length > 0 ? <AppOverflowMenu align="right" items={menuItems} /> : null}
                 signedInIds={signedInIds}
                 progress={onboardingProgress}
+                appDetails={appDetails}
               />
             );
           })}

@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Avatar from '../Avatar';
 import ModalShell from '../followups/ModalShell';
-import AccessChip from './AccessChip';
 import { ONBOARDING_STEPS, type GroupOnboardingSummary, type OnboardingChip } from '../../utils/groupOnboarding';
 import { genderAgeLine } from '../../utils/people';
-import type { Group, OnboardingProgressParticipant, Participant } from '../../types';
+import { deviceLabel, lastSeenLabel } from '../../utils/appUse';
+import { participantStepDone } from '../../utils/supportOnboarding';
+import type { Group, OnboardingProgressParticipant, Participant, ParticipantAppInfo } from '../../types';
 
 // A group on the Groups page, kept calm: the name and Support, one status word with one progress bar,
 // setup shown only when something is missing, and the people one tap away. The tap opens
@@ -69,6 +70,20 @@ const SetupLine: React.FC<{ summary: GroupOnboardingSummary; hasSupport: boolean
   );
 };
 
+const CHIP_TONE = {
+  good: 'bg-emerald-100/80 text-emerald-700',
+  warn: 'bg-amber-100/80 text-amber-800',
+  plain: 'bg-[#f3f4f6] text-gray-600',
+} as const;
+
+/** A small status chip: a tick when the step is done. */
+const Chip: React.FC<{ tone: keyof typeof CHIP_TONE; done?: boolean; children: React.ReactNode }> = ({ tone, done, children }) => (
+  <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${CHIP_TONE[tone]}`}>
+    {done && <svg className="h-2.5 w-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3.5" d="m5 13 4 4L19 7" /></svg>}
+    {children}
+  </span>
+);
+
 interface GroupCardProps {
   group: Group;
   members: Participant[];
@@ -80,21 +95,11 @@ interface GroupCardProps {
   signedInIds: Set<string> | null;
   /** Each person's own onboarding row, to say what they are waiting on. */
   progress: Map<string, OnboardingProgressParticipant> | null;
+  /** Phone and last-seen by participant id; null while it has not loaded (then those chips are left out). */
+  appDetails: Record<string, ParticipantAppInfo> | null;
 }
 
-/** The first step a person has not done, in the order they do them. */
-const nextStep = (row: OnboardingProgressParticipant | undefined): string | null => {
-  if (!row) return 'Intro';
-  if (row.completed) return null;
-  const step = ONBOARDING_STEPS.find((s) => {
-    if (row[s.key]) return false;
-    // After the first class the map, the guide and "ready" are no longer asked.
-    return !(row.hasAttended && s.key !== 'introPosted' && s.key !== 'profileComplete');
-  });
-  return step ? step.label : null;
-};
-
-const GroupCard: React.FC<GroupCardProps> = ({ group, members, summary, maxDays, hubName, menu, signedInIds, progress }) => {
+const GroupCard: React.FC<GroupCardProps> = ({ group, members, summary, maxDays, hubName, menu, signedInIds, progress, appDetails }) => {
   const [open, setOpen] = useState(false);
   const shown = members.slice(0, 3);
   const waiting = summary?.waitingOn ?? null;
@@ -153,6 +158,7 @@ const GroupCard: React.FC<GroupCardProps> = ({ group, members, summary, maxDays,
           hubName={hubName}
           signedInIds={signedInIds}
           progress={progress}
+          appDetails={appDetails}
           onClose={() => setOpen(false)}
         />
       )}
@@ -160,7 +166,7 @@ const GroupCard: React.FC<GroupCardProps> = ({ group, members, summary, maxDays,
   );
 };
 
-const GroupDetailSheet: React.FC<Omit<GroupCardProps, 'menu'> & { onClose: () => void }> = ({ group, members, summary, maxDays, hubName, signedInIds, progress, onClose }) => {
+const GroupDetailSheet: React.FC<Omit<GroupCardProps, 'menu'> & { onClose: () => void }> = ({ group, members, summary, maxDays, hubName, signedInIds, progress, appDetails, onClose }) => {
   const navigate = useNavigate();
   return (
     <ModalShell
@@ -192,23 +198,30 @@ const GroupDetailSheet: React.FC<Omit<GroupCardProps, 'menu'> & { onClose: () =>
           <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">People</h3>
           <ul className="mt-1 flex flex-col">
             {members.map((p) => {
-              const next = progress ? nextStep(progress.get(p.id)) : null;
+              const row = progress?.get(p.id);
               const signedIn = signedInIds ? signedInIds.has(p.id) : null;
+              const info = appDetails?.[p.id];
+              const phone = deviceLabel(info);
+              const seen = lastSeenLabel(info);
               return (
                 <li key={p.id} className="border-t border-[#f0f0f2] first:border-t-0">
                   <button
                     type="button"
                     onClick={() => { onClose(); navigate(`/participants/${p.id}`); }}
-                    className="flex min-h-[60px] w-full items-center gap-3 py-2 text-left"
+                    className="flex w-full items-start gap-3 py-3 text-left"
                   >
                     <Avatar name={p.fullName} avatarUrl={p.avatarUrl} size="md" />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[15px] font-semibold text-gray-900">{p.fullName}</span>
                       <span className="block truncate text-xs text-gray-500">{[p.phone, genderAgeLine(p)].filter(Boolean).join(' · ')}</span>
-                    </span>
-                    <span className="flex flex-none flex-col items-end gap-1">
-                      {progress && (next ? <span className="text-xs font-semibold text-amber-800">{next}</span> : <span className="text-xs font-semibold text-emerald-700">Ready</span>)}
-                      {signedIn === false && <AccessChip confirmed={false} />}
+                      <span className="mt-1.5 flex flex-wrap gap-1">
+                        {row && ONBOARDING_STEPS.map((step) => (
+                          <Chip key={step.key} tone={participantStepDone(row, step.key) ? 'good' : 'warn'} done={participantStepDone(row, step.key)}>{step.label}</Chip>
+                        ))}
+                        {signedIn === false && <Chip tone="warn">Not signed in</Chip>}
+                        {appDetails && (phone ? <Chip tone="plain">{phone}</Chip> : null)}
+                        {appDetails && (seen ? <Chip tone="plain">Seen {seen}</Chip> : <Chip tone="warn">Never opened</Chip>)}
+                      </span>
                     </span>
                   </button>
                 </li>

@@ -68,6 +68,7 @@
 - Admin redesign, batch 2 (frontend only): Dashboard "right now" lines in one card and a subtitle that says what needs you; Attendance summary in one card; Follow-ups, Faith projects and Planner header extras moved into ⋮; Allocation page titled "Allocation". The old `GroupOnboardingStrip` is commented out, not deleted.
 - Hubs: the Hub meeting reports card starts closed (the Group meetings card stays open); the whole "Last recap / See week by week" strip is hidden on the Hubs page (`{false && …}` in AdminHubsPage, component untouched) because Hub meeting reports shows each week. The Hubs page never passed trainings to that strip, so nothing else was lost; trainings live on Supports > Trainings.
 - Admin redesign, batch 3 (frontend only): Users list flags only "Inactive" (Active shows in the detail panel); Cohorts drops the repeated date chip, the repeated venue line and the "Cohort table" heading; Onboarding shows plain stats instead of four coloured tiles and folds "Recent activity" into a closed accordion. `MetricCard` in AdminOnboardingPage is now unused (left in place, not deleted).
+- Group sheet (Groups page): each person shows chips for their five steps (tick when done), "Not signed in", their phone (iPhone, Android, Computer) and "Seen 8 Oct" or "Never opened". Read from the existing `participants_app_details()` and `participants_signed_in()`; no database change. Phone and last-seen chips are left out until that loads.
 
 ## How to pick this up
 Read FLOW_MAP rules 35, 57 and 75–79, then `utils/supportOnboarding.ts` and `utils/meetingWindow.ts`.
