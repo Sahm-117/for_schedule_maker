@@ -38,7 +38,6 @@ interface MeetingModePanelProps {
   weeks: Week[];
   weekId: number | null;
   onWeekChange: (weekId: number) => void;
-  slotLabel: string | null;
   participants: Participant[];
   faithProjects: FaithProject[];
   focusParticipantId: string | null;
@@ -70,7 +69,6 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
   weeks,
   weekId,
   onWeekChange,
-  slotLabel,
   participants,
   faithProjects,
   focusParticipantId,

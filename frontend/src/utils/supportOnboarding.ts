@@ -12,6 +12,11 @@ import type { Group, OnboardingProgress, OnboardingProgressParticipant, SupportO
 export const participantIsReady = (p: Pick<OnboardingProgressParticipant, 'completed' | 'hasAttended' | 'profileComplete' | 'introPosted'>) =>
   !!p.completed || (!!p.hasAttended && !!p.profileComplete && !!p.introPosted);
 
+/** Done with onboarding for the counts: ready by the rule above, or every one of the five steps done. */
+export const participantFinished = (
+  p: Pick<OnboardingProgressParticipant, 'completed' | 'hasAttended' | 'introPosted' | 'venueMapAcknowledged' | 'introGuideRead' | 'profileComplete' | 'readyConfirmed'>,
+) => participantIsReady(p) || (p.introPosted && p.venueMapAcknowledged && p.introGuideRead && p.profileComplete && p.readyConfirmed);
+
 /** Once they have attended class, the map, the guide and "ready" count as done; the intro and profile still have to be done. */
 export const participantStepDone = (
   p: Pick<OnboardingProgressParticipant, 'completed' | 'hasAttended' | 'introPosted' | 'venueMapAcknowledged' | 'introGuideRead' | 'profileComplete' | 'readyConfirmed'>,

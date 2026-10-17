@@ -707,7 +707,6 @@ export interface Group {
   participantCount?: number;
   meetingDay?: string | null;
   meetingTime?: string | null;
-  meetingDurationMins?: number | null;
   callPlatform?: GroupCallPlatform | null;
   callLink?: string | null;
   archivedAt?: string | null;
@@ -1150,7 +1149,6 @@ export interface ParticipantHome {
     name: string;
     meetingDay: string | null;
     meetingTime: string | null;
-    meetingDurationMins: number | null;
     callPlatform: GroupCallPlatform | null;
     callLink: string | null;
     supportName: string | null;
@@ -1454,7 +1452,6 @@ export interface SupportHub {
   /** The hub's weekly meeting. Set by admins only. */
   meetingDay?: string | null;
   meetingTime?: string | null;
-  meetingDurationMins?: number | null;
   callPlatform?: GroupCallPlatform | null;
   callLink?: string | null;
   memberCount?: number;
@@ -1705,7 +1702,6 @@ export interface SupportGroupView {
   hubName: string | null;
   meetingDay: string | null;
   meetingTime: string | null;
-  meetingDurationMins: number | null;
   callPlatform: GroupCallPlatform | null;
   callLink: string | null;
   participantCount: number;
@@ -1716,7 +1712,6 @@ export interface HubLeadsMeeting {
   cohortId: string;
   meetingDay: string | null;
   meetingTime: string | null;
-  meetingDurationMins: number | null;
   callPlatform: GroupCallPlatform | null;
   callLink: string | null;
 }
@@ -1758,7 +1753,7 @@ export interface MyHubPayload {
     recapLeadUserIds?: string[]; recapLeadNames?: string[];
     prayerLeadUserIds?: string[]; prayerLeadNames?: string[];
     itSupports?: HubItSupportEntry[];
-    meetingDay?: string | null; meetingTime?: string | null; meetingDurationMins?: number | null;
+    meetingDay?: string | null; meetingTime?: string | null;
     callPlatform?: GroupCallPlatform | null; callLink?: string | null;
   } | null;
   isLead: boolean;

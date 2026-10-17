@@ -1,5 +1,5 @@
 import type { OnboardingProgressParticipant } from '../types';
-import { participantIsReady, participantStepDone } from './supportOnboarding';
+import { participantFinished, participantStepDone } from './supportOnboarding';
 
 // How far along a group's onboarding is, for the card on the Groups page. A group is onboarded when
 // every member has finished; it is overdue when it is not and more than the programme's allowance
@@ -65,7 +65,7 @@ export const summarizeGroupOnboarding = (
   // A step counts for a member who has done it, has finished onboarding, or has been to class (then
   // only the profile is still asked of them; see utils/supportOnboarding).
   const stepCounts = ONBOARDING_STEPS.map((step) => rows.filter((row) => row && participantStepDone(row, step.key)).length);
-  const onboarded = rows.filter((row) => row && (participantIsReady(row) || ONBOARDING_STEPS.every((step) => row[step.key]))).length;
+  const onboarded = rows.filter((row) => row && participantFinished(row)).length;
   const assignedMs = assignedAt ? new Date(assignedAt).getTime() : NaN;
   // Overdue is judged on exact days, the way the Supports page and the dashboard do; the card shows whole days.
   const exactDays = Number.isNaN(assignedMs) ? null : Math.max(0, (now.getTime() - assignedMs) / DAY_MS);

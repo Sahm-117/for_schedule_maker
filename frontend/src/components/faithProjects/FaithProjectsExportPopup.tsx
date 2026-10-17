@@ -120,8 +120,6 @@ const FaithProjectsExportPopup: React.FC<FaithProjectsExportPopupProps> = ({
     [participants],
   );
 
-  const allSelected = sortedGroups.every((g) => selectedGroupIds.has(g.id)) && includeUnassigned;
-
   const selectAll = () => {
     const next = new Set<string>();
     sortedGroups.forEach((g) => next.add(g.id));

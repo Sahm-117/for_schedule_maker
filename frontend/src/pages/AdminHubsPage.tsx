@@ -20,7 +20,6 @@ import { sortByText } from '../utils/sort';
 import { selectedFirst } from '../utils/selectedFirst';
 import { getIdealWeekForCohort, getIdealWeekNumberForCohort } from '../utils/weekFocus';
 import { cohortMode } from '../components/dashboard/healthModel';
-import AttendanceSummaryStrip from '../components/hubs/AttendanceSummaryStrip';
 import HubReportsCard from '../components/hubs/HubReportsCard';
 import MeetingSetModal from '../components/hubs/MeetingSetModal';
 import { formatMeetingSlot } from '../components/groups/GroupCallCard';
@@ -518,10 +517,6 @@ const AdminHubsPage: React.FC = () => {
   // A support's kind for this cohort (missing entry = PARTICIPANT_SUPPORT) — used
   // to offer only operational supports as IT-support candidates.
   const [kinds, setKinds] = useState<Record<string, SupportKind>>({});
-  // Recap marks for the summary strip, keyed "hubId:weekId" -> { userId: status },
-  // covering every week of the cohort (not just summaryWeek) for the "week by
-  // week" disclosure. Kept in step by handleRecapMarked.
-  const [recapMarksByHubWeek, setRecapMarksByHubWeek] = useState<Record<string, Record<string, SupportAttendanceStatus>>>({});
   const [search, setSearch] = useState('');
   // Filter choices (see FilterBar): hub, lead, recap, teen.
   const [filters, setFilters] = useState<FilterValues>({});
@@ -530,12 +525,11 @@ const AdminHubsPage: React.FC = () => {
     if (!activeCohort) { setLoading(false); return; }
     setLoading(true);
     try {
-      const [{ hubs: hs }, { memberships: ms }, { users }, { groups: gs }, { sessions: rs, attendance: ra }, { kinds: ks }] = await Promise.all([
+      const [{ hubs: hs }, { memberships: ms }, { users }, { groups: gs }, { kinds: ks }] = await Promise.all([
         supportHubsApi.getAll(activeCohort.id),
         supportHubsApi.getMembershipsForCohort(activeCohort.id),
         usersApi.getAll(),
         groupsApi.getAll({ cohortId: activeCohort.id }),
-        supportSessionsApi.getForCohort(activeCohort.id, ['SUNDAY_RECAP']),
         supportKindApi.getForCohort(activeCohort.id).catch(() => ({ kinds: {} as Record<string, SupportKind> })),
       ]);
       setHubs(hs);
@@ -550,16 +544,6 @@ const AdminHubsPage: React.FC = () => {
       setItSupportsByHub(Object.fromEntries(hs.map((h, i) => [h.id, itSupportEntries[i]])));
       const notedEntries = await Promise.all(hs.map((h) => supportHubsApi.getMembersWithNotes(h.id).then((res) => res.userIds).catch(() => [] as string[])));
       setNotedIdsByHub(Object.fromEntries(hs.map((h, i) => [h.id, notedEntries[i]])));
-      // Fold recap sessions + marks into "hubId:weekId" -> marks for the
-      // summary strip's week-by-week table.
-      const sessionHubWeek = new Map(rs.map((s) => [s.id, `${s.hubId}:${s.weekId}`]));
-      const marksByHubWeek: Record<string, Record<string, SupportAttendanceStatus>> = {};
-      ra.forEach((a) => {
-        const key = sessionHubWeek.get(a.sessionId);
-        if (!key) return;
-        (marksByHubWeek[key] ??= {})[a.userId] = a.status;
-      });
-      setRecapMarksByHubWeek(marksByHubWeek);
     } catch { /* ignore */ }
     finally { setLoading(false); }
   }, [activeCohort]);
@@ -659,7 +643,6 @@ const AdminHubsPage: React.FC = () => {
   // Keeps the card's summary line in step right after a mark in the panel,
   // without waiting for the next full reload.
   const handleRecapMarked = (hubId: string, weekId: number, marks: Record<string, SupportAttendanceStatus>) => {
-    setRecapMarksByHubWeek((prev) => ({ ...prev, [`${hubId}:${weekId}`]: marks }));
     if (!summaryWeek || weekId !== summaryWeek.id) return;
     const memberIds = membersByHub.get(hubId) ?? [];
     let marked = 0;
@@ -724,16 +707,6 @@ const AdminHubsPage: React.FC = () => {
 
       {activeCohort && (
         <>
-          {/* Retired: Hub meeting reports shows each week's attendance, so the Last recap strip is hidden here, not deleted. */}
-          {false && (
-          <AttendanceSummaryStrip
-            hubs={hubs}
-            membersByHub={membersByHub}
-            weeks={weeks}
-            summaryWeek={summaryWeek}
-            recapMarksByHubWeek={recapMarksByHubWeek}
-          />
-          )}
           {!loading && (
             <HubReportsCard
               cohortId={activeCohort.id}
@@ -960,7 +933,7 @@ const AdminHubsPage: React.FC = () => {
         onSave={async (input, notify) => {
           if (!meetingTarget) return;
           await myHubApi.updateMeeting(meetingTarget.id, input, notify);
-          const patch = { meetingDay: input.meetingDay, meetingTime: input.meetingTime, meetingDurationMins: null, callPlatform: input.callPlatform, callLink: input.callLink };
+          const patch = { meetingDay: input.meetingDay, meetingTime: input.meetingTime, callPlatform: input.callPlatform, callLink: input.callLink };
           setHubs((prev) => prev.map((x) => (x.id === meetingTarget.id ? { ...x, ...patch } : x)));
         }}
       />

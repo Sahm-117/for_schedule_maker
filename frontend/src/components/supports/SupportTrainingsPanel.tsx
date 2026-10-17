@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Cohort, SupportAttendanceStatus, SupportSession, SupportSessionType, User } from '../../types';
-import { cohortsApi, supportSessionsApi, usersApi } from '../../services/api';
+import { supportSessionsApi, usersApi } from '../../services/api';
 import { useAppData } from '../../context/AppDataContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import ModalShell from '../followups/ModalShell';
@@ -368,9 +368,6 @@ const SupportTrainingsPanel: React.FC<{ onChanged?: () => void }> = ({ onChanged
   const [sessionAttendance, setSessionAttendance] = useState<Array<{ sessionId: string; userId: string; status: SupportAttendanceStatus; learned?: string | null; willApply?: string | null }>>([]);
   const [resultsTarget, setResultsTarget] = useState<SupportSession | null>(null);
   const [supportUsers, setSupportUsers] = useState<User[]>([]);
-  // Supports enrolled in each listed cohort, so a training is counted against
-  // its own cohort's supports rather than every support in the app.
-  const [supportIdsByCohort, setSupportIdsByCohort] = useState<Map<string, Set<string>>>(new Map());
   const [loading, setLoading] = useState(true);
   const [sessionFormOpen, setSessionFormOpen] = useState(false);
   const [editingSession, setEditingSession] = useState<SupportSession | null>(null);
@@ -405,15 +402,10 @@ const SupportTrainingsPanel: React.FC<{ onChanged?: () => void }> = ({ onChanged
   const load = useCallback(async () => {
     if (!activeCohort) { setLoading(false); return; }
     try {
-      const [{ users }, { sessions: ss, attendance: sa }, cohortMembers] = await Promise.all([
+      const [{ users }, { sessions: ss, attendance: sa }] = await Promise.all([
         usersApi.getAll(),
         supportSessionsApi.getForCohort(trainingListCohortIds, ['PRE_COHORT_TRAINING', 'GET_TOGETHER']),
-        Promise.all(trainingListCohortIds.map((id) => cohortsApi.getMembers(id))),
       ]);
-      setSupportIdsByCohort(new Map(trainingListCohortIds.map((id, i) => [
-        id,
-        new Set(cohortMembers[i].users.filter((u) => hasSupportRole(u)).map((u) => u.id)),
-      ])));
       setSupportUsers(sortByText(pickableUsers(users.filter((u) => hasSupportRole(u) && u.isActive !== false)), (u) => u.name));
       setSessions(ss);
       setSessionAttendance(sa);

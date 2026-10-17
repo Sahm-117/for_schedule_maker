@@ -255,7 +255,7 @@ const NavItemLink: React.FC<{
   groupMeetingLive?: boolean;
   groupLiveWeekId?: number | null;
   onClick?: () => void;
-}> = ({ item, active, globalPendingCount, newResourceCount, hasNewHubActivity, hubMeetingLive = false, groupMeetingLive = false, groupLiveWeekId = null, onClick }) => {
+}> = ({ item, active, globalPendingCount, hasNewHubActivity, hubMeetingLive = false, groupMeetingLive = false, groupLiveWeekId = null, onClick }) => {
   const isLive = (item.to === '/support/my-hub' && hubMeetingLive) || (item.to === '/support/participants' && groupMeetingLive);
   const practiceLocked = React.useContext(PracticeLockContext) && isLockedInPractice(item.to);
   if (practiceLocked) {
@@ -857,6 +857,7 @@ const AppShell: React.FC = () => {
                       locationPathname={location.pathname}
                       globalPendingCount={globalPendingChanges.length}
                       newResourceCount={newResourceCount}
+                      hasNewHubActivity={hasNewHubActivity}
                       onItemClick={() => setOpen(false)}
                     />
                   ))}

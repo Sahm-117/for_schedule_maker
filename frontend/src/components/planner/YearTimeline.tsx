@@ -37,7 +37,7 @@ interface YearTimelineProps {
   onOpenCohort: (cohort: PlannerCohort) => void;
   onOpenEvent: (event: PlannerEvent) => void;
   onOpenClash: (clash: PlannerClash) => void;
-  scrollRef: React.RefObject<HTMLDivElement>;
+  scrollRef: React.RefObject<HTMLDivElement | null>;
 }
 
 /** Year and quarter scales share the same cohort, event and clash track. */

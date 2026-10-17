@@ -235,8 +235,7 @@ const GroupCallCard: React.FC<GroupCallCardProps> = ({ group, fallbackLink, onGr
 
   const handleSave = async (input: MeetingSaveInput) => {
     if (!group) throw new Error('Your group is not set up yet. Ask an admin to assign you a group.');
-    // Meetings have no set length any more; saving clears an old one.
-    const { group: updated } = await groupsApi.update(group.id, { ...input, meetingDurationMins: null });
+    const { group: updated } = await groupsApi.update(group.id, input);
     onGroupUpdated(updated);
   };
 

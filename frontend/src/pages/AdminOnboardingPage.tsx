@@ -6,6 +6,7 @@ import FilterBar, { type FilterGroup, type FilterValues } from '../components/fi
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import OnboardingStepPills from '../components/OnboardingStepPills';
+import { participantFinished } from '../utils/supportOnboarding';
 import {
   groupDiscussionApi,
   onboardingEventsApi,
@@ -82,7 +83,8 @@ const AdminOnboardingContent: React.FC = () => {
       const members = cohortProgress.participants
         .filter((entry) => entry.groupId === group.groupId)
         .sort((a, b) => groupCollator.compare(a.name, b.name));
-      const readyCount = members.filter((entry) => entry.completed).length;
+      // The same rule as the Groups page and the Supports page, so the three never disagree.
+      const readyCount = members.filter(participantFinished).length;
       return {
         group,
         members,
@@ -261,15 +263,5 @@ const AdminOnboardingContent: React.FC = () => {
     </div>
   );
 };
-
-// Retired: the cohort progress card now shows plain stats. Kept commented out, not deleted.
-/*
-const MetricCard: React.FC<{ label: string; value: React.ReactNode; tone: string }> = ({ label, value, tone }) => (
-  <div className={`rounded-2xl px-4 py-3 ${tone}`}>
-    <p className="text-xs font-semibold uppercase tracking-wide opacity-70">{label}</p>
-    <p className="mt-1 text-2xl font-bold">{value}</p>
-  </div>
-);
-*/
 
 export default AdminOnboardingPage;

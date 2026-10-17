@@ -5246,7 +5246,6 @@ const mapGroup = (row: any): import('../types').Group => ({
   participantCount: (row.members ?? []).length,
   meetingDay: row.meetingDay ?? null,
   meetingTime: row.meetingTime ?? null,
-  meetingDurationMins: row.meetingDurationMins ?? null,
   callPlatform: row.callPlatform ?? null,
   callLink: row.callLink ?? null,
   archivedAt: row.archivedAt ?? null,
@@ -5550,7 +5549,7 @@ export const groupsApi = {
   async setMeetingSlot(groupId: string, meetingDay: string, meetingTime: string): Promise<{ group: import('../types').Group }> {
     const { data, error } = await supabase
       .from('Group')
-      .update({ meetingDay, meetingTime, meetingDurationMins: null, updatedAt: new Date().toISOString() })
+      .update({ meetingDay, meetingTime, updatedAt: new Date().toISOString() })
       .eq('id', groupId)
       .select(GROUP_SELECT)
       .single();
@@ -5613,7 +5612,7 @@ export const groupsApi = {
   },
 
   async create(
-    input: { cohortId: string; name: string; supportId?: string | null; meetingDay?: string | null; meetingTime?: string | null; meetingDurationMins?: number | null },
+    input: { cohortId: string; name: string; supportId?: string | null; meetingDay?: string | null; meetingTime?: string | null },
     options: { reuseEmpty?: boolean } = {},
   ): Promise<{ group: import('../types').Group }> {
     const { data: inserted, error } = await supabase
@@ -5659,7 +5658,7 @@ export const groupsApi = {
     return { group };
   },
 
-  async update(groupId: string, input: { name?: string; supportId?: string | null; meetingDay?: string | null; meetingTime?: string | null; meetingDurationMins?: number | null; callPlatform?: import('../types').GroupCallPlatform | null; callLink?: string | null }): Promise<{ group: import('../types').Group }> {
+  async update(groupId: string, input: { name?: string; supportId?: string | null; meetingDay?: string | null; meetingTime?: string | null; callPlatform?: import('../types').GroupCallPlatform | null; callLink?: string | null }): Promise<{ group: import('../types').Group }> {
     const { data: current } = await supabase
       .from('Group')
       .select(GROUP_SELECT)
@@ -6389,7 +6388,6 @@ const mapSupportHub = (row: any): import('../types').SupportHub => ({
   prayerLeadUserIds: row.prayerLeadUserIds ?? [],
   meetingDay: row.meetingDay ?? null,
   meetingTime: row.meetingTime ?? null,
-  meetingDurationMins: row.meetingDurationMins ?? null,
   callPlatform: row.callPlatform ?? null,
   callLink: row.callLink ?? null,
   createdAt: row.createdAt,
@@ -6875,7 +6873,7 @@ export const myHubApi = {
       p_hub_id: hubId,
       p_meeting_day: input.meetingDay,
       p_meeting_time: input.meetingTime,
-      // Meetings have no set length any more; saving clears an old one.
+      // Meetings have no length. The database function still lists this argument (it ignores it) so older app tabs keep working.
       p_meeting_duration_mins: null,
       p_call_platform: input.callPlatform,
       p_call_link: input.callLink,
@@ -6898,7 +6896,7 @@ export const myHubApi = {
       p_cohort_id: cohortId,
       p_meeting_day: input.meetingDay,
       p_meeting_time: input.meetingTime,
-      // Meetings have no set length any more; saving clears an old one.
+      // Meetings have no length. The database function still lists this argument (it ignores it) so older app tabs keep working.
       p_meeting_duration_mins: null,
       p_call_platform: input.callPlatform,
       p_call_link: input.callLink,
@@ -8301,79 +8299,6 @@ export const adminChecklistApi = {
     const { data, error } = await supabase.rpc('admin_delete_checklist_task', { p_token: getSessionToken(), p_task_group_id: taskGroupId, p_week_id: weekId });
     if (error) throw checklistAdminError(error.message || '');
     return Number(data ?? 0);
-  },
-};
-
-const COVER_REQUEST_SELECT = '*, support:User!CoverRequest_supportId_fkey(id, name), coverSupport:User!CoverRequest_coverSupportId_fkey(id, name)';
-
-const mapCoverRequest = (row: any): import('../types').CoverRequest => ({
-  id: row.id,
-  supportId: row.supportId,
-  supportName: row.support?.name ?? null,
-  cohortId: row.cohortId ?? null,
-  reason: row.reason,
-  startsAt: row.startsAt,
-  endsAt: row.endsAt,
-  note: row.note ?? null,
-  status: row.status,
-  coverSupportId: row.coverSupportId ?? null,
-  coverSupportName: row.coverSupport?.name ?? null,
-  assignedById: row.assignedById ?? null,
-  assignedAt: row.assignedAt ?? null,
-  createdAt: row.createdAt,
-});
-
-export const coverRequestsApi = {
-  async getMine(supportId: string): Promise<{ requests: import('../types').CoverRequest[] }> {
-    const { data, error } = await supabase.from('CoverRequest').select(COVER_REQUEST_SELECT)
-      .eq('supportId', supportId).order('createdAt', { ascending: false });
-    if (error) throw new Error(error.message);
-    return { requests: ((data as any[]) || []).map(mapCoverRequest) };
-  },
-
-  async getAll(options: { status?: import('../types').CoverRequestStatus } = {}): Promise<{ requests: import('../types').CoverRequest[] }> {
-    let query = supabase.from('CoverRequest').select(COVER_REQUEST_SELECT).order('createdAt', { ascending: false });
-    if (options.status) query = query.eq('status', options.status);
-    const { data, error } = await query;
-    if (error) throw new Error(error.message);
-    return { requests: ((data as any[]) || []).map(mapCoverRequest) };
-  },
-
-  async create(input: { supportId: string; supportName: string; cohortId?: string | null; reason: string; startsAt: string; endsAt: string; note?: string | null }): Promise<{ request: import('../types').CoverRequest }> {
-    const { data, error } = await supabase.from('CoverRequest')
-      .insert([{
-        supportId: input.supportId,
-        cohortId: input.cohortId ?? null,
-        reason: input.reason.trim(),
-        startsAt: input.startsAt,
-        endsAt: input.endsAt,
-        note: input.note?.trim() || null,
-      }])
-      .select(COVER_REQUEST_SELECT)
-      .single();
-    if (error || !data) throw new Error(error?.message || 'Failed to send cover request');
-    return { request: mapCoverRequest(data) };
-  },
-
-  // Covers a support is running right now (ASSIGNED and the current time is inside the period).
-  async getActiveForCover(coverSupportId: string): Promise<{ requests: import('../types').CoverRequest[] }> {
-    const now = new Date().toISOString();
-    const { data, error } = await supabase.from('CoverRequest').select(COVER_REQUEST_SELECT)
-      .eq('coverSupportId', coverSupportId).eq('status', 'ASSIGNED').lte('startsAt', now).gte('endsAt', now);
-    if (error) throw new Error(error.message);
-    return { requests: ((data as any[]) || []).map(mapCoverRequest) };
-  },
-
-  async assign(requestId: string, coverSupportId: string, assignedById: string): Promise<{ request: import('../types').CoverRequest }> {
-    const now = new Date().toISOString();
-    const { data, error } = await supabase.from('CoverRequest')
-      .update({ status: 'ASSIGNED', coverSupportId, assignedById, assignedAt: now, updatedAt: now })
-      .eq('id', requestId)
-      .select(COVER_REQUEST_SELECT)
-      .single();
-    if (error || !data) throw new Error(error?.message || 'Failed to assign cover');
-    const request = mapCoverRequest(data);
-    return { request };
   },
 };
 

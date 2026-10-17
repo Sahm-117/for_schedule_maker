@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Avatar from '../Avatar';
 import Spinner from '../Spinner';
 import { PROGRESS_STEPS, StepPill } from '../OnboardingStepPills';
-import { participantStepDone } from '../../utils/supportOnboarding';
+import { participantFinished, participantStepDone } from '../../utils/supportOnboarding';
 import { myHubApi } from '../../services/api';
 import { supportProfileChecklist } from '../../utils/people';
 import { buildParticipantMessageLink } from '../../utils/phone';
@@ -60,7 +60,7 @@ const GroupPeopleOverview: React.FC<{ groupId: string }> = ({ groupId }) => {
   const summary = useMemo(() => {
     if (!data) return null;
     const people = data.participants;
-    const onboarded = people.filter((p) => p.onboarding.completed).length;
+    const onboarded = people.filter((p) => participantFinished(p.onboarding)).length;
     const attended = people.reduce((n, p) => n + p.classesAttended, 0);
     const possible = people.length * data.classesRun;
     const approved = people.filter((p) => p.faithProjectStatus === 'SAVED').length;

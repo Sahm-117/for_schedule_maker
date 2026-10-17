@@ -583,7 +583,6 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
               weeks={cohortWeeks}
               weekId={selectedWeekId}
               onWeekChange={setSelectedWeekId}
-              slotLabel={formatMeetingSlot(selectedGroupData?.meetingDay, selectedGroupData?.meetingTime)}
               participants={selectedParticipants}
               faithProjects={faithProjects}
               focusParticipantId={currentPrayerFocus?.participantId ?? null}

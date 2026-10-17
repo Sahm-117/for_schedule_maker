@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { usePolling } from '../hooks/usePolling';
-import { cohortsApi, hubApi, myHubApi, notificationsApi, pendingChangesApi, rejectedChangesApi, resourcesApi, settingsApi, usersApi, weeksApi } from '../services/api';
+import { cohortsApi, hubApi, myHubApi, notificationsApi, pendingChangesApi, rejectedChangesApi, resourcesApi, usersApi, weeksApi } from '../services/api';
 import { cohortsApi as supabaseCohortsApi } from '../services/supabase-api';
 import type { Cohort, MyHubPayload, Notification, PendingChange, RejectedChange, Week } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';

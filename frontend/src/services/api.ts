@@ -791,7 +791,7 @@ export const supportNotesApi = USE_SUPABASE ? supabaseSupportNotesApi : {
 
 export const supportSessionsApi = USE_SUPABASE ? supabaseSupportSessionsApi : {
   async mark(_input: any): Promise<never> { return peopleUnavailable(); },
-  async getForHubWeek(_hubId: string, _weekId: number): Promise<{ attendance: Array<{ userId: string; status: import('../types').SupportAttendanceStatus }> }> { return { attendance: [] }; },
+  async getForHubWeek(_hubId: string, _weekId: number): Promise<{ attendance: Array<{ userId: string; status: import('../types').SupportAttendanceStatus }>; session?: { id: string; notes: string | null; submittedAt: string | null } | null }> { return { attendance: [], session: null }; },
   async getHubReportsForWeek(_cohortId: string, _weekId: number): Promise<{ reports: import('../types').HubWeekReport[]; attendance: Array<{ sessionId: string; userId: string; status: import('../types').SupportAttendanceStatus }> }> { return { reports: [], attendance: [] }; },
   async getForCohort(_cohortId: string | string[], _types: import('../types').SupportSessionType[]): Promise<{ sessions: import('../types').SupportSession[]; attendance: Array<{ sessionId: string; userId: string; status: import('../types').SupportAttendanceStatus }> }> { return { sessions: [], attendance: [] }; },
   async getMyPendingLearned(_userId: string): Promise<{ sessions: import('../types').SupportSession[] }> { return { sessions: [] }; },

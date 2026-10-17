@@ -190,7 +190,6 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
 }) => {
   const toast = useToast();
   const isFullAccess = canAttendance;
-  const canSetPrayerFocus = isFullAccess || isPrayerLead;
 
   // Which step indices this viewer may open. null = every step (full access).
   const restrictedStepIndices = useMemo(() => {
@@ -346,6 +345,8 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
           projectText: item.body,
           setAt: new Date().toISOString(),
           prayedForIds: previous.prayedForIds.includes(item.faithProjectId) ? previous.prayedForIds : [...previous.prayedForIds, item.faithProjectId],
+          hubPrayerDone: previous.hubPrayerDone,
+          prayerFinished: previous.prayerFinished,
         }
       : { ...previous, faithProjectId: null, participantName: null, groupName: null, projectText: null, setAt: null };
     setPrayerFocus(optimistic);

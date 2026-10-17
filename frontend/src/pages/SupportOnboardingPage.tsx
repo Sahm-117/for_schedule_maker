@@ -14,6 +14,7 @@ import {
 } from '../services/api';
 import Spinner from '../components/Spinner';
 import { sortByText } from '../utils/sort';
+import { participantFinished, participantStepDone } from '../utils/supportOnboarding';
 import type {
   Participant,
   OnboardingProgress,
@@ -129,7 +130,7 @@ const SupportOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
     () => sortByText((progress?.participants ?? []).filter((entry) => !selectedGroupId || entry.groupId === selectedGroupId), (entry) => entry.name),
     [progress, selectedGroupId]
   );
-  const ready = rows.filter((entry) => entry.completed).length;
+  const ready = rows.filter(participantFinished).length;
   const percent = rows.length > 0 ? Math.round((ready / rows.length) * 100) : 0;
   const introPosted = !!group?.supportIntroPosted;
 
@@ -238,7 +239,7 @@ const SupportOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
                           </div>
                           <div className="mt-3 flex flex-wrap gap-1.5">
                             {PROGRESS_STEPS.map((step) => (
-                              <StepPill key={step.key} label={step.label} done={row[step.key]} />
+                              <StepPill key={step.key} label={step.label} done={participantStepDone(row, step.key)} />
                             ))}
                           </div>
                         </div>

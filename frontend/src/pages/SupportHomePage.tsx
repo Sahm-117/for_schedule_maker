@@ -7,7 +7,7 @@ import ActivityText from '../components/ActivityText';
 import { useAuth } from '../hooks/useAuth';
 import { usePracticeEntry } from '../context/PracticeEntryContext';
 import { useAppData } from '../context/AppDataContext';
-import { announcementsApi, faithProjectsApi, groupsApi, meetingAttendanceApi, myHubApi, participantCheckInsApi, participantsApi, resourcesApi, supportActivityCompletionsApi, supportChecklistApi, supportKindApi, supportRecapsApi } from '../services/api';
+import { announcementsApi, faithProjectsApi, groupsApi, meetingAttendanceApi, myHubApi, participantCheckInsApi, participantsApi, supportActivityCompletionsApi, supportChecklistApi, supportKindApi, supportRecapsApi } from '../services/api';
 import type { Announcement, FaithProject, Group, HubJob, MyHubPayload, Participant, ParticipantCheckIn, SupportActivityCompletion, SupportChecklistItem, SupportKind, User } from '../types';
 import { getCurrentProgramDayName, getProgramDayIndex } from '../utils/schedule';
 import { sortByText } from '../utils/sort';
@@ -79,9 +79,8 @@ const SupportHomePage: React.FC = () => {
 const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
   const practiceEntry = usePracticeEntry();
   const { userLabelIds, userCohortIds } = useAuth();
-  const { activeCohort, selectedWeek, weeks, newResourceCount, liveRevision, myHub } = useAppData();
+  const { activeCohort, selectedWeek, weeks, liveRevision, myHub } = useAppData();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [resourceCount, setResourceCount] = useState(0);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [faithProjects, setFaithProjects] = useState<FaithProject[]>([]);
   const [helpRequests, setHelpRequests] = useState<ParticipantCheckIn[]>([]);
@@ -222,12 +221,6 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
       setHomeAnnouncement(res.announcements.find((item) => item.showOnHome && item.homeUntil && new Date(item.homeUntil).getTime() > Date.now()) ?? null);
     }).catch(() => {});
   }, [activeCohort?.id, liveRevision, user, userCohortIds, userLabelIds]);
-
-  useEffect(() => {
-    resourcesApi.getAll()
-      .then((res) => setResourceCount(res.resources.length))
-      .catch(() => setResourceCount(0));
-  }, [liveRevision]);
 
   useEffect(() => {
     if (!user || !activeCohort) {
