@@ -5,7 +5,7 @@ import ScriptureActions, { useScriptureLikes } from './ScriptureActions';
 import { scriptureDayIndex, scriptureForDay, scripturePosition } from '../utils/participantApp';
 
 // The daily Inspirational Scripture: one image a day, swipe or tap the arrows to look back at earlier days.
-// On the support Home. Tap the picture to see it full size.
+// Used on the support Home (the participant Home has its own card). Tap the picture to see it full size.
 
 const SLIDE_MS = 320;
 const RESISTANCE = 0.3; // how much a drag past the first/last post is damped
@@ -26,11 +26,15 @@ const ScriptureCarousel: React.FC<ScriptureCarouselProps> = ({ scriptures, start
   const [scriptureDay, setScriptureDay] = useState<number | null>(null);
   // A tap on the picture (not a swipe) shows it full size.
   const [enlarged, setEnlarged] = useState(false);
+  const closeRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (!enlarged) return;
+    closeRef.current?.focus();
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setEnlarged(false); };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = overflow; };
   }, [enlarged]);
   const { liked, toggle } = useScriptureLikes();
   // Live drag offset (px) while swiping, or the animated value while settling/springing back.
@@ -81,7 +85,7 @@ const ScriptureCarousel: React.FC<ScriptureCarouselProps> = ({ scriptures, start
   };
 
   const onScripturePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (scriptureAnimating) return;
+    if (scriptureAnimating || (event.pointerType === 'mouse' && event.button !== 0)) return;
     event.currentTarget.setPointerCapture(event.pointerId);
     scriptureDrag.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, time: performance.now() };
   };
@@ -105,7 +109,11 @@ const ScriptureCarousel: React.FC<ScriptureCarouselProps> = ({ scriptures, start
     const dt = Math.max(1, performance.now() - drag.time);
     const width = scriptureTrackRef.current?.offsetWidth || 1;
     const velocity = Math.abs(dx) / dt;
-    if (Math.abs(dx) < 6 && Math.abs(event.clientY - drag.y) < 6) { setEnlarged(true); settleScripture(0); return; }
+    if (Math.abs(dx) < 6 && Math.abs(event.clientY - drag.y) < 6) {
+      setScriptureDragPx(0);
+      if (event.type === 'pointerup' && dt < 500) setEnlarged(true);
+      return;
+    }
     const pastThreshold = Math.abs(dx) > width * 0.25 || (Math.abs(dx) > FLICK_MIN_PX && velocity > FLICK_VELOCITY);
     const direction: 1 | -1 | 0 = dx < 0 && canGoNext && pastThreshold ? 1 : dx > 0 && canGoPrev && pastThreshold ? -1 : 0;
     settleScripture(direction);
@@ -154,7 +162,7 @@ const ScriptureCarousel: React.FC<ScriptureCarouselProps> = ({ scriptures, start
         </div>
         {enlarged && createPortal(
           <div role="dialog" aria-modal="true" aria-label="Inspirational scripture" onClick={() => setEnlarged(false)} className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4">
-            <button type="button" aria-label="Close" onClick={() => setEnlarged(false)} className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-xl text-white">&times;</button>
+            <button ref={closeRef} type="button" aria-label="Close" onClick={() => setEnlarged(false)} className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-xl text-white">&times;</button>
             <img src={scripture.imageUrl} alt={`Inspirational scripture, ${scriptureDay === todayScriptureDay ? 'today' : `day ${scriptureDay}`}`} className="max-h-full max-w-full rounded-2xl object-contain" />
           </div>,
           document.body,
