@@ -19,11 +19,9 @@ const SupportNextClassCard: React.FC<{ week: Week | null; dateLabel: string | nu
         {week.teacherName}
       </p>
     )}
-    {week && (
-      <NavLink to="/support/recap" className="mt-4 flex h-[50px] items-center justify-center rounded-2xl bg-primary text-[15.5px] font-extrabold text-white active:scale-[0.98]">
-      Open classes
+    <NavLink to="/support/recap" className="mt-4 flex h-[50px] items-center justify-center rounded-2xl bg-primary text-[15.5px] font-extrabold text-white active:scale-[0.98]">
+      {week ? 'Open classes' : 'See past classes'}
     </NavLink>
-    )}
   </section>
 );
 

@@ -42,3 +42,7 @@ Type check (no new errors beyond the 7 known) and vite build. Looked at in a bro
 - Attendance: "N to go" next to the marked count.
 - Compared with the canvas and left as they are because the structure already matches: Classes (next-class card with teacher, manual and recap buttons, past and coming-up lists), Resources (shared hub), Attendance rows.
 - Not changed, not compared in detail: Mobilisation, Follow-ups, Community, Announcements, Notifications.
+
+## Review fixes (round 2)
+- People rows keep every status chip visible (archived, retaking, access, alerts, project with category hint); only the onboarding steps are folded.
+- Leads card shows a message if it fails to load; Home shows a greyed "Join hub call · Opens 10 min before" row; group call row only for supports with no hub; Open classes stays after the last class.

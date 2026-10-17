@@ -289,7 +289,7 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
       </div>
 
       {tab === 'schedule' && (
-        <div data-wt="schedule-view-modes" aria-label="Which days" className="flex gap-2">
+        <div data-wt="schedule-view-modes" aria-label="Which days" className="flex flex-wrap gap-2">
           {([['today', 'Today'], ['tomorrow', 'Tomorrow'], ['week', 'Full week']] as const).map(([value, label]) => (
             <button
               key={value}

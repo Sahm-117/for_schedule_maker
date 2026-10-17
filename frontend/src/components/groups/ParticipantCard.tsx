@@ -533,32 +533,16 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
         </button>
       </div>
 
-      {!expanded && (
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          {onboarding && (
-            <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${onboarding.completed ? 'bg-emerald-100/80 text-emerald-700' : 'bg-orange-100/80 text-orange-700'}`}>
-              {onboarding.completed ? 'Ready for class' : 'Not ready'}
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={() => setFpOpen(true)}
-            title="Open faith project"
-            className={`inline-flex items-center gap-1.5 rounded-full py-1 pl-2.5 pr-2 text-[11px] font-bold ${chip.cls}`}
-          >
-            <span className="font-semibold opacity-70">Faith project</span>
-            <span>{chip.label}</span>
-          </button>
-          <AccessChip confirmed={accessConfirmed} />
-          {(appLine || appInfoLoaded) && <span className="text-[11.5px] text-gray-500">{appLine || 'Not seen in the app yet'}</span>}
-        </div>
-      )}
-      {expanded && (<>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {participant.status === 'ARCHIVED' && (
           <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-semibold text-neutral-600">Archived</span>
         )}
         <RetakingChip participant={participant} matches={retakeMatches} onUpdate={updateRetake} />
+        {onboarding && !expanded && (
+          <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${onboarding.completed ? 'bg-emerald-100/80 text-emerald-700' : 'bg-orange-100/80 text-orange-700'}`}>
+            {onboarding.completed ? 'Ready for class' : 'Not ready'}
+          </span>
+        )}
         <AccessChip confirmed={accessConfirmed} />
         {notInstalled && (
           <NotOpenedTag className="px-2.5 py-1 text-[11px]" />
@@ -593,7 +577,7 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
         )}
       </div>
       <TeenLoginPhone participant={participant} />
-      {onboarding && (
+      {expanded && onboarding && (
         <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
           {onboarding.completed ? (
             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100/80 px-2.5 py-1 text-xs font-semibold text-emerald-700">
@@ -607,7 +591,6 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
       )}
       {(appLine || appInfoLoaded) && <p className="mt-2 text-[11.5px] text-gray-500">{appLine || 'Not seen in the app yet'}</p>}
 
-      </>)}
       {helpRequest && (
         <div className="mt-2.5 rounded-xl bg-red-100/80 px-[13px] py-3">
           <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-red-700">Asked for help · {shortMoment(helpRequest.createdAt)}</p>

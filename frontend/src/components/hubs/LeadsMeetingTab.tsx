@@ -70,15 +70,18 @@ const LeadsMeetingTab: React.FC<{ cohortId: string }> = ({ cohortId }) => {
 // The same meeting as one small card at the top of My Hub, so a Hub Lead sees it without a tab.
 export const LeadsMeetingCard: React.FC<{ cohortId: string }> = ({ cohortId }) => {
   const [meeting, setMeeting] = useState<HubLeadsMeeting | null>(null);
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
     let cancelled = false;
     setMeeting(null);
+    setFailed(false);
     myHubApi.getLeadsMeeting(cohortId)
       .then((m) => { if (!cancelled) setMeeting(m); })
-      .catch(() => { if (!cancelled) setMeeting(null); });
+      .catch(() => { if (!cancelled) setFailed(true); });
     return () => { cancelled = true; };
   }, [cohortId]);
 
+  if (failed) return <section className="rounded-[20px] border border-gray-200 bg-white px-4 py-3.5 text-[14px] text-gray-500">Could not load the Hub Leads meeting.</section>;
   if (!meeting) return null;
   const slot = formatMeetingSlot(meeting.meetingDay, meeting.meetingTime);
   const href = meeting.callLink?.trim() ? normalizeLink(meeting.callLink.trim()) : null;

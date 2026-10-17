@@ -192,6 +192,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
   }, [isHubOnlySupport, hubsList, tickNow, user.id]);
 
   // The hub call opens 10 minutes before the meeting (or once it is marked live).
+  const hubHasLink = !!normalizeLink(nextHubMeeting?.hub?.callLink || '');
   const hubJoinHref = (() => {
     const hub = nextHubMeeting?.hub;
     const link = normalizeLink(hub?.callLink || '');
@@ -404,7 +405,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
               <>
                 <HomeRow to="/support/my-hub" label="Next hub meeting" value={nextHubMeeting?.hub?.meetingDay ? formatMeetingTime(nextHubMeeting.hub.meetingDay, nextHubMeeting.hub.meetingTime) || 'Not set' : 'Not set'} />
                 <HomeRow to="/support/my-hub" label="My Hub" value={nextHubMeeting?.hub?.name ?? 'Not assigned'} />
-                {hubJoinHref && <HomeRow href={hubJoinHref} label="Join hub call" value="" />}
+                {hubJoinHref ? <HomeRow href={hubJoinHref} label="Join hub call" value="" /> : hubHasLink && <HomeRow to="/support/my-hub" label="Join hub call" value="Opens 10 min before" />}
               </>
             ) : (
               <>
@@ -413,7 +414,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
                 {myHub?.hub && <HomeRow to="/support/my-hub" label="My Hub" value={myHub.hub.name} />}
               </>
             )}
-            {!isHubOnlySupport && groupCallLink && <HomeRow href={groupCallLink} label="Join group call" value="" />}
+            {!isHubOnlySupport && !myHub?.hub && groupCallLink && <HomeRow href={groupCallLink} label="Join group call" value="" />}
             <HomeRow to="/support/schedule?tab=checklist" label="My tasks" value="" />
             <HomeRow to="/support/resources" label="Resources" value="" />
             {practiceEntry.on && !practiceEntry.started && <HomeRow to="/support/practice" label="Practice" value="" />}
