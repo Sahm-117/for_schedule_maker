@@ -117,6 +117,10 @@ const MINUTES_PER_DAY = 1440
 const DEFAULT_REMIND_BEFORE_MINUTES = [60]
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+// The 1-day-before reminder's label is "tomorrow"; the others are a length of time ("30 mins", "1 hour").
+const awayLabel = (label: string) => (label === 'tomorrow' ? label : `${label} away`)
+const dayWord = (label: string) => (label === 'tomorrow' ? 'tomorrow ' : '')
+
 const DAY_NAMES_UPPER = DAY_NAMES.map((d) => d.toUpperCase())
 
 // Weekday index for a Lagos ISO date (YYYY-MM-DD). Parsed as UTC midnight so the
@@ -488,7 +492,7 @@ Deno.serve(async (req) => {
           : `${Math.round(interval / 60)} hours`
 
         const payload = JSON.stringify({
-          title: `FOF reminder: ${minuteLabel} away`,
+          title: `FOF reminder: ${awayLabel(minuteLabel)}`,
           body: `${activity.time} · ${activity.description}`,
           icon: '/icon-192.png',
           tag: `fof-${activity.id}-${interval}`,
@@ -563,8 +567,8 @@ Deno.serve(async (req) => {
           if (!subs || subs.length === 0) continue
 
           const payload = JSON.stringify({
-            title: `Group meeting reminder: ${minuteLabel} away`,
-            body: `${group.name} weekly meeting at ${group.meetingTime}`,
+            title: `Group meeting reminder: ${awayLabel(minuteLabel)}`,
+            body: `${group.name} weekly meeting ${dayWord(minuteLabel)}at ${group.meetingTime}`,
             icon: '/icon-192.png',
             tag: `fof-groupmeeting-${group.id}-${interval}`,
             data: { path: '/support/participants?tab=prayers' },
@@ -646,7 +650,7 @@ Deno.serve(async (req) => {
 
           if (!subs || subs.length === 0) continue
 
-          const baseBody = `${hub.name} meets at ${hub.meetingTime}. Join: ${hub.callLink}`
+          const baseBody = `${hub.name} meets ${dayWord(minuteLabel)}at ${hub.meetingTime}. Join: ${hub.callLink}`
 
           for (const userId of memberIds) {
             const userSubs = (subs as any[]).filter((s: any) => s.userId === userId)
@@ -666,7 +670,7 @@ Deno.serve(async (req) => {
               : ` You're ${jobPhrases.slice(0, -1).join(', ')} and ${jobPhrases[jobPhrases.length - 1]}.`
 
             const payload = JSON.stringify({
-              title: `Hub meeting reminder: ${minuteLabel} away`,
+              title: `Hub meeting reminder: ${awayLabel(minuteLabel)}`,
               body: `${baseBody}${personalLine}`,
               icon: '/icon-192.png',
               tag: `fof-hubmeeting-${hub.id}-${interval}`,
@@ -742,8 +746,8 @@ Deno.serve(async (req) => {
             if (userSubs.length === 0) continue
 
             const payload = JSON.stringify({
-              title: `Hub Leads meeting: ${minuteLabel} away`,
-              body: `The Hub Leads meet at ${meeting.meetingTime}. Open My Hub, then Leads, to join.`,
+              title: `Hub Leads meeting: ${awayLabel(minuteLabel)}`,
+              body: `The Hub Leads meet ${dayWord(minuteLabel)}at ${meeting.meetingTime}. Open My Hub, then Leads, to join.`,
               icon: '/icon-192.png',
               tag: `fof-hubleadsmeeting-${meeting.cohortId}-${interval}`,
               data: { path: '/support/my-hub?tab=leads' },
@@ -887,8 +891,8 @@ Deno.serve(async (req) => {
             // Same wording as the support group meeting reminder above.
             const minuteLabel = interval < 60 ? `${interval} mins` : interval === 60 ? '1 hour' : interval === 1440 ? 'tomorrow' : `${Math.round(interval / 60)} hours`
             await pushParticipants(members, {
-              title: `Group meeting reminder: ${minuteLabel} away`,
-              body: `${group.name} weekly meeting at ${group.meetingTime}`,
+              title: `Group meeting reminder: ${awayLabel(minuteLabel)}`,
+              body: `${group.name} weekly meeting ${dayWord(minuteLabel)}at ${group.meetingTime}`,
               path: '/me/group',
               tag: `GROUP_MEETING:${group.id}:${interval}:${target.isoDate}`,
             })
