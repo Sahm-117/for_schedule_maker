@@ -358,6 +358,18 @@ Deno.serve(async (req) => {
 
     const debug: Record<string, unknown>[] = []
 
+    // Pauses the admin sets in Settings: AppSetting 'reminder_pauses' = { class?: 'YYYY-MM-DD' | 'ALWAYS', activities?: ... }.
+    // A date means "paused through that Lagos day"; 'ALWAYS' stays paused until switched off.
+    //   class      = participants' Sunday class nudges and the venue-map reminders
+    //   activities = supports' schedule-activity reminders
+    const { data: pauseRow } = await supabase.from('AppSetting').select('value').eq('settingKey', 'reminder_pauses').maybeSingle()
+    const pauses = ((pauseRow as any)?.value ?? {}) as Record<string, string | null>
+    const sendIso = getLagosDateParts(asOf ?? new Date()).isoDate
+    const isPaused = (group: 'class' | 'activities'): boolean => {
+      const value = pauses[group]
+      return !!value && (value === 'ALWAYS' || sendIso <= String(value))
+    }
+
     // 1. Reminder timings are per user (UserNotificationSetting). Load them all
     //    up front: the loops below scan the UNION of every user's chosen
     //    intervals, then only notify the users who actually asked for that
@@ -442,6 +454,7 @@ Deno.serve(async (req) => {
       }
 
       if (matchingActivities.length === 0) continue
+      if (isPaused('activities')) continue
 
       // 4. For each matching activity, find users assigned to its labels via UserLabel
       for (const activity of matchingActivities) {
@@ -853,7 +866,7 @@ Deno.serve(async (req) => {
           { day: 6, minutes: 20 * 60, key: 'SAT_EVENING' },
           { day: 0, minutes: 6 * 60, key: 'SUN_MORNING' },
         ]
-        for (const nudge of NUDGES) {
+        for (const nudge of isPaused('class') ? [] : NUDGES) {
           if (pDayIndex !== nudge.day || pNowMinutes < nudge.minutes || pNowMinutes >= nudge.minutes + 10) continue
           const sundayIso = nudge.day === 6 ? addLagosDays(pToday, 1) : pToday
           const week = weeks.find((w) => classIsoFor(startIso, w) === sundayIso)
@@ -1151,7 +1164,7 @@ Deno.serve(async (req) => {
           { code: '0600', minute: 6 * 60, dayIndex: 0, daysAhead: 0 },
         ]
         const slot = VENUE_SLOTS.find((v) => pDayIndex === v.dayIndex && pNowMinutes >= v.minute && pNowMinutes < v.minute + 10)
-        const mapCohortId = slot ? (onlyCohortId ?? await getCurrentProgrammeCohortId()) : null
+        const mapCohortId = slot && !isPaused('class') ? (onlyCohortId ?? await getCurrentProgrammeCohortId()) : null
         if (slot && mapCohortId) {
           const serviceIso = addLagosDays(pToday, slot.daysAhead)
           const { data: mapCohort } = await supabase.from('Cohort').select('id, startDate, status').eq('id', mapCohortId).maybeSingle()

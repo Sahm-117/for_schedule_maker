@@ -18,6 +18,7 @@ import FollowUpAssignmentSettings from '../components/followups/FollowUpAssignme
 import TeenSettingsCard from '../components/followups/TeenSettingsCard';
 import PracticeModeCard from '../components/settings/PracticeModeCard';
 import GroupCallLimitsCard from '../components/settings/GroupCallLimitsCard';
+import ReminderPausesCard from '../components/settings/ReminderPausesCard';
 import TelegramCard from '../components/TelegramCard';
 
 // Every section on this page reads the same way: a compact summary of what is
@@ -872,6 +873,7 @@ const AdminSettingsPage: React.FC = () => {
       <div className="mb-6 columns-1 gap-4 xl:columns-2">
         <div data-wt="settings-rules" className="mb-4 break-inside-avoid"><ProgrammeRulesCard /></div>
         <div data-wt="settings-timings" className="mb-4 break-inside-avoid"><RecapTimingsCard /></div>
+        <div className="mb-4 break-inside-avoid"><ReminderPausesCard /></div>
         <div data-wt="settings-group-call-limits" className="mb-4 break-inside-avoid"><GroupCallLimitsCard /></div>
         <div data-wt="settings-ai" className="mb-4 break-inside-avoid"><AiSettingsCard /></div>
         <div data-wt="settings-departments" className="mb-4 break-inside-avoid"><ChurchDepartmentsCard /></div>

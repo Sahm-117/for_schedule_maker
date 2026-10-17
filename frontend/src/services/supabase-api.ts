@@ -2302,6 +2302,23 @@ export const settingsApi = {
     return normaliseClassStartTime(error ? null : (data as any)?.value);
   },
 
+  // Reminders the admin has switched off. Value per group: a Lagos date ("paused through that day") or 'ALWAYS'.
+  async getReminderPauses(): Promise<Record<string, string | null>> {
+    const { data, error } = await supabase.from('AppSetting').select('value').eq('settingKey', 'reminder_pauses').maybeSingle();
+    if (error) throw new Error(error.message);
+    const value = (data as any)?.value;
+    return value && typeof value === 'object' ? value : {};
+  },
+
+  async setReminderPauses(pauses: Record<string, string | null>): Promise<Record<string, string | null>> {
+    const clean = Object.fromEntries(Object.entries(pauses).filter(([, v]) => !!v));
+    const { error } = await supabase
+      .from('AppSetting')
+      .upsert([{ settingKey: 'reminder_pauses', value: clean, updatedAt: new Date().toISOString() }], { onConflict: 'settingKey' });
+    if (error) throw new Error(error.message);
+    return clean;
+  },
+
   async setClassStartTime(time: string): Promise<string> {
     const value = normaliseClassStartTime(time);
     const { error } = await supabase

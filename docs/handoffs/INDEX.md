@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-18 | [Pause automatic reminders](2026-10-18_pause-reminders.md) | Settings switches to pause class/service reminders and support schedule reminders; class reminders paused through Sun 18 Oct (no class, combined service). push-reminders v53, one AppSetting row, no migration. |
 | 2026-10-18 | [Announcements say which hub roles they were for](2026-10-18_announcement-hub-role-label.md) | Hub-role announcements carry a "For Hub Leads" label; class graphic on support Home and Classes; one hub row on Home. 1 migration applied live, send-announcement v26. |
 | 2026-10-18 | [Support Home redesign](2026-10-18_support-home-redesign.md) | Home shows a Next class card and a Your group / Your hub list instead of the progress box and quick links; frontend only, no live changes. |
 | 2026-10-18 | [Meeting window, onboarding steps, hub reports](2026-10-18_meetings-window-onboarding-hub-reports.md) | Meetings recordable only from 10 min before their time to midnight (admins any time); no meeting lengths; Get ready above tiles, after the first class only intro (self-tick) and profile; support steps at top of My Group and Home with admin override; hub reports on Hubs and the dashboard. 3 migrations (override applied; window and intro tick applied with the push), pre-start meeting records cleared. |
