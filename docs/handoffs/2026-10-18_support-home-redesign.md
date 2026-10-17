@@ -57,3 +57,5 @@ Type check (no new errors beyond the 7 known) and vite build. Looked at in a bro
 - My Schedule: an "Up next" card with Mark done for the next not-done activity today.
 - Community: accent tabs.
 - Hub role screens (prayer lead, recap lead, assistant, member follow-along), Notifications and Mobilisation were left as they are: the live pages already have the same pieces as the canvas, only the finish differs. Not restyled.
+- Review fixes: Up next uses Lagos time, ticks each minute, keeps an activity that started less than an hour ago, and only shows on a published schedule. The announcements feed shows time of day, the year for old ones, "All users" for all-user sends, and only opens http, mailto, tel or in-app links.
+- Verified: type check and build. Not opened in a browser with real data; the feed, Up next and Community tabs were not run in Playwright.

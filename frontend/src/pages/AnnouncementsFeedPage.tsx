@@ -8,15 +8,20 @@ import { usePolling } from '../hooks/usePolling';
 import { announcementsApi } from '../services/api';
 import type { Announcement } from '../types';
 
-// "Today", "Yesterday", then the date, in Lagos time.
+// "Today, 7:51 AM", "Yesterday, 5:00 PM", then the date (with the year when it is not this one), in Lagos time.
+const LAGOS_DAY = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Lagos' });
+const LAGOS_TIME = new Intl.DateTimeFormat('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Africa/Lagos' });
+const LAGOS_DATE = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Africa/Lagos' });
+const LAGOS_DATE_YEAR = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Africa/Lagos' });
 const whenLabel = (iso: string) => {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return '';
-  const day = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Lagos' }).format(d);
   const today = new Date();
-  if (day(date) === day(today)) return 'Today';
-  if (day(date) === day(new Date(today.getTime() - 86400000))) return 'Yesterday';
-  return new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Africa/Lagos' }).format(date);
+  const time = LAGOS_TIME.format(date).toUpperCase();
+  if (LAGOS_DAY.format(date) === LAGOS_DAY.format(today)) return `Today, ${time}`;
+  if (LAGOS_DAY.format(date) === LAGOS_DAY.format(new Date(today.getTime() - 86400000))) return `Yesterday, ${time}`;
+  const sameYear = LAGOS_DAY.format(date).slice(0, 4) === LAGOS_DAY.format(today).slice(0, 4);
+  return `${(sameYear ? LAGOS_DATE : LAGOS_DATE_YEAR).format(date)}, ${time}`;
 };
 
 const AnnouncementsFeedPage: React.FC = () => {
@@ -98,17 +103,17 @@ const AnnouncementsFeedPage: React.FC = () => {
                     <span className="inline-flex rounded-full bg-violet-100/80 px-2.5 py-0.5 text-[11px] font-bold text-violet-700">{hubJobAudienceLabel(item.targetHubJobs)}</span>
                   )}
                   <span className="text-[11.5px] font-extrabold uppercase tracking-[0.04em] text-gray-500">
-                    {item.homeLabel || (item.scope === 'ALL_USERS' ? 'From the FOF team' : item.cohortName || activeCohort?.name || 'From the FOF team')}
+                    {item.homeLabel || (item.scope === 'ALL_USERS' ? 'All users' : item.cohortName || activeCohort?.name || 'Active cohort')}
                   </span>
                   <span className="ml-auto text-xs text-gray-400">{whenLabel(item.sentAt)}</span>
                 </div>
                 <h2 className="mt-1.5 text-base font-semibold text-gray-900">{item.subject}</h2>
                 <p className="mt-2 whitespace-pre-line text-sm leading-6 text-gray-600">{item.body}</p>
-                {item.linkUrl && (/^https?:\/\//i.test(item.linkUrl) ? (
+                {item.linkUrl && (/^(https?:|mailto:|tel:)/i.test(item.linkUrl) ? (
                   <a href={item.linkUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex min-h-[40px] items-center rounded-xl bg-primary px-4 text-[13px] font-semibold text-white">{item.linkLabel || 'Open the link'}</a>
-                ) : (
+                ) : item.linkUrl.startsWith('/') && !item.linkUrl.startsWith('//') ? (
                   <NavLink to={item.linkUrl} className="mt-3 inline-flex min-h-[40px] items-center rounded-xl bg-primary px-4 text-[13px] font-semibold text-white">{item.linkLabel || 'Open'}</NavLink>
-                ))}
+                ) : null)}
               </article>
             ))}
           </div>

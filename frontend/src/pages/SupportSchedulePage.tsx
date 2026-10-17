@@ -131,19 +131,26 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
       .sort((a, b) => getProgramDayIndex(a.dayName) - getProgramDayIndex(b.dayName));
   }, [currentDayName, selectedWeek, tomorrowName, userLabelIds, viewMode]);
 
-  // The next thing still to do today: the first not-done activity at or after the current time.
+  // Ticks each minute so "Up next" moves on while the page stays open.
+  const [clock, setClock] = useState(() => new Date());
+  useEffect(() => {
+    const id = window.setInterval(() => setClock(new Date()), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  // The next thing still to do today: the first not-done activity that has not started more than an hour ago (Lagos time).
   const upNext = useMemo(() => {
     if (viewMode !== 'today') return null;
     const today = dayGroups.find((day) => day.dayName === currentDayName);
     if (!today) return null;
-    const nowDate = new Date();
-    const nowMinutes = nowDate.getHours() * 60 + nowDate.getMinutes();
+    const parts = new Intl.DateTimeFormat('en-GB', { hour: 'numeric', minute: 'numeric', hour12: false, timeZone: 'Africa/Lagos' }).formatToParts(clock);
+    const nowMinutes = Number(parts.find((p) => p.type === 'hour')?.value ?? 0) % 24 * 60 + Number(parts.find((p) => p.type === 'minute')?.value ?? 0);
     return today.activities
       .filter((activity) => !completions.some((completion) => completion.activityId === activity.id))
       .map((activity) => ({ activity, minutes: parseTimeToMinutes(activity.time) }))
-      .filter((entry): entry is { activity: typeof entry.activity; minutes: number } => entry.minutes !== null && entry.minutes >= nowMinutes)
+      .filter((entry): entry is { activity: typeof entry.activity; minutes: number } => entry.minutes !== null && entry.minutes >= nowMinutes - 60)
       .sort((a, b) => a.minutes - b.minutes)[0]?.activity ?? null;
-  }, [completions, currentDayName, dayGroups, viewMode]);
+  }, [clock, completions, currentDayName, dayGroups, viewMode]);
 
   const completedActivityIds = useMemo(() => new Set(completions.map((completion) => completion.activityId)), [completions]);
 
@@ -325,7 +332,7 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
             <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{completionError}</div>
           )}
 
-          {upNext && (
+          {schedulePublished && selectedWeek && upNext && (
             <section className="rounded-[24px] border border-primary-100 bg-white p-[18px] shadow-[0_8px_24px_-14px_rgba(17,24,39,0.35)]">
               <p className="text-xs font-extrabold uppercase tracking-[0.04em] text-primary-dark">Up next · {upNext.time}</p>
               <h3 className="mt-1.5 text-[20px] font-extrabold leading-tight tracking-[-0.02em] text-gray-900"><ActivityText text={upNext.description} /></h3>
