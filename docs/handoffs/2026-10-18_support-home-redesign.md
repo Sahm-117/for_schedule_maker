@@ -51,3 +51,9 @@ Type check (no new errors beyond the 7 known) and vite build. Looked at in a bro
 - Follow-ups (support view): each contact card shows "Next: send a message / send a reminder / call them / close this follow-up" from the contact's next action.
 - Compared and left as they are because the live page already has the same sections and labels as the canvas: Mobilisation (save details, target, registered on the form, people you added), Classes, Resources, Attendance.
 - Community, Announcements, Notifications and the hub role screens were not restyled; they behave as drawn.
+
+## Addendum 4: remaining pages
+- Announcements feed: the source or pin label, "Today / Yesterday / date", line breaks kept, and the link button when an announcement has one.
+- My Schedule: an "Up next" card with Mark done for the next not-done activity today.
+- Community: accent tabs.
+- Hub role screens (prayer lead, recap lead, assistant, member follow-along), Notifications and Mobilisation were left as they are: the live pages already have the same pieces as the canvas, only the finish differs. Not restyled.

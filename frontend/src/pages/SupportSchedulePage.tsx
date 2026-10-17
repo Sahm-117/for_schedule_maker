@@ -3,6 +3,7 @@ import { Navigate, useSearchParams } from 'react-router-dom';
 import ActivityText from '../components/ActivityText';
 import AppSelect from '../components/AppSelect';
 import TourHelpButton from '../components/tour/TourHelpButton';
+import { parseTimeToMinutes } from '../utils/time';
 import SegmentedTabs from '../components/SegmentedTabs';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
@@ -129,6 +130,20 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
       .filter((day) => day.activities.length > 0)
       .sort((a, b) => getProgramDayIndex(a.dayName) - getProgramDayIndex(b.dayName));
   }, [currentDayName, selectedWeek, tomorrowName, userLabelIds, viewMode]);
+
+  // The next thing still to do today: the first not-done activity at or after the current time.
+  const upNext = useMemo(() => {
+    if (viewMode !== 'today') return null;
+    const today = dayGroups.find((day) => day.dayName === currentDayName);
+    if (!today) return null;
+    const nowDate = new Date();
+    const nowMinutes = nowDate.getHours() * 60 + nowDate.getMinutes();
+    return today.activities
+      .filter((activity) => !completions.some((completion) => completion.activityId === activity.id))
+      .map((activity) => ({ activity, minutes: parseTimeToMinutes(activity.time) }))
+      .filter((entry): entry is { activity: typeof entry.activity; minutes: number } => entry.minutes !== null && entry.minutes >= nowMinutes)
+      .sort((a, b) => a.minutes - b.minutes)[0]?.activity ?? null;
+  }, [completions, currentDayName, dayGroups, viewMode]);
 
   const completedActivityIds = useMemo(() => new Set(completions.map((completion) => completion.activityId)), [completions]);
 
@@ -308,6 +323,21 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
         <div className="flex min-w-0 flex-col gap-3.5">
           {completionError && (
             <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{completionError}</div>
+          )}
+
+          {upNext && (
+            <section className="rounded-[24px] border border-primary-100 bg-white p-[18px] shadow-[0_8px_24px_-14px_rgba(17,24,39,0.35)]">
+              <p className="text-xs font-extrabold uppercase tracking-[0.04em] text-primary-dark">Up next · {upNext.time}</p>
+              <h3 className="mt-1.5 text-[20px] font-extrabold leading-tight tracking-[-0.02em] text-gray-900"><ActivityText text={upNext.description} /></h3>
+              <button
+                type="button"
+                disabled={completionSavingIds.includes(upNext.id)}
+                onClick={() => { void handleToggleCompleted(upNext.id, true); }}
+                className="mt-3.5 flex h-[50px] w-full items-center justify-center rounded-2xl bg-primary text-[15.5px] font-extrabold text-white disabled:opacity-60"
+              >
+                Mark done
+              </button>
+            </section>
           )}
 
           {attendanceFollowUpPanel}

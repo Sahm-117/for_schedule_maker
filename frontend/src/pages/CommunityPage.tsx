@@ -439,7 +439,7 @@ const CommunityPage: React.FC = () => {
       </div>
 
       <div data-wt="community-sections" className="mb-4">
-        <SegmentedTabs
+        <SegmentedTabs accent
           tabs={[{ key: 'discussion', label: 'Discussion' }, { key: 'people', label: 'People' }]}
           active={section}
           onChange={(k) => setSection(k as typeof section)}
@@ -452,7 +452,7 @@ const CommunityPage: React.FC = () => {
       <>
       {/* Open/Closed, with the result count on the same line. */}
       <div data-wt="hub-tabs" className="mb-3 flex items-center justify-between gap-3">
-        <SegmentedTabs
+        <SegmentedTabs accent
           className="w-44"
           tabs={[{ key: 'OPEN', label: 'Open' }, { key: 'CLOSED', label: 'Closed' }]}
           active={tab}

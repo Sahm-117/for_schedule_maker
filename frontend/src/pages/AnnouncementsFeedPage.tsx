@@ -8,6 +8,17 @@ import { usePolling } from '../hooks/usePolling';
 import { announcementsApi } from '../services/api';
 import type { Announcement } from '../types';
 
+// "Today", "Yesterday", then the date, in Lagos time.
+const whenLabel = (iso: string) => {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  const day = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Lagos' }).format(d);
+  const today = new Date();
+  if (day(date) === day(today)) return 'Today';
+  if (day(date) === day(new Date(today.getTime() - 86400000))) return 'Yesterday';
+  return new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Africa/Lagos' }).format(date);
+};
+
 const AnnouncementsFeedPage: React.FC = () => {
   const { user, isAdmin, userCohortIds, userLabelIds } = useAuth();
   const { activeCohort, liveRevision } = useAppData();
@@ -82,28 +93,22 @@ const AnnouncementsFeedPage: React.FC = () => {
           <div className="space-y-3">
             {announcements.map((item) => (
               <article key={item.id} className="rounded-3xl border border-orange-100 bg-white px-4 py-4 shadow-sm">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    {hubJobAudienceLabel(item.targetHubJobs) && (
-                      <span className="mb-1.5 inline-flex rounded-full bg-violet-100/80 px-2.5 py-0.5 text-[11px] font-bold text-violet-700">{hubJobAudienceLabel(item.targetHubJobs)}</span>
-                    )}
-                    <h2 className="text-base font-semibold text-gray-900">{item.subject}</h2>
-                    <p className="mt-1 text-xs text-gray-500">
-                      {item.scope === 'ALL_USERS' ? 'All Users' : item.cohortName || activeCohort?.name || 'Active Cohort'}
-                    </p>
-                  </div>
-                  <span className="text-xs text-gray-400">
-                    {new Intl.DateTimeFormat('en-US', {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric',
-                      hour: 'numeric',
-                      minute: '2-digit',
-                      hour12: true,
-                    }).format(new Date(item.sentAt))}
+                <div className="flex flex-wrap items-center gap-2">
+                  {hubJobAudienceLabel(item.targetHubJobs) && (
+                    <span className="inline-flex rounded-full bg-violet-100/80 px-2.5 py-0.5 text-[11px] font-bold text-violet-700">{hubJobAudienceLabel(item.targetHubJobs)}</span>
+                  )}
+                  <span className="text-[11.5px] font-extrabold uppercase tracking-[0.04em] text-gray-500">
+                    {item.homeLabel || (item.scope === 'ALL_USERS' ? 'From the FOF team' : item.cohortName || activeCohort?.name || 'From the FOF team')}
                   </span>
+                  <span className="ml-auto text-xs text-gray-400">{whenLabel(item.sentAt)}</span>
                 </div>
-                <p className="mt-3 text-sm leading-6 text-gray-600">{item.body}</p>
+                <h2 className="mt-1.5 text-base font-semibold text-gray-900">{item.subject}</h2>
+                <p className="mt-2 whitespace-pre-line text-sm leading-6 text-gray-600">{item.body}</p>
+                {item.linkUrl && (/^https?:\/\//i.test(item.linkUrl) ? (
+                  <a href={item.linkUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex min-h-[40px] items-center rounded-xl bg-primary px-4 text-[13px] font-semibold text-white">{item.linkLabel || 'Open the link'}</a>
+                ) : (
+                  <NavLink to={item.linkUrl} className="mt-3 inline-flex min-h-[40px] items-center rounded-xl bg-primary px-4 text-[13px] font-semibold text-white">{item.linkLabel || 'Open'}</NavLink>
+                ))}
               </article>
             ))}
           </div>
