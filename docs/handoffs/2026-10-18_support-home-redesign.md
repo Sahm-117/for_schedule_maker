@@ -46,3 +46,8 @@ Type check (no new errors beyond the 7 known) and vite build. Looked at in a bro
 ## Review fixes (round 2)
 - People rows keep every status chip visible (archived, retaking, access, alerts, project with category hint); only the onboarding steps are folded.
 - Leads card shows a message if it fails to load; Home shows a greyed "Join hub call · Opens 10 min before" row; group call row only for supports with no hub; Open classes stays after the last class.
+
+## Addendum 3: Follow-ups and the rest
+- Follow-ups (support view): each contact card shows "Next: send a message / send a reminder / call them / close this follow-up" from the contact's next action.
+- Compared and left as they are because the live page already has the same sections and labels as the canvas: Mobilisation (save details, target, registered on the form, people you added), Classes, Resources, Attendance.
+- Community, Announcements, Notifications and the hub role screens were not restyled; they behave as drawn.
