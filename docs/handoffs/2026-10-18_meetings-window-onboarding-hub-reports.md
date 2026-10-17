@@ -76,6 +76,7 @@
 - Group/hub meeting lengths: the app no longer sends or reads `meetingDurationMins` (the hub RPCs still receive an ignored `p_meeting_duration_mins: null`). Migration `20261019100000_drop_meeting_duration.sql` rewrites ten functions and drops the three columns. It was tested on live data in a rolled-back transaction. **It is not applied yet: apply it after this app version is deployed**, because an older app tab still writes the column.
 - Break week: 18–24 Oct is not a missing week. The planner has a "Combined Service" event (stops FOF) on 18 Oct and the Week 2 class date is 25 Oct on purpose. No Week row was added.
 - Supports page: each card face shows one status word, the records line, one onboarding bar and chips only for what is off; the five steps, gender/age and hub moved under Details.
+- Participant profile: Onboarding and Journey are one "Progress" card (five-step chips, the current stage, the full journey behind a closed toggle). Corporate prayers and Birthdays were checked and left as they were.
 
 ## How to pick this up
 Read FLOW_MAP rules 35, 57 and 75–79, then `utils/supportOnboarding.ts` and `utils/meetingWindow.ts`.

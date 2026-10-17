@@ -144,6 +144,7 @@ const AdminParticipantProfilePage: React.FC = () => {
   const [data, setData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [journeyOpen, setJourneyOpen] = useState(false);
   const [modal, setModal] = useState<'checkin' | 'stage' | 'flag' | null>(null);
 
   const load = useCallback(async () => {
@@ -365,36 +366,52 @@ const AdminParticipantProfilePage: React.FC = () => {
         <ParticipantAppActivity participantId={participant.id} cohortId={participant.cohortId} weeks={weeks} />
       </section>
 
-      {/* Onboarding */}
-      <section data-wt="pp-onboarding" className={CARD}>
-        <h2 className="text-lg font-semibold text-gray-900">Onboarding</h2>
-        <p className="text-sm text-gray-500">The five steps the participant does themselves.</p>
-        <div className="mt-3">
+      {/* Progress: the five onboarding steps, the current stage, and the full journey one tap away. */}
+      <section data-wt="pp-journey" className={CARD}>
+        <h2 className="text-lg font-semibold text-gray-900">Progress</h2>
+        <div data-wt="pp-onboarding" className="mt-3">
+          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">Onboarding</p>
           {data.onboarding ? <OnboardingStepPills state={data.onboarding} /> : <p className="text-sm text-gray-500">No onboarding progress for this participant.</p>}
         </div>
-      </section>
-
-      {/* Journey */}
-      <section data-wt="pp-journey" className={CARD}>
-        <h2 className="text-lg font-semibold text-gray-900">Journey</h2>
-        <p className="text-sm text-gray-500">Worked out from records. Manual moves show who moved them and when.</p>
-        <ol className="mt-4">
-          {journey.map((step, index) => (
-            <li key={step.stage} className="relative flex gap-3 pb-4 last:pb-0">
-              {index < journey.length - 1 && (
-                <span className={`absolute left-[7px] top-4 h-full w-0.5 ${journey[index + 1].reached ? 'bg-primary/40' : 'bg-gray-100'}`} aria-hidden="true" />
+        {(() => {
+          const current = journey.find((step) => step.current) ?? journey.filter((step) => step.reached).at(-1) ?? null;
+          return (
+            <div className="mt-4 border-t border-gray-100 pt-3">
+              <button type="button" onClick={() => setJourneyOpen((v) => !v)} aria-expanded={journeyOpen} className="flex min-h-11 w-full items-center justify-between gap-3 text-left">
+                <span className="min-w-0">
+                  <span className="block text-xs font-semibold uppercase tracking-wide text-gray-500">Journey</span>
+                  <span className="block truncate text-sm font-semibold text-gray-900">
+                    {current ? current.label : 'Not started'}
+                    {current?.detail && <span className="font-normal text-gray-500"> · {current.detail}</span>}
+                  </span>
+                </span>
+                <svg className={`h-4 w-4 flex-none text-gray-400 transition-transform ${journeyOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m19 9-7 7-7-7" /></svg>
+              </button>
+              {journeyOpen && (
+                <>
+                  <p className="mt-1 text-xs text-gray-500">Worked out from records. Manual moves show who moved them and when.</p>
+                  <ol className="mt-3">
+                    {journey.map((step, index) => (
+                      <li key={step.stage} className="relative flex gap-3 pb-4 last:pb-0">
+                        {index < journey.length - 1 && (
+                          <span className={`absolute left-[7px] top-4 h-full w-0.5 ${journey[index + 1].reached ? 'bg-primary/40' : 'bg-gray-100'}`} aria-hidden="true" />
+                        )}
+                        <span className={`relative mt-1 h-4 w-4 flex-none rounded-full ${step.reached ? 'bg-primary' : 'bg-gray-200'} ${step.current ? 'ring-4 ring-primary/20' : ''}`} />
+                        <div className="min-w-0">
+                          <p className={`text-sm font-semibold ${step.reached ? 'text-gray-900' : 'text-gray-400'}`}>
+                            {step.label}
+                            {step.current && <span className="ml-2 rounded-full bg-sky-100/80 px-2 py-0.5 text-[11px] font-semibold text-sky-700">Current stage</span>}
+                          </p>
+                          <p className={`text-xs ${step.reached ? 'text-gray-500' : 'text-gray-400'}`}>{step.detail}</p>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                </>
               )}
-              <span className={`relative mt-1 h-4 w-4 flex-none rounded-full ${step.reached ? 'bg-primary' : 'bg-gray-200'} ${step.current ? 'ring-4 ring-primary/20' : ''}`} />
-              <div className="min-w-0">
-                <p className={`text-sm font-semibold ${step.reached ? 'text-gray-900' : 'text-gray-400'}`}>
-                  {step.label}
-                  {step.current && <span className="ml-2 rounded-full bg-sky-100/80 px-2 py-0.5 text-[11px] font-semibold text-sky-700">Current stage</span>}
-                </p>
-                <p className={`text-xs ${step.reached ? 'text-gray-500' : 'text-gray-400'}`}>{step.detail}</p>
-              </div>
-            </li>
-          ))}
-        </ol>
+            </div>
+          );
+        })()}
       </section>
 
       {/* Attendance */}
