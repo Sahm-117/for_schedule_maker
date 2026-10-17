@@ -21,7 +21,6 @@ import { useChecklistTick } from '../hooks/useChecklistTick';
 import { CountdownRing, useChecklistAutoHide } from '../components/ChecklistAutoHide';
 import { useGroupMeetingLive } from '../hooks/useGroupMeetingLive';
 import { GROUP_MEETING_CHANGED_EVENT } from '../utils/meetingLiveEvents';
-import { isCallJoinable } from '../utils/joinWindow';
 import { HUB_JOB_INFO, sortHubJobs } from '../components/hubs/hubJobs';
 import { formatMeetingTime } from '../components/groups/GroupCallCard';
 import Spinner from '../components/Spinner';
@@ -30,6 +29,7 @@ import ProfileCompletionStrip from '../components/supports/ProfileCompletionStri
 import PendingSurveyCards from '../components/surveys/PendingSurveyCards';
 import AppNudgeCard from '../components/supports/AppNudgeCard';
 import SupportScriptures from '../components/supports/SupportScriptures';
+import SupportNextClassCard from '../components/supports/SupportNextClassCard';
 
 type HomeActivity = {
   id: number;
@@ -288,7 +288,6 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
     () => (weeks ?? []).filter((week) => week.cohortId === activeCohort?.id).sort((a, b) => a.weekNumber - b.weekNumber),
     [weeks, activeCohort]
   );
-  const currentWeekPosition = activeWeek ? cohortWeeks.findIndex((week) => week.id === activeWeek.id) + 1 : 0;
 
   const schedulePublished = activeCohort?.schedulePublished !== false;
   const myActivities = useMemo(() => {
@@ -386,41 +385,25 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
           )}
           <ProfileCompletionStrip user={user} variant="home" />
 
-          <section data-wt="home-metrics" className="rounded-[22px] border border-[#ffdeca] bg-white p-5 shadow-[0_2px_6px_-2px_rgba(17,24,39,0.08)]">
-            <div className="flex flex-wrap items-baseline gap-3">
-              <p className="text-xs font-bold uppercase tracking-[0.04em] text-[#9a6a4b]">Programme progress</p>
-              <NavLink to="/support/schedule" className="ml-auto text-[13px] font-bold text-[#c2410c]">Open schedule →</NavLink>
-            </div>
-            <h2 className="mt-1.5 text-[26px] font-extrabold text-gray-900">
-              {activeWeek ? `Week ${activeWeek.weekNumber}` : 'No week selected'}
-            </h2>
-            <p className="mt-0.5 text-[13px] text-gray-500">
-              {cohortWeeks.length > 0 && currentWeekPosition > 0
-                ? `${currentWeekPosition} of ${cohortWeeks.length}`
-                : 'Your current cohort timeline will show here once weeks are available.'}
-            </p>
+          <SupportNextClassCard week={nextWeek} dateLabel={nextClassDate} hasWeeks={cohortWeeks.length > 0} />
 
-            <div className="mt-4 grid grid-cols-2 gap-2.5">
-              <QuickStat title="Activities today" value={todayActivities.length} detail={todayName} to="/support/schedule" tone="plain" />
-              {isHubOnlySupport ? (
-                <QuickStat title="My Hub" value={hubsList[0]?.hub?.name ?? 'Not assigned'} detail="Open My Hub" to="/support/my-hub" tone="rose" />
-              ) : (
-                <QuickStat title="Next Group Meeting" value={nextGroupPrayerDisplay?.label ?? 'Not set'} detail={nextGroupPrayerDisplay?.detail ?? 'Weekly group meeting'} to="/support/participants" tone="rose" />
-              )}
-              {isHubOnlySupport ? (
-                <NextHubMeetingCard
-                  hubName={nextHubMeeting?.hub?.name ?? null}
-                  meetingDay={nextHubMeeting?.hub?.meetingDay}
-                  meetingTime={nextHubMeeting?.hub?.meetingTime}
-                  callLink={nextHubMeeting?.hub?.callLink}
-                  live={!!hubsList.find((h) => h.hub?.id && h.hub.id === nextHubMeeting?.hub?.id)?.meetingLive}
-                  now={tickNow}
-                />
-              ) : (
-                <QuickStat title="Faith Projects" value={`${draftedProjectCount}/${participants.length}`} detail={participants.length > 0 ? 'Projects written' : 'No participants yet'} to="/support/participants" tone="green" />
-              )}
-              <QuickStat title="Next class" value={nextWeek ? nextWeek.title?.trim() || `Week ${nextWeek.weekNumber}` : 'Not set'} detail={nextWeek ? nextClassDate ?? `Week ${nextWeek.weekNumber}` : 'Programme complete'} to="/support/recap" tone="blue" />
-            </div>
+          {/* Everything about the group (or hub) as plain rows. */}
+          <section data-wt="home-quick-links" className="overflow-hidden rounded-[22px] border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
+            <h2 className="px-[18px] pb-1.5 pt-3.5 text-[17px] font-extrabold text-gray-900">{isHubOnlySupport ? 'Your hub' : 'Your group'}</h2>
+            {isHubOnlySupport ? (
+              <>
+                <HomeRow to="/support/my-hub" label="Next hub meeting" value={nextHubMeeting?.hub?.meetingDay ? formatMeetingTime(nextHubMeeting.hub.meetingDay, nextHubMeeting.hub.meetingTime) || 'Not set' : 'Not set'} />
+                <HomeRow to="/support/my-hub" label="My Hub" value={hubsList[0]?.hub?.name ?? 'Not assigned'} />
+              </>
+            ) : (
+              <>
+                <HomeRow to="/support/participants" label="Next group meeting" value={nextGroupPrayerDisplay?.label ?? 'Not set'} />
+                <HomeRow to="/support/participants" label="Faith projects" value={participants.length > 0 ? `${draftedProjectCount} of ${participants.length} written` : 'No participants yet'} />
+                {(isHubOnlySupport || myHub?.hub) && <HomeRow to="/support/my-hub" label="My Hub" value={myHub?.hub?.name ?? ''} />}
+              </>
+            )}
+            {!isHubOnlySupport && groupCallLink && <HomeRow href={groupCallLink} label="Join group call" value="" />}
+            {practiceEntry.on && !practiceEntry.started && <HomeRow to="/support/practice" label="Practice" value="" />}
           </section>
 
           <TrainingLearnedCard userId={user.id} />
@@ -558,27 +541,6 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
             </NavLink>
           )}
 
-          <div data-wt="home-quick-links" className="grid gap-3" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}>
-            {/* My Hub for anyone in a hub; Join call only for a support with no hub yet. */}
-            {isHubOnlySupport || myHub?.hub ? (
-              <QuickLink to="/support/my-hub" label="My Hub" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />} />
-            ) : (
-              <QuickLink
-                to={groupCallLink ? undefined : '/support/participants'}
-                href={groupCallLink ?? undefined}
-                label="Join call"
-                icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M15 10.5 21 7v10l-6-3.5ZM3 6h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z" />}
-              />
-            )}
-            <QuickLink to="/support/schedule?tab=checklist" label="My Tasks" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M9 11l3 3L22 4M2 12a10 10 0 1 0 5-8.66" />} />
-            {practiceEntry.on && !practiceEntry.started ? (
-              <QuickLink to="/support/practice" label="Practice" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 5a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm0 3a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z" />} />
-            ) : (
-              <QuickLink to="/support/resources" label="Resources" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5v-17Zm0 17A2.5 2.5 0 0 1 6.5 19H20" />} />
-            )}
-            <QuickLink to="/support/recap" label="Classes" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M7 3h7l5 5v13H7zM14 3v5h5M9 13h6M9 17h6" />} />
-          </div>
-
           <section data-wt="home-schedule" className="overflow-hidden rounded-[22px] border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
             <div className="flex flex-wrap items-center gap-3 px-5 pb-3.5 pt-[18px]">
               <div className="min-w-0">
@@ -710,116 +672,18 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
   );
 };
 
-const QUICK_STAT_TONES = {
-  plain: { box: 'border-[#f1f2f5] bg-white', title: 'text-gray-500', detail: 'text-gray-400' },
-  rose: { box: 'border-[#fbe4e8] bg-[#fdf2f4]', title: 'text-[#9d5b68]', detail: 'text-[#9d5b68]' },
-  green: { box: 'border-[#dcefe1] bg-[#f0f9f2]', title: 'text-[#3f7a52]', detail: 'text-[#3f7a52]' },
-  blue: { box: 'border-[#dbe7f6] bg-[#eef4fb]', title: 'text-[#3c6da3]', detail: 'text-[#3c6da3]' },
-} as const;
+const HOME_ROW_CLASS = 'flex min-h-[56px] items-center gap-3 border-t border-[#f1f2f5] px-[18px] py-2 text-left';
 
-const QuickStat: React.FC<{
-  title: string;
-  value: React.ReactNode;
-  detail: string;
-  to: string;
-  tone: keyof typeof QUICK_STAT_TONES;
-}> = ({ title, value, detail, to, tone }) => {
-  const style = QUICK_STAT_TONES[tone];
-  return (
-    <NavLink to={to} className={`rounded-2xl border p-3.5 transition hover:shadow-sm ${style.box}`}>
-      <p className={`text-xs font-semibold ${style.title}`}>{title}</p>
-      <p className="mt-1.5 line-clamp-2 text-xl font-extrabold leading-tight text-gray-900">{value}</p>
-      <p className={`mt-0.5 line-clamp-2 text-xs ${style.detail}`}>{detail}</p>
-    </NavLink>
-  );
-};
-
-// Faith Projects tile's swap-in for hub-only supports: hub name, day + time
-// (same formatting as the My Hub meeting card), and a Join button — instead
-// of a plain NavLink, since it needs its own "Join Call" link.
-const NextHubMeetingCard: React.FC<{
-  hubName: string | null;
-  meetingDay?: string | null;
-  meetingTime?: string | null;
-  callLink?: string | null;
-  live?: boolean;
-  now?: Date;
-}> = ({ hubName, meetingDay, meetingTime, callLink, live = false, now }) => {
-  const when = formatMeetingTime(meetingDay, meetingTime);
-  const link = normalizeLink(callLink || '');
-  // The call opens 10 minutes before the meeting; the rest of the week it waits.
-  const joinable = isCallJoinable(meetingDay, meetingTime, now ?? new Date(), live);
-  const style = QUICK_STAT_TONES.green;
-  return (
-    <div className={`rounded-2xl border p-3.5 ${style.box}`}>
-      <p className={`text-xs font-semibold ${style.title}`}>Next hub meeting</p>
-      {when ? (
-        <>
-          <p className="mt-1.5 line-clamp-1 text-xl font-extrabold leading-tight text-gray-900">{hubName}</p>
-          <p className={`mt-0.5 text-xs ${style.detail}`}>{when}</p>
-          {link && (joinable ? (
-            <a
-              href={link}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-2 inline-flex h-8 min-h-8 items-center justify-center rounded-[10px] bg-primary px-3.5 text-xs font-semibold leading-none text-white"
-            >
-              Join Call
-            </a>
-          ) : (
-            <span className="group relative mt-2 inline-flex items-center">
-              <span
-                role="link"
-                aria-disabled="true"
-                tabIndex={0}
-                aria-describedby="join-call-hint"
-                className="inline-flex h-8 min-h-8 cursor-not-allowed items-center justify-center rounded-[10px] bg-gray-200 px-3.5 text-xs font-semibold leading-none text-gray-400 outline-none"
-              >
-                Join Call
-              </span>
-              <span
-                id="join-call-hint"
-                role="tooltip"
-                className="pointer-events-none absolute left-full top-1/2 ml-2 -translate-y-1/2 whitespace-nowrap rounded-lg bg-gray-900 px-2.5 py-1.5 text-[11px] font-medium text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
-              >
-                Opens 10 min before
-              </span>
-            </span>
-          ))}
-        </>
-      ) : (
-        <>
-          <p className="mt-1.5 text-sm font-semibold leading-snug text-gray-800">Your hub hasn't set a meeting time yet</p>
-          <NavLink to="/support/my-hub" className={`mt-1.5 inline-block text-xs font-semibold underline ${style.detail}`}>Open My Hub</NavLink>
-        </>
-      )}
-    </div>
-  );
-};
-
-const QUICK_LINK_CLASS ='flex min-h-[44px] min-w-0 flex-col items-center gap-2.5 rounded-2xl border border-[#eef0f4] bg-white px-1 py-4 transition hover:border-[#ffdeca]';
-
-const QuickLink: React.FC<{ to?: string; href?: string; label: string; icon: React.ReactNode }> = ({ to, href, label, icon }) => {
+const HomeRow: React.FC<{ to?: string; href?: string; label: string; value: string }> = ({ to, href, label, value }) => {
   const content = (
     <>
-      <span className="grid h-11 w-11 place-items-center rounded-full bg-[#ffe8d5] text-[#c2410c]">
-        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">{icon}</svg>
-      </span>
-      <span className="whitespace-nowrap text-center text-[13px] font-semibold text-gray-800">{label}</span>
+      <span className="min-w-0 flex-1 text-[15.5px] font-bold text-gray-900">{label}</span>
+      {value && <span className="min-w-0 max-w-[55%] truncate text-[13.5px] text-gray-500">{value}</span>}
+      <svg className="h-4 w-4 flex-none text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.4" d="m9 6 6 6-6 6" /></svg>
     </>
   );
-  if (href) {
-    return (
-      <a href={href} target="_blank" rel="noreferrer" className={QUICK_LINK_CLASS}>
-        {content}
-      </a>
-    );
-  }
-  return (
-    <NavLink to={to ?? '/support'} className={QUICK_LINK_CLASS}>
-      {content}
-    </NavLink>
-  );
+  if (href) return <a href={href} target="_blank" rel="noreferrer" className={HOME_ROW_CLASS}>{content}</a>;
+  return <NavLink to={to ?? '/support'} className={HOME_ROW_CLASS}>{content}</NavLink>;
 };
 
 export default SupportHomePage;
