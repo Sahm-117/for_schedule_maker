@@ -250,9 +250,16 @@ const NotificationDelivery: React.FC = () => {
             ) : (
               <h2 className="mt-1.5 text-[52px] font-bold leading-none tracking-[-0.035em] tabular-nums text-gray-900">{totals.pct}<span className="text-[30px] text-gray-300">% read</span></h2>
             )}
-            <p className="mt-2 text-[15px] leading-[1.55] text-gray-500">
-              {totals.sends} sent{totals.sent > 0 ? ` · ${totals.read} of ${totals.sent} opened · ${totals.unread} still unread` : ''}{totals.pushOnly > 0 ? ` · ${totals.pushOnly} phone-only` : ''}
-            </p>
+            {(() => {
+              // The headline already says how many were sent when nothing is tracked; say the rest only when there is a rest.
+              const parts = [
+                totals.pct !== null ? `${totals.sends} sent` : null,
+                totals.sent > 0 ? `${totals.read} of ${totals.sent} opened` : null,
+                totals.sent > 0 ? `${totals.unread} still unread` : null,
+                totals.pushOnly > 0 ? `${totals.pushOnly} phone-only` : null,
+              ].filter(Boolean);
+              return parts.length > 0 ? <p className="mt-2 text-[15px] leading-[1.55] text-gray-500">{parts.join(' · ')}</p> : null;
+            })()}
           </section>
 
           <div>

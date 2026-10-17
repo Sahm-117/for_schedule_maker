@@ -197,8 +197,8 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow border border-orange-200">
-      <div className="p-4 border-b border-orange-200">
+    <div className="surface-card overflow-hidden">
+      <div className="border-b border-gray-100 p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h3 className="text-lg font-semibold text-gray-900">

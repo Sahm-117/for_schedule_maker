@@ -335,7 +335,7 @@ const AdminScripturesPage: React.FC = () => {
       <PageHeader
         title="Scriptures"
         tourId="admin:scriptures"
-        subtitle="The daily Inspirational Scripture on the participant Home. Drag to reorder; the first post shows from 2:00 PM on the FOF day set below, then one more each day."
+        subtitle="The daily Inspirational Scripture on the participant Home."
         action={canAdd ? (
           <button type="button" onClick={() => addInput.current?.click()} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white active:scale-95">
             + Upload
@@ -380,6 +380,7 @@ const AdminScripturesPage: React.FC = () => {
           />
           of FOF
         </label>
+        <p className="mt-1 text-xs text-gray-500">The first post shows from 2:00 PM on that day, then one more each day. Drag the designs below to reorder them.</p>
         <SaveStatus state={startDaySaveState} />
       </section>
 
