@@ -1,3 +1,8 @@
+// RETIRED: the Groups page now uses GroupCard (calmer status, bar and setup chips; steps open in a sheet).
+// This old onboarding strip is kept commented out, not deleted, in case it is wanted back. Nothing imports it.
+export {};
+
+/*
 import React from 'react';
 import { ONBOARDING_CHIP_LABEL, ONBOARDING_STEPS, type GroupOnboardingSummary, type OnboardingChip } from '../../utils/groupOnboarding';
 
@@ -72,3 +77,4 @@ const GroupOnboardingStrip: React.FC<{ summary: GroupOnboardingSummary; maxDays:
 };
 
 export default GroupOnboardingStrip;
+*/
