@@ -50,10 +50,11 @@ import {
 
 // Supports are judged by their group meeting records and onboarding progress.
 
-const HEALTH_PILL: Record<PersonHealth, string> = {
-  good: 'bg-emerald-100/80 text-emerald-700',
-  warning: 'bg-amber-100/80 text-amber-700',
-  critical: 'bg-red-100/80 text-red-700',
+// The same three states as plain words on the card face, where a filled pill would be noise on every card.
+const HEALTH_TEXT: Record<PersonHealth, string> = {
+  good: 'text-emerald-700',
+  warning: 'text-amber-700',
+  critical: 'text-red-700',
 };
 const SEVERITY: Record<PersonHealth, number> = { critical: 0, warning: 1, good: 2 };
 
@@ -614,22 +615,27 @@ const summarizeStages = (statuses: OnboardingProgressParticipant[]): StageSummar
   readyConfirmed: statuses.length > 0 && statuses.every((s) => participantStepDone(s, 'readyConfirmed')),
 });
 
-// Five-segment onboarding bar + short label. Falls back to the sentence when
-// stage data is missing.
+const STAGE_LABELS: Array<{ key: keyof StageSummary; label: string }> = [
+  { key: 'introPosted', label: 'Intro' },
+  { key: 'venueMapAcknowledged', label: 'Map' },
+  { key: 'introGuideRead', label: 'Guide' },
+  { key: 'profileComplete', label: 'Profile' },
+  { key: 'readyConfirmed', label: 'Ready' },
+];
+
+// One onboarding bar + short label on the card face; the five steps are listed under Details. Falls back
+// to the sentence when stage data is missing.
 const OnboardingBar: React.FC<{ stages: StageSummary | null; fallback: string; late: boolean }> = ({ stages, fallback, late }) => {
-  if (!stages) return <span>{fallback}</span>;
-  const steps = [stages.introPosted, stages.venueMapAcknowledged, stages.introGuideRead, stages.profileComplete, stages.readyConfirmed];
-  const done = steps.filter(Boolean).length;
-  const all = done === steps.length;
+  if (!stages) return <span className="text-[13px] text-gray-600">{fallback}</span>;
+  const done = STAGE_LABELS.filter((step) => stages[step.key]).length;
+  const all = done === STAGE_LABELS.length;
   return (
-    <span className="flex min-w-0 flex-1 items-center gap-2">
-      <span className="flex min-w-0 flex-1 gap-1" aria-hidden="true">
-        {steps.map((hit, i) => (
-          <span key={i} className={`h-1.5 min-w-0 flex-1 rounded-full ${hit ? 'bg-emerald-500' : 'bg-gray-200'}`} />
-        ))}
+    <span className="flex min-w-0 flex-1 items-center gap-2.5">
+      <span className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-[#eceef2]" aria-hidden="true">
+        <span className="block h-full rounded-full bg-emerald-500" style={{ width: `${(done / STAGE_LABELS.length) * 100}%` }} />
       </span>
-      <span className={`flex-none text-[11px] font-semibold ${all ? 'text-emerald-700' : late ? 'text-red-600' : 'text-gray-500'}`}>
-        {all ? 'Onboarded' : done === 0 ? 'Not started' : `${done}/${steps.length}`}
+      <span className={`flex-none text-[12px] font-semibold ${all ? 'text-emerald-700' : late ? 'text-red-600' : 'text-gray-500'}`}>
+        {all ? 'Onboarded' : done === 0 ? 'Not started' : `${done} of ${STAGE_LABELS.length} steps`}
       </span>
     </span>
   );
@@ -716,7 +722,7 @@ const SupportCard: React.FC<{
             {hasNotes && <span title={PERSON_OF_INTEREST_INFO.description} className={`flex-none rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${PERSON_OF_INTEREST_INFO.pill}`}>{PERSON_OF_INTEREST_INFO.label}</span>}
           </div>
           <p className="mt-0.5 break-words text-[11px] leading-4 text-gray-500">
-            {[groupName, subtleLine].filter(Boolean).join(' · ')}
+            {groupName}
           </p>
           <p className="mt-0.5 flex items-center gap-1.5 text-[11px] leading-4 text-gray-500">
             <span className={`h-2 w-2 flex-none rounded-full ${activeDot(active.tone)}`} aria-hidden="true" />
@@ -726,18 +732,25 @@ const SupportCard: React.FC<{
         <div className="flex-none pt-0.5"><AppOverflowMenu align="right" items={[{ label: 'View profile', onClick: onViewProfile }]} /></div>
       </div>
 
-      <div className="mt-3 flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
-        <span className={`min-w-0 flex-1 text-[13px] leading-5 ${evaluation.missedWeeks.length ? 'font-medium text-gray-900' : 'text-gray-600'}`}>
-          {recordsText}
-        </span>
-        <span className={`flex-none rounded-full px-2.5 py-1 text-[11px] font-semibold ${HEALTH_PILL[evaluation.health]}`}>{PERSON_HEALTH_LABEL[evaluation.health]}</span>
+      <div className="mt-3.5 flex min-w-0 items-baseline justify-between gap-x-3 gap-y-1">
+        <span className={`flex-none text-[13px] font-semibold ${HEALTH_TEXT[evaluation.health]}`}>{PERSON_HEALTH_LABEL[evaluation.health]}</span>
+        <span className="min-w-0 text-right text-[13px] leading-5 text-gray-600">{recordsText}</span>
       </div>
-      <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-gray-500">
+      <div className="mt-2 flex min-w-0 items-center">
         <OnboardingBar stages={stages} fallback={onboardingText} late={onboarding.late || !onboarding.allOnboarded} />
-        {!onboarding.meetingSet && <p className="basis-full text-[11px] font-semibold text-amber-700">No group meeting time set yet, so onboarding is not complete.</p>}
-        {isTeenSupport && <TeenSupportPill />}
-        {training.total > 0 && <TrainingPill name={supportName} userId={evaluation.supportId} sessions={training.sessions} attendance={training.attendance} />}
       </div>
+      {(!onboarding.meetingSet || isTeenSupport || training.total > 0) && (
+        <div className="mt-2.5 flex min-w-0 flex-wrap items-center gap-1.5">
+          {!onboarding.meetingSet && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100/80 px-2.5 py-1 text-[11px] font-semibold text-amber-800" title="The group has no meeting day and time yet, so onboarding is not complete.">
+              <svg className="h-3 w-3 flex-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" strokeWidth="2.4" /><path strokeLinecap="round" strokeWidth="2.4" d="M12 8v5M12 16.5v.01" /></svg>
+              No meeting time
+            </span>
+          )}
+          {isTeenSupport && <TeenSupportPill />}
+          {training.total > 0 && <TrainingPill name={supportName} userId={evaluation.supportId} sessions={training.sessions} attendance={training.attendance} />}
+        </div>
+      )}
 
       <div className="mt-3 flex min-h-11 flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-2.5">
         <span className="inline-flex min-w-0 flex-wrap items-center gap-1.5">
@@ -758,7 +771,18 @@ const SupportCard: React.FC<{
       </div>
 
       {open && <div className="mt-2 border-t border-gray-100 pt-3">
+        {stages && (
+          <div className="mb-3 flex flex-wrap gap-1.5" aria-label="Onboarding steps for this group">
+            {STAGE_LABELS.map((step) => (
+              <span key={step.key} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ${stages[step.key] ? 'bg-emerald-100/80 text-emerald-700' : 'bg-amber-100/80 text-amber-800'}`}>
+                {stages[step.key] && <svg className="h-2.5 w-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3.5" d="m5 13 4 4L19 7" /></svg>}
+                {step.label}
+              </span>
+            ))}
+          </div>
+        )}
         <SupportTagRow tags={[
+          subtleLine && <span key="person" className="text-[11px] text-gray-500">{subtleLine}</span>,
           user && <ProfileTag key="profile" user={user} />,
           hub?.name && <span key="hub" className="text-[11px] text-gray-500">{hub.name}</span>,
           <span key="members" className="text-[11px] text-gray-500">{evaluation.members} participant{evaluation.members === 1 ? '' : 's'}</span>,
