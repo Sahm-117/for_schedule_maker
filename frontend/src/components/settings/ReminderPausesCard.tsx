@@ -27,6 +27,7 @@ const ReminderPausesCard: React.FC = () => {
   const [pauses, setPauses] = useState<Record<string, string | null>>({});
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<Group | null>(null);
+  const [draftDate, setDraftDate] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
   const today = lagosTodayIso(new Date());
 
@@ -43,7 +44,8 @@ const ReminderPausesCard: React.FC = () => {
     setBusy(group);
     setError('');
     try {
-      setPauses(await settingsApi.setReminderPauses({ ...pauses, [group]: value }));
+      setPauses(await settingsApi.setReminderPause(group, value));
+      setDraftDate((draft) => ({ ...draft, [group]: '' }));
     } catch {
       setError('Could not save. Nothing changed, try again.');
     } finally {
@@ -76,7 +78,7 @@ const ReminderPausesCard: React.FC = () => {
                     role="switch"
                     aria-checked={paused}
                     aria-label={`Pause ${group.title}`}
-                    disabled={busy === group.key}
+                    disabled={busy !== null}
                     onClick={() => { void save(group.key, paused ? null : 'ALWAYS'); }}
                     className={`relative inline-flex h-8 w-14 flex-none items-center rounded-full transition disabled:opacity-60 ${paused ? 'bg-primary' : 'bg-slate-200'}`}
                   >
@@ -88,10 +90,16 @@ const ReminderPausesCard: React.FC = () => {
                     Start again after
                     <input
                       type="date"
-                      value={value && value !== 'ALWAYS' ? value : ''}
+                      value={draftDate[group.key] ?? (value && value !== 'ALWAYS' ? value : '')}
                       min={today}
-                      disabled={busy === group.key}
-                      onChange={(event) => { void save(group.key, event.target.value || 'ALWAYS'); }}
+                      disabled={busy !== null}
+                      onChange={(event) => setDraftDate((draft) => ({ ...draft, [group.key]: event.target.value }))}
+                      onBlur={() => {
+                        const picked = draftDate[group.key];
+                        if (picked === undefined || picked === (value && value !== 'ALWAYS' ? value : '')) return;
+                        if (picked && picked < today) { setError('Pick today or a later day.'); setDraftDate((draft) => ({ ...draft, [group.key]: '' })); return; }
+                        void save(group.key, picked || 'ALWAYS');
+                      }}
                       className="rounded-xl border border-gray-200 px-3 py-1.5 text-sm"
                     />
                     <span className="text-gray-400">(leave empty to stay paused)</span>

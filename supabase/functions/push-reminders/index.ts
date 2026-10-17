@@ -362,10 +362,15 @@ Deno.serve(async (req) => {
     // A date means "paused through that Lagos day"; 'ALWAYS' stays paused until switched off.
     //   class      = participants' Sunday class nudges and the venue-map reminders
     //   activities = supports' schedule-activity reminders
-    const { data: pauseRow } = await supabase.from('AppSetting').select('value').eq('settingKey', 'reminder_pauses').maybeSingle()
-    const pauses = ((pauseRow as any)?.value ?? {}) as Record<string, string | null>
+    const { data: pauseRow, error: pauseError } = await supabase.from('AppSetting').select('value').eq('settingKey', 'reminder_pauses').maybeSingle()
+    // If the pauses cannot be read, hold those reminders back for this run rather than send what the admin may have stopped.
+    if (pauseError) console.error('push-reminders: could not read reminder_pauses', pauseError.message)
+    let pauseValue: unknown = (pauseRow as any)?.value
+    if (typeof pauseValue === 'string') { try { pauseValue = JSON.parse(pauseValue) } catch { pauseValue = null } }
+    const pauses = (pauseValue && typeof pauseValue === 'object' ? pauseValue : {}) as Record<string, string | null>
     const sendIso = getLagosDateParts(asOf ?? new Date()).isoDate
     const isPaused = (group: 'class' | 'activities'): boolean => {
+      if (pauseError) return true
       const value = pauses[group]
       return !!value && (value === 'ALWAYS' || sendIso <= String(value))
     }

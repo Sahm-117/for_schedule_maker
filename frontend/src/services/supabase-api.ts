@@ -2306,17 +2306,20 @@ export const settingsApi = {
   async getReminderPauses(): Promise<Record<string, string | null>> {
     const { data, error } = await supabase.from('AppSetting').select('value').eq('settingKey', 'reminder_pauses').maybeSingle();
     if (error) throw new Error(error.message);
-    const value = (data as any)?.value;
-    return value && typeof value === 'object' ? value : {};
+    let value: unknown = (data as any)?.value;
+    if (typeof value === 'string') { try { value = JSON.parse(value); } catch { value = null; } }
+    return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, string | null>) : {};
   },
 
-  async setReminderPauses(pauses: Record<string, string | null>): Promise<Record<string, string | null>> {
-    const clean = Object.fromEntries(Object.entries(pauses).filter(([, v]) => !!v));
+  // Changes one group and keeps the others as they are now on the server, so two admins never undo each other.
+  async setReminderPause(group: string, value: string | null): Promise<Record<string, string | null>> {
+    const current = await settingsApi.getReminderPauses();
+    const next = Object.fromEntries(Object.entries({ ...current, [group]: value }).filter(([, v]) => !!v));
     const { error } = await supabase
       .from('AppSetting')
-      .upsert([{ settingKey: 'reminder_pauses', value: clean, updatedAt: new Date().toISOString() }], { onConflict: 'settingKey' });
+      .upsert([{ settingKey: 'reminder_pauses', value: next, updatedAt: new Date().toISOString() }], { onConflict: 'settingKey' });
     if (error) throw new Error(error.message);
-    return clean;
+    return next;
   },
 
   async setClassStartTime(time: string): Promise<string> {

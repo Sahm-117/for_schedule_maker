@@ -557,7 +557,7 @@ export const settingsApi = USE_SUPABASE ? supabaseSettingsApi : {
   async setGroupMeetingLimits(limits: import('../utils/groupMeetingLimits').GroupMeetingLimits): Promise<import('../utils/groupMeetingLimits').GroupMeetingLimits> { return limits; },
   async setClassStartTime(time: string): Promise<string> { return time; },
   async getReminderPauses(): Promise<Record<string, string | null>> { return {}; },
-  async setReminderPauses(pauses: Record<string, string | null>): Promise<Record<string, string | null>> { return pauses; },
+  async setReminderPause(group: string, value: string | null): Promise<Record<string, string | null>> { return value ? { [group]: value } : {}; },
   async getScriptureStartDay(): Promise<number> {
     return 1;
   },

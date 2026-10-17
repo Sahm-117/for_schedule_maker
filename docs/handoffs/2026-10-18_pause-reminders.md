@@ -8,7 +8,7 @@ A combined church service replaced the FOF class on Sunday 18 Oct, and the autom
 - Class and service reminders are paused through Sun 18 Oct (live setting).
 
 ## Live changes
-- Edge function `push-reminders` deployed as v53. It was built from the live-matching v52 tree plus the pause check only; the repo copy also carries the undeployed Team-member birthday-viewer change, which is still not live.
+- Edge function `push-reminders` deployed as v54 (v53 first; v54 adds: fail closed if the pause cannot be read, tolerant parsing). It was built from the live-matching v52 tree plus the pause check only; the repo copy also carries the undeployed Team-member birthday-viewer change, which is still not live.
 - Data: `AppSetting` row `reminder_pauses` = `{"class":"2026-10-18"}`. No migration.
 
 ## Decisions and why
@@ -24,3 +24,8 @@ Dry run of the function as of Sun 18 Oct 6:05 am: with the pause, nothing for th
 
 ## Gotchas
 - `asOf` in a dry run only moves the participant block; the first debug line still shows the real time.
+
+## Review fixes
+- The switch saves one group at a time and merges with what is on the server; both switches lock while one saves.
+- The "Start again after" date saves when the field loses focus, and a past date is refused.
+- If the pause setting cannot be read, the function holds those reminders for that run.
