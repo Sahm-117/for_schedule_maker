@@ -9,7 +9,7 @@ import AppOverflowMenu from '../components/AppOverflowMenu';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { formatMeetingSlot } from '../components/groups/GroupCallCard';
 import JoinCallButton from '../components/JoinCallButton';
-import LeadsMeetingTab, { LeadsMeetingCard } from '../components/hubs/LeadsMeetingTab';
+import { LeadsMeetingCard } from '../components/hubs/LeadsMeetingTab';
 import Avatar from '../components/Avatar';
 import HubAuthorProfileModal from '../components/HubAuthorProfileModal';
 import HubMeetingPanel from '../components/hubs/HubMeetingPanel';
@@ -72,7 +72,7 @@ const PERMISSION_OPTIONS: Array<{ value: AssistantHubPermission; label: string; 
 // Off while trainings are marked from the Attendance page instead.
 const TRAININGS_TAB_ENABLED = false as boolean;
 
-type HubTab = 'overview' | 'meeting' | 'leads' | 'trainings' | 'notes' | 'message';
+type HubTab = 'overview' | 'meeting' | 'trainings' | 'notes' | 'message';
 
 // A member's group: a link when the viewer may open it, plain text otherwise. It wraps instead of squeezing the
 // name beside it (group names can be long, e.g. "Teens - <a full name>").
@@ -95,7 +95,7 @@ const SupportMyHubPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const [tab, setTab] = useState<HubTab>(() => {
     const requested = searchParams.get('tab');
-    return (['overview', 'meeting', 'leads', 'trainings', 'notes', 'message'] as const).includes(requested as HubTab)
+    return (['overview', 'meeting', 'trainings', 'notes', 'message'] as const).includes(requested as HubTab)
       ? (requested as HubTab)
       : 'overview';
   });
@@ -749,10 +749,6 @@ const SupportMyHubPage: React.FC = () => {
               meetingDay={myHub.hub.meetingDay}
               meetingTime={myHub.hub.meetingTime}
             />
-          )}
-
-          {tab === 'leads' && isLead && activeCohort?.id && (
-            <LeadsMeetingTab cohortId={activeCohort.id} />
           )}
 
           {tab === 'trainings' && isLead && TRAININGS_TAB_ENABLED && (

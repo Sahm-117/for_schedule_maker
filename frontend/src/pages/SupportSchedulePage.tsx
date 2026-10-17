@@ -289,13 +289,12 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
       </div>
 
       {tab === 'schedule' && (
-        <div data-wt="schedule-view-modes" role="tablist" aria-label="Which days" className="flex gap-2">
+        <div data-wt="schedule-view-modes" aria-label="Which days" className="flex gap-2">
           {([['today', 'Today'], ['tomorrow', 'Tomorrow'], ['week', 'Full week']] as const).map(([value, label]) => (
             <button
               key={value}
               type="button"
-              role="tab"
-              aria-selected={viewMode === value}
+              aria-pressed={viewMode === value}
               onClick={() => setViewMode(value)}
               className={`h-10 rounded-full border px-[18px] text-sm font-semibold ${viewMode === value ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 bg-white text-gray-700'}`}
             >

@@ -42,7 +42,7 @@ export const PRACTICE_SCENARIOS: Record<PracticeSeat, PracticeScenario[]> = {
     { key: 'hl-people', title: 'Check a support’s profile and their participants', hint: 'On the group page, scroll to The support and Participants.', to: '/support/my-hub' },
     { key: 'hl-attendance', title: 'Take hub attendance', hint: 'In the Hub meeting tab, mark each support.', to: '/support/my-hub?tab=meeting' },
     { key: 'hl-meeting', title: 'Run the hub meeting through to Submit', hint: 'Go step by step: Attendance, Prayer, Recap, Announcements, Notes, Submit.', to: '/support/my-hub?tab=meeting' },
-    { key: 'hl-leads', title: 'Find the Hub Leads meeting', hint: 'Find the Hub Leads meeting card at the top of My Hub.', to: '/support/my-hub?tab=leads', visit: true },
+    { key: 'hl-leads', title: 'Find the Hub Leads meeting', hint: 'Find the Hub Leads meeting card at the top of My Hub.', to: '/support/my-hub', visit: true },
     { key: 'hl-message', title: 'Send a message to your hub', hint: 'Use the Message tab.', to: '/support/my-hub?tab=message' },
   ],
   ASSISTANT: [

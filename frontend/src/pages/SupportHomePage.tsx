@@ -29,6 +29,7 @@ import ProfileCompletionStrip from '../components/supports/ProfileCompletionStri
 import PendingSurveyCards from '../components/surveys/PendingSurveyCards';
 import AppNudgeCard from '../components/supports/AppNudgeCard';
 import SupportScriptures from '../components/supports/SupportScriptures';
+import { isCallJoinable } from '../utils/joinWindow';
 import SupportNextClassCard from '../components/supports/SupportNextClassCard';
 
 type HomeActivity = {
@@ -189,6 +190,15 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
     }, { hub: withSlot[0], time: nextOccurrence(withSlot[0].meetingDay!, withSlot[0].meetingTime!, tickNow) });
     return { hub: soonest.hub };
   }, [isHubOnlySupport, hubsList, tickNow, user.id]);
+
+  // The hub call opens 10 minutes before the meeting (or once it is marked live).
+  const hubJoinHref = (() => {
+    const hub = nextHubMeeting?.hub;
+    const link = normalizeLink(hub?.callLink || '');
+    if (!hub || !link) return null;
+    const live = !!hubsList.find((h) => h.hub?.id === hub.id)?.meetingLive;
+    return isCallJoinable(hub.meetingDay, hub.meetingTime, tickNow, live) ? link : null;
+  })();
 
   // Role reminder cards — "You're a Recap Lead", one per job the support
   // holds; always shown while they hold it. One card per JOB, not per
@@ -393,16 +403,19 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
             {isHubOnlySupport ? (
               <>
                 <HomeRow to="/support/my-hub" label="Next hub meeting" value={nextHubMeeting?.hub?.meetingDay ? formatMeetingTime(nextHubMeeting.hub.meetingDay, nextHubMeeting.hub.meetingTime) || 'Not set' : 'Not set'} />
-                <HomeRow to="/support/my-hub" label="My Hub" value={hubsList[0]?.hub?.name ?? 'Not assigned'} />
+                <HomeRow to="/support/my-hub" label="My Hub" value={nextHubMeeting?.hub?.name ?? 'Not assigned'} />
+                {hubJoinHref && <HomeRow href={hubJoinHref} label="Join hub call" value="" />}
               </>
             ) : (
               <>
                 <HomeRow to="/support/participants" label="Next group meeting" value={nextGroupPrayerDisplay?.label ?? 'Not set'} />
                 <HomeRow to="/support/participants" label="Faith projects" value={participants.length > 0 ? `${draftedProjectCount} of ${participants.length} written` : 'No participants yet'} />
-                {(isHubOnlySupport || myHub?.hub) && <HomeRow to="/support/my-hub" label="My Hub" value={myHub?.hub?.name ?? ''} />}
+                {myHub?.hub && <HomeRow to="/support/my-hub" label="My Hub" value={myHub.hub.name} />}
               </>
             )}
             {!isHubOnlySupport && groupCallLink && <HomeRow href={groupCallLink} label="Join group call" value="" />}
+            <HomeRow to="/support/schedule?tab=checklist" label="My tasks" value="" />
+            <HomeRow to="/support/resources" label="Resources" value="" />
             {practiceEntry.on && !practiceEntry.started && <HomeRow to="/support/practice" label="Practice" value="" />}
           </section>
 

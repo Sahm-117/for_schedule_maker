@@ -101,7 +101,7 @@ export const PAGE_TOURS: Record<string, TourStep[]> = {
   'support:home': [
     { target: wt('home-metrics'), title: 'Your next class', body: 'The next class, its title and teacher. Tap Open classes for the recap and manual.' },
     { target: wt('home-attendance'), title: 'Mark attendance', body: 'One tap opens the shared Sunday attendance register.' },
-    { target: wt('home-quick-links'), title: 'Your group', body: 'Your next group meeting, faith projects, My Hub and your group call, each one tap away.' },
+    { target: wt('home-quick-links'), title: 'Your group', body: 'Your next group meeting, faith projects, My Hub, your group call, tasks and resources, each one tap away.' },
     { target: wt('home-schedule'), title: 'Today’s activities', body: 'Your activities for today. Tap "Mark done" as you finish each one, or open the full week.' },
     { target: wt('home-checklist'), title: 'Weekly checklist', body: 'Tick off this week’s tasks as you go.', optional: true },
     { target: wt('app-nav'), title: 'Find your way around', body: 'Use the menu to move between pages. On your phone, the rest sits under More.' },

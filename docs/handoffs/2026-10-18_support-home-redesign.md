@@ -30,3 +30,9 @@ Type check (no new errors beyond the 7 known) and vite build. Looked at in a bro
 - My Hub: the Hub Leads tab is gone from the bar; Hub Leads see the meeting as a card at the top of My Hub (`?tab=leads` still opens the full page, so the Practice step keeps working; its hint was reworded).
 - My Schedule: Today / Tomorrow / Full week are chips instead of a dropdown.
 - Not rebuilt yet (the app already behaves as the canvas shows, only the look differs): Mobilisation, Follow-ups, Classes, Community, Announcements, Resources, and the hub role views beyond what exists today.
+
+## Code-review fixes
+- Hub Leads page tab removed entirely (card only); Practice step links to My Hub. `LeadsMeetingTab` is now unused but left in place.
+- Home keeps My tasks and Resources rows, and a hub-only support still gets a "Join hub call" row inside the 10-minute window.
+- Open classes hides when there is no next class; schedule day chips are plain pressed buttons.
+- Known, left: the Leads card swallows a failed load silently.
