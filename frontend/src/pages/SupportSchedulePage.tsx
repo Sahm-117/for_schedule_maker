@@ -252,7 +252,7 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
       </div>
 
       <div data-wt="schedule-tabs">
-        <SegmentedTabs
+        <SegmentedTabs accent
           tabs={[
             { key: 'schedule', label: 'Schedule' },
             { key: 'checklist', label: 'Checklist' },
@@ -274,20 +274,6 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
           </div>
         )}
         {tab === 'schedule' && (
-          <div data-wt="schedule-view-modes" className="min-w-0 flex-1">
-            <AppSelect
-              value={viewMode}
-              onChange={(value) => setViewMode(value as ViewMode)}
-              options={[
-                { value: 'today', label: 'Today' },
-                { value: 'tomorrow', label: 'Tomorrow' },
-                { value: 'week', label: 'Full week' },
-              ]}
-              placeholder="Choose view"
-            />
-          </div>
-        )}
-        {tab === 'schedule' && (
           <button
             type="button"
             onClick={() => { void handleDownload(); }}
@@ -301,6 +287,23 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
           </button>
         )}
       </div>
+
+      {tab === 'schedule' && (
+        <div data-wt="schedule-view-modes" role="tablist" aria-label="Which days" className="flex gap-2">
+          {([['today', 'Today'], ['tomorrow', 'Tomorrow'], ['week', 'Full week']] as const).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              role="tab"
+              aria-selected={viewMode === value}
+              onClick={() => setViewMode(value)}
+              className={`h-10 rounded-full border px-[18px] text-sm font-semibold ${viewMode === value ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 bg-white text-gray-700'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {tab === 'schedule' && (
         <div className="flex min-w-0 flex-col gap-3.5">

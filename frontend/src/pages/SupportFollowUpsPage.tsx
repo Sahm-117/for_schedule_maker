@@ -381,7 +381,7 @@ const SupportFollowUpsPage: React.FC = () => {
       )}
 
       <div className="mb-5 flex flex-wrap items-center gap-2">
-        <SegmentedTabs
+        <SegmentedTabs accent
           className="w-full sm:w-72"
           tabs={[
             { key: 'contacts', label: `Contacts (${cohortScopedContacts.filter((c) => !c.archivedAt).length})` },

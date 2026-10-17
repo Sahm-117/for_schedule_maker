@@ -24,3 +24,9 @@ Type check (no new errors beyond the 7 known) and vite build. Looked at in a bro
 
 ## Gotchas
 - `data-wt` targets `home-metrics` and `home-quick-links` now sit on the new cards; the tour depends on them.
+
+## Addendum: tabs, My Hub, Schedule
+- Every support tab bar now uses the person's accent (Attendance, Follow-ups, Mobilisation, My Group, Schedule, My Hub).
+- My Hub: the Hub Leads tab is gone from the bar; Hub Leads see the meeting as a card at the top of My Hub (`?tab=leads` still opens the full page, so the Practice step keeps working; its hint was reworded).
+- My Schedule: Today / Tomorrow / Full week are chips instead of a dropdown.
+- Not rebuilt yet (the app already behaves as the canvas shows, only the look differs): Mobilisation, Follow-ups, Classes, Community, Announcements, Resources, and the hub role views beyond what exists today.

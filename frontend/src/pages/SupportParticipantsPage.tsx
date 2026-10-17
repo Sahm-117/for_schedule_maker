@@ -511,7 +511,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
             </div>
 
             <div data-wt="group-tabs">
-              <SegmentedTabs
+              <SegmentedTabs accent
                 tabs={[
                   { key: 'discussion', label: 'Discussion', dot: discussionUnseen > 0 },
                   ...(selectedGroupData?.isTeenGroup ? [] : [{ key: 'prayers', label: 'Group meetings', shortLabel: 'Meetings' }]),

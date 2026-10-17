@@ -9,7 +9,7 @@ import AppOverflowMenu from '../components/AppOverflowMenu';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { formatMeetingSlot } from '../components/groups/GroupCallCard';
 import JoinCallButton from '../components/JoinCallButton';
-import LeadsMeetingTab from '../components/hubs/LeadsMeetingTab';
+import LeadsMeetingTab, { LeadsMeetingCard } from '../components/hubs/LeadsMeetingTab';
 import Avatar from '../components/Avatar';
 import HubAuthorProfileModal from '../components/HubAuthorProfileModal';
 import HubMeetingPanel from '../components/hubs/HubMeetingPanel';
@@ -449,7 +449,6 @@ const SupportMyHubPage: React.FC = () => {
   const tabs = [
     { key: 'overview', label: 'My Hub' },
     { key: 'meeting', label: 'Hub meeting', shortLabel: 'Meeting' },
-    ...(isLead ? [{ key: 'leads', label: 'Hub Leads', shortLabel: 'Leads' }] : []),
     // Trainings tab hidden for now: trainings are marked by the supports an
     // admin picks, on the Attendance page (see TrainingAttendancePanel).
     ...(isLead ? [
@@ -497,7 +496,7 @@ const SupportMyHubPage: React.FC = () => {
 
           {tabs.length > 1 && (
             <div data-wt="hub-tabs">
-              <SegmentedTabs tabs={tabs} active={tab} onChange={(k) => setTab(k as HubTab)} />
+              <SegmentedTabs accent tabs={tabs} active={tab} onChange={(k) => setTab(k as HubTab)} />
             </div>
           )}
 
@@ -512,6 +511,7 @@ const SupportMyHubPage: React.FC = () => {
             const grantedPerms = PERMISSION_OPTIONS.filter((opt) => (hub.assistantPermissions ?? []).includes(opt.value));
             return (
             <div className="flex flex-col gap-6">
+              {isLead && activeCohort?.id && <LeadsMeetingCard cohortId={activeCohort.id} />}
               {/* One card for the hub: who leads it, when it meets, and the one or two things to tap. */}
               <section className={`${SURFACE} px-6 pb-6 pt-7 sm:px-8 sm:pb-8 sm:pt-9`}>
                 <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-gray-500">

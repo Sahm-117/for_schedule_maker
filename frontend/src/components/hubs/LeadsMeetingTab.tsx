@@ -67,4 +67,32 @@ const LeadsMeetingTab: React.FC<{ cohortId: string }> = ({ cohortId }) => {
   );
 };
 
+// The same meeting as one small card at the top of My Hub, so a Hub Lead sees it without a tab.
+export const LeadsMeetingCard: React.FC<{ cohortId: string }> = ({ cohortId }) => {
+  const [meeting, setMeeting] = useState<HubLeadsMeeting | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setMeeting(null);
+    myHubApi.getLeadsMeeting(cohortId)
+      .then((m) => { if (!cancelled) setMeeting(m); })
+      .catch(() => { if (!cancelled) setMeeting(null); });
+    return () => { cancelled = true; };
+  }, [cohortId]);
+
+  if (!meeting) return null;
+  const slot = formatMeetingSlot(meeting.meetingDay, meeting.meetingTime);
+  const href = meeting.callLink?.trim() ? normalizeLink(meeting.callLink.trim()) : null;
+  return (
+    <section data-wt="hub-leads-meeting" className="flex items-center gap-3 rounded-[20px] border border-primary-100 bg-primary-50 px-4 py-3.5">
+      <span className="min-w-0 flex-1">
+        <span className="block text-xs font-extrabold uppercase tracking-[0.04em] text-primary-dark">Hub Leads meeting</span>
+        <span className="block text-[16px] font-extrabold text-gray-900">{slot || 'Time not set yet'}</span>
+      </span>
+      {href && (
+        <JoinCallButton href={href} day={meeting.meetingDay} time={meeting.meetingTime} label="Join" className="inline-flex h-[42px] flex-none items-center justify-center rounded-full bg-primary px-[18px] text-[14px] font-extrabold text-white active:scale-[0.98]" />
+      )}
+    </section>
+  );
+};
+
 export default LeadsMeetingTab;

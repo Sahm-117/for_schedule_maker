@@ -71,7 +71,7 @@ const SupportAttendancePage: React.FC = () => {
   if (!user || user.role !== 'SUPPORT') return <Navigate to="/support" replace />;
   const switcher = canMarkTrainings ? (
     <div className="mb-4">
-      <SegmentedTabs
+      <SegmentedTabs accent
         tabs={[{ key: 'class', label: 'Participants' }, { key: 'trainings', label: 'Supports (trainings)' }]}
         active={view}
         onChange={(k) => setView(k as typeof view)}
@@ -318,7 +318,7 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
               {groupOptions.length > 1 && <div className="w-full sm:w-56"><AppSelect value={selectedGroupId} onChange={setSelectedGroupId} options={groupOptions} placeholder="All groups" compact /></div>}
             </div>}
             {!allWeeks && !beforeClassDay && teenGroupId && (
-              <SegmentedTabs
+              <SegmentedTabs accent
                 className="mt-3"
                 tabs={[{ key: 'mine', label: 'My teens' }, { key: 'teens', label: 'All teens' }, { key: 'everyone', label: 'Everyone' }]}
                 active={scope}

@@ -767,7 +767,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
       <div className="flex max-w-[760px] flex-col gap-3">
         <div className="flex items-center gap-2">
           <div data-wt="mob-tabs" className="min-w-0 flex-1">
-            <SegmentedTabs
+            <SegmentedTabs accent
               tabs={[
                 { key: 'register', label: 'Registration' },
                 { key: 'follow', label: `Follow-ups (${openContacts.length})` },
@@ -1093,7 +1093,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                   <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition ${showPastCohorts ? 'translate-x-5' : ''}`} />
                 </button>
               </label>
-              <SegmentedTabs
+              <SegmentedTabs accent
                 className="w-60"
                 tabs={[{ key: 'open', label: `Open (${openContacts.length})` }, { key: 'closed', label: `Closed (${closedCount})` }]}
                 active={showClosed ? 'closed' : 'open'}
