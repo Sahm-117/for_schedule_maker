@@ -401,7 +401,7 @@ const AdminAttendanceContent: React.FC = () => {
                 ].map(({ label, value, tone }) => (
                   <div key={label}>
                     <dt className="text-xs font-medium text-gray-500">{label}</dt>
-                    <dd className={`text-xl font-bold ${value === 0 ? 'text-gray-300' : tone}`}>{value}</dd>
+                    <dd className={`text-xl font-bold ${value === 0 ? 'text-gray-400' : tone}`}>{value}</dd>
                   </div>
                 ))}
               </dl>

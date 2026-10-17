@@ -64,9 +64,9 @@
 - Staff step pills (participant profile, Onboarding page, group cards) use `participantStepDone`, so attended means Map, Guide and Ready show done.
 - Group meetings page: `GroupReportsCard` (week chips, Done/Not done, joined, notes, "Read report"). Hubs `HubReportsCard` and this card are accordions, open by default.
 - Open: a group report has text only when a prayer-focus participant was picked; the "concern" in the report is text in that note and does not open a flag.
-- Admin redesign, batch 1 (frontend only): section tabs under the title (`SectionTabsContext`), Groups > Meetings tab, calmer group cards with a detail sheet (`GroupCard`), empty state on Group meetings. `GroupOnboardingStrip` is no longer used by the Groups page (left in place, not deleted). Website and Practice pages are out of scope by the owner's choice.
+- Admin redesign, batch 1 (frontend only): section tabs under the title (`SectionTabsContext`), Groups > Meetings tab, calmer group cards with a detail sheet (`GroupCard`), empty state on Group meetings. `GroupOnboardingStrip` is no longer used by the Groups page (its code is commented out, not deleted). Website and Practice pages are out of scope by the owner's choice.
 - Admin redesign, batch 2 (frontend only): Dashboard "right now" lines in one card and a subtitle that says what needs you; Attendance summary in one card; Follow-ups, Faith projects and Planner header extras moved into ⋮; Allocation page titled "Allocation". The old `GroupOnboardingStrip` is commented out, not deleted.
-- Hubs: reports card starts closed; the "Last recap" card and the week-by-week recap list are hidden (`{false && …}`, not deleted) because Hub meeting reports shows each week. The strip now shows only when trainings exist.
+- Hubs: the Hub meeting reports card starts closed (the Group meetings card stays open); the whole "Last recap / See week by week" strip is hidden on the Hubs page (`{false && …}` in AdminHubsPage, component untouched) because Hub meeting reports shows each week. The Hubs page never passed trainings to that strip, so nothing else was lost; trainings live on Supports > Trainings.
 
 ## How to pick this up
 Read FLOW_MAP rules 35, 57 and 75–79, then `utils/supportOnboarding.ts` and `utils/meetingWindow.ts`.

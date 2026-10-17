@@ -724,6 +724,8 @@ const AdminHubsPage: React.FC = () => {
 
       {activeCohort && (
         <>
+          {/* Retired: Hub meeting reports shows each week's attendance, so the Last recap strip is hidden here, not deleted. */}
+          {false && (
           <AttendanceSummaryStrip
             hubs={hubs}
             membersByHub={membersByHub}
@@ -731,6 +733,7 @@ const AdminHubsPage: React.FC = () => {
             summaryWeek={summaryWeek}
             recapMarksByHubWeek={recapMarksByHubWeek}
           />
+          )}
           {!loading && (
             <HubReportsCard
               cohortId={activeCohort.id}

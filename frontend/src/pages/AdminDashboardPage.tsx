@@ -251,7 +251,7 @@ const AdminDashboardPage: React.FC = () => {
         <div className="space-y-5">
           {/* One card for the "right now" lines; it hides itself when none of them has anything to say. */}
           {isAdmin && (
-            <div data-wt="dash-now" className="overflow-hidden rounded-2xl bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04),0_8px_24px_-14px_rgba(17,24,39,0.18)] empty:hidden">
+            <div className="overflow-hidden rounded-2xl bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04),0_8px_24px_-14px_rgba(17,24,39,0.18)] empty:hidden">
               <PlannerNowLine />
               <DiscussionNowLine />
               <HubReportsNowLine />
