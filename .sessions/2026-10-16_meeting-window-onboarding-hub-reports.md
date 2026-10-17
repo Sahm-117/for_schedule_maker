@@ -33,3 +33,30 @@ Continuation of the 2026-10-15 session (same conversation). Handoff: `docs/hando
 - Staff per-person step pills still show the raw five steps.
 - Dropping the `meetingDurationMins` columns needs separate approval.
 - The Stop hook keeps asking to re-author commits as Claude. This was declined each time; commits stay Sam's.
+
+## Later in the same session (17 Oct): admin redesign, clean-up, meeting-length drop
+
+Pushed to `origin main` (up to `09f37ec`); Vercel deploys from it. Handoff: `docs/handoffs/2026-10-18_meetings-window-onboarding-hub-reports.md` (batch notes). FLOW_MAP rules 78 and 80 updated.
+
+### Shipped
+- **Shared page top:** section tabs under the page title (`SectionTabsContext`, `PageHeader`), Groups > Meetings tab (admin only), header extras moved into the ⋮ menu (Follow-ups, Faith projects, Planner keeps Add event), Allocation titled "Allocation".
+- **Groups:** calmer `GroupCard` (one status word, one bar, setup chips only when missing) with a detail sheet; each person shows step chips, not-signed-in, phone and "Seen <date>" (existing `participants_app_details()`; active cohorts only).
+- **Group meetings:** reports card with week chips, empty state ("No meetings recorded for Week N yet", see the groups with no time).
+- **Dashboard** "right now" lines in one card; **Attendance** summary in one card; **Hubs** reports card starts closed and the Last recap strip is gone; **Users/Cohorts/Onboarding/Approvals/Notifications/Scriptures** tidied; **Supports** cards simplified; **participant profile** Onboarding+Journey merged into a Progress card.
+- **Bug fixed:** Onboarding page, support onboarding page and group overview counted "ready" by the `completed` flag only (so a group of fully ticked people said "0 of 3"). One rule now: `participantFinished` in `utils/supportOnboarding.ts`.
+- **Clean-up (approved):** deleted `GroupOnboardingStrip.tsx`, `AttendanceSummaryStrip.tsx`, `MetricCard`, the unused cover-request API, unused variables/imports. Compiler errors 24 → 7 (all in `AdminWebsitePage.tsx` / `PracticeDock.tsx`, left alone on purpose).
+
+### Database: meeting lengths (approved by the owner) — NOT APPLIED YET
+- Migration `supabase/migrations/20261019100000_drop_meeting_duration.sql` rewrites 10 functions and drops `meetingDurationMins` from Group, SupportHub, HubLeadsMeeting. Tested on live data inside a rolled-back transaction (read RPCs, both hub save RPCs, `practice_prepare`).
+- Apply it only AFTER the new app is live; an older open tab still writes the Group column and will fail to save a group's meeting time until reloaded. The two hub RPCs keep an ignored `p_meeting_duration_mins` argument.
+
+### Findings worth remembering
+- `npx tsc --noEmit -p .` checks nothing; use `-p tsconfig.app.json`. The build is `vite build` (no tsc); compare errors against a baseline.
+- 18–24 Oct is a deliberate break week (planner "Combined Service" stops FOF; Week 2 class date is 25 Oct). No Week row was added.
+- My mock cannot render Birthdays (wrong data shape for its own queries); Corporate prayers and Birthdays were left as they were.
+
+### Open
+- Apply the migration above after the deploy (owner to say when).
+- Meeting-time bypass (a Support can move the time to "now"): offered, undecided.
+- Website and Practice files keep their 7 type errors; the Practice and Website pages were out of scope.
+- The Stop hook keeps asking to re-author commits as Claude; declined each time. Commits stay Sam's.
