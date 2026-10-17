@@ -152,7 +152,7 @@ const NotificationBell: React.FC = () => {
               )}
             </div>
             <div className="mt-2.5">
-              <SegmentedTabs accent
+              <SegmentedTabs accent={user?.role === 'SUPPORT'}
                 tabs={[
                   { key: 'announcements', label: unreadIn(announcementItems) > 0 ? `Announcements (${unreadIn(announcementItems)})` : 'Announcements' },
                   { key: 'activity', label: 'Activity', dot: unreadIn(activityItems) > 0 },

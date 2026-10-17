@@ -63,3 +63,5 @@ Type check (no new errors beyond the 7 known) and vite build. Looked at in a bro
 ## Final pass
 - Notifications bell: tabs follow the person's accent. Its structure (Announcements and Activity tabs, Mark all read) already carries what the canvas shows, so it was not rebuilt as one All/Unread list.
 - Mobilisation and the hub role screens: compared again, no change needed.
+- The accent tabs on the notification bell and on Community apply to supports only; admins and preparers keep the dark tabs.
+- Verified: type check and build only. The bell, Community and the other support pages in this handoff were not run in a browser against real data.
