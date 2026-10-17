@@ -383,24 +383,29 @@ const AdminAttendanceContent: React.FC = () => {
             {canEdit && <button type="button" onClick={() => void setAutoFinalize(!autoFinalizeAtNoon)} disabled={sessionSaving || finalised} className="rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-50">Auto-finalise at noon: {autoFinalizeAtNoon ? 'On' : 'Off'}</button>}
             {finalised ? canEdit && <button type="button" onClick={() => void reopen()} disabled={sessionSaving} className="ml-auto rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-50">Reopen</button> : !autoFinalizeAtNoon ? canEdit && <button type="button" onClick={() => void finalise()} disabled={!allMarked || sessionSaving} className="ml-auto rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white disabled:opacity-40">Send report</button> : <p className="ml-auto text-xs font-medium text-gray-500">Sends automatically at noon Sunday</p>}
           </section>
-          {/* Summary cards */}
+          {/* Summary: one calm card, the rate first and the counts beside it. */}
           {!loading && (
-            <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-              {[
-                { label: 'Present', value: summary.present, cls: 'bg-emerald-100/80 text-emerald-700' },
-                { label: 'Late', value: summary.late, cls: 'bg-amber-100/80 text-amber-700' },
-                { label: 'Left early', value: summary.leftEarly, cls: 'bg-orange-100/80 text-orange-700' },
-                { label: 'Absent', value: summary.absent, cls: 'bg-red-100/80 text-red-700' },
-                { label: 'Excused', value: summary.excused, cls: 'bg-sky-100/80 text-sky-700' },
-                { label: 'Unmarked', value: summary.unmarked, cls: 'bg-neutral-100 text-neutral-600' },
-                { label: 'Attendance', value: `${summary.pct}%`, cls: 'bg-sky-100/80 text-sky-700' },
-              ].map(({ label, value, cls }) => (
-                <div key={label} className={`rounded-2xl px-4 py-3 ${cls}`}>
-                  <p className="text-xs font-semibold uppercase tracking-wide opacity-70">{label}</p>
-                  <p className="mt-1 text-2xl font-bold">{value}</p>
-                </div>
-              ))}
-            </div>
+            <section className="mb-6 flex flex-col gap-4 surface-card p-4 sm:flex-row sm:items-center sm:gap-6 sm:p-5" aria-label="Attendance summary">
+              <div className="flex-none sm:min-w-[110px] sm:border-r sm:border-[#f0f0f2] sm:pr-6">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Attendance</p>
+                <p className="mt-0.5 text-3xl font-bold text-gray-900">{summary.pct}%</p>
+              </div>
+              <dl className="grid flex-1 grid-cols-3 gap-x-4 gap-y-3 sm:grid-cols-6">
+                {[
+                  { label: 'Present', value: summary.present, tone: 'text-emerald-700' },
+                  { label: 'Late', value: summary.late, tone: 'text-amber-700' },
+                  { label: 'Left early', value: summary.leftEarly, tone: 'text-orange-700' },
+                  { label: 'Absent', value: summary.absent, tone: 'text-red-700' },
+                  { label: 'Excused', value: summary.excused, tone: 'text-sky-700' },
+                  { label: 'Unmarked', value: summary.unmarked, tone: 'text-gray-600' },
+                ].map(({ label, value, tone }) => (
+                  <div key={label}>
+                    <dt className="text-xs font-medium text-gray-500">{label}</dt>
+                    <dd className={`text-xl font-bold ${value === 0 ? 'text-gray-300' : tone}`}>{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
           )}
 
           {finalised && <section className="mb-4 rounded-2xl border border-[#d9f2e2] bg-white px-4 py-3 shadow-sm">

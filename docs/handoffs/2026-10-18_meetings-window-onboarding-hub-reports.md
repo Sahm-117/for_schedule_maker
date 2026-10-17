@@ -65,6 +65,7 @@
 - Group meetings page: `GroupReportsCard` (week chips, Done/Not done, joined, notes, "Read report"). Hubs `HubReportsCard` and this card are accordions, open by default.
 - Open: a group report has text only when a prayer-focus participant was picked; the "concern" in the report is text in that note and does not open a flag.
 - Admin redesign, batch 1 (frontend only): section tabs under the title (`SectionTabsContext`), Groups > Meetings tab, calmer group cards with a detail sheet (`GroupCard`), empty state on Group meetings. `GroupOnboardingStrip` is no longer used by the Groups page (left in place, not deleted). Website and Practice pages are out of scope by the owner's choice.
+- Admin redesign, batch 2 (frontend only): Dashboard "right now" lines in one card and a subtitle that says what needs you; Attendance summary in one card; Follow-ups, Faith projects and Planner header extras moved into ⋮; Allocation page titled "Allocation". The old `GroupOnboardingStrip` is commented out, not deleted.
 
 ## How to pick this up
 Read FLOW_MAP rules 35, 57 and 75–79, then `utils/supportOnboarding.ts` and `utils/meetingWindow.ts`.

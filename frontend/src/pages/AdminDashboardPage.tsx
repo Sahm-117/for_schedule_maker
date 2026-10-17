@@ -234,7 +234,11 @@ const AdminDashboardPage: React.FC = () => {
 
   return (
     <div>
-      <PageHeader title="Dashboard" subtitle="How the cohort is doing, and what needs you." tourId="admin:dashboard" />
+      <PageHeader
+        title="Dashboard"
+        subtitle={model && model.attention.length > 0 ? `${model.attention.length} ${model.attention.length === 1 ? 'thing needs' : 'things need'} you` : model ? 'Nothing needs you right now' : 'How the cohort is doing, and what needs you.'}
+        tourId="admin:dashboard"
+      />
 
       {loading && !health ? (
         <DashboardSkeleton />
@@ -245,9 +249,14 @@ const AdminDashboardPage: React.FC = () => {
         </div>
       ) : health && model ? (
         <div className="space-y-5">
-          {isAdmin && <PlannerNowLine />}
-          {isAdmin && <DiscussionNowLine />}
-          {isAdmin && <HubReportsNowLine />}
+          {/* One card for the "right now" lines; it hides itself when none of them has anything to say. */}
+          {isAdmin && (
+            <div data-wt="dash-now" className="overflow-hidden rounded-2xl bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04),0_8px_24px_-14px_rgba(17,24,39,0.18)] empty:hidden">
+              <PlannerNowLine />
+              <DiscussionNowLine />
+              <HubReportsNowLine />
+            </div>
+          )}
           <div data-wt="dash-strip"><CohortStrip health={health} model={model} cohortName={activeCohort.name} /></div>
 
           <div data-wt="dash-vitals">

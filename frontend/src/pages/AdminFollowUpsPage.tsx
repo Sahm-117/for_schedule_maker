@@ -554,21 +554,10 @@ const AdminFollowUpsPage: React.FC = () => {
                 Add Contact
               </button>
             )}
-            <button
-              type="button"
-              onClick={() => setShowAssignSettings(true)}
-              aria-label="Assignment settings"
-              title="Assignment settings"
-              className="grid h-11 w-11 place-items-center rounded-2xl border border-gray-200 bg-white text-gray-500 transition hover:bg-gray-50 hover:text-gray-800 active:scale-95"
-            >
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M10.3 4.3c.4-1.7 3-1.7 3.4 0a1.7 1.7 0 0 0 2.6 1.1c1.5-.9 3.3.8 2.4 2.4a1.7 1.7 0 0 0 1 2.5c1.8.4 1.8 3 0 3.4a1.7 1.7 0 0 0-1 2.6c.9 1.5-.9 3.3-2.4 2.4a1.7 1.7 0 0 0-2.6 1c-.4 1.8-3 1.8-3.4 0a1.7 1.7 0 0 0-2.6-1c-1.5.9-3.3-.9-2.4-2.4a1.7 1.7 0 0 0-1-2.6c-1.8-.4-1.8-3 0-3.4a1.7 1.7 0 0 0 1-2.5c-.9-1.6.9-3.3 2.4-2.4a1.7 1.7 0 0 0 2.6-1.1Z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-              </svg>
-            </button>
             <AppOverflowMenu
               align="right"
               items={[
+                { label: 'Assignment settings', onClick: () => setShowAssignSettings(true) },
                 ...(canEdit ? [{ label: assigning ? 'Assigning…' : 'Assign follow-ups now', onClick: () => { if (!assigning) setConfirmAssignNow(true); } }] : []),
                 ...(tab === 'contacts' ? [
                   ...(canAdd ? [{ label: 'Import contacts', onClick: () => setShowImport(true) }] : []),

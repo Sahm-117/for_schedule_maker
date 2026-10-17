@@ -242,10 +242,7 @@ const AdminPlannerPage: React.FC = () => {
             {canAdd && nextPlanned && (
               <button type="button" onClick={() => setCohortSheet({ cohort: nextPlanned, adding: true })} className="rounded-2xl bg-primary px-4 py-2.5 text-sm font-semibold text-white active:scale-95">Add cohort</button>
             )}
-            {canAdd && (
-              <button type="button" onClick={() => setEventSheet({ event: null })} className="rounded-2xl bg-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 active:scale-95">Add event</button>
-            )}
-            <AppOverflowMenu items={[{ label: showTest ? 'Hide test cohorts' : 'Show test cohorts', onClick: toggleTest }, ...(canEdit ? [{ label: refreshing ? 'Refreshing…' : 'Refresh public holidays', onClick: () => { if (!refreshing) void refreshHolidays(); } }] : [])]} />
+            <AppOverflowMenu items={[...(canAdd ? [{ label: 'Add event', onClick: () => setEventSheet({ event: null }) }] : []), { label: showTest ? 'Hide test cohorts' : 'Show test cohorts', onClick: toggleTest }, ...(canEdit ? [{ label: refreshing ? 'Refreshing…' : 'Refresh public holidays', onClick: () => { if (!refreshing) void refreshHolidays(); } }] : [])]} />
           </div>
         )}
       />

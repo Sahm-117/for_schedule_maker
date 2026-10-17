@@ -338,7 +338,7 @@ const AdminAllocationContent: React.FC = () => {
   return (
     <div className="page-content">
       <PageHeader
-        title="Allocate Participants"
+        title="Allocation"
         subtitle={activeCohort ? `${unassignedReal.length} unassigned · ${activeCohort.name}` : 'No active cohort'}
         action={
           <button

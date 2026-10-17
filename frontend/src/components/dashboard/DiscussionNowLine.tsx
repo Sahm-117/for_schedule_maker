@@ -19,7 +19,7 @@ const DiscussionNowLine: React.FC = () => {
   return (
     <NavLink
       to="/groups"
-      className="flex items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3 text-sm shadow-[0_1px_2px_rgba(17,24,39,0.04),0_8px_24px_-14px_rgba(17,24,39,0.18)] active:scale-[0.99]"
+      className="flex min-h-[48px] items-center justify-between gap-3 border-t border-[#f0f0f2] px-4 py-3 text-sm first:border-t-0 active:bg-gray-50"
     >
       <span className="min-w-0">
         <span className="font-semibold text-gray-500">Discussions this week: </span>

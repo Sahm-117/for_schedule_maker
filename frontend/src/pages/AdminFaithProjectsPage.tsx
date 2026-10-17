@@ -3,6 +3,7 @@ import SegmentedTabs from '../components/SegmentedTabs';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import Avatar from '../components/Avatar';
 import PageHeader from '../components/PageHeader';
+import AppOverflowMenu from '../components/AppOverflowMenu';
 import PageLoader from '../components/PageLoader';
 import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
@@ -350,22 +351,14 @@ const AdminFaithProjectsContent: React.FC = () => {
         tourId="admin:faith-projects"
         subtitle={activeCohort ? activeCohort.name : 'No active cohort'}
         action={
-          !loading && (
-            <div className="flex items-center gap-2">
-            {canEdit && <button type="button" onClick={() => setShowSettings(true)} aria-label="Faith Project settings" title="Faith Project settings" className="grid h-11 w-11 place-items-center rounded-2xl border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:bg-gray-50">
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317a1.5 1.5 0 0 1 2.85 0l.267.879a1.5 1.5 0 0 0 1.81 1.004l.88-.267a1.5 1.5 0 0 1 2.015 2.015l-.267.88a1.5 1.5 0 0 0 1.004 1.81l.879.267a1.5 1.5 0 0 1 0 2.85l-.879.267a1.5 1.5 0 0 0-1.004 1.81l.267.88a1.5 1.5 0 0 1-2.015 2.015l-.88-.267a1.5 1.5 0 0 0-1.81 1.004l-.267.879a1.5 1.5 0 0 1-2.85 0l-.267-.879a1.5 1.5 0 0 0-1.81-1.004l-.88.267a1.5 1.5 0 0 1-2.015-2.015l.267-.88a1.5 1.5 0 0 0-1.004-1.81l-.879-.267a1.5 1.5 0 0 1 0-2.85l.879-.267a1.5 1.5 0 0 0 1.004-1.81l-.267-.88a1.5 1.5 0 0 1 2.015-2.015l.88.267a1.5 1.5 0 0 0 1.81-1.004l.267-.879Z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
-            </button>}
-            {groups.length > 0 && <button
-              type="button"
-              onClick={() => setShowExportPopup(true)}
-              className="inline-flex items-center gap-1.5 rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 hover:border-orange-300 active:scale-95"
-            >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Export
-            </button>}
-            </div>
+          !loading && (canEdit || groups.length > 0) && (
+            <AppOverflowMenu
+              align="right"
+              items={[
+                ...(canEdit ? [{ label: 'Faith Project settings', onClick: () => setShowSettings(true) }] : []),
+                ...(groups.length > 0 ? [{ label: 'Export', onClick: () => setShowExportPopup(true) }] : []),
+              ]}
+            />
           )
         }
       />
