@@ -218,6 +218,9 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
     return sortHubJobs([...hubNamesByJob.keys()]).map((job) => ({ job, hubNames: hubNamesByJob.get(job)! }));
   }, [hubsList]);
 
+  // "IT Support · Recap Lead": the hub jobs this person holds, shown under the My Hub row instead of a card of their own.
+  const roleLine = roleReminders.map(({ job }) => HUB_JOB_INFO[job].label).join(' · ');
+
   useEffect(() => {
     if (!user) return;
     announcementsApi.getHistory({
@@ -405,6 +408,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
                 <HomeRow
                   to="/support/my-hub"
                   label="My Hub"
+                  sub={roleLine}
                   value={[nextHubMeeting?.hub?.name ?? 'Not assigned', nextHubMeeting?.hub?.meetingDay ? formatMeetingTime(nextHubMeeting.hub.meetingDay, nextHubMeeting.hub.meetingTime) : ''].filter(Boolean).join(' · ')}
                 />
                 {hubJoinHref && <HomeRow href={hubJoinHref} label="Join hub call" value="" />}
@@ -413,7 +417,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
               <>
                 <HomeRow to="/support/participants" label="Next group meeting" value={nextGroupPrayerDisplay?.label ?? 'Not set'} />
                 <HomeRow to="/support/participants" label="Faith projects" value={participants.length > 0 ? `${draftedProjectCount} of ${participants.length} written` : 'No participants yet'} />
-                {myHub?.hub && <HomeRow to="/support/my-hub" label="My Hub" value={myHub.hub.name} />}
+                {myHub?.hub && <HomeRow to="/support/my-hub" label="My Hub" sub={roleLine} value={myHub.hub.name} />}
               </>
             )}
             {!isHubOnlySupport && !myHub?.hub && groupCallLink && <HomeRow href={groupCallLink} label="Join group call" value="" />}
@@ -474,18 +478,6 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
               </section>
             );
           })}
-
-          {roleReminders.map(({ job, hubNames }) => (
-            <section key={job} className="relative rounded-[18px] border border-[#e4e1fb] bg-[#f7f6ff] px-4 py-3.5">
-              <NavLink to="/support/my-hub" className="flex items-center gap-3">
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[15px] font-bold text-gray-900">You're {/^[AEIOU]/i.test(HUB_JOB_INFO[job].label) ? 'an' : 'a'} {HUB_JOB_INFO[job].label}{hubNames.length > 1 ? ` for ${hubNames.join(', ')}` : ''}</span>
-                  <span className="mt-1 block text-[13px] leading-relaxed text-gray-600">{HUB_JOB_INFO[job].description}</span>
-                </span>
-                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true" className="shrink-0 text-[#5b21b6]"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m9 6 6 6-6 6" /></svg>
-              </NavLink>
-            </section>
-          ))}
 
           <PendingSurveyCards base="/support/survey" />
 
@@ -690,10 +682,13 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
 
 const HOME_ROW_CLASS = 'flex min-h-[56px] items-center gap-3 border-t border-[#f1f2f5] px-[18px] py-2 text-left';
 
-const HomeRow: React.FC<{ to?: string; href?: string; label: string; value: string }> = ({ to, href, label, value }) => {
+const HomeRow: React.FC<{ to?: string; href?: string; label: string; value: string; sub?: string }> = ({ to, href, label, value, sub }) => {
   const content = (
     <>
-      <span className="min-w-0 flex-1 text-[15.5px] font-bold text-gray-900">{label}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[15.5px] font-bold text-gray-900">{label}</span>
+        {sub && <span className="block text-[12.5px] font-semibold text-primary-dark">{sub}</span>}
+      </span>
       {value && <span className="min-w-0 max-w-[55%] truncate text-[13.5px] text-gray-500">{value}</span>}
       <svg className="h-4 w-4 flex-none text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.4" d="m9 6 6 6-6 6" /></svg>
     </>

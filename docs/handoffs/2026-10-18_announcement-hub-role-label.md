@@ -25,3 +25,6 @@ Type check, build, and the migration test. The label itself was only seen agains
 
 ## Gotchas
 - Tag and single-hub targeting still show no label.
+
+## Addendum
+- Home: the "You're a <role>" cards are gone; the hub jobs show as a line under the My Hub row (for example "IT Support · Recap Lead").
