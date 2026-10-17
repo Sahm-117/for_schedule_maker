@@ -52,7 +52,7 @@ const HubReportsCard: React.FC<HubReportsCardProps> = ({ cohortId, hubs, members
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
   const [openHubId, setOpenHubId] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
 
   // A new week starting (or the weeks loading late) moves the view to it.
   const latestWeekId = weeks.at(-1)?.id ?? null;
