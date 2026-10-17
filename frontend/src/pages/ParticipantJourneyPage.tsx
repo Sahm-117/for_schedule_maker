@@ -5,6 +5,7 @@ import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import AttendanceCountdownCard from '../components/participantApp/AttendanceCountdownCard';
 import EndSummaryCard from '../components/participantApp/EndSummaryCard';
+import ThisWeekCard from '../components/participantApp/ThisWeekCard';
 import { TeacherChip, TeacherSheet, type ClassTeacher } from '../components/TeacherSheet';
 import { useParticipantApp } from '../context/ParticipantAppContext';
 import { currentWeekNumber, pickCallback, reflectionFor } from '../utils/participantApp';
@@ -65,6 +66,8 @@ const ParticipantJourneyPage: React.FC = () => {
   const weeksIn = Math.min(Math.max(weekNumber, 0), totalWeeks);
   const goalsKept = home.reflections.filter((r) => r.goalDoneAt).length;
   const callback = pickCallback(home, weekNumber, now);
+  // The week to lead with: the current one, or week 1 before the start.
+  const thisWeek = totalWeeks > 0 && weekNumber > totalWeeks ? null : home.weeks.find((w) => w.weekNumber === Math.max(weekNumber, 1)) ?? null;
 
   return (
     <div className="max-w-2xl">
@@ -74,6 +77,7 @@ const ParticipantJourneyPage: React.FC = () => {
         <AttendanceCountdownCard openWindow={home.openWindow} />
 
         <SegmentedTabs
+          accent
           tabs={[{ key: 'journey', label: 'Journey' }, { key: 'attendance', label: 'Attendance' }]}
           active={tab}
           onChange={(k) => setTab(k as typeof tab)}
@@ -81,27 +85,14 @@ const ParticipantJourneyPage: React.FC = () => {
 
         {tab === 'journey' ? (
           <>
-            <section data-wt="pj-summary" className="rounded-3xl bg-[linear-gradient(150deg,#ff914d_0%,#f2703a_55%,#d95f2e_100%)] px-[22px] py-[26px] text-white shadow-[0_12px_30px_-16px_rgba(217,95,46,0.7)]">
-              <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/80">Your journey so far</p>
-              <div className="mt-2.5 flex flex-wrap items-end gap-2.5">
-                <span className="text-[46px] font-extrabold leading-none tracking-[-0.03em]">{weeksIn}</span>
-                <span className="pb-1.5 text-base font-semibold text-white/90">of {totalWeeks} weeks in</span>
+            {thisWeek && <ThisWeekCard home={home} week={thisWeek} label={weekNumber < 1 ? 'First class' : undefined} />}
+
+            <section data-wt="pj-summary" className={`${CARD} px-[18px] py-4`}>
+              <p className="text-[15px] font-extrabold text-gray-900">{weeksIn} of {totalWeeks} weeks in</p>
+              <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-[#f1f2f5]">
+                <span className="block h-full rounded-full bg-primary" style={{ width: `${totalWeeks ? Math.round((weeksIn / totalWeeks) * 100) : 0}%` }} />
               </div>
-              <div className="mt-[18px] h-2 overflow-hidden rounded-full bg-white/30">
-                <span className="block h-full rounded-full bg-white" style={{ width: `${totalWeeks ? Math.round((weeksIn / totalWeeks) * 100) : 0}%` }} />
-              </div>
-              <div className="mt-[18px] flex flex-wrap gap-[18px]">
-                {[
-                  [home.reflections.length, 'reflections written'],
-                  [goalsKept, 'goals kept'],
-                  [Math.max(0, totalWeeks - weeksIn), 'weeks to go'],
-                ].map(([value, label]) => (
-                  <div key={label as string}>
-                    <p className="text-[22px] font-extrabold tracking-[-0.02em]">{value}</p>
-                    <p className="mt-0.5 text-xs text-white/80">{label}</p>
-                  </div>
-                ))}
-              </div>
+              <p className="mt-2 text-[13px] text-gray-500">{home.reflections.length} {home.reflections.length === 1 ? 'reflection' : 'reflections'} · {goalsKept} {goalsKept === 1 ? 'goal' : 'goals'} kept</p>
             </section>
 
             {callback && (
@@ -122,14 +113,18 @@ const ParticipantJourneyPage: React.FC = () => {
                 const reached = week.weekNumber <= weekNumber;
                 const isNow = week.weekNumber === weekNumber;
                 const open = openWeekId === week.id && !!reflection;
-                const chip = isNow
-                  ? { label: 'This week', cls: 'bg-[#fff1e6] text-[#c2410c]' }
-                  : reflection
-                    ? reflection.goalDoneAt ? { label: 'Goal kept', cls: 'bg-[#f2fbf5] text-[#15803d]' } : { label: 'Not this time', cls: 'bg-[#fef3c7] text-[#b45309]' }
-                    : reached ? { label: 'No reflection', cls: 'bg-[#f6f7f9] text-gray-400' } : opensSoon ? { label: 'Opens soon', cls: 'bg-[#f6f7f9] text-gray-500' } : { label: 'Locked', cls: 'bg-[#f6f7f9] text-gray-400' };
+                const classOn = week.classDate ? new Date(`${week.classDate}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }) : null;
+                const chip = reflection
+                  ? reflection.goalDoneAt ? { label: 'Goal kept', cls: 'bg-[#f2fbf5] text-[#15803d]' } : { label: 'Not this time', cls: 'bg-[#fef3c7] text-[#b45309]' }
+                  : reached && week.released ? { label: 'Write reflection', cls: isNow ? 'bg-primary text-white' : 'bg-primary/10 text-primary' }
+                    : isNow ? { label: 'Open', cls: 'bg-primary text-white' }
+                      : reached ? { label: 'No reflection', cls: 'bg-[#f6f7f9] text-gray-400' }
+                        : opensSoon ? { label: 'Opens soon', cls: 'bg-[#f6f7f9] text-gray-500' }
+                          : { label: classOn ? `Class ${classOn}` : 'Locked', cls: 'bg-[#f6f7f9] text-gray-400' };
+                const tappable = !!reflection || reached || opensSoon;
                 const onRow = () => {
                   if (reflection) setOpenWeekId(open ? null : week.id);
-                  else if (opensSoon || (reached && week.released)) navigate(`/me/week/${week.weekNumber}`);
+                  else if (reached || opensSoon) navigate(`/me/week/${week.weekNumber}`);
                 };
                 return (
                   <div key={week.id} className="flex items-stretch gap-3.5">
@@ -140,12 +135,13 @@ const ParticipantJourneyPage: React.FC = () => {
                       {index < home.weeks.length - 1 && <span className={`min-h-[14px] w-0.5 flex-auto ${week.weekNumber < weekNumber ? 'bg-[#ffdeca]' : 'bg-[#f1f2f5]'}`} />}
                     </div>
                     <div className="min-w-0 flex-auto pb-3.5">
-                      <button type="button" onClick={onRow} className={`flex w-full items-center gap-2.5 pt-[3px] text-left ${reflection || opensSoon || (reached && week.released) ? 'cursor-pointer' : 'cursor-default'}`}>
+                      <button type="button" onClick={onRow} className={`flex w-full items-center gap-2.5 pt-[3px] text-left ${tappable ? 'cursor-pointer' : 'cursor-default'}`}>
                         <div className="min-w-0">
                           <p className={`text-[14.5px] font-bold leading-snug ${reached ? 'text-gray-900' : 'text-gray-400'}`}>{week.title || `Week ${week.weekNumber}`}</p>
                           <p className="mt-0.5 text-[12.5px] text-gray-400">Week {week.weekNumber}</p>
                         </div>
-                        <span className={`ml-auto flex-none rounded-full px-[9px] py-[3px] text-[11px] font-bold ${chip.cls}`}>{chip.label}</span>
+                        <span className={`ml-auto flex-none rounded-full px-[10px] py-[4px] text-[11.5px] font-bold ${chip.cls}`}>{chip.label}</span>
+                        {tappable && <svg className="h-4 w-4 flex-none text-gray-300" fill="none" stroke="currentColor" strokeWidth="2.4" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="m9 5 7 7-7 7" /></svg>}
                       </button>
                       {week.teacher && <TeacherChip teacher={week.teacher} onOpen={() => setTeacherSheet({ teacher: week.teacher!, title: week.title || `Week ${week.weekNumber}` })} className="mt-1.5" />}
                       {open && reflection && (

@@ -34,10 +34,6 @@ const SupportProfileContent: React.FC<{ user: User }> = ({ user }) => {
   const [ageRange, setAgeRange] = useState<string>(user?.ageRange ?? '');
   const [detailsError, setDetailsError] = useState('');
   const [phone, setPhone] = useState<string>(user?.phone?.trim() ?? '');
-  const [phoneDraft, setPhoneDraft] = useState('');
-  const [editingPhone, setEditingPhone] = useState(false);
-  const [savingPhone, setSavingPhone] = useState(false);
-  const [phoneError, setPhoneError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { liveRevision, activeCohort } = useAppData();
 
@@ -80,56 +76,6 @@ const SupportProfileContent: React.FC<{ user: User }> = ({ user }) => {
     }
   };
 
-  // Gender and age range save as soon as they are picked.
-  const saveDetails = async (next: { gender: string; ageRange: string }) => {
-    const previous = { gender, ageRange };
-    setGender(next.gender);
-    setAgeRange(next.ageRange);
-    setDetailsError('');
-    try {
-      await usersApi.saveProfileDetails(user.id, { gender: next.gender || null, ageRange: next.ageRange || null });
-      refreshUser({ gender: next.gender || null, ageRange: next.ageRange || null });
-    } catch {
-      setGender(previous.gender);
-      setAgeRange(previous.ageRange);
-      setDetailsError('Could not save. Please try again.');
-    }
-  };
-
-  // Birthday is optional and only day + month (MM-DD); it saves once both are picked.
-  const [bMonth, bDay] = (user.birthday ?? '').split('-');
-  const [birthdayDraft, setBirthdayDraft] = useState({ month: bMonth ?? '', day: bDay ?? '' });
-  const saveBirthday = async (next: { month: string; day: string }) => {
-    setBirthdayDraft(next);
-    if ((next.month && !next.day) || (!next.month && next.day)) return;
-    const value = next.month ? `${next.month}-${next.day}` : null;
-    if (value === (user.birthday ?? null)) return;
-    setDetailsError('');
-    try {
-      await usersApi.saveBirthday(user.id, value);
-      refreshUser({ birthday: value });
-    } catch {
-      setBirthdayDraft({ month: bMonth ?? '', day: bDay ?? '' });
-      setDetailsError('Could not save. Please try again.');
-    }
-  };
-  // Birth year is optional too. Adding it sets the age range from it (the database does the sum).
-  const [birthYear, setBirthYear] = useState<string>(user.birthYear ? String(user.birthYear) : '');
-  const saveBirthYear = async (value: string) => {
-    const previous = birthYear;
-    setBirthYear(value);
-    setDetailsError('');
-    try {
-      const { ageRange: derived } = await usersApi.saveBirthYear(user.id, value ? Number(value) : null);
-      refreshUser({ birthYear: value ? Number(value) : null, ageRange: derived });
-      if (value && derived) setAgeRange(derived);
-    } catch {
-      setBirthYear(previous);
-      setDetailsError('Could not save. Please try again.');
-    }
-  };
-  const birthdayDays = birthdayDraft.month ? new Date(2024, Number(birthdayDraft.month), 0).getDate() : 31;
-
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -146,28 +92,86 @@ const SupportProfileContent: React.FC<{ user: User }> = ({ user }) => {
 
   const photoMissing = !avatarUrl;
 
-  // Saved the same way sign-up stores it (080…), so it works for WhatsApp and phone sign-in.
-  const handleSavePhone = async () => {
-    const digits = phoneDraft.replace(/\D/g, '');
+  // Details are edited together and saved with one button, the same as a participant's profile.
+  const [editing, setEditing] = useState(false);
+  const [savingDetails, setSavingDetails] = useState(false);
+  const [birthday, setBirthday] = useState<string>(user.birthday ?? '');
+  const [birthYear, setBirthYear] = useState<string>(user.birthYear ? String(user.birthYear) : '');
+  const [draft, setDraft] = useState({ gender: '', ageRange: '', month: '', day: '', year: '', phone: '' });
+  const startEditing = () => {
+    const [m, d] = birthday.split('-');
+    setDraft({ gender, ageRange, month: m ?? '', day: d ?? '', year: birthYear, phone });
+    setDetailsError('');
+    setEditing(true);
+  };
+  const draftDays = draft.month ? new Date(2024, Number(draft.month), 0).getDate() : 31;
+
+  const saveAll = async () => {
+    // Saved the same way sign-up stores it (080…), so it works for WhatsApp and phone sign-in.
+    const digits = draft.phone.replace(/\D/g, '');
     const local = /^234[7-9][01]\d{8}$/.test(digits) ? `0${digits.slice(3)}` : digits;
-    if (!/^0[7-9][01]\d{8}$/.test(local)) {
-      setPhoneError('Enter a valid Nigerian number, e.g. 08012345678.');
-      return;
-    }
-    if (local === phone) { setEditingPhone(false); return; }
-    setSavingPhone(true);
-    setPhoneError('');
+    if (draft.phone.trim() && !/^0[7-9][01]\d{8}$/.test(local)) { setDetailsError('Enter a valid Nigerian number, e.g. 08012345678.'); return; }
+    if ((draft.month && !draft.day) || (!draft.month && draft.day)) { setDetailsError('Pick both the day and the month of your birthday, or neither.'); return; }
+    setSavingDetails(true);
+    setDetailsError('');
+    // Each part saves on its own; if one fails, the message says which, and the ones before it stay saved.
+    let step = 'your details';
     try {
-      await usersApi.savePhone(user.id, local);
-      setPhone(local);
-      refreshUser({ phone: local });
-      setEditingPhone(false);
+      if (draft.gender !== gender || draft.ageRange !== ageRange) {
+        await usersApi.saveProfileDetails(user.id, { gender: draft.gender || null, ageRange: draft.ageRange || null });
+        refreshUser({ gender: draft.gender || null, ageRange: draft.ageRange || null });
+        setGender(draft.gender);
+        setAgeRange(draft.ageRange);
+      }
+      step = 'your birthday';
+      const nextBirthday = draft.month ? `${draft.month}-${draft.day}` : '';
+      if (nextBirthday !== birthday) {
+        await usersApi.saveBirthday(user.id, nextBirthday || null);
+        refreshUser({ birthday: nextBirthday || null });
+        setBirthday(nextBirthday);
+      }
+      step = 'your birth year';
+      if (draft.year !== birthYear) {
+        // Adding the year sets the age range from it (the database does the sum).
+        const { ageRange: derived } = await usersApi.saveBirthYear(user.id, draft.year ? Number(draft.year) : null);
+        refreshUser({ birthYear: draft.year ? Number(draft.year) : null, ageRange: derived });
+        setBirthYear(draft.year);
+        if (draft.year && derived) setAgeRange(derived);
+      }
+      step = 'your number';
+      // A blank number leaves the saved one alone: it can be changed here, not removed.
+      if (local && local !== phone) {
+        await usersApi.savePhone(user.id, local);
+        setPhone(local);
+        refreshUser({ phone: local });
+      }
+      setEditing(false);
     } catch (err) {
-      setPhoneError(err instanceof Error ? err.message : 'Could not save. Please try again.');
+      setDetailsError(`Could not save ${step}${err instanceof Error && err.message ? `: ${err.message}` : '.'} Anything above it was saved.`);
     } finally {
-      setSavingPhone(false);
+      setSavingDetails(false);
     }
   };
+
+  const birthdayLabel = (() => {
+    if (!birthday) return '';
+    const [m, d] = birthday.split('-');
+    const label = new Date(2024, Number(m) - 1, Number(d)).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
+    return birthYear ? `${label} ${birthYear}` : label;
+  })();
+  const detailRows: Array<[string, string]> = [
+    ['Gender', gender],
+    ['Age range', ageRange],
+    ['Birthday', birthdayLabel],
+    ['WhatsApp number', phone],
+  ];
+  // What is blank among the things the profile counts, as chips under the progress line.
+  const missingChips = [
+    !avatarUrl && { label: 'Photo', photo: true },
+    !gender && { label: 'Gender', photo: false },
+    !ageRange && { label: 'Age range', photo: false },
+    !phone && { label: 'Phone', photo: false },
+  ].filter(Boolean) as Array<{ label: string; photo: boolean }>;
 
   return (
     <div>
@@ -179,108 +183,121 @@ const SupportProfileContent: React.FC<{ user: User }> = ({ user }) => {
 
       <div className="mb-6 grid items-start gap-5 lg:grid-cols-2">
         <div className="flex min-w-0 flex-col gap-5">
-          <section data-wt="profile-groups" className={CARD}>
-            <div className="flex items-center gap-4">
-              <div className="relative flex-shrink-0">
-                <Avatar name={user.name} avatarUrl={avatarUrl} size="lg" enlargeable />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadingAvatar}
-                  title="Change photo"
-                  aria-label="Change photo"
-                  className={`absolute -bottom-1 -right-1 grid h-7 w-7 place-items-center rounded-full border-2 border-white text-white shadow-md disabled:opacity-60 ${photoMissing ? 'bg-orange-500 hover:bg-orange-600' : 'bg-gray-900 hover:bg-gray-800'}`}
-                >
-                  {uploadingAvatar ? <Spinner className="h-3.5 w-3.5" /> : <CameraIcon />}
+          {/* Who you are: the photo is the upload button, and what is still missing is one tap away. */}
+          <section data-wt="profile-groups" className={`${CARD} flex flex-col items-center !pt-6 text-center`}>
+            <div className="relative">
+              {avatarUrl ? (
+                <Avatar name={user.name} avatarUrl={avatarUrl} size="hero" enlargeable />
+              ) : (
+                <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar} aria-label="Add a photo" className="block rounded-full disabled:opacity-60">
+                  <Avatar name={user.name} avatarUrl={null} size="hero" />
                 </button>
-                <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-lg font-bold leading-tight text-gray-900">{user.name}</p>
-                <p className="truncate text-sm text-gray-500">{user.email || user.phone || 'No contact detail'}</p>
-                {photoMissing && (
-                  <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar} className="mt-1 inline-flex items-center gap-1.5 text-xs font-semibold text-orange-700 disabled:opacity-60">
-                    <span className="h-1.5 w-1.5 rounded-full bg-orange-500" aria-hidden="true" />
-                    {uploadingAvatar ? 'Uploading…' : 'Add a profile photo'}
-                  </button>
-                )}
-              </div>
+              )}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingAvatar}
+                aria-label={avatarUrl ? 'Change photo' : 'Add a photo'}
+                className={`absolute -bottom-0.5 -right-0.5 grid h-9 w-9 place-items-center rounded-full border-[3px] border-white text-white shadow-md disabled:opacity-60 ${photoMissing ? 'bg-orange-600' : 'bg-gray-900'}`}
+              >
+                {uploadingAvatar ? <Spinner className="h-4 w-4" /> : <CameraIcon />}
+              </button>
+              <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
             </div>
-            <div className="mt-4">
+            <h2 className="mt-3.5 max-w-full truncate text-[21px] font-extrabold tracking-tight text-gray-900">{user.name}</h2>
+            {photoMissing && <p className="mt-0.5 text-[13.5px] text-gray-500">Tap your photo to add one</p>}
+            <div className="mt-[18px] w-full text-left">
               <ProfileCompletionStrip user={{ avatarUrl, gender, ageRange, phone }} variant="profile" />
+              {!editing && missingChips.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {missingChips.map((chip) => (
+                    <button key={chip.label} type="button" onClick={chip.photo ? () => fileInputRef.current?.click() : startEditing} className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-[#ffdeca] bg-[#fff4ec] px-3.5 text-[13px] font-bold text-[#c2410c]">
+                      <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeWidth="2.4" d="M12 5v14M5 12h14" /></svg>
+                      {chip.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </section>
 
-          {isItSupport && !phone && !editingPhone && (
+          {isItSupport && !phone && !editing && (
             <section className="flex items-start gap-3 rounded-2xl bg-amber-100/80 px-4 py-3.5 text-amber-700">
               <p className="min-w-0 flex-1 text-[13px] font-semibold leading-snug">You're IT Support. People who tap ? for help are sent to you on WhatsApp, so please add your number.</p>
-              <button type="button" onClick={() => { setPhoneDraft(''); setPhoneError(''); setEditingPhone(true); }} className="flex-none rounded-full bg-white/80 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-white">Add number</button>
+              <button type="button" onClick={startEditing} className="flex-none rounded-full bg-white/80 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-white">Add number</button>
             </section>
           )}
 
-          <div>
-            <SectionLabel>Your details</SectionLabel>
-            <section className={LIST}>
-              <Row label="Gender" missing={!gender}>
-                <div className="w-40"><AppSelect value={gender} onChange={(value) => { void saveDetails({ gender: value, ageRange }); }} options={toSelectOptions(GENDER_OPTIONS)} placeholder="Choose…" compact /></div>
-              </Row>
-              <Row label="Age range" missing={!ageRange}>
-                <div className="w-40"><AppSelect value={ageRange} onChange={(value) => { void saveDetails({ gender, ageRange: value }); }} options={toSelectOptions(AGE_RANGE_OPTIONS)} placeholder="Choose…" compact disabled={!!birthYear} /></div>
-              </Row>
-              <Row label="Birthday">
-                <div className="flex items-center gap-2">
-                  <div className="w-[4.25rem]"><AppSelect value={birthdayDraft.day} onChange={(v) => { void saveBirthday({ ...birthdayDraft, day: v }); }} options={BIRTHDAY_DAYS.slice(0, birthdayDays)} placeholder="Day" compact /></div>
-                  <div className="w-[4.75rem]"><AppSelect value={birthdayDraft.month} onChange={(v) => { void saveBirthday({ month: v, day: birthdayDraft.day && Number(birthdayDraft.day) <= new Date(2024, Number(v), 0).getDate() ? birthdayDraft.day : '' }); }} options={BIRTHDAY_MONTHS} placeholder="Month" compact /></div>
-                  <div className="w-[5.25rem]"><AppSelect value={birthYear} onChange={(v) => { void saveBirthYear(v); }} options={BIRTH_YEARS} placeholder="Year" compact /></div>
-                  {(birthdayDraft.month || birthdayDraft.day) && (
-                    <button type="button" onClick={() => { void saveBirthday({ month: '', day: '' }); }} aria-label="Clear birthday" className="px-1 text-base leading-none text-gray-400 hover:text-gray-600">×</button>
-                  )}
-                  {birthYear && (
-                    <button type="button" onClick={() => { void saveBirthYear(''); }} aria-label="Clear birth year" title="Clear year" className="px-1 text-base leading-none text-gray-400 hover:text-gray-600">×</button>
-                  )}
+          {/* The details: one clear Edit button and one Save, the same as the participant profile. */}
+          <section data-wt="profile-details" className={`${CARD} !py-2`}>
+            <div className="flex items-center justify-between py-3">
+              <h3 className="text-[17px] font-extrabold text-gray-900">Your details</h3>
+              {!editing && (
+                <button type="button" onClick={startEditing} className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full bg-primary px-4 text-sm font-bold text-white">
+                  <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m16.86 4.49 1.69-1.69a1.88 1.88 0 1 1 2.65 2.65L6.83 19.82a4.5 4.5 0 0 1-1.9 1.13l-2.68.8.8-2.69a4.5 4.5 0 0 1 1.13-1.89L16.86 4.49Z" /></svg>
+                  Edit
+                </button>
+              )}
+            </div>
+            {editing ? (
+              <div className="flex flex-col gap-3.5 pb-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <span className="mb-1 block text-[13px] font-semibold text-gray-900">Gender</span>
+                    <AppSelect value={draft.gender} onChange={(value) => setDraft((prev) => ({ ...prev, gender: value }))} options={toSelectOptions(GENDER_OPTIONS)} placeholder="Choose…" />
+                  </div>
+                  <div>
+                    <span className="mb-1 block text-[13px] font-semibold text-gray-900">Age range</span>
+                    <AppSelect value={draft.ageRange} onChange={(value) => setDraft((prev) => ({ ...prev, ageRange: value }))} options={toSelectOptions(AGE_RANGE_OPTIONS)} placeholder="Choose…" disabled={!!draft.year} />
+                  </div>
                 </div>
-              </Row>
-              <p className="-mt-1 px-4 pb-2 text-xs text-gray-400">Optional. The day and month let admins celebrate you. Adding your year also sets your age range for you.</p>
-{!editingPhone ? (
                 <div>
-                <Row label="Phone" missing={!phone}>
-                  {phone
-                    ? (
-                      <span className="flex min-w-0 items-center gap-2">
-                        <span className="truncate text-sm font-semibold text-gray-900">{phone}</span>
-                        <EditButton label="Edit phone number" onClick={() => { setPhoneDraft(phone); setPhoneError(''); setEditingPhone(true); }} />
-                      </span>
-                    )
-                    : <button type="button" onClick={() => { setPhoneDraft(''); setPhoneError(''); setEditingPhone(true); }} className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary hover:bg-primary/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:opacity-60">Add number</button>}
-                </Row>
-                <p className="-mt-1 px-4 pb-3 text-xs text-gray-500">Your WhatsApp number lets your participants, your hub and IT Support reach you.</p>
+                  <span className="mb-1 block text-[13px] font-semibold text-gray-900">Birthday <span className="font-normal text-gray-400">(optional)</span></span>
+                  <div className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.1fr)_minmax(0,1fr)] gap-2 [&>*]:min-w-0">
+                    <AppSelect value={draft.day} onChange={(day) => setDraft((prev) => ({ ...prev, day }))} options={BIRTHDAY_DAYS.slice(0, draftDays)} placeholder="Day" />
+                    <AppSelect value={draft.month} onChange={(month) => setDraft((prev) => ({ ...prev, month, day: prev.day && Number(prev.day) <= new Date(2024, Number(month), 0).getDate() ? prev.day : '' }))} options={BIRTHDAY_MONTHS} placeholder="Month" />
+                    <AppSelect value={draft.year} onChange={(year) => setDraft((prev) => ({ ...prev, year }))} options={BIRTH_YEARS} placeholder="Year" />
+                  </div>
+                  <span className="mt-1 block text-[12px] text-gray-500">The day and month let admins celebrate you. Adding your year also sets your age range.</span>
                 </div>
-              ) : (
-                <div className="space-y-2 px-4 py-3">
-                  <p className="text-sm font-semibold text-gray-900">Your WhatsApp number</p>
-                  <p className="text-xs text-gray-500">Participants and admins tap this to message you on WhatsApp.{phone ? ' If you sign in with your phone number, use the new one next time.' : ''}</p>
+                <label className="block">
+                  <span className="mb-1 block text-[13px] font-semibold text-gray-900">WhatsApp number</span>
                   <input
                     type="tel"
                     inputMode="tel"
-                    autoFocus
-                    value={phoneDraft}
-                    onChange={(e) => setPhoneDraft(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') void handleSavePhone(); }}
+                    value={draft.phone}
+                    onChange={(e) => setDraft((prev) => ({ ...prev, phone: e.target.value }))}
                     placeholder="08012345678"
-                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="min-h-[44px] w-full rounded-xl border border-gray-200 px-3.5 py-2 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
-                  {phoneError && <p className="text-xs font-medium text-red-700">{phoneError}</p>}
-                  <div className="flex justify-end gap-2 pt-1">
-                    <button type="button" onClick={() => setEditingPhone(false)} className="rounded-2xl border border-gray-200 px-4 py-1.5 text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
-                    <button type="button" onClick={() => void handleSavePhone()} disabled={savingPhone || !phoneDraft.trim()} className="rounded-2xl bg-primary px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-60">
-                      {savingPhone ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save'}
-                    </button>
-                  </div>
+                  <span className="mt-1 block text-[12px] text-gray-500">Lets your participants, your hub and IT Support reach you.{phone ? ' If you sign in with your phone number, use the new one next time.' : ''}</span>
+                </label>
+                {detailsError && <p className="text-xs font-medium text-red-700">{detailsError}</p>}
+                <div className="grid grid-cols-[1fr_1.4fr] gap-2.5">
+                  <button type="button" onClick={() => setEditing(false)} disabled={savingDetails} className="min-h-[48px] rounded-[14px] border border-gray-200 bg-white text-[15px] font-bold text-gray-700">Cancel</button>
+                  <button type="button" onClick={() => void saveAll()} disabled={savingDetails} className="min-h-[48px] rounded-[14px] bg-primary text-[15px] font-bold text-white disabled:opacity-60">
+                    {savingDetails ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save'}
+                  </button>
                 </div>
-              )}
-            </section>
-            {detailsError && <p className="mt-2 px-1 text-xs font-medium text-red-700">{detailsError}</p>}
-          </div>
+              </div>
+            ) : (
+              <dl className="divide-y divide-gray-100 border-t border-gray-100">
+                {detailRows.map(([label, value]) => (
+                  <div key={label} className="flex min-h-[52px] items-center justify-between gap-4 py-2 text-[15px]">
+                    <dt className="text-gray-500">{label}</dt>
+                    <dd className="min-w-0 text-right font-semibold text-gray-900">
+                      {value ? <span className="block truncate">{value}</span> : (
+                        <button type="button" onClick={startEditing} className="inline-flex min-h-[34px] items-center gap-1 rounded-full border border-[#ffdeca] bg-[#fff4ec] px-3 text-[13px] font-bold text-[#c2410c]">
+                          <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeWidth="2.6" d="M12 5v14M5 12h14" /></svg>
+                          Add
+                        </button>
+                      )}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+          </section>
 
           <div>
             <SectionLabel>Programme</SectionLabel>
@@ -366,22 +383,6 @@ const Row: React.FC<{ label: string; missing?: boolean; children: React.ReactNod
     </span>
     <div className="flex min-w-0 justify-end">{children}</div>
   </div>
-);
-
-// Soft round pencil, the same shape as the Reminders edit button.
-const EditButton: React.FC<{ label: string; onClick: () => void; disabled?: boolean }> = ({ label, onClick, disabled }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    disabled={disabled}
-    aria-label={label}
-    title={label}
-    className="grid h-8 w-8 flex-none place-items-center rounded-full bg-primary/10 text-primary hover:bg-primary/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:opacity-60"
-  >
-    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m15.232 5.232 3.536 3.536M9 11l6.232-6.232a2.5 2.5 0 1 1 3.536 3.536L12.536 14.5A4 4 0 0 1 10.7 15.6L7 17l1.4-3.7a4 4 0 0 1 1.1-1.836Z" />
-    </svg>
-  </button>
 );
 
 const CameraIcon: React.FC = () => (

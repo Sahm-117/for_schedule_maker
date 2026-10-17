@@ -11,7 +11,7 @@ import ConfettiBurst from '../components/participantApp/ConfettiBurst';
 import VenueMapModal from '../components/participantApp/VenueMapModal';
 import ReadyGraphicSheet from '../components/participantApp/ReadyGraphicSheet';
 import { cohortLabel } from '../utils/readyGraphic';
-import NextClassCard, { hasClassCard } from '../components/participantApp/NextClassCard';
+import ThisWeekCard from '../components/participantApp/ThisWeekCard';
 import Spinner from '../components/Spinner';
 import ClassManualReader from '../components/classManual/ClassManualReader';
 import { useManualContent } from '../components/classManual/manuals';
@@ -30,7 +30,6 @@ import {
   FAITH_PROJECT_STATUS_LABEL,
   currentWeekNumber,
   formatTime,
-  nextClassWeek,
   reflectionFor,
   titleCaseDay,
   weekDayDate,
@@ -152,31 +151,9 @@ const ParticipantHomePage: React.FC = () => {
   const week = home.weeks.find((w) => w.weekNumber === shownWeekNumber) ?? null;
   const reflection = week ? reflectionFor(home.reflections, week.id) : null;
 
-  const stageLabel = isPractice ? (started ? 'Active' : 'Starting soon') : home.cohort?.status === 'COMPLETED' || finished ? 'Completed' : started ? 'Active' : 'Starting soon';
-
-  // Next Sunday class: this week's if it hasn't started yet today, else next week's.
-  const nextClass = (() => {
-    if (!home.cohort?.startDate) return null;
-    const clockHour = new Date(now.getTime() + 60 * 60 * 1000);
-    const candidates = home.weeks.filter((w) => w.weekNumber >= Math.max(weekNumber, 1));
-    for (const w of candidates) {
-      const date = weekDayDate(home.cohort.startDate, w, 0);
-      const [h, m] = (w.classTime || '23:59').split(':').map(Number);
-      const startsAt = date.getTime() + h * 3600000 + m * 60000;
-      if (startsAt > clockHour.getTime()) return { week: w, date };
-    }
-    return null;
-  })();
-
-  // Once the cohort has started: the next class (same rule as the support
-  // Home and Classes page) — today's class on a Sunday, otherwise the coming
-  // Sunday's. Null after the last class.
-  const upcomingClass = (() => {
-    if (!home.cohort?.startDate || !started) return null;
-    const w = nextClassWeek(home.cohort.startDate, home.weeks, now);
-    return w ? { week: w, date: weekDayDate(home.cohort.startDate, w, 0) } : null;
-  })();
-
+  // The Get ready and Still to do lists already carry "Finish your profile"; this row covers every other time.
+  const profileListShown = readyPreStart && (!onboarding || !onboarding.hasAttended || !onboarding.profileComplete);
+  const showProfileRow = home.profileCompletion.percent < 100 && !profileListShown;
   const group = home.group;
   const callSet = !!(group?.meetingDay && group.meetingTime);
   const groupCallLink = normalizeLink(group?.callLink?.trim() || '') || null;
@@ -268,15 +245,6 @@ const ParticipantHomePage: React.FC = () => {
   const firstClassDate = home.cohort?.startDate
     ? weekDayDate(home.cohort.startDate, home.weeks.find((w) => w.weekNumber === 1) ?? 1, 0)
     : null;
-  const firstClassCountdown = (() => {
-    if (!firstClassDate) return null;
-    const lagosToday = new Date(now.getTime() + 60 * 60 * 1000);
-    const todayUtc = Date.UTC(lagosToday.getUTCFullYear(), lagosToday.getUTCMonth(), lagosToday.getUTCDate());
-    const days = Math.round((firstClassDate.getTime() - todayUtc) / 86400000);
-    if (days < 0) return null;
-    return days === 0 ? 'today' : days === 1 ? 'tomorrow' : `in ${days} days`;
-  })();
-
   const toggleGoalDone = async () => {
     if (!week || !reflection) return;
     setGoalSaving(true);
@@ -297,19 +265,6 @@ const ParticipantHomePage: React.FC = () => {
       <PageHeader
         title={`Welcome back, ${firstName}`}
         tourId="participant:home"
-        action={home.profileCompletion.percent < 100 ? (
-          // Kept to a small pill so Home stays about the week.
-          <NavLink to="/me/profile" className="inline-flex items-center gap-2 rounded-full border border-[#ffdeca] bg-white py-1.5 pl-1.5 pr-3 text-xs font-semibold text-gray-700">
-            <span
-              className="grid h-6 w-6 place-items-center rounded-full"
-              style={{ background: `conic-gradient(var(--color-primary, #ff914d) ${home.profileCompletion.percent * 3.6}deg, #f1f2f5 0deg)` }}
-              aria-hidden="true"
-            >
-              <span className="h-4 w-4 rounded-full bg-white" />
-            </span>
-            Profile {home.profileCompletion.percent}% · Complete it
-          </NavLink>
-        ) : undefined}
       />
 
       <div className="flex flex-col gap-4">
@@ -462,80 +417,36 @@ const ParticipantHomePage: React.FC = () => {
           );
         })()}
 
-        <section data-wt="ph-progress" className="rounded-[22px] border border-[#ffdeca] bg-white p-5 shadow-[0_2px_6px_-2px_rgba(17,24,39,0.08)]">
-          <div className="flex flex-wrap items-baseline gap-3">
-            <p className="text-xs font-bold uppercase tracking-[0.04em] text-[#9a6a4b]">Programme progress</p>
-            <span className="rounded-full bg-[#fff1e6] px-2.5 py-[3px] text-[11px] font-bold text-[#c2410c]">{stageLabel}</span>
-          </div>
-          {started ? (
-            <>
-              <p className="mt-1.5 text-[26px] font-extrabold text-gray-900">{finished ? 'All weeks done' : `Week ${weekNumber}`}</p>
-              <p className="mt-0.5 text-[13px] text-gray-500">{finished ? `${totalWeeks} of ${totalWeeks}` : `${weekNumber} of ${totalWeeks}`}</p>
-            </>
-          ) : (
-            <>
-              <p className="mt-1.5 text-[26px] font-extrabold text-gray-900">Starting soon</p>
-              {firstClassDate && (
-                <p className="mt-0.5 text-[13px] text-gray-500">
-                  First class {formatDateLabel(firstClassDate)}
-                  {firstClassCountdown && <span className="font-semibold text-[#c2410c]"> · {firstClassCountdown}</span>}
-                </p>
-              )}
-            </>
-          )}
+        {week && !finished && <ThisWeekCard home={home} week={week} label={started ? undefined : 'First class'} canReflect={!isPractice || !!onboarding?.readyConfirmed || !!onboarding?.completed} />}
 
-          <div className="mt-4 grid grid-cols-2 gap-2.5">
-            {preStart ? (
-              <>
-                <div className="rounded-2xl border border-[#f1f2f5] bg-white p-3.5">
-                  <p className="text-xs font-semibold text-gray-500">Your group</p>
-                  <p className="mt-1.5 text-[18px] font-extrabold leading-tight text-gray-900">{group?.name || 'Not assigned yet'}</p>
-                  {group?.supportName && <p className="mt-0.5 text-xs text-gray-400">Support: {group.supportName}</p>}
-                </div>
-                <div className="rounded-2xl border border-[#fbe4e8] bg-[#fdf2f4] p-3.5">
-                  <p className="text-xs font-semibold text-[#9d5b68]">Next session</p>
-                  <p className="mt-1.5 text-[18px] font-extrabold leading-tight text-gray-900">
-                    {nextClass ? `${formatDateLabel(nextClass.date).split(',')[0]}${nextClass.week.classTime ? `, ${formatTime(nextClass.week.classTime)}` : ''}` : '—'}
-                  </p>
-                  <p className="mt-0.5 text-xs text-[#9d5b68]">{nextClass ? `Class ${nextClass.week.weekNumber}` : 'No more classes'}</p>
-                </div>
-              </>
-            ) : upcomingClass ? (
-              <NavLink to={`/me/week/${upcomingClass.week.weekNumber}`} className="col-span-2 flex items-center gap-3 rounded-2xl border border-[#fbe4e8] bg-[#fdf2f4] p-3.5">
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-semibold text-[#9d5b68]">Next class · Class {upcomingClass.week.weekNumber}</p>
-                  <p className="mt-1.5 text-[18px] font-extrabold leading-tight text-gray-900">{upcomingClass.week.title?.trim() || `Class ${upcomingClass.week.weekNumber}`}</p>
-                  <p className="mt-0.5 text-xs text-[#9d5b68]">
-                    {formatDateLabel(upcomingClass.date).split(',')[0]}{upcomingClass.week.classTime ? `, ${formatTime(upcomingClass.week.classTime)}` : ''}
-                  </p>
-                </div>
-                <svg className="h-4 w-4 flex-none text-[#9d5b68]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="m9 5 7 7-7 7" /></svg>
-              </NavLink>
-            ) : (
-              <div className="col-span-2 rounded-2xl border border-[#fbe4e8] bg-[#fdf2f4] p-3.5">
-                <p className="text-xs font-semibold text-[#9d5b68]">Next class</p>
-                <p className="mt-1.5 text-[18px] font-extrabold leading-tight text-gray-900">Programme complete</p>
-              </div>
-            )}
-            <div className="rounded-2xl border border-[#dbe7f6] bg-[#eef4fb] p-3.5">
-              <p className="text-xs font-semibold text-[#3c6da3]">Group call</p>
-              <p className="mt-1.5 text-[18px] font-extrabold leading-tight text-gray-900">
-                {callSet ? `${titleCaseDay(group!.meetingDay)}, ${formatTime(group!.meetingTime)}` : 'Not set yet'}
-              </p>
-              {preStart && !groupCallLink && <p className="mt-0.5 text-xs text-[#3c6da3]">Your support will share the link</p>}
+        {showProfileRow && (
+          <NavLink to="/me/profile" data-wt="ph-todo-profile" className="flex min-h-[60px] items-center gap-3 rounded-[20px] border border-[#eef0f4] bg-white px-[18px] py-2 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
+            <span className="grid h-9 w-9 flex-none place-items-center rounded-full bg-primary/10 text-primary" aria-hidden="true">
+              <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.9" d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 8a7 7 0 0 1 14 0" /></svg>
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15.5px] font-bold text-gray-900">Finish your profile</span>
+              <span className="block text-[13px] text-gray-500">{home.profileCompletion.missing} {home.profileCompletion.missing === 1 ? 'thing' : 'things'} left</span>
+            </span>
+            <span className="text-gray-300" aria-hidden="true">&#8250;</span>
+          </NavLink>
+        )}
+
+        <section data-wt="ph-call" className="overflow-hidden rounded-[20px] border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
+          <div className="flex min-h-[68px] items-center gap-3 px-[18px] py-2">
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] text-gray-500">Group call</p>
+              <p className="text-[16px] font-extrabold text-gray-900">{callSet ? `${titleCaseDay(group!.meetingDay)}, ${formatTime(group!.meetingTime)}` : 'Not set yet'}</p>
+              {preStart && !groupCallLink && <p className="text-xs text-gray-500">Your support will share the link</p>}
             </div>
-            {preStart && !faithStarted ? (
-              <NavLink to="/me/faith" className="rounded-2xl border border-[#dcefe1] bg-[#f0f9f2] p-3.5">
-                <p className="text-xs font-semibold text-[#3f7a52]">Faith Project</p>
-                <p className="mt-1.5 text-[18px] font-extrabold leading-tight text-gray-900">Start your faith project</p>
-              </NavLink>
-            ) : (
-              <div className="rounded-2xl border border-[#dcefe1] bg-[#f0f9f2] p-3.5">
-                <p className="text-xs font-semibold text-[#3f7a52]">Faith Project</p>
-                <p className="mt-1.5 text-[18px] font-extrabold leading-tight text-gray-900">{FAITH_PROJECT_STATUS_LABEL[home.faithProjectStatus ?? 'NOT_DRAFTED']}</p>
-              </div>
-            )}
           </div>
+          <NavLink to="/me/faith" className="flex min-h-[68px] items-center gap-3 border-t border-[#f1f2f5] px-[18px] py-2">
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] text-gray-500">Faith Project</p>
+              <p className="text-[16px] font-extrabold text-gray-900">{FAITH_PROJECT_STATUS_LABEL[home.faithProjectStatus ?? 'NOT_DRAFTED']}</p>
+            </div>
+            <span className="rounded-full bg-primary px-4 py-2 text-sm font-bold text-white">{faithStarted ? 'Open' : 'Write it'}</span>
+          </NavLink>
         </section>
 
         {home.announcement && (
@@ -621,27 +532,7 @@ const ParticipantHomePage: React.FC = () => {
               {reflection.goalDoneAt ? 'Done ✓' : 'I did it'}
             </button>
           </section>
-        ) : week?.released && started && !finished && (!isPractice || onboarding?.readyConfirmed || onboarding?.completed) ? (
-          <section className="rounded-[22px] border border-[#ffdeca] bg-[#fff8f3] p-5 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
-            <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#9a6a4b]">Your Week {week.weekNumber} reflection is waiting</p>
-            <p className="mt-2 text-base font-semibold leading-[1.45] text-gray-900">The recap is out. Three short questions, about 2 minutes.</p>
-            <NavLink to={`/me/week/${week.weekNumber}`} className="mt-3.5 flex min-h-[46px] w-full items-center justify-center rounded-xl bg-primary p-3 text-sm font-semibold text-white">
-              Write my reflection
-            </NavLink>
-          </section>
         ) : null}
-
-        {hasClassCard(nextClass?.week) && <NextClassCard week={nextClass!.week} />}
-
-        {week?.manual && !(hasClassCard(nextClass?.week) && nextClass?.week.id === week.id) && (
-          <NavLink to={`/me/week/${week.weekNumber}`} className="flex items-center gap-3 rounded-[22px] border border-[#ffdeca] bg-[#fff8f3] p-5 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#9a6a4b]">This week&apos;s manual</p>
-              <p className="mt-2 text-base font-semibold leading-[1.45] text-gray-900">{week.title || `Week ${week.weekNumber}`}</p>
-            </div>
-            <svg className="h-4 w-4 flex-none text-[#9a6a4b]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="m9 5 7 7-7 7" /></svg>
-          </NavLink>
-        )}
 
         <InspirationCarousel scriptures={home.scriptures} startDay={home.scriptureStartDay} cohortStartDate={home.cohort?.startDate} />
 

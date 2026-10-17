@@ -279,7 +279,13 @@ const ParticipantWeekPage: React.FC = () => {
     if (manualComic) { setManualReaderOpen(true); Clarity.event('manual_reader_opened'); }
     else { setManualDocOpen(true); Clarity.event('manual_pdf_opened'); }
   };
-  const stateLabel = week.released ? 'Recap out' : week.shared ? 'Recap coming soon' : 'No recap this week';
+  // The manual comes first: it is what there is to read before and at class. The recap is the step after class.
+  const manualArrives = week.manualReleasesAt ? new Date(week.manualReleasesAt).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Africa/Lagos' }).replace(',', '') : null;
+  const stateLabel = week.released ? 'Recap out'
+    : canOpenManual ? 'Class manual ready'
+      : manualArrives ? `Manual arrives ${manualArrives}`
+        : week.shared ? 'Recap after class' : 'No recap this week';
+  const stateTone = week.released || canOpenManual ? 'bg-emerald-500' : week.shared || manualArrives ? 'bg-amber-400' : 'bg-gray-300';
 
   return (
     <div className="max-w-2xl">
@@ -290,7 +296,7 @@ const ParticipantWeekPage: React.FC = () => {
             and the one or two things to open. */}
         <section data-wt="pw-recap" className={`${SURFACE} px-6 pb-6 pt-7 sm:px-8 sm:pb-8 sm:pt-9`}>
           <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-gray-500">
-            <span className={`h-1.5 w-1.5 rounded-full ${week.released ? 'bg-emerald-500' : week.shared ? 'bg-amber-400' : 'bg-gray-300'}`} aria-hidden="true" />
+            <span className={`h-1.5 w-1.5 rounded-full ${stateTone}`} aria-hidden="true" />
             {stateLabel}
           </span>
           <h2 className="mt-2 text-[30px] font-bold leading-[1.1] tracking-[-0.025em] text-gray-900 sm:text-[36px]">{week.title || `Week ${week.weekNumber}`}</h2>
@@ -301,7 +307,7 @@ const ParticipantWeekPage: React.FC = () => {
             <p className="mt-4 text-[15.5px] leading-[1.7] text-gray-500">No written recap this week. You can still write your reflection below.</p>
           ) : !week.released ? (
             <p className="mt-4 text-[15.5px] leading-[1.7] text-gray-500">
-              {week.shared ? 'You will be notified as soon as the recap is out.' : 'There is no recap to read this week. See you on Sunday.'}
+              {week.shared ? 'The recap comes after class. We will notify you when it is out.' : 'There is no recap to read this week. See you on Sunday.'}
             </p>
           ) : null}
 
@@ -385,6 +391,26 @@ const ParticipantWeekPage: React.FC = () => {
             </DisclosureRow>
           </section>
         )}
+        {!week.released && week.shared && (
+          <section data-wt="pw-next" className={`${SURFACE} px-6 py-1.5 sm:px-8`}>
+            <p className="pt-4 text-[12px] font-bold uppercase tracking-[0.05em] text-gray-400">After class</p>
+            {[
+              ['Recap', 'Shared after class. We will notify you.'],
+              ['Your reflection', '3 short questions, about 2 minutes. Opens with the recap.'],
+            ].map(([label, hint], index) => (
+              <div key={label} className={`flex min-h-[64px] items-center gap-3 ${index === 0 ? 'mt-1' : 'border-t border-[#f0f0f2]'}`}>
+                <span className="grid h-7 w-7 flex-none place-items-center rounded-full bg-[#f1f2f5] text-gray-400" aria-hidden="true">
+                  <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2" strokeWidth="2.2" /><path strokeLinecap="round" strokeWidth="2.2" d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[15.5px] font-semibold text-gray-500">{label}</span>
+                  <span className="block text-[13px] text-gray-400">{hint}</span>
+                </span>
+              </div>
+            ))}
+          </section>
+        )}
+
       </div>
 
       {guard.asking && createPortal(

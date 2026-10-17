@@ -3,6 +3,7 @@ import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import Avatar from '../components/Avatar';
 import AppSelect from '../components/AppSelect';
+import BirthDateSelect from '../components/BirthDateSelect';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../hooks/useAuth';
 import { useParticipantApp } from '../context/ParticipantAppContext';
@@ -22,7 +23,7 @@ import TelegramCard from '../components/TelegramCard';
 
 // Participant profile: how complete it is, their photo and details (including any
 // fields the FOF team requested), their programme, reminders and password.
-// Everything is edited in one go from "Edit profile info"; reminders and password
+// Everything is edited in one go from "Edit" on the details card; reminders and password
 // stay folded away to keep the page short.
 
 const CARD = 'rounded-[22px] border border-[#eef0f4] bg-white p-5 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]';
@@ -232,6 +233,15 @@ const ParticipantProfilePage: React.FC = () => {
     ['Occupation', home.profile.occupation || ''],
   ];
   const completion = home.profileCompletion;
+  // What is blank, as chips under the progress bar; the photo chip opens the photo picker, the rest open the editor.
+  const missingChips = [
+    !home.profile.avatarUrl && { label: 'Photo', photo: true },
+    !home.profile.email && { label: 'Email', photo: false },
+    !home.profile.gender && { label: 'Gender', photo: false },
+    !home.profile.ageRange && !home.profile.dateOfBirth && { label: 'Age range', photo: false },
+    !home.profile.dateOfBirth && { label: 'Date of birth', photo: false },
+    !home.profile.occupation && { label: 'Occupation', photo: false },
+  ].filter(Boolean) as Array<{ label: string; photo: boolean }>;
 
   const answerText = (field: ProfileFieldEntry) => {
     if (!field.value) return '';
@@ -278,35 +288,66 @@ const ParticipantProfilePage: React.FC = () => {
           </p>
         )}
 
-        <section data-wt="pp-card" className={CARD}>
-          <div className="flex items-start gap-3.5">
-            <Avatar name={home.participant.name} avatarUrl={home.profile.avatarUrl} size="lg" enlargeable />
-            <div className="min-w-0 flex-1">
-              <h2 className="truncate text-lg font-bold text-gray-900">{home.participant.name}</h2>
-              <button type="button" onClick={() => photoInput.current?.click()} disabled={uploading} className="text-[13px] font-semibold text-[#c2410c] disabled:opacity-60">
-                {uploading ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Uploading…</span>) : home.profile.avatarUrl ? 'Change photo' : 'Add a photo'}
-              </button>
-            </div>
-            {!editing && (
-              <button type="button" onClick={startEditing} className="inline-flex flex-none items-center gap-1.5 rounded-full border border-[#ffdeca] bg-[#fff8f3] px-3 py-1.5 text-xs font-semibold text-[#c2410c]">
-                <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="m16.86 4.49 1.69-1.69a1.88 1.88 0 1 1 2.65 2.65L6.83 19.82a4.5 4.5 0 0 1-1.9 1.13l-2.68.8.8-2.69a4.5 4.5 0 0 1 1.13-1.89L16.86 4.49Z" /></svg>
-                Edit profile info
+        {/* Who you are: the photo is the upload button, and what is still missing is one tap away. */}
+        <section data-wt="pp-card" className={`${CARD} flex flex-col items-center !pt-6 text-center`}>
+          <div className="relative">
+            {home.profile.avatarUrl ? (
+              <Avatar name={home.participant.name} avatarUrl={home.profile.avatarUrl} size="hero" enlargeable />
+            ) : (
+              <button type="button" onClick={() => photoInput.current?.click()} disabled={uploading} aria-label="Add a photo" className="block rounded-full disabled:opacity-60">
+                <Avatar name={home.participant.name} avatarUrl={null} size="hero" />
               </button>
             )}
+            <button
+              type="button"
+              onClick={() => photoInput.current?.click()}
+              disabled={uploading}
+              aria-label={home.profile.avatarUrl ? 'Change photo' : 'Add a photo'}
+              className={`absolute -bottom-0.5 -right-0.5 grid h-9 w-9 place-items-center rounded-full border-[3px] border-white text-white shadow-md disabled:opacity-60 ${home.profile.avatarUrl ? 'bg-gray-900' : 'bg-orange-600'}`}
+            >
+              {uploading ? <Spinner className="h-4 w-4" /> : (
+                <svg width="17" height="17" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8.5h3l1.6-2.5h6.8L17 8.5h3V19H4z" /><circle cx="12" cy="13.5" r="3.4" strokeWidth="2" /></svg>
+              )}
+            </button>
           </div>
+          <h2 className="mt-3.5 max-w-full truncate text-[21px] font-extrabold tracking-tight text-gray-900">{home.participant.name}</h2>
+          {!home.profile.avatarUrl && <p className="mt-0.5 text-[13.5px] text-gray-500">Tap your photo to add one</p>}
 
-          <div className="mt-4">
+          <div className="mt-[18px] w-full text-left">
             <div className="flex items-baseline justify-between text-[13px]">
-              <span className="font-semibold text-gray-900">Profile {completion.percent}% complete</span>
+              <span className="font-bold text-gray-900">Profile {completion.percent}% complete</span>
               {completion.missing > 0 && <span className="text-gray-500">{completion.missing} to add</span>}
             </div>
             <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-[#f1f2f5]">
               <span className={`block h-full rounded-full ${completion.percent === 100 ? 'bg-emerald-500' : 'bg-primary'}`} style={{ width: `${completion.percent}%` }} />
             </div>
+            {missingChips.length > 0 && !editing && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {missingChips.map((chip) => (
+                  <button key={chip.label} type="button" onClick={chip.photo ? () => photoInput.current?.click() : startEditing} className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-[#ffdeca] bg-[#fff4ec] px-3.5 text-[13px] font-bold text-[#c2410c]">
+                    <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeWidth="2.4" d="M12 5v14M5 12h14" /></svg>
+                    {chip.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* The details: one clear Edit button, and anything blank says Add. */}
+        <section data-wt="pp-details" className={`${CARD} !py-2`}>
+          <div className="flex items-center justify-between py-3">
+            <h3 className="text-[17px] font-extrabold text-gray-900">Your details</h3>
+            {!editing && (
+              <button type="button" onClick={startEditing} className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full bg-primary px-4 text-sm font-bold text-white">
+                <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m16.86 4.49 1.69-1.69a1.88 1.88 0 1 1 2.65 2.65L6.83 19.82a4.5 4.5 0 0 1-1.9 1.13l-2.68.8.8-2.69a4.5 4.5 0 0 1 1.13-1.89L16.86 4.49Z" /></svg>
+                Edit
+              </button>
+            )}
           </div>
 
           {editing ? (
-            <div className="mt-4 flex flex-col gap-3">
+            <div className="flex flex-col gap-3.5 pb-3">
               <label className="block">
                 <span className="mb-1 block text-[13px] font-semibold text-gray-900">Email</span>
                 <input type="email" value={details.email} onChange={(e) => setDetails((prev) => ({ ...prev, email: e.target.value }))} placeholder="name@example.com" className={FIELD} />
@@ -322,10 +363,11 @@ const ParticipantProfilePage: React.FC = () => {
                   {ageRangeFromDate(details.dateOfBirth) && <span className="mt-1 block text-[11px] text-gray-400">Set from your date of birth.</span>}
                 </div>
               </div>
-              <label className="block">
+              <div>
                 <span className="mb-1 block text-[13px] font-semibold text-gray-900">Date of birth</span>
-                <input type="date" value={details.dateOfBirth} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setDetails((prev) => { const derived = ageRangeFromDate(e.target.value); return { ...prev, dateOfBirth: e.target.value, ageRange: derived ?? prev.ageRange }; })} className={FIELD} />
-              </label>
+                <BirthDateSelect value={details.dateOfBirth} onChange={(iso) => setDetails((prev) => { const derived = ageRangeFromDate(iso); return { ...prev, dateOfBirth: iso, ageRange: derived ?? prev.ageRange }; })} />
+                <span className="mt-1 block text-[12px] text-gray-500">This also sets your age range.</span>
+              </div>
               <label className="block">
                 <span className="mb-1 block text-[13px] font-semibold text-gray-900">Occupation</span>
                 <input value={details.occupation} onChange={(e) => setDetails((prev) => ({ ...prev, occupation: e.target.value }))} placeholder="What you do for a living" className={FIELD} />
@@ -345,9 +387,9 @@ const ParticipantProfilePage: React.FC = () => {
                 </>
               )}
               {detailsError && <p className="text-xs font-medium text-red-700">{detailsError}</p>}
-              <div className="grid grid-cols-2 gap-2.5">
-                <button type="button" onClick={() => setEditing(false)} disabled={savingDetails} className="min-h-[44px] rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700">Cancel</button>
-                <button type="button" onClick={() => { void saveDetails(); }} disabled={savingDetails} className="min-h-[44px] rounded-xl bg-primary text-sm font-semibold text-white disabled:opacity-60">
+              <div className="grid grid-cols-[1fr_1.4fr] gap-2.5">
+                <button type="button" onClick={() => setEditing(false)} disabled={savingDetails} className="min-h-[48px] rounded-[14px] border border-gray-200 bg-white text-[15px] font-bold text-gray-700">Cancel</button>
+                <button type="button" onClick={() => { void saveDetails(); }} disabled={savingDetails} className="min-h-[48px] rounded-[14px] bg-primary text-[15px] font-bold text-white disabled:opacity-60">
                   {savingDetails ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save'}
                 </button>
               </div>
@@ -355,20 +397,27 @@ const ParticipantProfilePage: React.FC = () => {
             </div>
           ) : (
             <>
-              <dl className="mt-3 divide-y divide-gray-100">
+              <dl className="divide-y divide-gray-100 border-t border-gray-100">
                 {detailRows.map(([label, value]) => (
-                  <div key={label} className="flex min-h-[36px] items-center justify-between gap-4 py-2 text-sm">
+                  <div key={label} className="flex min-h-[52px] items-center justify-between gap-4 py-2 text-[15px]">
                     <dt className="text-gray-500">{label}</dt>
-                    <dd className="text-right font-semibold text-gray-900">{value}</dd>
+                    <dd className="min-w-0 text-right font-semibold text-gray-900">
+                      {value ? <span className="block truncate">{value}</span> : (
+                        <button type="button" onClick={startEditing} className="inline-flex min-h-[34px] items-center gap-1 rounded-full border border-[#ffdeca] bg-[#fff4ec] px-3 text-[13px] font-bold text-[#c2410c]">
+                          <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeWidth="2.6" d="M12 5v14M5 12h14" /></svg>
+                          Add
+                        </button>
+                      )}
+                    </dd>
                   </div>
                 ))}
               </dl>
               {home.profileFields.length > 0 && (
                 <>
                   <p className="mt-3 text-[11px] font-bold uppercase tracking-[0.05em] text-[#9a6a4b]">More about you</p>
-                  <dl className="mt-1 divide-y divide-gray-100">
+                  <dl className="mt-1 divide-y divide-gray-100 pb-1">
                     {home.profileFields.map((field) => (
-                      <div key={field.id} className="flex min-h-[36px] items-center justify-between gap-4 py-2 text-sm">
+                      <div key={field.id} className="flex min-h-[44px] items-center justify-between gap-4 py-2 text-sm">
                         <dt className="text-gray-500">{field.label}{!field.required && <span className="text-gray-400"> (optional)</span>}</dt>
                         <dd className="text-right font-semibold text-gray-900">{answerText(field)}</dd>
                       </div>

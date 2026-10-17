@@ -24,6 +24,8 @@ interface SegmentedTabsProps {
   /** Wrap onto two rows on phones even with four or fewer tabs (long labels). */
   wrap?: boolean;
   className?: string;
+  /** The active tab takes the person's own accent colour instead of the dark pill (participant pages). */
+  accent?: boolean;
   /** A tab whose action is in progress: shows a small spinner in it and ignores taps. */
   busyKey?: string | null;
 }
@@ -32,7 +34,7 @@ interface SegmentedTabsProps {
 // More than four tabs wrap onto a second row on phones instead of being cut off.
 // `scrollable` instead keeps one row that scrolls sideways (no visible bar),
 // with the active tab brought into view.
-const SegmentedTabs: React.FC<SegmentedTabsProps> = ({ tabs, active, onChange, scrollable = false, wrap = false, className = '', busyKey = null }) => {
+const SegmentedTabs: React.FC<SegmentedTabsProps> = ({ tabs, active, onChange, scrollable = false, wrap = false, className = '', busyKey = null, accent = false }) => {
   const wraps = !scrollable && (wrap || tabs.length > 4);
   const rowRef = useRef<HTMLDivElement | null>(null);
 
@@ -67,7 +69,7 @@ const SegmentedTabs: React.FC<SegmentedTabsProps> = ({ tabs, active, onChange, s
           aria-selected={isActive}
           onClick={() => { if (!busyKey) onChange(tab.key); }}
           aria-busy={tab.key === busyKey || undefined}
-          className={`${scrollable ? 'flex-none snap-start whitespace-nowrap px-3.5 sm:flex-auto' : 'min-w-0 truncate px-1.5'} rounded-xl py-[9px] text-[12.5px] font-semibold transition ${wraps ? 'flex-1 basis-[30%]' : ''} ${isActive ? TAB_ACTIVE : TAB_IDLE}`}
+          className={`${scrollable ? 'flex-none snap-start whitespace-nowrap px-3.5 sm:flex-auto' : 'min-w-0 truncate px-1.5'} rounded-xl py-[9px] text-[12.5px] font-semibold transition ${wraps ? 'flex-1 basis-[30%]' : ''} ${isActive ? (accent ? 'bg-primary text-white shadow-sm' : TAB_ACTIVE) : TAB_IDLE}`}
         >
           {tab.key === busyKey && <Spinner className="mr-1.5 inline-block h-3.5 w-3.5 align-[-2px]" />}
           {tab.shortLabel ? (

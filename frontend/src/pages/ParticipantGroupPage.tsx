@@ -59,15 +59,15 @@ const ParticipantGroupPage: React.FC = () => {
 
   return (
     <div className="max-w-2xl">
-      <PageHeader title="My group" tourId="participant:group" />
+      <PageHeader title="My group" subtitle={group ? `${group.name}${group.supportName ? ` · Support: ${group.supportName}` : ''}` : undefined} tourId="participant:group" />
       {!group ? (
         <section className={`${CARD} text-center`}>
           <p className="text-[15px] font-bold text-gray-900">You are not in a group yet</p>
         </section>
       ) : (
         <div className="flex flex-col gap-4">
-          <p className="text-xs font-bold uppercase tracking-[0.04em] text-[#9a6a4b]">{group.name}</p>
           <SegmentedTabs
+            accent
             tabs={[
               { key: 'discussion', label: 'Discussion', dot: unseen > 0 },
               { key: 'meeting', label: 'Meeting' },
@@ -201,7 +201,7 @@ const ParticipantGroupPage: React.FC = () => {
           )}
 
           <section data-wt="pg-members" className={CARD}>
-            <h2 className="text-base font-bold text-gray-900">Group members</h2>
+            <h2 className="text-base font-bold text-gray-900">Your group · {home.members.length + (group.supportName ? 1 : 0)} {home.members.length + (group.supportName ? 1 : 0) === 1 ? 'person' : 'people'}</h2>
             <div className="mt-3.5 flex flex-col gap-2.5">
               {group.supportName && (
                 <div className="flex flex-wrap items-center gap-3 rounded-[14px] border border-[#ffdeca] bg-[#fffaf5] px-3.5 py-3">

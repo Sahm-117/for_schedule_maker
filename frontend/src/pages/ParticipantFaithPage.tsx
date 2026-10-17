@@ -253,6 +253,7 @@ const ParticipantFaithPage: React.FC = () => {
 
       <div className="mb-3.5">
         <SegmentedTabs
+          accent
           tabs={[
             { key: 'project', label: 'My Faith Project', shortLabel: 'Project' },
             { key: 'testimonies', label: 'Testimonies' },
@@ -267,10 +268,18 @@ const ParticipantFaithPage: React.FC = () => {
       ) : (
       <div className="flex flex-col gap-6">
         <section data-wt="pf-project" className={`${SURFACE} px-6 pb-6 pt-7 sm:px-8 sm:pb-8 sm:pt-9`}>
-          <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-gray-500">
-            <span className={`h-1.5 w-1.5 rounded-full ${saved ? 'bg-emerald-500' : 'bg-gray-300'}`} aria-hidden="true" />
-            {saved && faith.project ? `Written · edited ${shortMoment(faith.project.updatedAt)}` : 'Not written yet'}
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-gray-500">
+              <span className={`h-1.5 w-1.5 rounded-full ${saved ? 'bg-emerald-500' : 'bg-gray-300'}`} aria-hidden="true" />
+              {saved && faith.project ? `Written · edited ${shortMoment(faith.project.updatedAt)}` : 'Not written yet'}
+            </span>
+            {hasText && !editing && (
+              <button type="button" onClick={() => setEditing(true)} className="ml-auto inline-flex min-h-[40px] items-center gap-1.5 rounded-full bg-primary px-4 text-sm font-bold text-white">
+                <svg className="h-[15px] w-[15px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+                Edit
+              </button>
+            )}
+          </div>
           <h2 className="mt-2 text-[30px] font-bold leading-[1.1] tracking-[-0.025em] text-gray-900 sm:text-[36px]">Your faith project</h2>
           {deadlineText && <p className={`mt-2 text-[14px] font-medium ${late ? 'text-amber-700' : 'text-gray-500'}`}>{late ? `The date to write it by was ${deadlineText}. You can still save it any time.` : saved ? `Write it by ${deadlineText}. You can edit it any time.` : `Write it by ${deadlineText}.`}</p>}
 
@@ -299,18 +308,14 @@ const ParticipantFaithPage: React.FC = () => {
           ) : hasText ? (
             <>
               {faith.project?.fromForm && (
-                <p className="mt-4 text-[14px] leading-[1.6] text-gray-500">This is the SMART request you wrote on the registration form. Tap the pencil to shape it into your faith project, then save it.</p>
+                <p className="mt-4 text-[14px] leading-[1.6] text-gray-500">This is the SMART request you wrote on the registration form. Tap Edit to shape it into your faith project, then save it.</p>
               )}
               <div className="mt-5">
                 <span className="mb-[7px] block text-[14px] font-semibold text-gray-900">What are you believing God for?</span>
-                <div className="flex items-start gap-2 rounded-2xl bg-[#f5f5f7] py-3.5 pl-4 pr-2">
+                <div className="rounded-2xl bg-[#f5f5f7] px-4 py-3.5">
                   <p className="min-w-0 flex-1 whitespace-pre-wrap text-[15px] leading-[1.55] text-gray-900"><LinkText text={faith.project?.body ?? ''} /></p>
-                  <button type="button" onClick={() => setEditing(true)} aria-label="Edit faith project" className="grid h-11 w-11 flex-none place-items-center rounded-full text-gray-500 transition hover:bg-white hover:text-gray-900 active:scale-95">
-                    <svg className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
-                  </button>
                 </div>
               </div>
-              <p className="mt-3 text-[13px] leading-snug text-gray-500">Tap the pencil to edit any time.</p>
             </>
           ) : (
             <div className="mt-5">
@@ -332,7 +337,7 @@ const ParticipantFaithPage: React.FC = () => {
             ) : (
               <button type="button" onClick={() => setHelpSheetOpen(true)} className="flex min-h-[60px] w-full items-center gap-2 border-t border-[#f0f0f2] text-left">
                 <span className="text-[16px] font-semibold text-gray-900">Is it going well?</span>
-                <span className="ml-auto text-[14px] text-gray-400">Tell us if not</span>
+                <span className="ml-auto text-[14px] text-gray-400">Need help? Tell us</span>
                 <Chevron />
               </button>
             )

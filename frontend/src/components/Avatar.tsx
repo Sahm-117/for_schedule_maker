@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 interface AvatarProps {
   name: string;
   avatarUrl?: string | null;
-  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'hero';
   className?: string;
   /** Tapping a real photo (not initials) opens a full-screen viewer. No-op when there's no photo. */
   enlargeable?: boolean;
@@ -16,6 +16,7 @@ const sizeMap = {
   md: 'h-10 w-10 text-sm',
   lg: 'h-14 w-14 text-lg',
   xl: 'h-40 w-40 text-5xl',
+  hero: 'h-[104px] w-[104px] text-[34px]',
 };
 
 // Full-screen photo viewer, portalled to document.body: dark backdrop, image
