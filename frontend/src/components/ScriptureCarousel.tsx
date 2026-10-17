@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { ParticipantHome } from '../types';
 import ScriptureActions, { useScriptureLikes } from './ScriptureActions';
 import { scriptureDayIndex, scriptureForDay, scripturePosition } from '../utils/participantApp';
@@ -25,6 +26,14 @@ const ScriptureCarousel: React.FC<ScriptureCarouselProps> = ({ scriptures, start
   const [scriptureDay, setScriptureDay] = useState<number | null>(null);
   // Closed until tapped, so the picture doesn't push the rest of Home down the page.
   const [open, setOpen] = useState(false);
+  // A tap on the picture (not a swipe) shows it full size.
+  const [enlarged, setEnlarged] = useState(false);
+  useEffect(() => {
+    if (!enlarged) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setEnlarged(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [enlarged]);
   const { liked, toggle } = useScriptureLikes();
   // Live drag offset (px) while swiping, or the animated value while settling/springing back.
   const [scriptureDragPx, setScriptureDragPx] = useState(0);
@@ -98,6 +107,7 @@ const ScriptureCarousel: React.FC<ScriptureCarouselProps> = ({ scriptures, start
     const dt = Math.max(1, performance.now() - drag.time);
     const width = scriptureTrackRef.current?.offsetWidth || 1;
     const velocity = Math.abs(dx) / dt;
+    if (Math.abs(dx) < 6 && Math.abs(event.clientY - drag.y) < 6) { setEnlarged(true); settleScripture(0); return; }
     const pastThreshold = Math.abs(dx) > width * 0.25 || (Math.abs(dx) > FLICK_MIN_PX && velocity > FLICK_VELOCITY);
     const direction: 1 | -1 | 0 = dx < 0 && canGoNext && pastThreshold ? 1 : dx > 0 && canGoPrev && pastThreshold ? -1 : 0;
     settleScripture(direction);
@@ -150,6 +160,13 @@ const ScriptureCarousel: React.FC<ScriptureCarouselProps> = ({ scriptures, start
           </div>
           <ScriptureActions day={scriptureDay} imageUrl={scripture.imageUrl} liked={liked.has(scriptureDay)} onToggleLike={() => void toggle(scriptureDay)} />
         </div>}
+        {enlarged && createPortal(
+          <div role="dialog" aria-modal="true" aria-label="Inspirational scripture" onClick={() => setEnlarged(false)} className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4">
+            <button type="button" aria-label="Close" onClick={() => setEnlarged(false)} className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-xl text-white">&times;</button>
+            <img src={scripture.imageUrl} alt={`Inspirational scripture, ${scriptureDay === todayScriptureDay ? 'today' : `day ${scriptureDay}`}`} className="max-h-full max-w-full rounded-2xl object-contain" />
+          </div>,
+          document.body,
+        )}
       </section>
     );
 };
