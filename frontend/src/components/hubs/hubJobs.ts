@@ -59,3 +59,11 @@ export const PERSON_OF_INTEREST_INFO = {
   pill: 'bg-amber-100/80 text-amber-700',
   description: 'There are notes about this support. Only admins and the hub lead see this.',
 };
+
+/** "For Hub Leads" / "For Hub Leads and Recap Leads": who an announcement was sent to, or null when it went to everyone. */
+export const hubJobAudienceLabel = (jobs?: HubJob[] | null): string | null => {
+  const sorted = sortHubJobs(jobs ?? []);
+  if (sorted.length === 0) return null;
+  const names = sorted.map((job) => `${HUB_JOB_INFO[job].label}s`);
+  return `For ${names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0]}`;
+};

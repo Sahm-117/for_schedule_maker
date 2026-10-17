@@ -3220,6 +3220,7 @@ export const announcementsApi = {
       targetUserId: row.targetUserId ?? null,
       targetUserIds: row.targetUserIds ?? null,
       targetParticipantId: row.targetParticipantId ?? null,
+      targetHubJobs: row.targetHubJobs ?? null,
       showOnHome: !!row.showOnHome,
       homeUntil: row.homeUntil ?? null,
       linkUrl: row.linkUrl ?? null,

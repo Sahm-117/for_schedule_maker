@@ -110,6 +110,9 @@ Deno.serve(async (req) => {
     // Only the Supports audience takes a list; for any other audience it is ignored.
     const hasPickedUsers = audience === 'SUPPORTS' && pickedUserIds.length > 0
 
+    // Hub roles this send is narrowed to (none for a single or picked person). Kept on the row so the feed can say who it was for.
+    const hubJobs = targetUserId || hasPickedUsers || targetParticipantId ? [] : (targetHubJobs || [])
+
     // 1. Record the announcement
     const { data: announcement, error: insertError } = await supabase
       .from('Announcement')
@@ -125,6 +128,7 @@ Deno.serve(async (req) => {
         targetUserId: audience === 'PARTICIPANTS' ? null : targetUserId,
         targetUserIds: hasPickedUsers ? pickedUserIds : null,
         targetParticipantId: audience === 'SUPPORTS' ? null : targetParticipantId,
+        targetHubJobs: hubJobs.length > 0 ? hubJobs : null,
         audience,
         requirePopup: !!popup,
       }])
@@ -139,7 +143,6 @@ Deno.serve(async (req) => {
     //     announcement shows on their Home when pinned there).
     let participantSent = 0
     // Skip participants entirely when the send is targeted at a single support/admin.
-    const hubJobs = targetUserId || hasPickedUsers || targetParticipantId ? [] : (targetHubJobs || [])
     if ((audience === 'PARTICIPANTS' || audience === 'EVERYONE') && !targetUserId && !hasPickedUsers && hubJobs.length === 0) {
       let participantIds: string[]
       if (targetParticipantId) {

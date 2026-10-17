@@ -396,6 +396,8 @@ export interface Announcement {
   targetUserIds?: string[] | null;
   /** Participant id: send to a single participant only. Mutually exclusive with the group/hub/tag filters. */
   targetParticipantId?: string | null;
+  /** Hub roles it was sent to (e.g. Hub Leads). Blank on older announcements. */
+  targetHubJobs?: HubJob[] | null;
   showOnHome?: boolean;
   homeUntil?: string | null;
   linkUrl?: string | null;

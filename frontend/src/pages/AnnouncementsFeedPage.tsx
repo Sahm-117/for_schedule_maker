@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Navigate, NavLink } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
+import { hubJobAudienceLabel } from '../components/hubs/hubJobs';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
 import { usePolling } from '../hooks/usePolling';
@@ -83,6 +84,9 @@ const AnnouncementsFeedPage: React.FC = () => {
               <article key={item.id} className="rounded-3xl border border-orange-100 bg-white px-4 py-4 shadow-sm">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
+                    {hubJobAudienceLabel(item.targetHubJobs) && (
+                      <span className="mb-1.5 inline-flex rounded-full bg-violet-100/80 px-2.5 py-0.5 text-[11px] font-bold text-violet-700">{hubJobAudienceLabel(item.targetHubJobs)}</span>
+                    )}
                     <h2 className="text-base font-semibold text-gray-900">{item.subject}</h2>
                     <p className="mt-1 text-xs text-gray-500">
                       {item.scope === 'ALL_USERS' ? 'All Users' : item.cohortName || activeCohort?.name || 'Active Cohort'}

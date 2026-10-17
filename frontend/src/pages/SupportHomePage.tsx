@@ -21,7 +21,7 @@ import { useChecklistTick } from '../hooks/useChecklistTick';
 import { CountdownRing, useChecklistAutoHide } from '../components/ChecklistAutoHide';
 import { useGroupMeetingLive } from '../hooks/useGroupMeetingLive';
 import { GROUP_MEETING_CHANGED_EVENT } from '../utils/meetingLiveEvents';
-import { HUB_JOB_INFO, sortHubJobs } from '../components/hubs/hubJobs';
+import { HUB_JOB_INFO, hubJobAudienceLabel, sortHubJobs } from '../components/hubs/hubJobs';
 import { formatMeetingTime } from '../components/groups/GroupCallCard';
 import Spinner from '../components/Spinner';
 import TrainingLearnedCard from '../components/supports/TrainingLearnedCard';
@@ -192,7 +192,6 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
   }, [isHubOnlySupport, hubsList, tickNow, user.id]);
 
   // The hub call opens 10 minutes before the meeting (or once it is marked live).
-  const hubHasLink = !!normalizeLink(nextHubMeeting?.hub?.callLink || '');
   const hubJoinHref = (() => {
     const hub = nextHubMeeting?.hub;
     const link = normalizeLink(hub?.callLink || '');
@@ -403,9 +402,12 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
             <h2 className="px-[18px] pb-1.5 pt-3.5 text-[17px] font-extrabold text-gray-900">{isHubOnlySupport ? 'Your hub' : 'Your group'}</h2>
             {isHubOnlySupport ? (
               <>
-                <HomeRow to="/support/my-hub" label="Next hub meeting" value={nextHubMeeting?.hub?.meetingDay ? formatMeetingTime(nextHubMeeting.hub.meetingDay, nextHubMeeting.hub.meetingTime) || 'Not set' : 'Not set'} />
-                <HomeRow to="/support/my-hub" label="My Hub" value={nextHubMeeting?.hub?.name ?? 'Not assigned'} />
-                {hubJoinHref ? <HomeRow href={hubJoinHref} label="Join hub call" value="" /> : hubHasLink && <HomeRow to="/support/my-hub" label="Join hub call" value="Opens 10 min before" />}
+                <HomeRow
+                  to="/support/my-hub"
+                  label="My Hub"
+                  value={[nextHubMeeting?.hub?.name ?? 'Not assigned', nextHubMeeting?.hub?.meetingDay ? formatMeetingTime(nextHubMeeting.hub.meetingDay, nextHubMeeting.hub.meetingTime) : ''].filter(Boolean).join(' · ')}
+                />
+                {hubJoinHref && <HomeRow href={hubJoinHref} label="Join hub call" value="" />}
               </>
             ) : (
               <>
@@ -415,7 +417,6 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
               </>
             )}
             {!isHubOnlySupport && !myHub?.hub && groupCallLink && <HomeRow href={groupCallLink} label="Join group call" value="" />}
-            <HomeRow to="/support/schedule?tab=checklist" label="My tasks" value="" />
             <HomeRow to="/support/resources" label="Resources" value="" />
             {practiceEntry.on && !practiceEntry.started && <HomeRow to="/support/practice" label="Practice" value="" />}
           </section>
@@ -671,6 +672,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
                 <p className="rounded-2xl border border-[#f4ece5] bg-white p-3.5 text-[13px] text-gray-500">No announcements have been posted yet.</p>
               ) : announcements.map((item) => (
                 <div key={item.id} className="rounded-2xl border border-[#f4ece5] bg-white p-3.5">
+                  {hubJobAudienceLabel(item.targetHubJobs) && <span className="mb-1 inline-flex rounded-full bg-violet-100/80 px-2 py-0.5 text-[10.5px] font-bold text-violet-700">{hubJobAudienceLabel(item.targetHubJobs)}</span>}
                   <p className="text-sm font-bold text-gray-900">{item.subject}</p>
                   <p className="mt-1 line-clamp-3 text-[13px] text-gray-600">{item.body}</p>
                   <p className="mt-2 text-[11px] text-gray-500">{formatWhen(item.sentAt)}</p>

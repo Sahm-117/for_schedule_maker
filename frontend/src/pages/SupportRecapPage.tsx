@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import ClassGraphicThumb from '../components/supports/ClassGraphicViewer';
 import PageHeader from '../components/PageHeader';
 import LinkText from '../components/LinkText';
 import PageLoader from '../components/PageLoader';
@@ -266,6 +267,8 @@ const SupportRecapPage: React.FC = () => {
     });
     return map;
   }, [cohortWeeks, isTeenSupport, teenSupportIds]);
+  // The class graphic comes from the cohort's weeks (the recap list does not carry it).
+  const graphicOf = (week: SupportRecap) => cohortWeeks.find((w) => w.id === week.weekId)?.classGraphicUrl ?? null;
   const [teacherSheet, setTeacherSheet] = useState<{ teacher: ClassTeacher; title: string } | null>(null);
   const openTeacher = (week: SupportRecap) => {
     const teacher = teacherByWeek.get(week.weekNumber);
@@ -361,6 +364,7 @@ const SupportRecapPage: React.FC = () => {
                 )}
                 {available && <Chevron open={open} />}
               </button>
+              {graphicOf(week) && <div className="-mt-1 pb-3.5 pl-[76px] pr-5"><ClassGraphicThumb url={graphicOf(week)} title={week.title || `Week ${week.weekNumber}`} className="h-14 w-14" /></div>}
               {teacherByWeek.has(week.weekNumber) && (
                 <div className="-mt-2 pb-3.5 pl-[76px] pr-5"><TeacherChip teacher={teacherByWeek.get(week.weekNumber)!} onOpen={() => openTeacher(week)} /></div>
               )}
@@ -389,10 +393,15 @@ const SupportRecapPage: React.FC = () => {
         <div className="flex flex-col gap-8">
           {weekList('Past classes', pastWeeks)}
           <section data-wt="support-recap-week" className={`${SURFACE} px-6 pb-6 pt-7 sm:px-8 sm:pb-8 sm:pt-9`}>
-            <p className="text-[13px] font-semibold text-primary">
-              {featuredIsToday ? 'Today' : featuredIsNext ? 'Next class' : 'Last class'} · Week {featured.weekNumber}{featuredDate ? ` · ${featuredDate}` : ''}
-            </p>
-            <h2 className="mt-1.5 text-[30px] font-bold leading-[1.1] tracking-[-0.025em] text-gray-900 sm:text-[36px]">{featured.title || `Week ${featured.weekNumber}`}</h2>
+            <div className="flex items-start gap-4">
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] font-semibold text-primary">
+                  {featuredIsToday ? 'Today' : featuredIsNext ? 'Next class' : 'Last class'} · Week {featured.weekNumber}{featuredDate ? ` · ${featuredDate}` : ''}
+                </p>
+                <h2 className="mt-1.5 text-[30px] font-bold leading-[1.1] tracking-[-0.025em] text-gray-900 sm:text-[36px]">{featured.title || `Week ${featured.weekNumber}`}</h2>
+              </div>
+              <ClassGraphicThumb url={graphicOf(featured)} title={featured.title || `Week ${featured.weekNumber}`} className="h-[96px] w-[96px]" />
+            </div>
             {teacherByWeek.has(featured.weekNumber) && <div className="mt-3"><TeacherChip teacher={teacherByWeek.get(featured.weekNumber)!} onOpen={() => openTeacher(featured)} className="min-h-[34px] text-[13px]" /></div>}
             <div className={isWeekOpen(featured, isTeenSupport) ? 'mb-5 mt-3' : 'mt-3'}><WeekState week={featured} teen={isTeenSupport} /></div>
             {isWeekOpen(featured, isTeenSupport) && bodyFor(featured)}

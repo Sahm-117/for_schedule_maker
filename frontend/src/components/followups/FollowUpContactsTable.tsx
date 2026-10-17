@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { Cohort, FollowUpContact, FollowUpNextAction, FollowUpNoteEntry, FollowUpStatus, User } from '../../types';
+import type { Cohort, FollowUpContact, FollowUpNoteEntry, FollowUpStatus, User } from '../../types';
 import AppSelect from '../AppSelect';
 import LinkText from '../LinkText';
 import LoadRing from '../LoadRing';
@@ -81,14 +81,6 @@ const PhoneIcon = (
     <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
   </svg>
 );
-
-// What a support should do next with this person, in plain words.
-const NEXT_STEP_LABEL: Partial<Record<FollowUpNextAction, string>> = {
-  SEND_MESSAGE: 'send a message',
-  SEND_REMINDER: 'send a reminder',
-  CALL: 'call them',
-  CLOSE: 'close this follow-up',
-};
 
 const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   contacts,
@@ -590,7 +582,6 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                   )}
                 </div>
                 {genderAgeLine(contact) && <p className="mt-0.5 text-xs text-gray-500">{genderAgeLine(contact)}</p>}
-                {!canAssign && NEXT_STEP_LABEL[contact.nextAction] && <p className="mt-0.5 text-[13px] font-semibold text-primary-dark">Next: {NEXT_STEP_LABEL[contact.nextAction]}</p>}
                 {viewingInfo === contact.id && (
                   <div className="mt-1.5 rounded-xl bg-slate-800 px-3 py-2 text-xs text-white shadow-lg">
                     {isTeenContact(contact) ? (
