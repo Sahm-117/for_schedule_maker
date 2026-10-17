@@ -60,9 +60,11 @@ const GroupReportsCard: React.FC<GroupReportsCardProps> = ({ groups, weeks, stat
   const hasTime = (g: Group) => !!g.meetingDay && !!g.meetingTime;
   const noTimeCount = groups.filter((g) => !hasTime(g)).length;
   const nothingRecorded = rows.every((r) => !r.done && r.joined === 0 && r.written.length === 0);
+  // The no-time filter belongs to the empty state: once something is recorded it lets go by itself.
+  const noTimeOnly = onlyNoTime && nothingRecorded;
   // With nothing recorded the list starts short, so the page says so first and the rows are the detail.
-  const filtered = onlyNoTime ? rows.filter((r) => !hasTime(r.group)) : rows;
-  const visible = nothingRecorded && !showAll && !onlyNoTime ? filtered.slice(0, 3) : filtered;
+  const filtered = noTimeOnly ? rows.filter((r) => !hasTime(r.group)) : rows;
+  const visible = nothingRecorded && !showAll && !noTimeOnly ? filtered.slice(0, 3) : filtered;
 
   const statusPill = (r: (typeof rows)[number]) => {
     if (r.done) return { text: (r.group.participantCount ?? 0) > 0 ? `Done · ${r.joined} of ${r.group.participantCount} joined` : 'Done', tone: 'bg-emerald-100/80 text-emerald-700' };
@@ -116,7 +118,7 @@ const GroupReportsCard: React.FC<GroupReportsCardProps> = ({ groups, weeks, stat
                   : `${groups.length - noTimeCount} of ${groups.length} groups have a meeting time. ${noTimeCount === 1 ? 'The other one cannot' : `The other ${noTimeCount} cannot`} record a meeting until their Support sets a time.`}
               </p>
               <div className="mt-1 flex flex-wrap items-center justify-center gap-1">
-                {noTimeCount > 0 && !onlyNoTime && (
+                {noTimeCount > 0 && !noTimeOnly && (
                   <button type="button" onClick={() => setOnlyNoTime(true)} className="min-h-[44px] rounded-2xl bg-primary px-4 text-sm font-semibold text-white active:scale-95">
                     See {noTimeCount === 1 ? 'the group' : `the ${noTimeCount}`} without a time
                   </button>
@@ -157,12 +159,12 @@ const GroupReportsCard: React.FC<GroupReportsCardProps> = ({ groups, weeks, stat
               );
             })}
           </ul>
-          {nothingRecorded && !onlyNoTime && !showAll && filtered.length > visible.length && (
+          {nothingRecorded && !noTimeOnly && !showAll && filtered.length > visible.length && (
             <button type="button" onClick={() => setShowAll(true)} className="mt-1 min-h-[44px] border-t border-[#f0f0f2] pt-2 text-sm font-semibold text-[#c2410c]">
               Show all {filtered.length} groups
             </button>
           )}
-          {onlyNoTime && (
+          {noTimeOnly && (
             <button type="button" onClick={() => setOnlyNoTime(false)} className="mt-1 min-h-[44px] border-t border-[#f0f0f2] pt-2 text-sm font-semibold text-[#c2410c]">
               Show all {rows.length} groups
             </button>

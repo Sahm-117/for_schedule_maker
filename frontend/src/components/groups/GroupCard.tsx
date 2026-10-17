@@ -198,7 +198,7 @@ const GroupDetailSheet: React.FC<Omit<GroupCardProps, 'menu'> & { onClose: () =>
                 <li key={p.id} className="border-t border-[#f0f0f2] first:border-t-0">
                   <button
                     type="button"
-                    onClick={() => navigate(`/participants/${p.id}`)}
+                    onClick={() => { onClose(); navigate(`/participants/${p.id}`); }}
                     className="flex min-h-[60px] w-full items-center gap-3 py-2 text-left"
                   >
                     <Avatar name={p.fullName} avatarUrl={p.avatarUrl} size="md" />

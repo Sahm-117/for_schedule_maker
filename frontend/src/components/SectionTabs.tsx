@@ -27,7 +27,7 @@ export const ADMIN_SECTIONS: Array<{ root: string; tabs: SectionTab[] }> = [
     root: '/groups',
     tabs: [
       { to: '/groups', label: 'Groups' },
-      { to: '/group-prayers', label: 'Meetings' },
+      { to: '/group-prayers', label: 'Meetings', adminOnly: true },
       { to: '/allocation', label: 'Allocation' },
     ],
   },
