@@ -4,7 +4,7 @@ import ScriptureActions, { useScriptureLikes } from './ScriptureActions';
 import { scriptureDayIndex, scriptureForDay, scripturePosition } from '../utils/participantApp';
 
 // The daily Inspirational Scripture: one image a day, swipe or tap the arrows to look back at earlier days.
-// Shared by the participant Home and the support Home, so both see the same thing.
+// On the support Home; it opens when tapped.
 
 const SLIDE_MS = 320;
 const RESISTANCE = 0.3; // how much a drag past the first/last post is damped
@@ -23,6 +23,8 @@ interface ScriptureCarouselProps {
 
 const ScriptureCarousel: React.FC<ScriptureCarouselProps> = ({ scriptures, startDay, cohortStartDate }) => {
   const [scriptureDay, setScriptureDay] = useState<number | null>(null);
+  // Closed until tapped, so the picture doesn't push the rest of Home down the page.
+  const [open, setOpen] = useState(false);
   const { liked, toggle } = useScriptureLikes();
   // Live drag offset (px) while swiping, or the animated value while settling/springing back.
   const [scriptureDragPx, setScriptureDragPx] = useState(0);
@@ -104,17 +106,23 @@ const ScriptureCarousel: React.FC<ScriptureCarouselProps> = ({ scriptures, start
   if (!scripture || !todayScriptureDay || !scriptureDay) return null;
   return (
       <section data-wt="ph-scripture" className="overflow-hidden rounded-[22px] border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
-        <div className="flex flex-wrap items-center gap-2.5 px-5 pb-3 pt-[18px]">
-          <div className="min-w-0">
-            <h2 className="text-[17px] font-bold text-gray-900">Inspirational Scriptures</h2>
-            <p className="mt-0.5 text-[12.5px] text-gray-500">{scriptureDay === todayScriptureDay ? 'Today' : `Day ${scriptureDay}`}</p>
-          </div>
-          <div className="ml-auto flex gap-1.5">
-            <button type="button" aria-label="Previous scripture" onClick={() => settleScripture(-1)} disabled={!canGoPrev || scriptureAnimating} className="h-[38px] w-[38px] rounded-[10px] border border-gray-200 bg-white text-[15px] text-gray-700 disabled:bg-[#f6f7f9] disabled:text-gray-300">&#8249;</button>
-            <button type="button" aria-label="Next scripture" onClick={() => settleScripture(1)} disabled={!canGoNext || scriptureAnimating} className="h-[38px] w-[38px] rounded-[10px] border border-gray-200 bg-white text-[15px] text-gray-700 disabled:bg-[#f6f7f9] disabled:text-gray-300">&#8250;</button>
-          </div>
+        <div className={`flex items-center gap-2.5 px-5 pt-[18px] ${open ? 'pb-3' : 'pb-[18px]'}`}>
+          <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+            {!open && <img src={scripture.imageUrl} alt="" aria-hidden="true" draggable={false} className="h-11 w-11 shrink-0 rounded-xl bg-[#f6f7f9] object-cover" />}
+            <span className="min-w-0 flex-1">
+              <span className="block text-[17px] font-bold text-gray-900">Inspirational Scriptures</span>
+              <span className="mt-0.5 block text-[12.5px] text-gray-500">{scriptureDay === todayScriptureDay ? 'Today' : `Day ${scriptureDay}`}{!open && ' · tap to open'}</span>
+            </span>
+            <svg aria-hidden="true" viewBox="0 0 20 20" className={`h-5 w-5 shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 7.5l5 5 5-5" /></svg>
+          </button>
+          {open && (
+            <div className="flex gap-1.5">
+              <button type="button" aria-label="Previous scripture" onClick={() => settleScripture(-1)} disabled={!canGoPrev || scriptureAnimating} className="h-[38px] w-[38px] rounded-[10px] border border-gray-200 bg-white text-[15px] text-gray-700 disabled:bg-[#f6f7f9] disabled:text-gray-300">&#8249;</button>
+              <button type="button" aria-label="Next scripture" onClick={() => settleScripture(1)} disabled={!canGoNext || scriptureAnimating} className="h-[38px] w-[38px] rounded-[10px] border border-gray-200 bg-white text-[15px] text-gray-700 disabled:bg-[#f6f7f9] disabled:text-gray-300">&#8250;</button>
+            </div>
+          )}
         </div>
-        <div className="px-5 pb-4">
+        {open && <div className="px-5 pb-4">
           <div
             ref={scriptureTrackRef}
             className="aspect-[4/5] w-full touch-pan-y overflow-hidden rounded-2xl bg-[#f6f7f9]"
@@ -141,7 +149,7 @@ const ScriptureCarousel: React.FC<ScriptureCarouselProps> = ({ scriptures, start
             ))}
           </div>
           <ScriptureActions day={scriptureDay} imageUrl={scripture.imageUrl} liked={liked.has(scriptureDay)} onToggleLike={() => void toggle(scriptureDay)} />
-        </div>
+        </div>}
       </section>
     );
 };
