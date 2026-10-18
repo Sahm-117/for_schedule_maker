@@ -103,8 +103,10 @@ const NotificationBell: React.FC = () => {
   // Opens on Announcements while one is unread, so new ones aren't missed.
   const handleToggle = () => {
     const next = !open;
-    if (next) setTab(announcementItems.some((n) => !n.isRead) ? 'announcements' : 'activity');
-    setUnreadOnly(false);
+    if (next) {
+      setTab(announcementItems.some((n) => !n.isRead) ? 'announcements' : 'activity');
+      setUnreadOnly(false);
+    }
     setOpen(next);
   };
   const tabItems = tab === 'announcements' ? announcementItems : activityItems;
@@ -114,8 +116,8 @@ const NotificationBell: React.FC = () => {
   const markTabRead = async () => {
     const unread = visibleItems.filter((n) => !n.isRead);
     await Promise.all(unread.map((n) => notificationsApi.markRead(n.id).catch(() => {})));
-    setUnreadOnly(false);
     await refreshNotifications();
+    setUnreadOnly(false);
   };
 
   const handleRowClick = (n: Notification) => {
