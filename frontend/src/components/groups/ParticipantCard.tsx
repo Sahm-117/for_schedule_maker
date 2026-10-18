@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import TeenLoginPhone from './TeenLoginPhone';
+import { isTeenAgeRange } from '../../utils/groupingRules';
 import AccessChip from './AccessChip';
 import { createPortal } from 'react-dom';
 import ModalShell from '../followups/ModalShell';
@@ -493,10 +494,10 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
     <div className="rounded-[18px] border border-[#eef0f4] bg-white p-4 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
       <div className="flex flex-wrap items-center gap-3">
         <div className="grid h-10 w-10 flex-none place-items-center rounded-full bg-[#fff1e6] text-sm font-bold text-[#c2410c]">{initialsOf(participant.fullName)}</div>
-        <button type="button" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded} className="flex min-w-0 flex-auto items-center gap-2 text-left">
+        <button type="button" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded} className="flex min-w-0 flex-1 basis-0 items-center gap-2 text-left">
           <span className="min-w-0 flex-auto">
             <span className="block truncate text-[15px] font-bold text-gray-900">{participant.fullName}</span>
-            <span className="mt-0.5 block text-xs text-gray-500">{groupName || 'No group'}</span>
+            <span className="mt-0.5 block truncate text-xs text-gray-500">{groupName || 'No group'}</span>
           </span>
           <svg className={`h-4 w-4 flex-none text-gray-300 transition-transform ${expanded ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.4" d="m9 6 6 6-6 6" /></svg>
         </button>
@@ -657,7 +658,7 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
                 </a>
               )}
               <button type="button" className={menuItemCls} onClick={() => setMenu('concern')}>{flag ? 'Attention flagged' : 'Flag concern'}</button>
-              <button type="button" className={menuItemCls} onClick={() => { setMenu('closed'); setRetakeMarkOpen(true); }}>Mark as retaking</button>
+              {!isTeenAgeRange(participant.ageRange) && <button type="button" className={menuItemCls} onClick={() => { setMenu('closed'); setRetakeMarkOpen(true); }}>Mark as retaking</button>}
             </>
           ) : (
             <>

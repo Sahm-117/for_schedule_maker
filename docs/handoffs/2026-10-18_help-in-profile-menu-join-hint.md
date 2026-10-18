@@ -16,3 +16,6 @@ None. Frontend only.
 - Not seen on a phone. The scripture tap fix is a guess from the code (a finger tap often moves more than 6 px); confirm it enlarges.
 - Hamburger drawer redesign proposed, not built.
 - The group chat message box still sits above the bottom bar (sticky); not changed beyond removing the "?" lift.
+
+## Addendum: teen card
+- `ParticipantCard.tsx`: the name, WhatsApp and ⋮ stay on one row on a narrow phone (the name shrinks; the group name truncates). The ⋮ menu for a teen no longer offers "Mark as retaking" (View, Send message, Flag concern remain).
