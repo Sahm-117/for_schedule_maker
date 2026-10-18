@@ -471,6 +471,9 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
     return list;
   }, [cohortScopedContacts, openContacts, showClosed]);
   const closedCount = cohortScopedContacts.length - openContacts.length;
+  // For the summary card: people still to follow up, and people whose follow-up is finished (closed status, listed or archived).
+  const toFollowUpCount = cohortScopedContacts.filter((contact) => !contact.archivedAt && !isClosedContact(contact)).length;
+  const finishedCount = cohortScopedContacts.filter((contact) => isClosedContact(contact)).length;
 
   useEffect(() => {
     if (showClosed && closedCount === 0) setShowClosed(false);
@@ -1084,7 +1087,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-extrabold uppercase tracking-[0.04em] text-gray-500">To follow up</p>
                   <p className="mt-1 text-[26px] font-extrabold leading-none tracking-[-0.02em] text-gray-900">
-                    {openContacts.length} <span className="text-[15px] font-bold text-gray-500">{openContacts.length === 1 ? 'person' : 'people'} · {closedCount} done</span>
+                    {toFollowUpCount} <span className="text-[15px] font-bold text-gray-500">{toFollowUpCount === 1 ? 'person' : 'people'} · {finishedCount} done</span>
                   </p>
                 </div>
               </section>
@@ -1458,7 +1461,11 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
               <AppSelect
                 label="Where do they stand?"
                 value={status}
-                onChange={(value) => handleStatusChange(updating, value as FollowUpStatus)}
+                onChange={(value) => {
+                  handleStatusChange(updating, value as FollowUpStatus);
+                  // These open a question of their own; close this sheet so the two never stack.
+                  if (value === 'NOT_INTERESTED' || value === 'LOGIN_ISSUE' || value === 'TEEN_ONBOARDED') setUpdatingContactId(null);
+                }}
                 options={supportStatusOptions(status, isTeenContact(updating))}
                 placeholder="Choose status"
               />

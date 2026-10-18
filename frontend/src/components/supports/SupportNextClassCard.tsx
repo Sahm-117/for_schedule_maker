@@ -9,7 +9,7 @@ import type { Week } from '../../types';
 // Support Home: the next class as the one clear card. Opens the Classes page.
 const SupportNextClassCard: React.FC<{ week: Week | null; dateLabel: string | null; hasWeeks: boolean }> = ({ week, dateLabel, hasWeeks }) => {
   const { user } = useAuth();
-  const { ids: teenSupportIds } = useTeenSupportIds(true);
+  const { ids: teenSupportIds } = useTeenSupportIds(!!week?.teenTeacherName);
   const [teacherOpen, setTeacherOpen] = useState(false);
   // A Teen Support sees the teen teacher when one is set, like on the Classes page; everyone else the main teacher.
   const isTeenSupport = !!user && !!teenSupportIds?.has(user.id);
@@ -30,7 +30,7 @@ const SupportNextClassCard: React.FC<{ week: Week | null; dateLabel: string | nu
         </h2>
         {week && <p className="mt-0.5 text-[14px] text-gray-500">Week {week.weekNumber}</p>}
       </div>
-      {week && <ClassGraphicThumb url={week.classGraphicUrl} title={week.title?.trim() || `Week ${week.weekNumber}`} />}
+      {week && <ClassGraphicThumb url={week.classGraphicUrl} title={title} />}
     </div>
     {teacher && <TeacherChip teacher={teacher} onOpen={() => setTeacherOpen(true)} className="mt-3 min-h-[34px] text-[13px]" />}
     <NavLink to="/support/recap" className="mt-4 flex h-[50px] items-center justify-center rounded-2xl bg-primary text-[15.5px] font-extrabold text-white active:scale-[0.98]">
