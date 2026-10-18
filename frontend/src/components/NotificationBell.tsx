@@ -61,6 +61,7 @@ const NotificationBell: React.FC = () => {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<'announcements' | 'activity'>('activity');
+  const [unreadOnly, setUnreadOnly] = useState(false);
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -103,9 +104,9 @@ const NotificationBell: React.FC = () => {
   const handleToggle = () => {
     const next = !open;
     if (next) setTab(announcementItems.some((n) => !n.isRead) ? 'announcements' : 'activity');
+    setUnreadOnly(false);
     setOpen(next);
   };
-  const [unreadOnly, setUnreadOnly] = useState(false);
   const tabItems = tab === 'announcements' ? announcementItems : activityItems;
   const visibleItems = unreadOnly ? tabItems.filter((n) => !n.isRead) : tabItems;
   const unreadIn = (items: Notification[]) => items.filter((n) => !n.isRead).length;
@@ -113,6 +114,7 @@ const NotificationBell: React.FC = () => {
   const markTabRead = async () => {
     const unread = visibleItems.filter((n) => !n.isRead);
     await Promise.all(unread.map((n) => notificationsApi.markRead(n.id).catch(() => {})));
+    setUnreadOnly(false);
     await refreshNotifications();
   };
 
@@ -168,7 +170,7 @@ const NotificationBell: React.FC = () => {
                   { key: 'activity', label: 'Activity', dot: unreadIn(activityItems) > 0 },
                 ]}
                 active={tab}
-                onChange={(k) => setTab(k as typeof tab)}
+                onChange={(k) => { setTab(k as typeof tab); setUnreadOnly(false); }}
               />
             </div>
           </div>
