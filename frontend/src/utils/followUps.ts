@@ -291,6 +291,8 @@ export const unassignedFollowUpTag = (
   // Attended people were filed away, test contacts are never handed out, and
   // teens go only to Teen Supports, so none of them is waiting for an adult.
   if (contact.ownerId || contact.isTest || contact.registrationStatus === 'ATTENDED' || isTeenContact(contact)) return null;
+  // Closed (no response, wrong number, not interested), parked for the next cohort or archived: nothing is waiting to be handed out.
+  if (contact.archivedAt || contact.registrationStatus === 'NEXT_COHORT' || isClosedContact(contact)) return null;
   if (contact.gender !== 'Male' && contact.gender !== 'Female') {
     return { label: 'Gender not known', tone: 'bg-neutral-100 text-neutral-600' };
   }

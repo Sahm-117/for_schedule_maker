@@ -524,7 +524,7 @@ duplicating the logic anywhere else is a bug waiting to happen.
     `scripture_start_day`), which any staff session may read, and follow the same switch: with scriptures off in Settings,
     neither participants nor supports see the card. The day follows the active cohort's start date (day N opens at 2:00 PM
     Lagos time). Frontend only.
-46. **A class's teacher can be tapped on the participant Journey and the support Classes page.** A week with a teacher
+46. **A class's teacher can be tapped on the participant Journey, the support Classes page and the support Home next-class card.** A week with a teacher
     name set shows a small chip (`TeacherChip`) under its title; tapping it opens the same `TeacherSheet` as the home
     "Next class" card (photo or initials, name and role, bio, the class they teach), and does not open or close the week.
     Participants read the teacher from `participant_home` (`week.teacher`); supports from the Week rows (`teacherName`,

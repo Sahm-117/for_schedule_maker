@@ -70,3 +70,8 @@ Type check (no new errors beyond the 7 known) and vite build. Looked at in a bro
 - Follow-ups (support cards): "Next: …" is back, now worked out from the contact's real status (`nextStepFor` in `utils/followUps.ts`): send a message, wait for a reply, send a reminder, help them register, call them back, share their login, wait for them to sign in, help with login. Closed, parked, archived and teen contacts show nothing.
 - Notifications bell: "Unread only" toggle on each tab. Seen in a browser against mocked data.
 - Not done, by decision: the full person sheet on My Group (people are collapsed rows with details one tap away), and restyling the hub role screens and Mobilisation (no functional difference from the canvas). Participant People, Resources and Feedback never had a canvas board.
+
+## Follow-up (teacher tap, waiting-to-be-assigned tag)
+- Support Home: the teacher on the next-class card is tappable and opens the teacher sheet (a Teen Support sees the teen teacher when one is set, as on Classes). FLOW_MAP rule 46 updated.
+- Follow-ups: the "Waiting to be assigned" / "Gender not known" tag no longer shows on closed contacts (no response, wrong number, not interested), parked next-cohort contacts or archived ones. It only describes people who could still be handed out. The summary counts were already right.
+- Verified: type check and build only; not opened in a browser.

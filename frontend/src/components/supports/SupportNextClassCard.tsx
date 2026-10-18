@@ -1,11 +1,24 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import Avatar from '../Avatar';
+import { TeacherChip, TeacherSheet, classTeacher } from '../TeacherSheet';
+import { useAuth } from '../../hooks/useAuth';
+import { useTeenSupportIds } from '../../hooks/useTeenSupportIds';
 import ClassGraphicThumb from './ClassGraphicViewer';
 import type { Week } from '../../types';
 
 // Support Home: the next class as the one clear card. Opens the Classes page.
-const SupportNextClassCard: React.FC<{ week: Week | null; dateLabel: string | null; hasWeeks: boolean }> = ({ week, dateLabel, hasWeeks }) => (
+const SupportNextClassCard: React.FC<{ week: Week | null; dateLabel: string | null; hasWeeks: boolean }> = ({ week, dateLabel, hasWeeks }) => {
+  const { user } = useAuth();
+  const { ids: teenSupportIds } = useTeenSupportIds(true);
+  const [teacherOpen, setTeacherOpen] = useState(false);
+  // A Teen Support sees the teen teacher when one is set, like on the Classes page; everyone else the main teacher.
+  const isTeenSupport = !!user && !!teenSupportIds?.has(user.id);
+  const teacher = week
+    ? (isTeenSupport ? classTeacher(week.teenTeacherName, week.teenTeacherRole, week.teenTeacherBio, week.teenTeacherPhotoUrl) : null)
+      ?? classTeacher(week.teacherName, week.teacherRole, week.teacherBio, week.teacherPhotoUrl)
+    : null;
+  const title = week ? week.title?.trim() || `Week ${week.weekNumber}` : '';
+  return (
   <section data-wt="home-metrics" className="rounded-[24px] border border-primary-100 bg-white p-[18px] shadow-[0_8px_24px_-14px_rgba(17,24,39,0.35)]">
     <div className="flex items-start gap-3.5">
       <div className="min-w-0 flex-1">
@@ -19,16 +32,13 @@ const SupportNextClassCard: React.FC<{ week: Week | null; dateLabel: string | nu
       </div>
       {week && <ClassGraphicThumb url={week.classGraphicUrl} title={week.title?.trim() || `Week ${week.weekNumber}`} />}
     </div>
-    {week?.teacherName && (
-      <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-[#f5f5f7] py-1 pl-1 pr-3 text-[13px] font-semibold text-gray-700">
-        <Avatar name={week.teacherName} avatarUrl={week.teacherPhotoUrl ?? undefined} size="sm" />
-        {week.teacherName}
-      </p>
-    )}
+    {teacher && <TeacherChip teacher={teacher} onOpen={() => setTeacherOpen(true)} className="mt-3 min-h-[34px] text-[13px]" />}
     <NavLink to="/support/recap" className="mt-4 flex h-[50px] items-center justify-center rounded-2xl bg-primary text-[15.5px] font-extrabold text-white active:scale-[0.98]">
       {week ? 'Open classes' : 'See past classes'}
     </NavLink>
+    {teacherOpen && teacher && <TeacherSheet teacher={teacher} title={title} onClose={() => setTeacherOpen(false)} />}
   </section>
-);
+  );
+};
 
 export default SupportNextClassCard;
