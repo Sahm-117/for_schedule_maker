@@ -30,7 +30,7 @@ const JoinCallButton: React.FC<JoinCallButtonProps> = ({ href, day, time, live =
   if (open) {
     return <a href={href} target="_blank" rel="noreferrer" className={className}>{label}</a>;
   }
-  const opensAt = joinOpensLabel(day, time);
+  const opensAt = joinOpensLabel(day, time, now);
   const hint = opensAt ? `Opens ${opensAt}` : 'Not open yet';
   return (
     <span className="flex flex-col gap-1.5">

@@ -93,7 +93,7 @@ const isSupportOrTagged = (user: { role?: string; roles?: string[] | null }): bo
 const SCRIPTURE_OPEN_MINUTES = 14 * 60
 const SCRIPTURE_DROP_LINES: Array<{ title: string; body: string }> = [
   { title: "Today's scripture is here", body: "Read it, then do today's exercise." },
-  { title: "Day's post is ready", body: 'Read the anchor, take in the teaching, then do the exercise.' },
+  { title: "Today's post is ready", body: 'Read the anchor, take in the teaching, then do the exercise.' },
   { title: 'Your daily scripture just dropped', body: "Don't just read it. Do the exercise too." },
   { title: 'A fresh word for you', body: 'Open it, read it slowly, then put the exercise into practice.' },
   { title: "Today's exercise is waiting", body: 'Read the scripture first, then do it.' },
@@ -963,7 +963,7 @@ Deno.serve(async (req) => {
         //     line rotating by post so nobody reads the same one twice in a row. We cannot tell who has
         //     opened a post, so everyone with an active login gets it. pushParticipants' claim (the tag
         //     carries the date) stops the 10-minute cron repeating it; the window lets a late run catch up.
-        if (daysBetweenIso(startIso, pToday) >= 0 && pNowMinutes >= SCRIPTURE_OPEN_MINUTES && pNowMinutes < SCRIPTURE_OPEN_MINUTES + 180) {
+        if (daysBetweenIso(startIso, pToday) >= 0 && (!endIso || pToday <= endIso) && pNowMinutes >= SCRIPTURE_OPEN_MINUTES && pNowMinutes < SCRIPTURE_OPEN_MINUTES + 180) {
           const [{ data: enabledRow }, { data: startDayRow }, { data: scriptureRows }] = await Promise.all([
             supabase.from('AppSetting').select('value').eq('settingKey', 'scriptures_enabled').maybeSingle(),
             supabase.from('AppSetting').select('value').eq('settingKey', 'scripture_start_day').maybeSingle(),
