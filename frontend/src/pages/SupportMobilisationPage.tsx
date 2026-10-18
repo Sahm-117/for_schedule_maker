@@ -256,6 +256,8 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
   const [infoOpenId, setInfoOpenId] = useState<string | null>(null);
   // The Update sheet: where they stand, saved as it is chosen.
   const [updatingContactId, setUpdatingContactId] = useState<string | null>(null);
+  const updateNotesRef = useRef<HTMLTextAreaElement | null>(null);
+  const [callSaving, setCallSaving] = useState(false);
   const copyText = async (text: string) => {
     try { await navigator.clipboard.writeText(text); toast({ message: 'Number copied' }); } catch { /* ignore */ }
   };
@@ -1448,13 +1450,19 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
         const updating = contacts.find((c) => c.id === updatingContactId) ?? null;
         if (!updating) return null;
         const status = computeFollowUpStatus(updating);
+        // Notes are saved when the field is left; closing the sheet while typing must not lose them.
+        const closeUpdate = () => {
+          const typed = updateNotesRef.current?.value.trim();
+          if (typed !== undefined && typed !== (updating.notes ?? '').trim()) void handleFieldChange(updating, { notes: typed || null });
+          setUpdatingContactId(null);
+        };
         return (
           <ModalShell
             isOpen
-            onClose={() => setUpdatingContactId(null)}
+            onClose={closeUpdate}
             title={`Update ${firstNameOf(updating.fullName)}`}
             subtitle="Each choice saves as you make it."
-            footer={<button type="button" onClick={() => setUpdatingContactId(null)} className="min-h-[44px] w-full rounded-2xl bg-primary px-5 text-[15px] font-bold text-white">Done</button>}
+            footer={<button type="button" onClick={closeUpdate} className="min-h-[44px] w-full rounded-2xl bg-primary px-5 text-[15px] font-bold text-white">Done</button>}
           >
             <FollowUpStatusFlow status={status} />
             <div className="mt-3.5">
@@ -1475,14 +1483,19 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
             </div>
             <div className="mt-4">
               <p className="mb-1.5 text-[13px] font-semibold text-gray-700">Have you called?</p>
+              {updating.callStatus === 'INCORRECT_NUMBER' && <p className="mb-1.5 text-[12.5px] text-amber-700">Marked as a wrong number. Change their status above to reopen them.</p>}
               <div className="flex flex-wrap gap-2">
-                {([['NOT_CALLED', 'Not called'], ['CALLED', 'Called'], ['MISSED_CALL', 'No answer']] as const).map(([value, label]) => (
+                {([['NOT_CALLED', 'Not called'], ['CALLED', 'Called'], ['MISSED_CALL', 'No answer'], ['CALL_BACK_LATER', 'Call back later']] as const).map(([value, label]) => (
                   <button
                     key={value}
                     type="button"
                     aria-pressed={updating.callStatus === value}
-                    onClick={() => { void handleFieldChange(updating, { callStatus: value }); }}
-                    className={`min-h-[40px] rounded-full border px-4 text-[13.5px] font-semibold ${updating.callStatus === value ? 'border-primary bg-primary text-white' : 'border-gray-200 bg-white text-gray-700'}`}
+                    disabled={callSaving || updating.callStatus === 'INCORRECT_NUMBER'}
+                    onClick={async () => {
+                      setCallSaving(true);
+                      try { await handleFieldChange(updating, { callStatus: value }); } finally { setCallSaving(false); }
+                    }}
+                    className={`min-h-[40px] rounded-full border px-4 text-[13.5px] font-semibold disabled:opacity-60 ${updating.callStatus === value ? 'border-primary bg-primary text-white' : 'border-gray-200 bg-white text-gray-700'}`}
                   >
                     {label}
                   </button>
@@ -1492,6 +1505,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
             <label className="mt-4 block text-[13px] font-semibold text-gray-700">
               Follow up again on
               <input
+                key={`${updating.id}-${updating.dueDate ?? ''}`}
                 type="date"
                 defaultValue={updating.dueDate ? String(updating.dueDate).slice(0, 10) : ''}
                 onBlur={(event) => {
@@ -1502,8 +1516,10 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
               />
             </label>
             <label className="mt-4 block text-[13px] font-semibold text-gray-700">
-              Notes <span className="font-normal text-gray-400">(only you and admins see these)</span>
+              Notes
               <textarea
+                ref={updateNotesRef}
+                key={updating.id}
                 defaultValue={updating.notes ?? ''}
                 rows={3}
                 onBlur={(event) => {
