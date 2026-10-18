@@ -880,6 +880,9 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
               );
             })}
           </div>
+          <p className="mt-2.5 text-[12.5px] text-gray-500">
+            {isPrayerLead && isRecapLead ? 'Prayer and Review & Recap are yours.' : isPrayerLead ? 'Only Prayer is yours.' : 'Only Review & Recap is yours.'} The hub lead or their assistant takes attendance and submits the meeting.
+          </p>
         </section>
         {step === PRAYER_STEP && isPrayerLead ? (showFollowAlongPrayer ? prayerStepContent : (
           <section className={`${CARD} text-center`}>

@@ -1473,6 +1473,46 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                 <p className="mt-1.5 text-[12.5px] text-gray-500">{teenOnboardedLabel(updating.teenOnboardedHow)}</p>
               )}
             </div>
+            <div className="mt-4">
+              <p className="mb-1.5 text-[13px] font-semibold text-gray-700">Have you called?</p>
+              <div className="flex flex-wrap gap-2">
+                {([['NOT_CALLED', 'Not called'], ['CALLED', 'Called'], ['MISSED_CALL', 'No answer']] as const).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={updating.callStatus === value}
+                    onClick={() => { void handleFieldChange(updating, { callStatus: value }); }}
+                    className={`min-h-[40px] rounded-full border px-4 text-[13.5px] font-semibold ${updating.callStatus === value ? 'border-primary bg-primary text-white' : 'border-gray-200 bg-white text-gray-700'}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <label className="mt-4 block text-[13px] font-semibold text-gray-700">
+              Follow up again on
+              <input
+                type="date"
+                defaultValue={updating.dueDate ? String(updating.dueDate).slice(0, 10) : ''}
+                onBlur={(event) => {
+                  const value = event.target.value || null;
+                  if (value !== (updating.dueDate ? String(updating.dueDate).slice(0, 10) : null)) void handleFieldChange(updating, { dueDate: value });
+                }}
+                className="mt-1.5 block w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm"
+              />
+            </label>
+            <label className="mt-4 block text-[13px] font-semibold text-gray-700">
+              Notes <span className="font-normal text-gray-400">(only you and admins see these)</span>
+              <textarea
+                defaultValue={updating.notes ?? ''}
+                rows={3}
+                onBlur={(event) => {
+                  const value = event.target.value.trim();
+                  if (value !== (updating.notes ?? '').trim()) void handleFieldChange(updating, { notes: value || null });
+                }}
+                className="mt-1.5 block w-full resize-y rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm"
+              />
+            </label>
             {(status === 'REGISTERED' || status === 'LOGIN_SHARED' || status === 'LOGIN_ISSUE') && <LoginDetailsCard followUpContactId={updating.id} startDate={updating.cohortStartDate} email={updating.email} className="mt-3" />}
           </ModalShell>
         );

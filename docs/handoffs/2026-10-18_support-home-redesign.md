@@ -82,3 +82,11 @@ Type check (no new errors beyond the 7 known) and vite build. Looked at in a bro
 - Update opens a sheet with the existing status steps and the "Where do they stand?" choice, saved as it is chosen, plus the login details when they apply. The separate reply / call / next-action fields drawn on the canvas were not added: the real follow-up uses one status, and the canvas fields would not map to it.
 - Seen in a browser against mocked data only (two contacts); the Message sheet and the ⋯ menu were not opened.
 - Review fixes: the "To follow up" card counts people by real status (finished ones count as done, not as still open); the Update sheet closes itself before the Not interested, Login issue and Teen onboarded questions open; Home only asks who the Teen Supports are when the week has a teen teacher.
+
+## Final completion pass
+- Mobilisation > Follow-ups Update sheet now also has "Have you called?" (Not called / Called / No answer), "Follow up again on" (date) and Notes (saved on leaving the field), next to the status choice. The canvas's separate reply and registration fields stay out: the status choice already drives them.
+- My Group: an expanded person has "All details" (the existing details sheet).
+- Hub prayer lead / recap lead view: a line says which step is theirs and that the lead or assistant takes attendance and submits.
+- Participant People, Resources and Feedback already use the same card style as the redesigned participant pages; nothing to change.
+- `npm audit fix` (no breaking changes) took the dependency alerts from 14 to 7. The rest need a Tailwind major upgrade (`--force`) and were left.
+- Checked in a browser against mocked data: Home with a class graphic and a tappable teacher, the announcements feed (hub-role label, line breaks, link button, time), Settings pause switches, the Follow-ups Update sheet (a "Called" tap sent the update). Not checked against real data (no real login available here). Classes, Up next and the My Group rows were checked by type check and build only.
