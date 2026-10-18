@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-18 | [Daily scripture notification](2026-10-18_scripture-drop-notification.md) | Push and bell to participants at 2:00 PM Lagos when the day's scripture opens; ten rotating lines that urge them to read it and do the exercise. Repo only, not deployed. |
 | 2026-10-18 | [Help in the profile menu, Join hint, scripture tap](2026-10-18_help-in-profile-menu-join-hint.md) | Floating "?" removed; Help sits above Log out in the photo menu; waiting Join says when it opens; looser tap to enlarge a scripture. Frontend only. |
 | 2026-10-18 | [Hub meeting opens on the next meeting; admin tab scroll](2026-10-18_next-hub-meeting-card-tab-scroll.md) | My Hub > Meeting opens on the next unsubmitted week; a held meeting says so instead of "Waiting for … to pick someone"; admin tab strip scrolls the current tab into view. Frontend only. |
 | 2026-10-18 | [Pause automatic reminders](2026-10-18_pause-reminders.md) | Settings switches to pause class/service reminders and support schedule reminders; class reminders paused through Sun 18 Oct (no class, combined service). push-reminders v53, one AppSetting row, no migration. |

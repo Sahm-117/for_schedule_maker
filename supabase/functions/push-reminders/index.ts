@@ -89,6 +89,21 @@ const TERMINAL_REGISTRATION_STATUSES = new Set(['LOGIN_SHARED', 'NOT_INTERESTED'
 const isSupportOrTagged = (user: { role?: string; roles?: string[] | null }): boolean =>
   user.role === 'SUPPORT' || !!user.roles?.includes('SUPPORT')
 
+// Inspirational Scripture drop: opens at 2:00 PM Lagos. Each line urges them to read the post and do its exercise.
+const SCRIPTURE_OPEN_MINUTES = 14 * 60
+const SCRIPTURE_DROP_LINES: Array<{ title: string; body: string }> = [
+  { title: "Today's scripture is here", body: "Read it, then do today's exercise." },
+  { title: "Day's post is ready", body: 'Read the anchor, take in the teaching, then do the exercise.' },
+  { title: 'Your daily scripture just dropped', body: "Don't just read it. Do the exercise too." },
+  { title: 'A fresh word for you', body: 'Open it, read it slowly, then put the exercise into practice.' },
+  { title: "Today's exercise is waiting", body: 'Read the scripture first, then do it.' },
+  { title: "Take two minutes for today's post", body: 'Read it and complete the exercise.' },
+  { title: "Don't let today's word pass", body: 'Read the scripture and do the exercise before the day ends.' },
+  { title: 'New scripture, new exercise', body: 'Read it now and act on it today.' },
+  { title: 'Faith grows by doing', body: "Today's scripture has an exercise, so open it and do it." },
+  { title: "Today's anchor verse is up", body: 'Read it, think on it, then do the exercise.' },
+]
+
 const getLagosDateParts = (date: Date) => {
   const formatter = new Intl.DateTimeFormat('en-GB', {
     timeZone: 'Africa/Lagos',
@@ -940,6 +955,28 @@ Deno.serve(async (req) => {
               path: `/me/week/${week.weekNumber}`,
               tag: `RECAP:${week.id}`,
             })
+          }
+        }
+
+        // c2) A new Inspirational Scripture opens at 2:00 PM Lagos (FOF day N opens at 2 PM on its own date,
+        //     the same rule as scriptureDayIndex in the app). One push + bell a day per participant, the
+        //     line rotating by post so nobody reads the same one twice in a row. We cannot tell who has
+        //     opened a post, so everyone with an active login gets it. pushParticipants' claim (the tag
+        //     carries the date) stops the 10-minute cron repeating it; the window lets a late run catch up.
+        if (daysBetweenIso(startIso, pToday) >= 0 && pNowMinutes >= SCRIPTURE_OPEN_MINUTES && pNowMinutes < SCRIPTURE_OPEN_MINUTES + 180) {
+          const [{ data: enabledRow }, { data: startDayRow }, { data: scriptureRows }] = await Promise.all([
+            supabase.from('AppSetting').select('value').eq('settingKey', 'scriptures_enabled').maybeSingle(),
+            supabase.from('AppSetting').select('value').eq('settingKey', 'scripture_start_day').maybeSingle(),
+            supabase.from('Scripture').select('dayNumber'),
+          ])
+          const scripturesOn = (enabledRow as any)?.value !== false && (enabledRow as any)?.value !== 'false'
+          const startDay = Number((startDayRow as any)?.value) || 1
+          const fofDay = daysBetweenIso(startIso, pToday) + 1 // from 2 PM on this date, this FOF day's post is open
+          const position = fofDay - startDay + 1
+          const hasPost = ((scriptureRows ?? []) as any[]).some((row) => Number(row.dayNumber) === position)
+          if (scripturesOn && position >= 1 && hasPost) {
+            const line = SCRIPTURE_DROP_LINES[(position - 1) % SCRIPTURE_DROP_LINES.length]
+            await pushParticipants([...participantIds], { ...line, path: '/me', tag: `SCRIPTURE:${pToday}` })
           }
         }
 
