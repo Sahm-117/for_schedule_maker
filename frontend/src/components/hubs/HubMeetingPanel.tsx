@@ -291,15 +291,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
   const [now, setNow] = useState(() => new Date());
   const attendanceTaken = Object.keys(marks).length > 0;
   const prayerStarted = !!prayerFocus.faithProjectId || prayerFocus.hubPrayerDone || prayerFocus.prayerFinished;
-  // Once an earlier meeting has been submitted, the next week's meeting is the one coming up, so
-  // its "Waiting for … to pick someone" card shows straight away (follow-along viewers only; a Prayer
-  // Lead's own screen still waits for the meeting, FLOW_MAP rule 63).
-  const nextMeetingUp = useMemo(() => {
-    if (weekId === null || submittedWeekIds.length === 0 || submittedWeekIds.includes(weekId)) return false;
-    const ordered = [...weeks].sort((a, b) => a.weekNumber - b.weekNumber);
-    const lastSubmitted = ordered.reduce((found, entry, index) => (submittedWeekIds.includes(entry.id) ? index : found), -1);
-    return lastSubmitted >= 0 && ordered[lastSubmitted + 1]?.id === weekId;
-  }, [weeks, weekId, submittedWeekIds]);
+  const isHeld = weekId !== null && submittedWeekIds.includes(weekId);
   const showFollowAlongPrayer = attendanceTaken || prayerStarted
     || isInMeetingWindow(meetingDay, meetingTime, now);
   useEffect(() => {
@@ -806,13 +798,19 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
             })}
           </div>
         </section>
-        {followView === 'recap' ? recapStepContent : !(showFollowAlongPrayer || nextMeetingUp) ? (
+        {followView === 'recap' ? recapStepContent : !showFollowAlongPrayer ? (
           <section className={`${CARD} text-center`}>
             <p className="text-sm text-gray-500">Activities show here once the hub meeting starts.</p>
           </section>
         ) : (<>
-        <FollowAlongPrayerCard focus={prayerFocus} prayerLeadNames={prayerLeadNames} />
-        {!prayerFinished && (
+        {isHeld && !prayerStarted ? (
+          <section className={`${CARD} text-center`}>
+            <p className="text-sm text-gray-500">This meeting has been held and submitted.</p>
+          </section>
+        ) : (
+          <FollowAlongPrayerCard focus={prayerFocus} prayerLeadNames={prayerLeadNames} />
+        )}
+        {!prayerFinished && !(isHeld && !prayerStarted) && (
         <section className={CARD}>
           <p className="text-xs font-bold uppercase tracking-[0.04em] text-gray-500">Prayer list</p>
           {sortedPrayerItems.length === 0 ? (

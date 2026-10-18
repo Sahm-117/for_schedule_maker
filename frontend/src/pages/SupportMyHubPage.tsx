@@ -205,25 +205,6 @@ const SupportMyHubPage: React.FC = () => {
   const [meetingWeekId, setMeetingWeekId] = useState<number | null>(null);
   const [recaps, setRecaps] = useState<SupportRecap[]>([]);
 
-  // Opens on the week whose meeting is on right now, else this week of the
-  // cohort (Week 1 before it starts, the last week once it's over).
-  useEffect(() => {
-    if (sortedWeeks.length === 0 || meetingWeekId != null) return;
-    const liveWeekId = myHub?.meetingLive?.weekId;
-    if (liveWeekId && sortedWeeks.some((w) => w.id === liveWeekId)) { setMeetingWeekId(liveWeekId); return; }
-    const thisWeek = Math.max(1, currentWeekNumber(activeCohort?.startDate, new Date(), sortedWeeks));
-    const match = sortedWeeks.find((w) => w.weekNumber === thisWeek)
-      ?? (thisWeek > sortedWeeks[0].weekNumber ? sortedWeeks[0] : sortedWeeks[sortedWeeks.length - 1]);
-    setMeetingWeekId(match.id);
-  }, [sortedWeeks, meetingWeekId, myHub?.meetingLive?.weekId, activeCohort?.startDate]);
-
-  useEffect(() => {
-    if (tab !== 'meeting' || !activeCohort?.id) return;
-    supportRecapsApi.getForCohort(activeCohort.id)
-      .then(({ recaps: list }) => setRecaps(list))
-      .catch(() => setRecaps([]));
-  }, [tab, activeCohort?.id]);
-
   const meetingAttendanceRows = useMemo(
     () => (myHub?.myAttendance ?? []).filter((a) => a.type === 'SUNDAY_RECAP'),
     [myHub?.myAttendance]
@@ -232,6 +213,29 @@ const SupportMyHubPage: React.FC = () => {
     () => meetingAttendanceRows.filter((a) => !!a.submittedAt && a.weekId != null).map((a) => a.weekId as number),
     [meetingAttendanceRows]
   );
+
+  // Opens on the week whose meeting is on right now, else this week of the
+  // cohort (Week 1 before it starts, the last week once it's over).
+  useEffect(() => {
+    if (sortedWeeks.length === 0 || meetingWeekId != null || !myHub) return;
+    const liveWeekId = myHub?.meetingLive?.weekId;
+    if (liveWeekId && sortedWeeks.some((w) => w.id === liveWeekId)) { setMeetingWeekId(liveWeekId); return; }
+    const thisWeek = Math.max(1, currentWeekNumber(activeCohort?.startDate, new Date(), sortedWeeks));
+    const match = sortedWeeks.find((w) => w.weekNumber === thisWeek)
+      ?? (thisWeek > sortedWeeks[0].weekNumber ? sortedWeeks[0] : sortedWeeks[sortedWeeks.length - 1]);
+    // A week whose meeting is already submitted is over: open on the next meeting to hold.
+    const nextToHold = submittedWeekIds.includes(match.id)
+      ? [...sortedWeeks].reverse().find((w) => w.weekNumber > match.weekNumber && !submittedWeekIds.includes(w.id))
+      : null;
+    setMeetingWeekId((nextToHold ?? match).id);
+  }, [sortedWeeks, meetingWeekId, myHub, submittedWeekIds, activeCohort?.startDate]);
+
+  useEffect(() => {
+    if (tab !== 'meeting' || !activeCohort?.id) return;
+    supportRecapsApi.getForCohort(activeCohort.id)
+      .then(({ recaps: list }) => setRecaps(list))
+      .catch(() => setRecaps([]));
+  }, [tab, activeCohort?.id]);
 
   const handleSubmitMeeting = async (weekId: number, notes: string) => {
     if (!myHub?.hub) return;

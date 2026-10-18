@@ -1,24 +1,21 @@
-# Next hub meeting card, admin tab strip scroll
+# Hub meeting opens on the next meeting; admin tab strip scroll
 
 ## Summary
-After a hub meeting is submitted, the next week in the My Hub meeting picker shows "Waiting for … to pick someone…" straight away. The admin section tab strip scrolls the current tab into view on phones.
+My Hub > Meeting now opens on the next meeting to hold, not on a week that is already submitted. A submitted week no longer shows the live "Waiting for … to pick someone" card. The admin section tab strip scrolls the current tab into view on phones.
 
 ## Shipped
-- `HubMeetingPanel.tsx`: the follow-along prayer card also shows for the first unsubmitted week after the latest submitted one, without waiting for the meeting window.
-- `SectionTabs.tsx`: the strip scrolls so the current tab is centred (only the strip scrolls, not the page).
+- `SupportMyHubPage.tsx`: the default week skips weeks already submitted (next week by number that is not submitted; if none, stays where it was). Waits for the hub to load first.
+- `HubMeetingPanel.tsx`: for a submitted week with no prayer started, follow-along viewers see "This meeting has been held and submitted." instead of the waiting card.
+- `SectionTabs.tsx`: the strip scrolls so the current tab is centred (only the strip scrolls).
 
 ## Live changes
-None. Frontend only; no migration, no function.
+None. Frontend only.
 
 ## Decisions and why
-- A Prayer Lead's own screen is unchanged (rule 63).
-- Only the week right after the latest submitted one counts; later weeks and old unsubmitted weeks keep the "once the meeting starts" message.
+- An earlier push (13a6764) showed the waiting card for the next week; that was a misreading and is removed. The next meeting shows no live prayer card until the meeting starts (FLOW_MAP rule 63 logic unchanged).
 
 ## How it was tested
-`npm run build`; code review. Not yet seen on a phone.
+`npm run build`. Not yet seen on a phone.
 
 ## Open items
-- Check the tab strip and the next-week card on a real phone.
-
-## Gotchas
-- The first meeting of a cohort still waits for the meeting window (nothing is submitted yet).
+- Check on a phone as a non-lead: opens on Week 2, Week 1 says held and submitted.
