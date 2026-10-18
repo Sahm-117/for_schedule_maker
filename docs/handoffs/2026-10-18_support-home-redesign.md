@@ -75,3 +75,9 @@ Type check (no new errors beyond the 7 known) and vite build. Looked at in a bro
 - Support Home: the teacher on the next-class card is tappable and opens the teacher sheet (a Teen Support sees the teen teacher when one is set, as on Classes). FLOW_MAP rule 46 updated.
 - Follow-ups: the "Waiting to be assigned" / "Gender not known" tag no longer shows on closed contacts (no response, wrong number, not interested), parked next-cohort contacts or archived ones. It only describes people who could still be handed out. The summary counts were already right.
 - Verified: type check and build only; not opened in a browser.
+
+## Mobilisation > Follow-ups, as on the canvas
+- A "To follow up" card on top (open people, and how many are closed).
+- Each person is one card: initials, name, phone and when they were assigned, chips for where they stand, replied and called status and "Next: …", then Message (opens the templates, which still offer WhatsApp and email), Update, and a ⋯ menu (Call, Copy number, Open WhatsApp chat, Send email, Log an issue, Edit contact).
+- Update opens a sheet with the existing status steps and the "Where do they stand?" choice, saved as it is chosen, plus the login details when they apply. The separate reply / call / next-action fields drawn on the canvas were not added: the real follow-up uses one status, and the canvas fields would not map to it.
+- Seen in a browser against mocked data only (two contacts); the Message sheet and the ⋯ menu were not opened.

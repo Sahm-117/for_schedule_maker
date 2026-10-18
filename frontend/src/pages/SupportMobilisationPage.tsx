@@ -25,6 +25,9 @@ import type { FormRegistration } from '../services/supabase-api';
 import {
   FOLLOW_UP_STAGE,
   FOLLOW_UP_STATUS_META,
+  REPLY_STATUS_META,
+  CALL_STATUS_META,
+  nextStepFor,
   buildStatusPatch,
   computeFollowUpFunnel,
   computeFollowUpStatus,
@@ -42,6 +45,7 @@ import {
 } from '../utils/followUps';
 import Spinner from '../components/Spinner';
 import { buildWhatsAppLink, normalizeToIntlPhone } from '../utils/phone';
+import { initialsOf } from '../utils/prayerText';
 import { compareText, sortByText } from '../utils/sort';
 import LoginDetailsCard from '../components/participants/LoginDetailsCard';
 import TeenOnboardedPopup, { teenOnboardedLabel } from '../components/followups/TeenOnboardedPopup';
@@ -250,6 +254,8 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
   const [copiedEmailId, setCopiedEmailId] = useState<string | null>(null);
   // The i pop-up by a follow-up's name: their number and email.
   const [infoOpenId, setInfoOpenId] = useState<string | null>(null);
+  // The Update sheet: where they stand, saved as it is chosen.
+  const [updatingContactId, setUpdatingContactId] = useState<string | null>(null);
   const copyText = async (text: string) => {
     try { await navigator.clipboard.writeText(text); toast({ message: 'Number copied' }); } catch { /* ignore */ }
   };
@@ -1073,6 +1079,16 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
 
         {tab === 'follow' && (
           <>
+            {!loading && contacts.length > 0 && (
+              <section className={`${CARD} flex items-center gap-3.5 px-[18px] py-4`}>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-extrabold uppercase tracking-[0.04em] text-gray-500">To follow up</p>
+                  <p className="mt-1 text-[26px] font-extrabold leading-none tracking-[-0.02em] text-gray-900">
+                    {openContacts.length} <span className="text-[15px] font-bold text-gray-500">{openContacts.length === 1 ? 'person' : 'people'} · {closedCount} done</span>
+                  </p>
+                </div>
+              </section>
+            )}
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-[13px] font-semibold text-gray-700">{showClosed ? 'Closed contacts' : 'Assigned to you'}</span>
               <InfoTip label="Open and Closed">
@@ -1135,9 +1151,10 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
               const assigned = shortDate(contact.ownerAssignedAt ?? contact.createdAt);
               return (
                 <section key={contact.id} className={`${CARD} p-4`}>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
+                    <span className="grid h-[42px] w-[42px] flex-none place-items-center rounded-full bg-primary text-[14px] font-bold text-white">{initialsOf(contact.fullName)}</span>
                     <div className="flex min-w-0 flex-1 items-center gap-1.5">
-                      <p className="min-w-0 truncate text-[15px] font-bold text-gray-900">{contact.fullName}</p>
+                      <p className="min-w-0 truncate text-[16px] font-extrabold text-gray-900">{contact.fullName}</p>
                       {teenContact && <span className="flex-none rounded-full bg-pink-100/80 px-2 py-0.5 text-[11px] font-bold text-pink-700">Teen</span>}
                       <button
                         type="button"
@@ -1149,16 +1166,6 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                         i
                       </button>
                     </div>
-                    <span className={`flex-none whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold ${meta.tone}`}>{meta.label}</span>
-                    <AppOverflowMenu
-                      items={[
-                        ...(reachPhone?.trim() ? [{ label: 'Copy number', onClick: () => { void copyText(reachPhone.trim()); } }] : []),
-                        ...(waLink ? [{ label: 'Send message', onClick: () => { window.open(waLink, '_blank', 'noopener,noreferrer'); } }] : []),
-                        ...(contact.email?.trim() ? [{ label: 'Send email', onClick: () => { void sendEmail(contact); } }] : []),
-                        { label: 'Log an issue', onClick: () => { setIssueStartContactId(contact.id); setShowIssues(true); } },
-                        { label: 'Edit contact', onClick: () => setEditingContact(contact) },
-                      ]}
-                    />
                   </div>
                   {infoOpenId === contact.id && (
                     <div className="mt-1.5 inline-block max-w-full rounded-xl bg-slate-800 px-3 py-2 text-xs text-white shadow-lg">
@@ -1185,6 +1192,12 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                     </div>
                   )}
                   <p className="mt-1 text-[12.5px] text-gray-500">{teenContact ? teenNumbersLine(contact) : (contact.phone || 'No phone')}{assigned ? ` · ${handover ? `passed on${handover.fromName ? ` from ${handover.fromName}` : ''}` : 'assigned'} ${assigned}` : ''}</p>
+                  <div className="mt-2.5 flex flex-wrap gap-1.5">
+                    <span className={`rounded-full px-2.5 py-0.5 text-[12px] font-bold ${meta.tone}`}>{meta.label}</span>
+                    {status !== 'TO_CONTACT' && status !== 'WAITING' && status !== 'NEEDS_REMINDER' && status !== 'REPLIED' && (contact.replyStatus !== 'NO_REPLY' || contact.messageStatus === 'SENT') ? <span className={`rounded-full px-2.5 py-0.5 text-[12px] font-bold ${REPLY_STATUS_META[contact.replyStatus].tone}`}>{REPLY_STATUS_META[contact.replyStatus].label}</span> : null}
+                    {contact.callStatus !== 'NOT_APPLICABLE' && <span className={`rounded-full px-2.5 py-0.5 text-[12px] font-bold ${CALL_STATUS_META[contact.callStatus].tone}`}>{CALL_STATUS_META[contact.callStatus].label}</span>}
+                    {nextStepFor(contact) && <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[12px] font-bold text-primary-dark">Next: {nextStepFor(contact)}</span>}
+                  </div>
                   {!phoneOk && (
                     <div className="mt-2.5 rounded-[12px] bg-amber-50 text-amber-800">
                       <button
@@ -1217,35 +1230,24 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                   {contact.notes?.trim() && (
                     <p className="mt-2.5 whitespace-pre-wrap rounded-[10px] bg-[#f6f7f9] px-3 py-2.5 text-[13px] leading-normal text-gray-700">{contact.notes}</p>
                   )}
-                  <div className="mt-3 grid grid-cols-3 gap-2">
-                    <button type="button" onClick={() => openTemplates(contact, 'whatsapp')} className="min-h-[40px] rounded-[10px] border border-[#ffdeca] bg-[#fff8f3] px-2 py-2 text-[12.5px] font-semibold text-[#c2410c]">
-                      Templates
+                  <div className="mt-3 flex items-center gap-2">
+                    <button type="button" onClick={() => openTemplates(contact, 'whatsapp')} className="flex h-11 flex-1 items-center justify-center rounded-[14px] bg-[#25d366] text-[14.5px] font-bold text-white active:scale-[0.98]">
+                      Message
                     </button>
-                    {waLink ? (
-                      <a href={waLink} target="_blank" rel="noreferrer" className="inline-flex min-h-[40px] items-center justify-center rounded-[10px] border border-gray-200 bg-white px-2 py-2 text-[12.5px] font-semibold text-gray-700">WhatsApp</a>
-                    ) : (
-                      <span className="inline-flex min-h-[40px] items-center justify-center rounded-[10px] border border-gray-100 bg-gray-50 px-2 py-2 text-[12.5px] font-semibold text-gray-400">WhatsApp</span>
-                    )}
-                    {reachPhone && phoneOk ? (
-                      <a href={`tel:${reachPhone.replace(/[^\d+]/g, '')}`} className="inline-flex min-h-[40px] items-center justify-center rounded-[10px] border border-gray-200 bg-white px-2 py-2 text-[12.5px] font-semibold text-gray-700">Call</a>
-                    ) : (
-                      <span className="inline-flex min-h-[40px] items-center justify-center rounded-[10px] border border-gray-100 bg-gray-50 px-2 py-2 text-[12.5px] font-semibold text-gray-400">Call</span>
-                    )}
-                  </div>
-                  <FollowUpStatusFlow status={status} className="mt-3.5" />
-                  <div className="mt-3">
-                    <AppSelect
-                      label="Where do they stand?"
-                      value={status}
-                      onChange={(value) => handleStatusChange(contact, value as FollowUpStatus)}
-                      options={supportStatusOptions(status, isTeenContact(contact))}
-                      placeholder="Choose status"
+                    <button type="button" onClick={() => setUpdatingContactId(contact.id)} className="flex h-11 flex-1 items-center justify-center rounded-[14px] border border-primary/25 bg-primary/10 text-[14.5px] font-bold text-primary-dark active:scale-[0.98]">
+                      Update
+                    </button>
+                    <AppOverflowMenu
+                      items={[
+                        ...(reachPhone && phoneOk ? [{ label: 'Call', onClick: () => { window.location.href = `tel:${reachPhone.replace(/[^\d+]/g, '')}`; } }] : []),
+                        ...(reachPhone?.trim() ? [{ label: 'Copy number', onClick: () => { void copyText(reachPhone.trim()); } }] : []),
+                        ...(waLink ? [{ label: 'Open WhatsApp chat', onClick: () => { window.open(waLink, '_blank', 'noopener,noreferrer'); } }] : []),
+                        ...(contact.email?.trim() ? [{ label: 'Send email', onClick: () => { void sendEmail(contact); } }] : []),
+                        { label: 'Log an issue', onClick: () => { setIssueStartContactId(contact.id); setShowIssues(true); } },
+                        { label: 'Edit contact', onClick: () => setEditingContact(contact) },
+                      ]}
                     />
-                    {status === 'TEEN_ONBOARDED' && contact.teenOnboardedHow && (
-                      <p className="mt-1.5 text-[12.5px] text-gray-500">{teenOnboardedLabel(contact.teenOnboardedHow)}</p>
-                    )}
                   </div>
-                  {(status === 'REGISTERED' || status === 'LOGIN_SHARED' || status === 'LOGIN_ISSUE') && <LoginDetailsCard followUpContactId={contact.id} startDate={contact.cohortStartDate} email={contact.email} className="mt-3" />}
                 </section>
               );
             })}
@@ -1438,6 +1440,36 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
           }}
         />
       )}
+
+      {(() => {
+        const updating = contacts.find((c) => c.id === updatingContactId) ?? null;
+        if (!updating) return null;
+        const status = computeFollowUpStatus(updating);
+        return (
+          <ModalShell
+            isOpen
+            onClose={() => setUpdatingContactId(null)}
+            title={`Update ${firstNameOf(updating.fullName)}`}
+            subtitle="Each choice saves as you make it."
+            footer={<button type="button" onClick={() => setUpdatingContactId(null)} className="min-h-[44px] w-full rounded-2xl bg-primary px-5 text-[15px] font-bold text-white">Done</button>}
+          >
+            <FollowUpStatusFlow status={status} />
+            <div className="mt-3.5">
+              <AppSelect
+                label="Where do they stand?"
+                value={status}
+                onChange={(value) => handleStatusChange(updating, value as FollowUpStatus)}
+                options={supportStatusOptions(status, isTeenContact(updating))}
+                placeholder="Choose status"
+              />
+              {status === 'TEEN_ONBOARDED' && updating.teenOnboardedHow && (
+                <p className="mt-1.5 text-[12.5px] text-gray-500">{teenOnboardedLabel(updating.teenOnboardedHow)}</p>
+              )}
+            </div>
+            {(status === 'REGISTERED' || status === 'LOGIN_SHARED' || status === 'LOGIN_ISSUE') && <LoginDetailsCard followUpContactId={updating.id} startDate={updating.cohortStartDate} email={updating.email} className="mt-3" />}
+          </ModalShell>
+        );
+      })()}
 
       <ModalShell isOpen={showIssues} onClose={() => { setShowIssues(false); setIssueStartContactId(null); }} title="Issues" subtitle="Questions and blockers on your follow-ups." wide>
         <FollowUpIssuesPanel
