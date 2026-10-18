@@ -65,3 +65,8 @@ Type check (no new errors beyond the 7 known) and vite build. Looked at in a bro
 - Mobilisation and the hub role screens: compared again, no change needed.
 - The accent tabs on the notification bell and on Community apply to supports only; admins and preparers keep the dark tabs.
 - Verified: type check and build only. The bell, Community and the other support pages in this handoff were not run in a browser against real data.
+
+## Last items
+- Follow-ups (support cards): "Next: …" is back, now worked out from the contact's real status (`nextStepFor` in `utils/followUps.ts`): send a message, wait for a reply, send a reminder, help them register, call them back, share their login, wait for them to sign in, help with login. Closed, parked, archived and teen contacts show nothing.
+- Notifications bell: "Unread only" toggle on each tab. Seen in a browser against mocked data.
+- Not done, by decision: the full person sheet on My Group (people are collapsed rows with details one tap away), and restyling the hub role screens and Mobilisation (no functional difference from the canvas). Participant People, Resources and Feedback never had a canvas board.

@@ -105,7 +105,9 @@ const NotificationBell: React.FC = () => {
     if (next) setTab(announcementItems.some((n) => !n.isRead) ? 'announcements' : 'activity');
     setOpen(next);
   };
-  const visibleItems = tab === 'announcements' ? announcementItems : activityItems;
+  const [unreadOnly, setUnreadOnly] = useState(false);
+  const tabItems = tab === 'announcements' ? announcementItems : activityItems;
+  const visibleItems = unreadOnly ? tabItems.filter((n) => !n.isRead) : tabItems;
   const unreadIn = (items: Notification[]) => items.filter((n) => !n.isRead).length;
 
   const markTabRead = async () => {
@@ -143,8 +145,16 @@ const NotificationBell: React.FC = () => {
       {open && createPortal(
         <div ref={menuRef} style={menuStyle} className="overflow-hidden rounded-2xl border border-orange-100 bg-white shadow-xl">
           <div className="border-b border-orange-100 px-4 pb-2.5 pt-3">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <p className="text-sm font-bold text-gray-900">Notifications</p>
+              <button
+                type="button"
+                aria-pressed={unreadOnly}
+                onClick={() => setUnreadOnly((value) => !value)}
+                className={`ml-auto rounded-full px-2.5 py-1 text-xs font-semibold ${unreadOnly ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'}`}
+              >
+                Unread only
+              </button>
               {unreadIn(visibleItems) > 0 && (
                 <button type="button" onClick={() => void markTabRead()} className="text-xs font-semibold text-primary hover:opacity-80">
                   Mark all read
@@ -164,7 +174,7 @@ const NotificationBell: React.FC = () => {
           </div>
           <div className="max-h-96 overflow-y-auto">
             {visibleItems.length === 0 ? (
-              <p className="px-4 py-8 text-center text-sm text-gray-400">{tab === 'announcements' ? 'No announcements yet.' : 'No activity yet.'}</p>
+              <p className="px-4 py-8 text-center text-sm text-gray-400">{unreadOnly ? 'Nothing unread.' : tab === 'announcements' ? 'No announcements yet.' : 'No activity yet.'}</p>
             ) : (
               <ul className="divide-y divide-orange-50">
                 {visibleItems.map((n) => (

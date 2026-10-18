@@ -202,6 +202,25 @@ export const isClosedContact = (c: FollowUpContact): boolean => {
 };
 
 /**
+ * What the support should do next with this person, in plain words, from where they really are
+ * (computeFollowUpStatus), or null when nothing is waiting on the support (closed, parked, archived, a teen).
+ */
+export const nextStepFor = (c: FollowUpContact): string | null => {
+  if (c.archivedAt || isClosedContact(c)) return null;
+  switch (computeFollowUpStatus(c)) {
+    case 'TO_CONTACT': return 'send a message';
+    case 'WAITING': return 'wait for a reply';
+    case 'NEEDS_REMINDER': return 'send a reminder';
+    case 'REPLIED': return 'help them register';
+    case 'CALL_BACK_LATER': return 'call them back';
+    case 'REGISTERED': return 'share their login';
+    case 'LOGIN_SHARED': return 'wait for them to sign in';
+    case 'LOGIN_ISSUE': return 'help them with login';
+    default: return null;
+  }
+};
+
+/**
  * Search box match on the Follow-ups pages: name or email containing the text,
  * or the number containing its digits (3 or more, so "080" works).
  */

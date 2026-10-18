@@ -24,6 +24,7 @@ import {
   teenNumberOwner,
   teenNumbersLine,
   teenOwnPhone,
+  nextStepFor,
 } from '../../utils/followUps';
 import Spinner from '../Spinner';
 import ConfirmationModal from '../ConfirmationModal';
@@ -582,6 +583,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                   )}
                 </div>
                 {genderAgeLine(contact) && <p className="mt-0.5 text-xs text-gray-500">{genderAgeLine(contact)}</p>}
+                {!canAssign && nextStepFor(contact) && <p className="mt-0.5 text-[13px] font-semibold text-primary-dark">Next: {nextStepFor(contact)}</p>}
                 {viewingInfo === contact.id && (
                   <div className="mt-1.5 rounded-xl bg-slate-800 px-3 py-2 text-xs text-white shadow-lg">
                     {isTeenContact(contact) ? (
