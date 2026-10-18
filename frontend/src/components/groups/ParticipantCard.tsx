@@ -506,7 +506,7 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
               return todo ? `Help them finish: ${todo.label}.` : null;
             })()
             : null;
-        const lastLogin = appInfo?.lastSeenAt ? shortMoment(appInfo.lastSeenAt) : appInfoLoaded ? 'Never' : '';
+        const lastLogin = appInfo?.lastSeenAt ? shortMoment(appInfo.lastSeenAt) : appInfoLoaded ? 'Never' : '…';
         const row = 'flex items-center gap-2.5 border-b border-[#f1f2f5] py-[11px] last:border-b-0';
         return (
           <div className="flex flex-col gap-3.5">
@@ -533,19 +533,25 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
             </div>
             <div className="border-t border-[#f1f2f5]">
               <div className={row}><span className="flex-1 text-[13px] text-gray-500">Last login</span><span className="text-[13px] font-semibold text-gray-900">{lastLogin}</span></div>
-              <div className={row}><span className="flex-1 text-[13px] text-gray-500">Device</span><span className={`text-[13px] font-semibold ${deviceLabel(appInfo) ? 'text-gray-900' : 'text-gray-400'}`}>{deviceLabel(appInfo) ?? (appInfoLoaded ? 'Not seen yet' : '')}</span></div>
+              <div className={row}><span className="flex-1 text-[13px] text-gray-500">Device</span><span className={`text-[13px] font-semibold ${deviceLabel(appInfo) ? 'text-gray-900' : 'text-gray-400'}`}>{deviceLabel(appInfo) ?? (appInfoLoaded ? 'Not seen yet' : '…')}</span></div>
               <div className={row}>
                 <span className="flex-1 text-[13px] text-gray-500">Guardian number</span>
                 <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${participant.guardianPhone ? 'bg-emerald-100/80 text-emerald-700' : 'bg-amber-100/80 text-amber-800'}`}>{participant.guardianPhone ? 'Added' : 'Not added'}</span>
               </div>
             </div>
+            {(participant.status === 'ARCHIVED' || unseenTestimonyIds.length > 0) && (
+              <div className="flex flex-wrap gap-2">
+                {participant.status === 'ARCHIVED' && <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-semibold text-neutral-600">Archived</span>}
+                {unseenTestimonyIds.length > 0 && <span className="rounded-full bg-emerald-100/80 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">New testimony</span>}
+              </div>
+            )}
             {nextStep && !helpRequest && (
               <div className="rounded-xl bg-[#fff7ed] px-3 py-2.5">
                 <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#c2410c]">Next step</p>
                 <p className="mt-0.5 text-[13px] font-semibold leading-snug text-gray-900">{nextStep}</p>
               </div>
             )}
-            {flag && !helpRequest && (
+            {flag && (
               <button type="button" onClick={() => setConcernOpen((open) => !open)} aria-expanded={concernOpen} className="rounded-xl bg-[#fffbeb] px-3 py-2.5 text-left text-[13px] font-semibold text-[#92400e]">
                 Needs attention: {flag.reason}
               </button>
@@ -603,11 +609,11 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
 
       {(!isTeen || teenOpen) && (
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        {participant.status === 'ARCHIVED' && (
+        {!isTeen && participant.status === 'ARCHIVED' && (
           <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-semibold text-neutral-600">Archived</span>
         )}
         <RetakingChip participant={participant} matches={retakeMatches} onUpdate={updateRetake} />
-        {onboarding && !expanded && (
+        {onboarding && !expanded && !isTeen && (
           <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${onboarding.completed ? 'bg-emerald-100/80 text-emerald-700' : 'bg-orange-100/80 text-orange-700'}`}>
             {onboarding.completed ? 'Ready for class' : 'Not ready'}
           </span>
@@ -639,7 +645,7 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
             Reflected {shortMoment(reflectedAt)}
           </span>
         )}
-        {unseenTestimonyIds.length > 0 && (
+        {!isTeen && unseenTestimonyIds.length > 0 && (
           <span className="rounded-full bg-emerald-100/80 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
             New testimony
           </span>
@@ -647,7 +653,7 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
       </div>
       )}
       {(!isTeen || teenOpen) && <TeenLoginPhone participant={participant} />}
-      {isTeen && teenOpen && accessConfirmed !== true && <LoginDetailsCard participantId={participant.id} email={participant.email} className="mt-2.5" />}
+      {isTeen && teenOpen && accessConfirmed === false && <LoginDetailsCard participantId={participant.id} email={participant.email} className="mt-2.5" />}
       {(isTeen ? teenOpen : expanded) && (
         <button type="button" onClick={() => setViewOpen(true)} className="mt-2.5 rounded-full border border-gray-200 bg-white px-3.5 py-1.5 text-[12.5px] font-semibold text-gray-700">
           All details
@@ -682,7 +688,7 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
         </div>
       )}
 
-      {(isTeen && helpRequest ? [] : (faithHelpRequests ?? [])).map((request) => (
+      {(faithHelpRequests ?? []).map((request) => (
         <div key={request.id} className="mt-2.5 rounded-xl bg-orange-100/80 px-[13px] py-3">
           <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-orange-700">Faith project isn&apos;t going well · {shortMoment(request.createdAt)}</p>
           <p className="mt-1 text-[13px] font-semibold text-gray-800">{FAITH_HELP_REASON_LABELS[request.reason]}</p>
