@@ -17,10 +17,11 @@ import { FAITH_PROJECT_STATUS_LABEL, shortMoment } from '../../utils/participant
 import FaithProjectHistory from '../faithProjects/FaithProjectHistory';
 import { FAITH_HELP_REASON_LABELS } from '../../types';
 import type { OnboardingState, DepartmentReferral, FaithHelpRequest, FaithProject, FaithProjectCategory, FaithProjectStatus, FaithProjectVersion, Participant, ParticipantAppInfo, ParticipantCheckIn, ParticipantFlag, ParticipantHandover, ParticipantNote, ParticipantUpdate, RetakeMatch, Testimony } from '../../types';
-import { appUseLine } from '../../utils/appUse';
+import { appUseLine, deviceLabel } from '../../utils/appUse';
 import { PROGRESS_STEPS, StepPill } from '../OnboardingStepPills';
 import { participantStepDone } from '../../utils/supportOnboarding';
 import NotOpenedTag from '../participants/NotOpenedTag';
+import LoginDetailsCard from '../participants/LoginDetailsCard';
 import Spinner from '../Spinner';
 
 const TESTIMONY_STATUS_CHIP: Record<Testimony['status'], { label: string; cls: string }> = {
@@ -341,6 +342,9 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
   retakeMatches,
 }) => {
   const appLine = appUseLine(appInfo);
+  // A teen's card is a short summary (header, three facts, one next step); the rest sits under Details.
+  const isTeen = isTeenAgeRange(participant.ageRange);
+  const [teenOpen, setTeenOpen] = useState(false);
   const [retakeMarkOpen, setRetakeMarkOpen] = useState(false);
   const updateRetake = async (patch: ParticipantUpdate) => {
     const { participant: saved } = await participantsApi.update(participant.id, patch);
@@ -492,6 +496,68 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
 
   return (
     <div className="rounded-[18px] border border-[#eef0f4] bg-white p-4 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
+      {isTeen && (() => {
+        const ready = !!onboarding?.completed;
+        const nextStep = accessConfirmed === false
+          ? 'Send the guardian their login details so they can sign in.'
+          : !ready && onboarding
+            ? (() => {
+              const todo = PROGRESS_STEPS.find((step) => !participantStepDone(onboarding, step.key));
+              return todo ? `Help them finish: ${todo.label}.` : null;
+            })()
+            : null;
+        const lastLogin = appInfo?.lastSeenAt ? shortMoment(appInfo.lastSeenAt) : appInfoLoaded ? 'Never' : '';
+        const row = 'flex items-center gap-2.5 border-b border-[#f1f2f5] py-[11px] last:border-b-0';
+        return (
+          <div className="flex flex-col gap-3.5">
+            <div className="flex items-center gap-3">
+              <div className="grid h-10 w-10 flex-none place-items-center rounded-full bg-[#fff1e6] text-sm font-bold text-[#c2410c]">{initialsOf(participant.fullName)}</div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[15px] font-bold text-gray-900">{participant.fullName}</p>
+                <p className={`text-xs font-semibold ${ready ? 'text-[#15803d]' : 'text-[#b45309]'}`}>{ready ? 'Ready for class' : 'Not ready for class'}</p>
+              </div>
+              {messageLink && (
+                <a href={messageLink} target="_blank" rel="noreferrer" aria-label={`WhatsApp ${participant.fullName}`} title="Message on WhatsApp" className="grid h-11 w-11 flex-none place-items-center rounded-xl border border-gray-200 bg-white">
+                  <WhatsAppIcon />
+                </a>
+              )}
+              <button
+                ref={menuButtonRef}
+                type="button"
+                onClick={() => setMenu((current) => (current === 'closed' ? 'main' : 'closed'))}
+                aria-label="Participant actions"
+                className="grid h-11 w-11 flex-none place-items-center rounded-xl border border-gray-200 bg-white text-gray-700"
+              >
+                <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="4.5" r="1.4" /><circle cx="10" cy="10" r="1.4" /><circle cx="10" cy="15.5" r="1.4" /></svg>
+              </button>
+            </div>
+            <div className="border-t border-[#f1f2f5]">
+              <div className={row}><span className="flex-1 text-[13px] text-gray-500">Last login</span><span className="text-[13px] font-semibold text-gray-900">{lastLogin}</span></div>
+              <div className={row}><span className="flex-1 text-[13px] text-gray-500">Device</span><span className={`text-[13px] font-semibold ${deviceLabel(appInfo) ? 'text-gray-900' : 'text-gray-400'}`}>{deviceLabel(appInfo) ?? (appInfoLoaded ? 'Not seen yet' : '')}</span></div>
+              <div className={row}>
+                <span className="flex-1 text-[13px] text-gray-500">Guardian number</span>
+                <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${participant.guardianPhone ? 'bg-emerald-100/80 text-emerald-700' : 'bg-amber-100/80 text-amber-800'}`}>{participant.guardianPhone ? 'Added' : 'Not added'}</span>
+              </div>
+            </div>
+            {nextStep && !helpRequest && (
+              <div className="rounded-xl bg-[#fff7ed] px-3 py-2.5">
+                <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#c2410c]">Next step</p>
+                <p className="mt-0.5 text-[13px] font-semibold leading-snug text-gray-900">{nextStep}</p>
+              </div>
+            )}
+            {flag && !helpRequest && (
+              <button type="button" onClick={() => setConcernOpen((open) => !open)} aria-expanded={concernOpen} className="rounded-xl bg-[#fffbeb] px-3 py-2.5 text-left text-[13px] font-semibold text-[#92400e]">
+                Needs attention: {flag.reason}
+              </button>
+            )}
+            <button type="button" onClick={() => setTeenOpen((open) => !open)} aria-expanded={teenOpen} className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white text-[13px] font-semibold text-gray-700">
+              {teenOpen ? 'Hide details' : 'Details'}
+              <svg className={`h-3.5 w-3.5 text-gray-500 transition-transform ${teenOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.4" d="m6 9 6 6 6-6" /></svg>
+            </button>
+          </div>
+        );
+      })()}
+      {!isTeen && (
       <div className="flex flex-wrap items-center gap-3">
         <div className="grid h-10 w-10 flex-none place-items-center rounded-full bg-[#fff1e6] text-sm font-bold text-[#c2410c]">{initialsOf(participant.fullName)}</div>
         <button type="button" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded} className="flex min-w-0 flex-1 basis-0 items-center gap-2 text-left">
@@ -533,7 +599,9 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
           <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4.25a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5Zm0 4.5a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5Zm-1.25 5.75a1.25 1.25 0 1 1 2.5 0 1.25 1.25 0 0 1-2.5 0Z" /></svg>
         </button>
       </div>
+      )}
 
+      {(!isTeen || teenOpen) && (
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {participant.status === 'ARCHIVED' && (
           <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-semibold text-neutral-600">Archived</span>
@@ -577,13 +645,15 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
           </span>
         )}
       </div>
-      <TeenLoginPhone participant={participant} />
-      {expanded && (
+      )}
+      {(!isTeen || teenOpen) && <TeenLoginPhone participant={participant} />}
+      {isTeen && teenOpen && accessConfirmed !== true && <LoginDetailsCard participantId={participant.id} email={participant.email} className="mt-2.5" />}
+      {(isTeen ? teenOpen : expanded) && (
         <button type="button" onClick={() => setViewOpen(true)} className="mt-2.5 rounded-full border border-gray-200 bg-white px-3.5 py-1.5 text-[12.5px] font-semibold text-gray-700">
           All details
         </button>
       )}
-      {expanded && onboarding && (
+      {(isTeen ? teenOpen : expanded) && onboarding && (
         <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
           {onboarding.completed ? (
             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100/80 px-2.5 py-1 text-xs font-semibold text-emerald-700">
@@ -595,7 +665,7 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
           )}
         </div>
       )}
-      {(appLine || appInfoLoaded) && <p className="mt-2 text-[11.5px] text-gray-500">{appLine || 'Not seen in the app yet'}</p>}
+      {!isTeen && (appLine || appInfoLoaded) && <p className="mt-2 text-[11.5px] text-gray-500">{appLine || 'Not seen in the app yet'}</p>}
 
       {helpRequest && (
         <div className="mt-2.5 rounded-xl bg-red-100/80 px-[13px] py-3">
@@ -612,7 +682,7 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
         </div>
       )}
 
-      {(faithHelpRequests ?? []).map((request) => (
+      {(isTeen && helpRequest ? [] : (faithHelpRequests ?? [])).map((request) => (
         <div key={request.id} className="mt-2.5 rounded-xl bg-orange-100/80 px-[13px] py-3">
           <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-orange-700">Faith project isn&apos;t going well · {shortMoment(request.createdAt)}</p>
           <p className="mt-1 text-[13px] font-semibold text-gray-800">{FAITH_HELP_REASON_LABELS[request.reason]}</p>
@@ -628,7 +698,7 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
         </div>
       ))}
 
-      {sharedTestimony && (
+      {sharedTestimony && (!isTeen || teenOpen) && (
         <div className="mt-2.5 rounded-xl bg-emerald-100/80 px-[13px] py-3">
           <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-emerald-700">Testimony · {shortMoment(sharedTestimony.createdAt)}</p>
           {sharedTestimony.title && <p className="mt-1 text-[13px] font-semibold text-gray-800">{sharedTestimony.title}</p>}
