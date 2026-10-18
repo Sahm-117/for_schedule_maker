@@ -15,7 +15,6 @@ import MeetingWindowNotice from '../groups/MeetingWindowNotice';
 import { friendlyMeetingError, meetingWindowState, useMinuteClock } from '../../utils/meetingWindow';
 import { prefetchPdfEngine, prefetchDocumentFile } from '../../utils/prefetchDocument';
 import type { HubMessage, HubPrayerFocus, HubPrayerListItem, MyHubMember, SupportAttendanceStatus, SupportRecap, Week } from '../../types';
-import { parseTimeToMinutes } from '../../utils/time';
 import { PERSON_OF_INTEREST_INFO } from './hubJobs';
 
 const STEPS = ['Attendance', 'Prayer', 'Review & Recap', 'Announcements', 'Notes', 'Submit'];
@@ -123,16 +122,6 @@ const LiveDot: React.FC<{ label: string }> = ({ label }) => (
 // "Ada", "Ada and Bo", "Ada, Bo and Cy".
 const joinNames = (names: string[]) =>
   names.length <= 1 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
-
-// True from 15 minutes before the hub's meeting slot until an hour after it starts (meetings have no set length).
-const DAY_NAMES = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
-const isInMeetingWindow = (day: string | null | undefined, time: string | null | undefined, now: Date) => {
-  if (!day || !time || DAY_NAMES[now.getDay()] !== day.toUpperCase()) return false;
-  const start = parseTimeToMinutes(time);
-  if (start === null) return false;
-  const nowMins = now.getHours() * 60 + now.getMinutes();
-  return nowMins >= start - 15 && nowMins <= start + 60;
-};
 
 const FollowAlongPrayerCard: React.FC<{ focus: HubPrayerFocus; prayerLeadNames?: string[] }> = ({ focus, prayerLeadNames = [] }) =>
   focus.prayerFinished ? (
@@ -288,16 +277,14 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
   // meeting is actually on: attendance has been taken for this week, it's the hub's meeting time,
   // or prayer has already started. Until then, re-check every 10s so it appears as soon as the
   // lead marks the first person.
-  const [now, setNow] = useState(() => new Date());
   const attendanceTaken = Object.keys(marks).length > 0;
   const prayerStarted = !!prayerFocus.faithProjectId || prayerFocus.hubPrayerDone || prayerFocus.prayerFinished;
   const isHeld = weekId !== null && submittedWeekIds.includes(weekId);
-  const showFollowAlongPrayer = attendanceTaken || prayerStarted
-    || isInMeetingWindow(meetingDay, meetingTime, now);
+  // The meeting is on once attendance has been taken or prayer has started, not by the clock.
+  const showFollowAlongPrayer = attendanceTaken || prayerStarted;
   useEffect(() => {
     if (!(isFollowAlong || isPrayerLead) || !hubId || weekId === null || attendanceTaken) return undefined;
     return startPolling(() => {
-      setNow(new Date());
       return supportSessionsApi.getForHubWeek(hubId, weekId)
         .then(({ attendance, session: sessionRow }) => {
           if (attendance.length === 0) return;
