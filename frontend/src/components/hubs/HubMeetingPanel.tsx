@@ -787,7 +787,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
         </section>
         {followView === 'recap' ? recapStepContent : !showFollowAlongPrayer ? (
           <section className={`${CARD} text-center`}>
-            <p className="text-sm text-gray-500">Activities show here once the hub meeting starts.</p>
+            <p className="text-sm text-gray-500">Activities show here once the hub lead starts the meeting by taking attendance.</p>
           </section>
         ) : (<>
         {isHeld && !prayerStarted ? (
@@ -882,7 +882,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
         </section>
         {step === PRAYER_STEP && isPrayerLead ? (showFollowAlongPrayer ? prayerStepContent : (
           <section className={`${CARD} text-center`}>
-            <p className="text-sm text-gray-500">Prayer opens here once the hub meeting starts.</p>
+            <p className="text-sm text-gray-500">Prayer opens here once the hub lead starts the meeting by taking attendance.</p>
           </section>
         )) : step === RECAP_STEP ? recapStepContent : (
           <section className={CARD}>
