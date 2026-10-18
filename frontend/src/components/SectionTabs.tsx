@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { NavLink } from 'react-router-dom';
 import { TAB_ACTIVE, TAB_IDLE, TAB_TRAY } from './SegmentedTabs';
 
@@ -66,10 +66,17 @@ export const visibleSectionTabs = (pathname: string, isAdmin: boolean) =>
 
 const SectionTabs: React.FC<{ pathname: string; isAdmin: boolean; pendingApprovals: number; className?: string }> = ({ pathname, isAdmin, pendingApprovals, className = 'mb-5' }) => {
   const tabs = visibleSectionTabs(pathname, isAdmin);
+  const strip = useRef<HTMLElement>(null);
+  // On a phone the strip is wider than the screen; bring the current tab into view.
+  useEffect(() => {
+    const nav = strip.current;
+    const tab = nav?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (nav && tab) nav.scrollLeft = tab.offsetLeft - (nav.clientWidth - tab.offsetWidth) / 2;
+  }, [pathname, tabs.length]);
   if (tabs.length < 2) return null;
 
   return (
-    <nav aria-label="Section" className={`-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0 ${className}`}>
+    <nav ref={strip} aria-label="Section" className={`-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0 ${className}`}>
       <div className={`inline-flex min-w-max gap-1 ${TAB_TRAY}`}>
         {tabs.map((tab) => {
           const active = pathname === tab.to;
