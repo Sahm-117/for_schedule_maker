@@ -16,11 +16,13 @@ interface ProfileMenuProps {
   roles?: Array<'ADMIN' | 'SUPPORT' | 'STAFF'>;
   activeRole?: string;
   onSwitchRole?: (role: 'ADMIN' | 'SUPPORT' | 'STAFF') => Promise<void>;
+  /** Adds a Help item above Log out (the app guide and the support contact). */
+  onHelp?: () => void;
 }
 
 const ROLE_NAME: Record<string, string> = { ADMIN: 'Admin', SUPPORT: 'Support', STAFF: 'Team member' };
 
-const ProfileMenu: React.FC<ProfileMenuProps> = ({ name, avatarUrl, profilePath, onLogout, roles, activeRole, onSwitchRole }) => {
+const ProfileMenu: React.FC<ProfileMenuProps> = ({ name, avatarUrl, profilePath, onLogout, roles, activeRole, onSwitchRole, onHelp }) => {
   const navigate = useNavigate();
   // A Team member without the Settings module has no profile page to open.
   const { canOpen } = usePermissions();
@@ -109,6 +111,12 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ name, avatarUrl, profilePath,
             <button type="button" role="menuitem" onClick={() => setView('roles')} className={`${item} text-gray-800 hover:bg-orange-50`}>
               <svg className="h-4 w-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.9" d="M7 7h12l-3-3M17 17H5l3 3" /></svg>
               Switch roles
+            </button>
+          )}
+          {onHelp && (
+            <button type="button" role="menuitem" onClick={() => { setOpen(false); onHelp(); }} className={`${item} text-gray-800 hover:bg-orange-50`}>
+              <svg className="h-4 w-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" strokeWidth="1.9" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.9" d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01" /></svg>
+              Help
             </button>
           )}
           <button type="button" role="menuitem" onClick={() => { setOpen(false); onLogout(); }} className={`${item} text-red-700 hover:bg-red-50`}>

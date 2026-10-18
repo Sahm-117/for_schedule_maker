@@ -121,6 +121,7 @@ const ShellLayout: React.FC = () => {
   const groupMeetingLive = !!home?.groupMeetingLive;
   const location = useLocation();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const { enable } = useParticipantPush();
   const appSetup = useAppSetup();
   const appSetupDismiss = useSessionDismiss('fof_appsetup_dismissed_session');
@@ -225,7 +226,7 @@ const ShellLayout: React.FC = () => {
       <div className="lg:pl-[19rem]">
         <header className="sticky top-0 z-20 border-b border-white/70 bg-white/80 backdrop-blur-xl">
           <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
-            <ProfileMenu name={user.name} avatarUrl={home?.profile?.avatarUrl} profilePath="/me/profile" onLogout={logout} />
+            <ProfileMenu name={user.name} avatarUrl={home?.profile?.avatarUrl} profilePath="/me/profile" onLogout={logout} onHelp={() => setHelpOpen(true)} />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-gray-900">{user.name}</p>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
@@ -234,7 +235,6 @@ const ShellLayout: React.FC = () => {
               </div>
             </div>
             <ParticipantNotificationBell />
-            <NeedSupportButton inline className="hidden lg:grid" />
             <button type="button" onClick={logout} className="hidden rounded-2xl border border-orange-100 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-orange-50 sm:block lg:hidden">
               Logout
             </button>
@@ -328,7 +328,7 @@ const ShellLayout: React.FC = () => {
         />
       )}
       {showAppSetup && appSetupSlot && <AppSetupSheet enable={enable} onClose={() => { noteSheetDismissed(); appSetupDismiss.dismiss(); }} />}
-      <NeedSupportButton className="lg:hidden" />
+      <NeedSupportButton hideTrigger externalOpen={helpOpen} onExternalClose={() => setHelpOpen(false)} />
     </div>
   );
 };

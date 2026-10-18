@@ -109,9 +109,9 @@ const ScriptureCarousel: React.FC<ScriptureCarouselProps> = ({ scriptures, start
     const dt = Math.max(1, performance.now() - drag.time);
     const width = scriptureTrackRef.current?.offsetWidth || 1;
     const velocity = Math.abs(dx) / dt;
-    if (Math.abs(dx) < 6 && Math.abs(event.clientY - drag.y) < 6) {
+    if (Math.abs(dx) < 12 && Math.abs(event.clientY - drag.y) < 12) {
       setScriptureDragPx(0);
-      if (event.type === 'pointerup' && dt < 500) setEnlarged(true);
+      if (event.type === 'pointerup' && dt < 900) setEnlarged(true);
       return;
     }
     const pastThreshold = Math.abs(dx) > width * 0.25 || (Math.abs(dx) > FLICK_MIN_PX && velocity > FLICK_VELOCITY);

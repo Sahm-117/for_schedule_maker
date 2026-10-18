@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { JOIN_LEAD_MINUTES, isCallJoinable } from '../utils/joinWindow';
+import { isCallJoinable, joinOpensLabel } from '../utils/joinWindow';
 
 interface JoinCallButtonProps {
   href: string;
@@ -30,7 +30,8 @@ const JoinCallButton: React.FC<JoinCallButtonProps> = ({ href, day, time, live =
   if (open) {
     return <a href={href} target="_blank" rel="noreferrer" className={className}>{label}</a>;
   }
-  const hint = `Opens ${JOIN_LEAD_MINUTES} min before the meeting`;
+  const opensAt = joinOpensLabel(day, time);
+  const hint = opensAt ? `Opens ${opensAt}` : 'Not open yet';
   return (
     <span className="flex flex-col gap-1.5">
       <span

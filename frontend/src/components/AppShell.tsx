@@ -405,6 +405,7 @@ const AppShell: React.FC = () => {
     return (active ?? real[0])?.id ?? null;
   }, [cohorts, activeCohort?.id]);
   const [returningToReal, setReturningToReal] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   // Leaving practice from the top bar is asked about first.
   const [confirmPracticeExit, setConfirmPracticeExit] = useState<PracticeExitKind | null>(null);
@@ -884,7 +885,7 @@ const AppShell: React.FC = () => {
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
             </button>
 
-            {user && <ProfileMenu name={user.name} avatarUrl={user.avatarUrl} profilePath={isSupport ? '/support/profile' : '/settings'} onLogout={logout} roles={user.roles} activeRole={user.teamMember ? 'STAFF' : user.role} onSwitchRole={switchRole} />}
+            {user && <ProfileMenu name={user.name} avatarUrl={user.avatarUrl} profilePath={isSupport ? '/support/profile' : '/settings'} onLogout={logout} roles={user.roles} activeRole={user.teamMember ? 'STAFF' : user.role} onSwitchRole={switchRole} onHelp={() => setHelpOpen(true)} />}
 
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-gray-900">{user?.name}</p>
@@ -901,7 +902,6 @@ const AppShell: React.FC = () => {
             {/* Bell is visible at every width — Support users are mobile-heavy
                 and rely on this in-app feed when push doesn't reach them. */}
             <NotificationBell />
-            <NeedSupportButton inline className="hidden lg:grid" cohortId={activeCohort?.id ?? null} />
 
             <div className="hidden items-center gap-3 sm:flex">
               {cohortOptions.length > 0 && (
@@ -1021,7 +1021,7 @@ const AppShell: React.FC = () => {
         document.body
       )}
 
-      <NeedSupportButton className="lg:hidden" cohortId={activeCohort?.id ?? null} />
+      <NeedSupportButton hideTrigger externalOpen={helpOpen} onExternalClose={() => setHelpOpen(false)} cohortId={activeCohort?.id ?? null} />
     </div>
     </PracticeLockContext.Provider>
   );

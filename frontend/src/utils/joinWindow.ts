@@ -31,3 +31,13 @@ export const isCallJoinable = (
   if (here.day !== day.toUpperCase()) return false;
   return here.minutes >= start - JOIN_LEAD_MINUTES && here.minutes <= start + JOIN_OPEN_MINUTES;
 };
+
+/** "Friday at 7:50 PM": when the Join button opens for a meeting on this day and time. */
+export const joinOpensLabel = (day: string | null | undefined, time: string | null | undefined): string | null => {
+  const start = startMinutes(time);
+  if (!day || start === null || !DAY_NAMES.includes(day.toUpperCase())) return null;
+  const opens = Math.max(0, start - JOIN_LEAD_MINUTES);
+  const hour = Math.floor(opens / 60);
+  const clock = `${hour % 12 === 0 ? 12 : hour % 12}:${String(opens % 60).padStart(2, '0')} ${hour >= 12 ? 'PM' : 'AM'}`;
+  return `${day.charAt(0).toUpperCase()}${day.slice(1).toLowerCase()} at ${clock}`;
+};

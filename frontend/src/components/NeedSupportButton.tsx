@@ -15,11 +15,15 @@ import { firstNameOf } from '../utils/people';
 // is the staff app's active cohort. Admins always get the support_contact.
 // `inline` renders a header-sized button (desktop top bar) instead of the floating one,
 // so it never covers table content.
-const NeedSupportButton: React.FC<{ inline?: boolean; className?: string; cohortId?: string | null }> = ({ inline = false, className = '', cohortId = null }) => {
+// `hideTrigger` drops the button itself; the profile menu's Help item then opens the same sheet through
+// `externalOpen` / `onExternalClose`.
+const NeedSupportButton: React.FC<{ inline?: boolean; className?: string; cohortId?: string | null; hideTrigger?: boolean; externalOpen?: boolean; onExternalClose?: () => void }> = ({ inline = false, className = '', cohortId = null, hideTrigger = false, externalOpen = false, onExternalClose }) => {
   const [contact, setContact] = useState<{ name: string; phone: string } | null>(null);
   const [isItContact, setIsItContact] = useState(false);
   const [open, setOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
+  const sheetOpen = open || externalOpen;
+  const closeSheet = () => { setOpen(false); onExternalClose?.(); };
   const { user } = useAuth();
   const guideRole = user?.role === 'ADMIN' ? 'admin' : user?.role === 'PARTICIPANT' ? 'participant' : 'support';
 
@@ -44,19 +48,19 @@ const NeedSupportButton: React.FC<{ inline?: boolean; className?: string; cohort
   const waLink = contact ? buildWhatsAppLink(contact.phone, `Hello ${contact.name}, I need help with `) : null;
 
   const openGuide = () => {
-    setOpen(false);
+    closeSheet();
     setGuideOpen(true);
   };
 
   const openWhatsApp = () => {
     if (!waLink) return;
-    setOpen(false);
+    closeSheet();
     window.open(waLink, '_blank', 'noopener,noreferrer');
   };
 
   return (
     <>
-      {inline ? (
+      {hideTrigger ? null : inline ? (
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -90,10 +94,10 @@ const NeedSupportButton: React.FC<{ inline?: boolean; className?: string; cohort
         </div>
       )}
 
-      {open && createPortal(
+      {sheetOpen && createPortal(
         <div
           className="fixed inset-0 z-[120] flex items-end justify-center bg-black/40 p-4 sm:items-center"
-          onClick={(e) => { if (e.target === e.currentTarget) setOpen(false); }}
+          onClick={(e) => { if (e.target === e.currentTarget) closeSheet(); }}
           role="dialog"
           aria-modal="true"
           aria-label="How can we help?"
@@ -103,7 +107,7 @@ const NeedSupportButton: React.FC<{ inline?: boolean; className?: string; cohort
               <h3 className="text-lg font-semibold text-gray-900">How can we help?</h3>
               <button
                 type="button"
-                onClick={() => setOpen(false)}
+                onClick={closeSheet}
                 aria-label="Close"
                 className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 active:scale-95"
               >
