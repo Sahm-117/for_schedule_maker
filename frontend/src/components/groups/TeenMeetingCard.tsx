@@ -9,7 +9,7 @@ import { sortByText } from '../../utils/sort';
 import Spinner from '../Spinner';
 import GroupMeetingSlotEditor, { formatMeetingSlot, type MeetingSlot } from '../GroupMeetingSlotEditor';
 import MeetingWindowNotice from './MeetingWindowNotice';
-import { friendlyMeetingError, meetingWindowState, useMinuteClock } from '../../utils/meetingWindow';
+import { friendlyMeetingError, meetingWindowState, useMinuteClock, useRecordingOpening } from '../../utils/meetingWindow';
 
 interface TeenMeetingCardProps {
   userId: string;
@@ -122,7 +122,7 @@ const TeenMeetingCard: React.FC<TeenMeetingCardProps> = ({ userId, userName }) =
   };
   const slotLabel = formatMeetingSlot({ meetingDay: group?.meetingDay, meetingTime: group?.meetingTime });
   const clock = useMinuteClock();
-  const windowState = meetingWindowState(group?.meetingDay, group?.meetingTime, week, activeCohort?.startDate, clock, !!activeCohort?.isPractice);
+  const windowState = useRecordingOpening({ groupId: group?.id }, week?.id, meetingWindowState(group?.meetingDay, group?.meetingTime, week, activeCohort?.startDate, clock, !!activeCohort?.isPractice), clock);
   const canRecord = windowState.state === 'open';
 
   const defaultDay = useMemo(() => {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { classDateIso, type ClassWeek } from './participantApp';
+import { meetingRecordingApi } from '../services/api';
 
 // When a group's (or hub's) weekly meeting can be recorded: from 10 minutes before its set start time
 // until midnight (Lagos) at the end of that day. The meeting for week N is the first meeting day on or
@@ -85,4 +86,31 @@ export const useMinuteClock = () => {
     return () => window.clearInterval(timer);
   }, []);
   return now;
+};
+
+/**
+ * The window state with an admin's opening applied: while an admin has opened recording for this hub or
+ * group and week (meeting_recording_opening), it is open whatever the clock says. Checked once a minute,
+ * and only while the normal window is closed. Not available (e.g. not applied yet): the normal state stands.
+ */
+export const useRecordingOpening = (
+  target: { hubId?: string | null; groupId?: string | null },
+  weekId: number | null | undefined,
+  base: MeetingWindowState,
+  clock: Date,
+): MeetingWindowState => {
+  const [until, setUntil] = useState<Date | null>(null);
+  const targetId = target.hubId ?? target.groupId ?? null;
+  const minute = Math.floor(clock.getTime() / 60000);
+  const closed = base.state !== 'open';
+  useEffect(() => {
+    if (!closed || !targetId || weekId == null) { setUntil(null); return undefined; }
+    let cancelled = false;
+    meetingRecordingApi.getOpening({ hubId: target.hubId ?? null, groupId: target.groupId ?? null }, weekId)
+      .then((value) => { if (!cancelled) setUntil(value ? new Date(value) : null); })
+      .catch(() => { if (!cancelled) setUntil(null); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [closed, targetId, weekId, minute]);
+  return until && until.getTime() > clock.getTime() ? { state: 'open', closesAt: until } : base;
 };

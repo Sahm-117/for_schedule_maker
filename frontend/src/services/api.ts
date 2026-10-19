@@ -58,6 +58,7 @@ import {
   groupPrayerStatusApi as supabaseGroupPrayerStatusApi,
   teenMeetingsApi as supabaseTeenMeetingsApi,
   groupOnboardingStatusApi as supabaseGroupOnboardingStatusApi,
+  meetingRecordingApi as supabaseMeetingRecordingApi,
   participantOnboardingStatusApi as supabaseParticipantOnboardingStatusApi,
   participantNotesApi as supabaseParticipantNotesApi,
   participantHandoversApi as supabaseParticipantHandoversApi,
@@ -727,6 +728,12 @@ export const groupsApi = USE_SUPABASE ? supabaseGroupsApi : {
   async moveParticipant(_participantId: string, _toGroupId: string | null): Promise<never> { return peopleUnavailable(); },
   async bulkAssign(_assignments: Array<{ participantId: string; groupId: string }>): Promise<never> { return peopleUnavailable(); },
   async backfillTags(_cohortId: string): Promise<never> { return peopleUnavailable(); },
+};
+
+export const meetingRecordingApi = USE_SUPABASE ? supabaseMeetingRecordingApi : {
+  async getOpening(_target: { hubId?: string | null; groupId?: string | null }, _weekId: number): Promise<string | null> { return null; },
+  async open(_target: { hubId?: string | null; groupId?: string | null }, _weekId: number, _hours?: number): Promise<never> { return peopleUnavailable(); },
+  async close(_target: { hubId?: string | null; groupId?: string | null }, _weekId: number): Promise<never> { return peopleUnavailable(); },
 };
 
 export const groupOnboardingStatusApi = USE_SUPABASE ? supabaseGroupOnboardingStatusApi : {

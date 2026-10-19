@@ -6638,6 +6638,25 @@ const mapSupportSession = (row: any): import('../types').SupportSession => ({
   createdAt: row.createdAt,
 });
 
+// An admin opens recording for one hub's or group's meeting in one week, outside its normal window
+// (20261019140000_meeting_recording_opening.sql). Reads give the end of a live opening, or null.
+export const meetingRecordingApi = {
+  async getOpening(target: { hubId?: string | null; groupId?: string | null }, weekId: number): Promise<string | null> {
+    const { data, error } = await supabase.rpc('meeting_recording_opening', { p_hub_id: target.hubId ?? null, p_group_id: target.groupId ?? null, p_week_id: weekId });
+    if (error) return null; // not available (yet): the normal window applies
+    return (data as string | null) ?? null;
+  },
+  async open(target: { hubId?: string | null; groupId?: string | null }, weekId: number, hours = 24): Promise<string> {
+    const { data, error } = await supabase.rpc('admin_open_meeting_recording', { p_hub_id: target.hubId ?? null, p_group_id: target.groupId ?? null, p_week_id: weekId, p_hours: hours });
+    if (error) throw new Error(error.message);
+    return data as string;
+  },
+  async close(target: { hubId?: string | null; groupId?: string | null }, weekId: number): Promise<void> {
+    const { error } = await supabase.rpc('admin_close_meeting_recording', { p_hub_id: target.hubId ?? null, p_group_id: target.groupId ?? null, p_week_id: weekId });
+    if (error) throw new Error(error.message);
+  },
+};
+
 export const supportSessionsApi = {
   async mark(input: { status: import('../types').SupportAttendanceStatus; userId: string; hubId?: string; weekId?: number; sessionId?: string }): Promise<{ attendance: import('../types').SupportSessionAttendance }> {
     const { data, error } = await supabase.rpc('mark_support_attendance', {

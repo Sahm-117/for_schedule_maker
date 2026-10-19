@@ -22,6 +22,7 @@ import { getIdealWeekForCohort, getIdealWeekNumberForCohort } from '../utils/wee
 import { cohortMode } from '../components/dashboard/healthModel';
 import HubReportsCard from '../components/hubs/HubReportsCard';
 import MeetingSetModal from '../components/hubs/MeetingSetModal';
+import OpenRecordingModal from '../components/hubs/OpenRecordingModal';
 import { formatMeetingSlot } from '../components/groups/GroupCallCard';
 import Spinner from '../components/Spinner';
 import SupportNotesStar from '../components/hubs/SupportNotesStar';
@@ -510,6 +511,7 @@ const AdminHubsPage: React.FC = () => {
   // Tap a support's photo or name to see their profile, as on Community.
   const [profileUserId, setProfileUserId] = useState<string | null>(null);
   const [recapTarget, setRecapTarget] = useState<SupportHub | null>(null);
+  const [openRecTarget, setOpenRecTarget] = useState<SupportHub | null>(null);
   const [recapByHub, setRecapByHub] = useState<Record<string, { weekId: number; weekNumber: number; marked: number; total: number; absent: number }>>({});
   const [itSupportsByHub, setItSupportsByHub] = useState<Record<string, HubItSupportEntry[]>>({});
   // Members with a note about them, per hub — they get a ★ on the hub card.
@@ -816,6 +818,7 @@ const AdminHubsPage: React.FC = () => {
                             { label: 'Hub roles', onClick: () => setLeadTarget(h) },
                             { label: 'Meeting time & link', onClick: () => setMeetingTarget(h) },
                             { label: 'Recap attendance', onClick: () => setRecapTarget(h) },
+                            ...(isAdmin ? [{ label: 'Open recording', onClick: () => setOpenRecTarget(h) }] : []),
                             { label: 'Edit name', onClick: () => { setEditing(h); setFormOpen(true); } },
                           ] : []),
                           ...(canDelete ? [{ label: 'Delete hub', onClick: () => setDeleteTarget(h), tone: 'danger' as const }] : []),
@@ -990,8 +993,12 @@ const AdminHubsPage: React.FC = () => {
         />
       )}
 
+      {openRecTarget && (
+        <OpenRecordingModal isOpen onClose={() => setOpenRecTarget(null)} name={openRecTarget.name} target={{ hubId: openRecTarget.id }} weeks={weeks} />
+      )}
+
       {recapTarget && (
-        <RecapAttendanceModal
+      <RecapAttendanceModal
           isOpen={!!recapTarget}
           onClose={() => setRecapTarget(null)}
           hub={recapTarget}

@@ -4,6 +4,7 @@ import PageHeader from '../components/PageHeader';
 import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
 import { useAppData } from '../context/AppDataContext';
+import OpenRecordingModal from '../components/hubs/OpenRecordingModal';
 import FilterBar, { describeFilters, type FilterGroup } from '../components/filters/FilterBar';
 import { useUrlFilters } from '../hooks/useUrlFilters';
 import { cohortsApi, groupDiscussionApi, groupsApi, participantPushApi, participantsApi, settingsApi, supportHubsApi, supportKindApi, supportSessionsApi, supportTagsApi, usersApi } from '../services/api';
@@ -451,7 +452,7 @@ const AdminGroupsPage: React.FC = () => {
 
 const AdminGroupsContent: React.FC = () => {
   const { user } = useAuth();
-  const { activeCohort, liveRevision } = useAppData();
+  const { activeCohort, liveRevision, weeks } = useAppData();
   const navigate = useNavigate();
   const { can } = usePermissions();
   const canAdd = can('groups', 'add');
@@ -504,6 +505,7 @@ const AdminGroupsContent: React.FC = () => {
   const [supportTarget, setSupportTarget] = useState<Group | null>(null);
   // Admin: the group's support steps, to mark one done by hand.
   const [stepsTarget, setStepsTarget] = useState<Group | null>(null);
+  const [openRecTarget, setOpenRecTarget] = useState<Group | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<Group | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
@@ -835,6 +837,7 @@ const AdminGroupsContent: React.FC = () => {
                     { label: 'Manage members', onClick: () => setMembersTarget(g) },
                     { label: 'Assign support', onClick: () => setSupportTarget(g) },
                     ...(g.supportId && !g.isTeenGroup ? [{ label: 'Support steps', onClick: () => setStepsTarget(g) }] : []),
+                    { label: 'Open recording', onClick: () => setOpenRecTarget(g) },
                     { label: 'Edit', onClick: () => { setEditing(g); setFormOpen(true); } },
                     { label: 'Archive group', onClick: () => setArchiveTarget(g), tone: 'danger' as const },
                   ] : []),
@@ -948,6 +951,10 @@ const AdminGroupsContent: React.FC = () => {
         trainingsTotal={trainingsTotal}
         minTrainingsAttended={minTrainingsAttended}
       />
+
+      {openRecTarget && (
+        <OpenRecordingModal isOpen onClose={() => setOpenRecTarget(null)} name={openRecTarget.name} target={{ groupId: openRecTarget.id }} weeks={weeks} />
+      )}
 
       {stepsTarget && (
         <SupportStepsOverrideModal group={stepsTarget} onClose={() => setStepsTarget(null)} onChanged={() => { void load(true); }} />

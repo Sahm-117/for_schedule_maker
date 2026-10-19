@@ -9,7 +9,7 @@ import TeenMeetingCard from '../components/groups/TeenMeetingCard';
 import TeenWhatsAppGroupCard from '../components/groups/TeenWhatsAppGroupCard';
 import MeetingModePanel from '../components/groups/MeetingModePanel';
 import SupportOnboardingSteps from '../components/groups/SupportOnboardingSteps';
-import { meetingWindowState, useMinuteClock } from '../utils/meetingWindow';
+import { meetingWindowState, useMinuteClock, useRecordingOpening } from '../utils/meetingWindow';
 import ParticipantCard from '../components/groups/ParticipantCard';
 import ModalShell from '../components/followups/ModalShell';
 import PageHeader from '../components/PageHeader';
@@ -361,6 +361,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
   );
 
   const selectedWeek = cohortWeeks.find((week) => week.id === selectedWeekId) ?? null;
+  const groupWindowState = useRecordingOpening({ groupId: selectedGroupId || null }, selectedWeek?.id, meetingWindowState(selectedGroupData?.meetingDay, selectedGroupData?.meetingTime, selectedWeek, activeCohort?.startDate, clock, !!activeCohort?.isPractice), clock);
   const currentPrayerFocus = groupPrayerFocuses.find((focus) => focus.groupId === selectedGroupId && focus.weekId === selectedWeekId) ?? null;
   const currentPrayerStatus = groupPrayerStatuses.find((status) => status.groupId === selectedGroupId && status.weekId === selectedWeekId) ?? null;
   const focusedParticipant = currentPrayerFocus
@@ -609,7 +610,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
               discussionPrompt={selectedWeek?.discussionPrompt}
               recapDocumentUrl={selectedWeek?.recapDocumentUrl}
               recapDocumentName={selectedWeek?.recapDocumentName}
-              windowState={meetingWindowState(selectedGroupData?.meetingDay, selectedGroupData?.meetingTime, selectedWeek, activeCohort?.startDate, clock, !!activeCohort?.isPractice)}
+              windowState={groupWindowState}
               onSetTime={() => document.querySelector('[data-wt="group-call"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
             />
             </div>
