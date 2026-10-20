@@ -653,7 +653,7 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
       </div>
       )}
       {(!isTeen || teenOpen) && <TeenLoginPhone participant={participant} />}
-      {isTeen && teenOpen && accessConfirmed === false && <LoginDetailsCard participantId={participant.id} email={participant.email} className="mt-2.5" />}
+      {isTeen && teenOpen && <LoginDetailsCard participantId={participant.id} email={participant.email} guardian className="mt-2.5" />}
       {(isTeen ? teenOpen : expanded) && (
         <button type="button" onClick={() => setViewOpen(true)} className="mt-2.5 rounded-full border border-gray-200 bg-white px-3.5 py-1.5 text-[12.5px] font-semibold text-gray-700">
           All details

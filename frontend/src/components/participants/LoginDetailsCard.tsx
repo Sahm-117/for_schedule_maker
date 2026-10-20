@@ -22,6 +22,8 @@ interface LoginDetailsCardProps {
   startDate?: string | null;
   /** Their email, for sending the login by email when the phone doesn't get through. */
   email?: string | null;
+  /** A teen: the login belongs to the parent or guardian, who is also the one who can ask for a reset. */
+  guardian?: boolean;
 }
 
 const formatDay = (value: string | null) =>
@@ -33,7 +35,7 @@ const errorText = (err: unknown) => {
   return message || 'Could not load the login details. Please try again.';
 };
 
-const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, followUpContactId, defaultOpen = false, className = '', startDate, email }) => {
+const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, followUpContactId, defaultOpen = false, className = '', startDate, email, guardian = false }) => {
   const { user } = useAuth();
   const [details, setDetails] = useState<ParticipantLoginDetails | null>(null);
   const [open, setOpen] = useState(defaultOpen);
@@ -106,7 +108,7 @@ const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, foll
     <div className={`overflow-hidden rounded-[14px] border border-[#d9f2e2] bg-[#f2fbf5] ${className}`}>
       <button type="button" onClick={toggle} aria-expanded={open} className="flex w-full items-center gap-2.5 px-3.5 py-[13px] text-left">
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-bold uppercase tracking-[0.04em] text-[#15803d]">Their login details</p>
+          <p className="text-xs font-bold uppercase tracking-[0.04em] text-[#15803d]">{guardian ? 'Guardian login details' : 'Their login details'}</p>
           <p className="mt-[3px] text-[12.5px] text-gray-600">{subline}</p>
         </div>
         <span className={`inline-flex h-8 w-8 flex-none items-center justify-center text-[#15803d] transition-transform ${open ? 'rotate-90' : ''}`} aria-hidden="true">
@@ -147,10 +149,10 @@ const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, foll
             </div>
           ) : details?.status === 'ACTIVE' ? (
             <div className="rounded-[10px] border border-[#d9f2e2] bg-white p-3 text-[13px] leading-normal text-gray-700">
-              <p>{firstName} has chosen their own password. Only they know it.</p>
+              <p>{guardian ? 'The guardian has chosen a password. Only they know it.' : `${firstName} has chosen their own password. Only they know it.`}</p>
               {confirmNewCode ? (
                 <div className="mt-2.5">
-                  <p className="text-[12.5px] text-gray-500">A new code replaces their password and signs them out. Send it to them straight after.</p>
+                  <p className="text-[12.5px] text-gray-500">{guardian ? 'A new code replaces the family’s password and signs out the guardian and the teen. Send it to the guardian straight after.' : 'A new code replaces their password and signs them out. Send it to them straight after.'}</p>
                   <div className="mt-2 flex gap-2">
                     <button type="button" onClick={() => setConfirmNewCode(false)} className="min-h-[40px] flex-1 rounded-[10px] border border-gray-200 bg-white px-3 text-[13px] font-semibold text-gray-700">Cancel</button>
                     <button type="button" onClick={() => { setConfirmNewCode(false); void load({ newCode: true }); }} disabled={loading} className="min-h-[40px] flex-1 rounded-[10px] bg-primary px-3 text-[13px] font-semibold text-white disabled:opacity-60">Create new code</button>
@@ -158,7 +160,7 @@ const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, foll
                 </div>
               ) : (
                 <button type="button" onClick={() => setConfirmNewCode(true)} className="mt-2 text-[13px] font-semibold text-[#c2410c]">
-                  Forgot their password? Create a new code
+                  {guardian ? 'Guardian forgot the password? Create a new code' : 'Forgot their password? Create a new code'}
                 </button>
               )}
             </div>

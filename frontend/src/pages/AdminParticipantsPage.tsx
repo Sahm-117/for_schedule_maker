@@ -1271,7 +1271,7 @@ const AdminParticipantsContent: React.FC = () => {
               {displayed.map((p) => {
                 const registration = p.followUpStatus ? REGISTRATION_STATUS_META[p.followUpStatus] : null;
                 const support = p.groupId ? supportByGroupId.get(p.groupId) : null;
-                const line = [p.groupName, support].filter(Boolean).join(' · ') || p.phone || 'No group yet';
+                const line = [p.groupName, support].filter(Boolean).join(' · ') || (p.phone ? `${isTeenAgeRange(p.ageRange) ? 'Guardian ' : ''}${p.phone}` : 'No group yet');
                 return (
                   <li key={p.id} className="py-2.5 pl-4 pr-2">
                     <div className="flex items-center gap-3">
@@ -1312,7 +1312,10 @@ const AdminParticipantsContent: React.FC = () => {
                         <NavLink to={`/participants/${p.id}`} className="hover:text-primary hover:underline">{p.fullName}</NavLink>
                         {renderChips(p)}
                       </td>
-                      <td className="px-4 py-3 text-gray-500">{p.phone ?? '—'}</td>
+                      <td className="px-4 py-3 text-gray-500">
+                        {p.phone ?? '—'}
+                        {p.phone && isTeenAgeRange(p.ageRange) && <span className="block text-[11px] font-semibold text-gray-400">Guardian’s number</span>}
+                      </td>
                       <td className="px-4 py-3 text-gray-500">{p.groupName ?? '—'}</td>
                       <td className="px-4 py-3">
                         {completionById.has(p.id) ? (

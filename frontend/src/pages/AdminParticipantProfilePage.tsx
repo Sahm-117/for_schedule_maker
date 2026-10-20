@@ -52,6 +52,7 @@ import type {
 } from '../types';
 import DepartmentHandoff from '../components/participants/DepartmentHandoff';
 import LoginDetailsCard from '../components/participants/LoginDetailsCard';
+import { isTeenAgeRange } from '../utils/groupingRules';
 import ParticipantAppActivity from '../components/participants/ParticipantAppActivity';
 import ProfileOverview from '../components/participants/ProfileOverview';
 import RetakingChip from '../components/participants/RetakingChip';
@@ -326,7 +327,9 @@ const AdminParticipantProfilePage: React.FC = () => {
         <h2 className="text-lg font-semibold text-gray-900">Overview</h2>
         <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3 lg:grid-cols-6">
           {[
-            ['Phone', participant.phone],
+            ...(isTeenAgeRange(participant.ageRange)
+              ? [['Parent or guardian', data.contact?.guardianName], ['Guardian’s number', participant.phone ?? participant.guardianPhone]]
+              : [['Phone', participant.phone]]),
             ['Email', participant.email],
             ['Age range', participant.ageRange],
             ['Gender', participant.gender],

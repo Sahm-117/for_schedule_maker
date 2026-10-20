@@ -902,7 +902,7 @@ const AdminGroupsContent: React.FC = () => {
                           <Avatar name={p.fullName} avatarUrl={p.avatarUrl} size="sm" />
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-semibold leading-tight text-gray-900">{p.fullName}</p>
-                            <p className="truncate text-xs text-gray-400">{[p.guardianPhone ?? p.phone, genderAgeLine(p)].filter(Boolean).join(' · ')}</p>
+                            <p className="truncate text-xs text-gray-400">{[(p.guardianPhone ?? p.phone) ? `Guardian ${p.guardianPhone ?? p.phone}` : null, genderAgeLine(p)].filter(Boolean).join(' · ')}</p>
                           </div>
                           <AccessChip confirmed={signedInIds ? signedInIds.has(p.id) : null} />
                           {canEdit && (
