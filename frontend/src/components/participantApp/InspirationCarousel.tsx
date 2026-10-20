@@ -18,7 +18,7 @@ const InspirationCarousel: React.FC<{
   scriptures: ParticipantHome['scriptures'];
   /** The FOF day the first post shows on. */
   startDay: number;
-  /** The cohort's first day; day N opens at 2:00 PM Lagos time. */
+  /** The cohort's first day; day N opens at 12:00 AM Lagos time. */
   cohortStartDate: string | null | undefined;
 }> = ({ scriptures, startDay, cohortStartDate }) => {
   const [index, setIndex] = useState(0);

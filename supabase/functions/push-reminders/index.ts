@@ -89,8 +89,8 @@ const TERMINAL_REGISTRATION_STATUSES = new Set(['LOGIN_SHARED', 'NOT_INTERESTED'
 const isSupportOrTagged = (user: { role?: string; roles?: string[] | null }): boolean =>
   user.role === 'SUPPORT' || !!user.roles?.includes('SUPPORT')
 
-// Inspirational Scripture drop: opens at 2:00 PM Lagos. Each line urges them to read the post and do its exercise.
-const SCRIPTURE_OPEN_MINUTES = 14 * 60
+// Inspirational Scripture drop: opens at 12:00 AM Lagos. Each line urges them to read the post and do its exercise.
+const SCRIPTURE_OPEN_MINUTES = 0
 const SCRIPTURE_DROP_LINES: Array<{ title: string; body: string }> = [
   { title: "Today's scripture is here", body: "Read it, then do today's exercise." },
   { title: "Today's post is ready", body: 'Read the anchor, take in the teaching, then do the exercise.' },
@@ -958,7 +958,7 @@ Deno.serve(async (req) => {
           }
         }
 
-        // c2) A new Inspirational Scripture opens at 2:00 PM Lagos (FOF day N opens at 2 PM on its own date,
+        // c2) A new Inspirational Scripture opens at 12:00 AM Lagos (FOF day N opens at midnight on its own date,
         //     the same rule as scriptureDayIndex in the app). One push + bell a day per participant, the
         //     line rotating by post so nobody reads the same one twice in a row. We cannot tell who has
         //     opened a post, so everyone with an active login gets it. pushParticipants' claim (the tag
@@ -971,7 +971,7 @@ Deno.serve(async (req) => {
           ])
           const scripturesOn = (enabledRow as any)?.value !== false && (enabledRow as any)?.value !== 'false'
           const startDay = Number((startDayRow as any)?.value) || 1
-          const fofDay = daysBetweenIso(startIso, pToday) + 1 // from 2 PM on this date, this FOF day's post is open
+          const fofDay = daysBetweenIso(startIso, pToday) + 1 // from midnight on this date, this FOF day's post is open
           const position = fofDay - startDay + 1
           const hasPost = ((scriptureRows ?? []) as any[]).some((row) => Number(row.dayNumber) === position)
           if (scripturesOn && position >= 1 && hasPost) {

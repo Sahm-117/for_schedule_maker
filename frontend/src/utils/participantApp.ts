@@ -174,11 +174,11 @@ export const shouldAskCheckIn = (home: ParticipantHome, now: Date) => {
   return { ask: true, misses };
 };
 
-/** Which FOF day is open: day N of the cohort opens at 2:00 PM. */
+/** Which FOF day is open: day N of the cohort opens at 12:00 AM Lagos time on its own date. */
 export const scriptureDayIndex = (startDate: string | null | undefined, now: Date): number | null => {
   const days = daysIntoCohort(startDate, now);
   if (days === null) return null;
-  const opened = lagosClock(now).getUTCHours() >= 14 ? days + 1 : days;
+  const opened = days + 1;
   return opened >= 1 ? opened : null;
 };
 

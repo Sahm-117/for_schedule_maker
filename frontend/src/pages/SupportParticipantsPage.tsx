@@ -6,7 +6,6 @@ import SegmentedTabs from '../components/SegmentedTabs';
 import StaffDiscussionPanel from '../components/discussion/StaffDiscussionPanel';
 import GroupCallCard, { formatMeetingSlot } from '../components/groups/GroupCallCard';
 import TeenMeetingCard from '../components/groups/TeenMeetingCard';
-import TeenWhatsAppGroupCard from '../components/groups/TeenWhatsAppGroupCard';
 import MeetingModePanel from '../components/groups/MeetingModePanel';
 import SupportOnboardingSteps from '../components/groups/SupportOnboardingSteps';
 import { meetingWindowState, useMinuteClock, useRecordingOpening } from '../utils/meetingWindow';
@@ -97,7 +96,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
   const [savingPrayerFocus, setSavingPrayerFocus] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
-  // A Teen Support gets the WhatsApp group card instead of a call link (teens have no call).
+  // A Teen Support gets the Teen meeting card (the WhatsApp group card is hidden: teens are managed in the app).
   const [isTeenSupport, setIsTeenSupport] = useState(false);
   useEffect(() => {
     let cancelled = false;
@@ -449,11 +448,6 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
         subtitle="Your group's faith projects and weekly prayer check-ins."
       />
 
-      {isTeenSupport && (
-        <div className="mb-3 max-w-[760px]">
-          <TeenWhatsAppGroupCard userId={user.id} link={user.whatsappGroupUrl} />
-        </div>
-      )}
       {isTeenSupport && (
         <div className="mb-3 max-w-[760px]">
           <TeenMeetingCard userId={user.id} userName={user.name} />

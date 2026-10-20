@@ -216,14 +216,14 @@ export const PAGE_TOURS: Record<string, TourStep[]> = {
   ],
   'admin:scriptures': [
     { target: wt('page-action'), title: 'Upload scriptures', body: 'Upload the daily images. A number in the file name picks the day; otherwise the next free day is used.' },
-    { target: wt('scriptures-grid'), title: 'Every day’s image', body: 'Participants see one a day on their Home from 2:00 PM. Replace or remove any day.', optional: true },
+    { target: wt('scriptures-grid'), title: 'Every day’s image', body: 'Participants see one a day on their Home from midnight. Replace or remove any day.', optional: true },
   ],
 
   // ── Participant ───────────────────────────────────────────────────────────
   'participant:home': [
     { target: wt('ph-hero'), title: 'This week', body: 'Which week you’re on, the class and who teaches it, and one button for what to do next.', optional: true },
     { target: wt('ph-call'), title: 'Join your group call', body: 'When your group has a call link, join from here.', optional: true },
-    { target: wt('ph-scripture'), title: 'Daily scripture', body: 'A new Inspirational Scripture every day from 2:00 PM. It moves by itself; tap See all for earlier days.', optional: true },
+    { target: wt('ph-scripture'), title: 'Daily scripture', body: 'A new Inspirational Scripture every day from midnight. It moves by itself; tap See all for earlier days.', optional: true },
     { target: wt('ph-week'), title: 'What is expected', body: 'What this week asks of you. Tap "See more" for the recap and your reflection.', optional: true },
     { target: wt('app-nav'), title: 'Your menu', body: 'My Group, My Journey and your Faith Project, plus Resources, Feedback and Profile.' },
     HELP_STEP,

@@ -381,7 +381,7 @@ const AdminScripturesPage: React.FC = () => {
           of FOF
         </label>
         <SaveStatus state={startDaySaveState} />
-        <p className="mt-1 text-xs text-gray-500">The first post shows from 2:00 PM on that day, then one more each day. Drag the designs below to reorder them.</p>
+        <p className="mt-1 text-xs text-gray-500">The first post shows from 12:00 AM (midnight) on that day, then one more each day. Drag the designs below to reorder them.</p>
       </section>
 
       {pending.length > 0 && (

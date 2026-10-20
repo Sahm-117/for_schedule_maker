@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-20 | [Scripture at midnight, teen WhatsApp card hidden](2026-10-20_scripture-midnight-teen-whatsapp-hidden.md) | Scripture opens at 12:00 AM Lagos in the app and the push; WhatsApp group card hidden on Teen Support My Group. Repo only; push-reminders not deployed |
 | 2026-10-19 | [Admin can open meeting recording](2026-10-19_admin-open-recording.md) | Admin Hubs/Groups card menu > Open recording opens one week for 24 hours outside the normal window (break week, missed meeting). Migration written, NOT applied; frontend tolerant until then. |
 | 2026-10-18 | [Teen card redesign](2026-10-18_teen-card-redesign.md) | Teen cards on My Group > People show last login, device, guardian number and one next step, with the rest under Details; guardian login card added. Frontend only, not browser-checked. |
 | 2026-10-18 | [Daily scripture notification](2026-10-18_scripture-drop-notification.md) | Push and bell to participants at 2:00 PM Lagos when the day's scripture opens; ten rotating lines that urge them to read it and do the exercise. Repo only, not deployed. |
