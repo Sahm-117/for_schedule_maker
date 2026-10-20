@@ -8,6 +8,7 @@ import { getIdealWeekForCohort } from '../../utils/weekFocus';
 import { sortByText } from '../../utils/sort';
 import Spinner from '../Spinner';
 import GroupMeetingSlotEditor, { formatMeetingSlot, type MeetingSlot } from '../GroupMeetingSlotEditor';
+import { normalizeLink } from '../../utils/links';
 import MeetingWindowNotice from './MeetingWindowNotice';
 import { friendlyMeetingError, meetingWindowState, useMinuteClock, useRecordingOpening } from '../../utils/meetingWindow';
 
@@ -98,10 +99,12 @@ const TeenMeetingCard: React.FC<TeenMeetingCardProps> = ({ userId, userName }) =
   // The group's meeting day and time, set by the Teen Support like any group; recording opens around it.
   const [slotEditing, setSlotEditing] = useState(false);
   const [slotDraft, setSlotDraft] = useState<MeetingSlot>({ meetingDay: null, meetingTime: null });
+  const [linkDraft, setLinkDraft] = useState('');
   const [slotSaving, setSlotSaving] = useState(false);
   const [slotError, setSlotError] = useState('');
   const startSlotEdit = () => {
     setSlotDraft({ meetingDay: group?.meetingDay ?? null, meetingTime: group?.meetingTime ?? null });
+    setLinkDraft(group?.callLink ?? '');
     setSlotError('');
     setSlotEditing(true);
   };
@@ -111,7 +114,7 @@ const TeenMeetingCard: React.FC<TeenMeetingCardProps> = ({ userId, userName }) =
     setSlotSaving(true);
     setSlotError('');
     try {
-      const { group: updated } = await groupsApi.setMeetingSlot(group.id, slotDraft.meetingDay, slotDraft.meetingTime);
+      const { group: updated } = await groupsApi.setMeetingSlot(group.id, slotDraft.meetingDay, slotDraft.meetingTime, normalizeLink(linkDraft) || null);
       setGroup(updated);
       setSlotEditing(false);
     } catch (err) {
@@ -238,6 +241,19 @@ const TeenMeetingCard: React.FC<TeenMeetingCardProps> = ({ userId, userName }) =
             {slotEditing ? (
               <div className="flex flex-col gap-2.5">
                 <GroupMeetingSlotEditor value={slotDraft} onChange={setSlotDraft} />
+                <div>
+                  <label htmlFor="teen-call-link" className="mb-1.5 block text-[13px] font-semibold text-gray-900">Meeting link</label>
+                  <input
+                    id="teen-call-link"
+                    type="url"
+                    inputMode="url"
+                    value={linkDraft}
+                    onChange={(e) => setLinkDraft(e.target.value)}
+                    placeholder="Google Meet or WhatsApp call link"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900"
+                  />
+                  <p className="mt-1 text-[12px] text-gray-500">Guardians and teens see it on their Home as Join call.</p>
+                </div>
                 {slotError && <p className="text-sm text-red-600">{slotError}</p>}
                 <div className="flex gap-2">
                   <button type="button" onClick={() => setSlotEditing(false)} className="min-h-[40px] rounded-xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700">Cancel</button>
@@ -251,8 +267,9 @@ const TeenMeetingCard: React.FC<TeenMeetingCardProps> = ({ userId, userName }) =
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-semibold text-gray-500">Meeting time</p>
                   <p className="text-sm font-bold text-gray-900">{slotLabel ?? 'Not set yet'}</p>
+                  <p className="truncate text-[12.5px] text-gray-500">{group?.callLink ? group.callLink : 'No meeting link yet'}</p>
                 </div>
-                <button type="button" onClick={startSlotEdit} className="min-h-[36px] flex-none rounded-full bg-white px-3.5 text-[13px] font-semibold text-gray-800">{slotLabel ? 'Change' : 'Set time'}</button>
+                <button type="button" onClick={startSlotEdit} className="min-h-[36px] flex-none rounded-full bg-white px-3.5 text-[13px] font-semibold text-gray-800">{slotLabel ? 'Change' : 'Set time and link'}</button>
               </div>
             )}
           </div>

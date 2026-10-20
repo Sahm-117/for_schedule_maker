@@ -71,7 +71,16 @@ const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, foll
   };
 
   const firstName = firstNameOf(details?.name);
-  const message = details?.setupCode
+  const message = details?.setupCode && guardian
+    ? `Hello, well done on registering ${firstName} for Foundation Of Faith!\n\n`
+      + (user?.name ? `My name is ${user.name}, ${firstName}'s Teen Support at TCN Ikorodu.\n\n` : '')
+      + 'Please find the login details below. You sign in first; you will see the next class and the group, and you can share the login with your teen.\n\n'
+      + `App link: https://fof.tcnikorodu.org/login\n`
+      + `Username: ${details.phone}\n`
+      + `First-time password: ${details.setupCode}\n\n`
+      + `${installVideoLines()}\n\n`
+      + `You will be asked to choose your own password when you first sign in. Please also turn on notifications in the app. If you have any questions, just ask me. See you on ${firstClassText(startDate)}.`
+    : details?.setupCode
     ? `Hello ${firstName}, well done on registering for Foundation Of Faith!\n\n`
       + (user?.name ? `My name is ${user.name}, from TCN Ikorodu, here to get you onboarded on to the FOF App.\n\n` : '')
       + 'Please find your login details below.\n\n'

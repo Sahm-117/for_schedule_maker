@@ -5566,11 +5566,17 @@ export const groupsApi = {
     }
     return latest;
   },
-  /** Only the meeting day and time (and clears any old length). Teen groups use it: unlike update(), it does not create a schedule tag for the group. */
-  async setMeetingSlot(groupId: string, meetingDay: string, meetingTime: string): Promise<{ group: import('../types').Group }> {
+  /** Only the meeting day and time, plus the call link when given. Teen groups use it: unlike update(), it does not create a schedule tag for the group. */
+  async setMeetingSlot(groupId: string, meetingDay: string, meetingTime: string, callLink?: string | null): Promise<{ group: import('../types').Group }> {
+    const link = callLink === undefined ? undefined : (callLink?.trim() || null);
     const { data, error } = await supabase
       .from('Group')
-      .update({ meetingDay, meetingTime, updatedAt: new Date().toISOString() })
+      .update({
+        meetingDay,
+        meetingTime,
+        ...(link === undefined ? {} : { callLink: link, callPlatform: link ? (/meet\.google\.com/i.test(link) ? 'GOOGLE_MEET' : 'WHATSAPP') : null }),
+        updatedAt: new Date().toISOString(),
+      })
       .eq('id', groupId)
       .select(GROUP_SELECT)
       .single();

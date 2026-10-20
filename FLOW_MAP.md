@@ -360,7 +360,7 @@ duplicating the logic anywhere else is a bug waiting to happen.
     `20261008070000_teen_recap_teen_supports_only.sql`,
     `20261008080000_earlier_documents_teen_supports_only.sql` (the earlier-files picker lists Teen recap
     files only to admins and Teen Supports too).
-31. **A Teen Support records their Saturday meeting on My Group, and it stays out of the dashboards.**
+31. **A Teen Support records their Saturday meeting on My Group, and it stays out of the dashboards.** The card also sets the teen group's meeting link (`Group.callLink` / `callPlatform` through `groupsApi.setMeetingSlot`), which guardians and teens see on their Home as Join call; the WhatsApp group card is no longer shown.
     `TeenMeetingCard` saves one `MeetingAttendance` row per teen (Joined, Excused, Missed) and the teen
     group's `GroupPrayerStatus` row (`done`, `metOn` = the day they actually met, `notes` = the Teen
     Support's own notes) through `teenMeetingsApi.save`. The first time it is marked done the admins get

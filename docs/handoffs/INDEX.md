@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-20 | [Teen meeting link, guardian login message](2026-10-20_teen-meeting-link-guardian-message.md) | Teen meeting card sets a call link guardians and teens see as Join call; teen login message addressed to the guardian. Frontend only |
 | 2026-10-20 | [Teen Support guardian reset, admin shows guardian](2026-10-20_teen-guardian-reset-admin-guardian.md) | Guardian login card stays on the teen card so a Teen Support can create a new code after sign-in; admin lists, profile and groups label the guardian's number and show the name. Frontend only |
 | 2026-10-20 | [Scripture at midnight, teen WhatsApp card hidden](2026-10-20_scripture-midnight-teen-whatsapp-hidden.md) | Scripture opens at 12:00 AM Lagos in the app and the push; WhatsApp group card hidden on Teen Support My Group. Repo only; push-reminders not deployed |
 | 2026-10-19 | [Admin can open meeting recording](2026-10-19_admin-open-recording.md) | Admin Hubs/Groups card menu > Open recording opens one week for 24 hours outside the normal window (break week, missed meeting). Migration written, NOT applied; frontend tolerant until then. |
