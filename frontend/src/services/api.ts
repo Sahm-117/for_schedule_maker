@@ -715,7 +715,7 @@ export const participantsApi = USE_SUPABASE ? supabaseParticipantsApi : {
 
 export const groupsApi = USE_SUPABASE ? supabaseGroupsApi : {
   async getAssignedDates(_groupIds: string[]): Promise<Record<string, string>> { return {}; },
-  async setMeetingSlot(_groupId: string, _meetingDay: string, _meetingTime: string): Promise<never> { return peopleUnavailable(); },
+  async setMeetingSlot(_groupId: string, _meetingDay: string, _meetingTime: string, _callLink?: string | null): Promise<never> { return peopleUnavailable(); },
   async getAll(_options?: any): Promise<{ groups: import('../types').Group[] }> { return { groups: [] }; },
   async create(_input: any): Promise<never> { return peopleUnavailable(); },
   async update(_id: string, _input: any): Promise<never> { return peopleUnavailable(); },
@@ -1110,6 +1110,7 @@ export const participantAppApi = USE_SUPABASE ? supabaseParticipantAppApi : {
   async getTheme(): Promise<string | null> { return null; },
   async setTheme(_color: string | null): Promise<void> { return undefined; },
   async saveProfile(_input: { email: string; gender: string; ageRange: string; occupation: string; dateOfBirth: string; answers: Record<string, string> }): Promise<never> { return peopleUnavailable(); },
+  async passwordFixed(): Promise<boolean> { return false; },
   async changePassword(_current: string, _next: string): Promise<never> { return peopleUnavailable(); },
   async submitFeedback(_answers: import('../types').FeedbackAnswers): Promise<never> { return peopleUnavailable(); },
   async submitWrapUp(_input: { department: string; wantsReferral: boolean; note: string }, _participantName: string): Promise<never> { return peopleUnavailable(); },

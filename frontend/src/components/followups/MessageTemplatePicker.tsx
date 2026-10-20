@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import type { FollowUpContact, MessageTemplate } from '../../types';
 import ModalShell from './ModalShell';
 import LinkText from '../LinkText';
-import { contactReachPhone, fillTemplate, isTeenContact, teenMessagePhone } from '../../utils/followUps';
+import { contactReachPhone, fillTemplate, isTeenContact } from '../../utils/followUps';
 import { buildWhatsAppLink, normalizeToIntlPhone } from '../../utils/phone';
 
 // +234 806 678 3672 style, for showing who a message is going to.
@@ -54,7 +54,6 @@ const MessageTemplatePicker: React.FC<MessageTemplatePickerProps> = ({
   // it is. Once the number is known to be the guardian's alone, they are hidden.
   const teen = contact ? isTeenContact(contact) : false;
   const reachPhone = contact ? contactReachPhone(contact) : null;
-  const teenOwn = teen && contact ? teenMessagePhone(contact) : null;
   const shownTemplates = useMemo(() => {
     const isTeenKind = (t: MessageTemplate) => t.category === 'TEEN' || t.category === 'TEEN_PARENT';
     const list = templates.filter((t) => isTeenKind(t) === teen);
@@ -64,8 +63,8 @@ const MessageTemplatePicker: React.FC<MessageTemplatePickerProps> = ({
     return list.filter((t) => t.category === 'TEEN_PARENT' && !t.body.includes('{{group_link}}'));
   }, [templates, teen]);
   const selected = shownTemplates.find((t) => t.id === selectedId) || null;
-  // A message for the teen goes to the teen's own number; everything else goes where the contact is reached.
-  const targetPhone = selected?.category === 'TEEN' && teenOwn ? teenOwn : reachPhone;
+  // Every message goes where the contact is reached (for a teen, the guardian).
+  const targetPhone = reachPhone;
   // A template that carries the sender's WhatsApp group link can't go out without one.
   const missingGroupLink = !!selected?.body.includes('{{group_link}}') && !senderGroupLink?.trim();
   const filled = useMemo(
@@ -170,9 +169,9 @@ const MessageTemplatePicker: React.FC<MessageTemplatePickerProps> = ({
           onHaveNumber={onHaveNumber ? () => { setSelectedId(''); setEmailInstead(false); onHaveNumber(contact); } : undefined}
         />
       ) : null)}
-      {teen && !teenOwn && (
+      {teen && (
         <p className="mb-3 rounded-2xl bg-neutral-50 px-4 py-2.5 text-[12.5px] text-gray-600">
-          These messages are for the parent or guardian. The teen&rsquo;s own messages appear once you add the teen&rsquo;s number (open the card&rsquo;s menu, then Edit contact).
+          Teens are reached through their parent or guardian, so these messages go to the guardian.
         </p>
       )}
       {shownTemplates.length === 0 ? (

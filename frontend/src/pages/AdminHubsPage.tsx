@@ -994,7 +994,7 @@ const AdminHubsPage: React.FC = () => {
       )}
 
       {openRecTarget && (
-        <OpenRecordingModal isOpen onClose={() => setOpenRecTarget(null)} name={openRecTarget.name} target={{ hubId: openRecTarget.id }} weeks={weeks} />
+        <OpenRecordingModal isOpen onClose={() => setOpenRecTarget(null)} name={openRecTarget.name} target={{ hubId: openRecTarget.id }} weeks={weeks} defaultWeekId={getIdealWeekForCohort(activeCohort, weeks)?.id ?? null} />
       )}
 
       {recapTarget && (

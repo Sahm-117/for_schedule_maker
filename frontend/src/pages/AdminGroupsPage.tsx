@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
 import { useAppData } from '../context/AppDataContext';
 import OpenRecordingModal from '../components/hubs/OpenRecordingModal';
+import { getIdealWeekForCohort } from '../utils/weekFocus';
 import FilterBar, { describeFilters, type FilterGroup } from '../components/filters/FilterBar';
 import { useUrlFilters } from '../hooks/useUrlFilters';
 import { cohortsApi, groupDiscussionApi, groupsApi, participantPushApi, participantsApi, settingsApi, supportHubsApi, supportKindApi, supportSessionsApi, supportTagsApi, usersApi } from '../services/api';
@@ -902,7 +903,7 @@ const AdminGroupsContent: React.FC = () => {
                           <Avatar name={p.fullName} avatarUrl={p.avatarUrl} size="sm" />
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-semibold leading-tight text-gray-900">{p.fullName}</p>
-                            <p className="truncate text-xs text-gray-400">{[(p.guardianPhone ?? p.phone) ? `Guardian ${p.guardianPhone ?? p.phone}` : null, genderAgeLine(p)].filter(Boolean).join(' · ')}</p>
+                            <p className="truncate text-xs text-gray-400">{[(p.phone ?? p.guardianPhone) ? `Guardian ${p.phone ?? p.guardianPhone}` : null, genderAgeLine(p)].filter(Boolean).join(' · ')}</p>
                           </div>
                           <AccessChip confirmed={signedInIds ? signedInIds.has(p.id) : null} />
                           {canEdit && (
@@ -953,7 +954,7 @@ const AdminGroupsContent: React.FC = () => {
       />
 
       {openRecTarget && (
-        <OpenRecordingModal isOpen onClose={() => setOpenRecTarget(null)} name={openRecTarget.name} target={{ groupId: openRecTarget.id }} weeks={weeks} />
+        <OpenRecordingModal isOpen onClose={() => setOpenRecTarget(null)} name={openRecTarget.name} target={{ groupId: openRecTarget.id }} weeks={weeks} defaultWeekId={getIdealWeekForCohort(activeCohort, weeks)?.id ?? null} />
       )}
 
       {stepsTarget && (

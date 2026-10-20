@@ -5,14 +5,10 @@ import { describeMeetingLimits, meetingSlotProblem } from '../../utils/groupMeet
 import InfoTip from '../InfoTip';
 import { groupsApi } from '../../services/api';
 import type { Group, GroupCallPlatform } from '../../types';
-import { normalizeLink } from '../../utils/links';
+import { normalizeLink, platformFromLink } from '../../utils/links';
 import Spinner from '../Spinner';
 import JoinCallButton from '../JoinCallButton';
 
-const platformFromLink = (link: string | null | undefined): GroupCallPlatform | null => {
-  if (!link?.trim()) return null;
-  return /meet\.google\.com/i.test(link) ? 'GOOGLE_MEET' : 'WHATSAPP';
-};
 
 // "FRIDAY" + "19:00" → "Friday, 7:00 PM" (meetings have no set length)
 export const formatMeetingSlot = (day?: string | null, time?: string | null): string | null => {

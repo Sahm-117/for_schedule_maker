@@ -101,16 +101,17 @@ export const useRecordingOpening = (
 ): MeetingWindowState => {
   const [until, setUntil] = useState<Date | null>(null);
   const targetId = target.hubId ?? target.groupId ?? null;
-  const minute = Math.floor(clock.getTime() / 60000);
   const closed = base.state !== 'open';
+  // Read once per hub/group and week (and when the normal window closes), not every minute.
   useEffect(() => {
-    if (!closed || !targetId || weekId == null) { setUntil(null); return undefined; }
+    setUntil(null);
+    if (!closed || !targetId || weekId == null) return undefined;
     let cancelled = false;
     meetingRecordingApi.getOpening({ hubId: target.hubId ?? null, groupId: target.groupId ?? null }, weekId)
       .then((value) => { if (!cancelled) setUntil(value ? new Date(value) : null); })
       .catch(() => { if (!cancelled) setUntil(null); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [closed, targetId, weekId, minute]);
+  }, [closed, targetId, weekId]);
   return until && until.getTime() > clock.getTime() ? { state: 'open', closesAt: until } : base;
 };

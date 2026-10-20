@@ -22,3 +22,8 @@ None. Apply the migration (test in a rolled-back transaction first: check both f
 
 ## How it was tested
 `npm run build` and eslint on the changed files. Not run against the database or in a browser.
+
+## Code review (same day)
+Fixed: `passwordFixed` missing from the non-Supabase api (tsc error); Open recording now starts on the current week; the opening is read once per hub/group and week instead of every minute and is cleared when either changes; a friendly error when Open recording is used before its migration is applied; teen picker banner and dead teen-number routing; one link-to-platform rule (`utils/links.ts`); Change password stays hidden until the check returns; Groups and the profile both treat `Participant.phone` as the guardian's number.
+Kept on purpose: after a new code, a teen signing in with their own number cannot choose the password (they are told the guardian signs in first). That is the "fixed" rule; the guardian signs in first after any reset.
+Push order: apply `20261019140000` (and `20261020120000`) before or straight after pushing, so Open recording and the teen password lock work.

@@ -1,4 +1,5 @@
 import { supabase, SESSION_TOKEN_KEY } from '../lib/supabase';
+import { platformFromLink } from '../utils/links';
 import { normaliseRules } from '../utils/programmeRules';
 import { isTeenAgeRange, normaliseGroupingRules } from '../utils/groupingRules';
 import { normaliseSavedDraft } from '../utils/groupingEngine';
@@ -5582,7 +5583,7 @@ export const groupsApi = {
       .update({
         meetingDay,
         meetingTime,
-        ...(link === undefined ? {} : { callLink: link, callPlatform: link ? (/meet\.google\.com/i.test(link) ? 'GOOGLE_MEET' : 'WHATSAPP') : null }),
+        ...(link === undefined ? {} : { callLink: link, callPlatform: platformFromLink(link) }),
         updatedAt: new Date().toISOString(),
       })
       .eq('id', groupId)
@@ -6662,7 +6663,10 @@ export const meetingRecordingApi = {
   },
   async open(target: { hubId?: string | null; groupId?: string | null }, weekId: number, hours = 24): Promise<string> {
     const { data, error } = await supabase.rpc('admin_open_meeting_recording', { p_hub_id: target.hubId ?? null, p_group_id: target.groupId ?? null, p_week_id: weekId, p_hours: hours });
-    if (error) throw new Error(error.message);
+    if (error) {
+      if (/could not find the function|PGRST202/i.test(`${error.message} ${error.code ?? ''}`)) throw new Error('Open recording is not switched on yet. The database update for it still has to be applied.');
+      throw new Error(error.message);
+    }
     return data as string;
   },
   async close(target: { hubId?: string | null; groupId?: string | null }, weekId: number): Promise<void> {

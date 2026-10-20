@@ -104,10 +104,10 @@ const ParticipantProfilePage: React.FC = () => {
   const [passwordError, setPasswordError] = useState('');
   const [changing, setChanging] = useState(false);
   // Signed in with a teen's own number: the guardian's password is shared and fixed, so no Change password.
-  const [passwordFixed, setPasswordFixed] = useState(false);
+  const [passwordFixed, setPasswordFixed] = useState<boolean | null>(null);
   useEffect(() => {
     let cancelled = false;
-    void participantAppApi.passwordFixed().then((fixed) => { if (!cancelled) setPasswordFixed(fixed); });
+    void participantAppApi.passwordFixed().then((fixed: boolean) => { if (!cancelled) setPasswordFixed(fixed); });
     return () => { cancelled = true; };
   }, []);
   // Accent colour: loaded from their account, applied live, saved when they tap Save.
@@ -569,7 +569,7 @@ const ParticipantProfilePage: React.FC = () => {
         </Fold>
         </div>
 
-        {passwordFixed ? (
+        {passwordFixed === null ? null : passwordFixed ? (
           <Fold title="Password" summary="Set by your parent or guardian">
             <p className="text-sm text-gray-600">You share this login with your parent or guardian, so the password stays as it is. If it stops working, ask your Teen Support for a new code.</p>
           </Fold>
