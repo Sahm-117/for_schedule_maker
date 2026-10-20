@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-20 | [Teen password fixed, guardian-only messages, scripture 5 AM](2026-10-20_teen-password-fixed-guardian-only-scripture-5am.md) | Teen-number sessions cannot change the password (migration not applied); teen contacts get parent messages only, no group links; scripture push at 5 AM (not deployed) |
 | 2026-10-20 | [Teen meeting link, guardian login message](2026-10-20_teen-meeting-link-guardian-message.md) | Teen meeting card sets a call link guardians and teens see as Join call; teen login message addressed to the guardian. Frontend only |
 | 2026-10-20 | [Teen Support guardian reset, admin shows guardian](2026-10-20_teen-guardian-reset-admin-guardian.md) | Guardian login card stays on the teen card so a Teen Support can create a new code after sign-in; admin lists, profile and groups label the guardian's number and show the name. Frontend only |
 | 2026-10-20 | [Scripture at midnight, teen WhatsApp card hidden](2026-10-20_scripture-midnight-teen-whatsapp-hidden.md) | Scripture opens at 12:00 AM Lagos in the app and the push; WhatsApp group card hidden on Teen Support My Group. Repo only; push-reminders not deployed |

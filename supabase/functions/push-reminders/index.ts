@@ -89,8 +89,9 @@ const TERMINAL_REGISTRATION_STATUSES = new Set(['LOGIN_SHARED', 'NOT_INTERESTED'
 const isSupportOrTagged = (user: { role?: string; roles?: string[] | null }): boolean =>
   user.role === 'SUPPORT' || !!user.roles?.includes('SUPPORT')
 
-// Inspirational Scripture drop: opens at 12:00 AM Lagos. Each line urges them to read the post and do its exercise.
-const SCRIPTURE_OPEN_MINUTES = 0
+// Inspirational Scripture drop: the post opens at 12:00 AM Lagos; the push goes out at 5:00 AM so it does not
+// wake anyone. Each line urges them to read the post and do its exercise.
+const SCRIPTURE_PUSH_MINUTES = 5 * 60
 const SCRIPTURE_DROP_LINES: Array<{ title: string; body: string }> = [
   { title: "Today's scripture is here", body: "Read it, then do today's exercise." },
   { title: "Today's post is ready", body: 'Read the anchor, take in the teaching, then do the exercise.' },
@@ -958,12 +959,12 @@ Deno.serve(async (req) => {
           }
         }
 
-        // c2) A new Inspirational Scripture opens at 12:00 AM Lagos (FOF day N opens at midnight on its own date,
+        // c2) A new Inspirational Scripture opens at 12:00 AM Lagos and is announced at 5:00 AM (FOF day N opens at midnight on its own date,
         //     the same rule as scriptureDayIndex in the app). One push + bell a day per participant, the
         //     line rotating by post so nobody reads the same one twice in a row. We cannot tell who has
         //     opened a post, so everyone with an active login gets it. pushParticipants' claim (the tag
         //     carries the date) stops the 10-minute cron repeating it; the window lets a late run catch up.
-        if (daysBetweenIso(startIso, pToday) >= 0 && (!endIso || pToday <= endIso) && pNowMinutes >= SCRIPTURE_OPEN_MINUTES && pNowMinutes < SCRIPTURE_OPEN_MINUTES + 180) {
+        if (daysBetweenIso(startIso, pToday) >= 0 && (!endIso || pToday <= endIso) && pNowMinutes >= SCRIPTURE_PUSH_MINUTES && pNowMinutes < SCRIPTURE_PUSH_MINUTES + 180) {
           const [{ data: enabledRow }, { data: startDayRow }, { data: scriptureRows }] = await Promise.all([
             supabase.from('AppSetting').select('value').eq('settingKey', 'scriptures_enabled').maybeSingle(),
             supabase.from('AppSetting').select('value').eq('settingKey', 'scripture_start_day').maybeSingle(),

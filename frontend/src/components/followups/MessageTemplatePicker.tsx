@@ -59,10 +59,10 @@ const MessageTemplatePicker: React.FC<MessageTemplatePickerProps> = ({
     const isTeenKind = (t: MessageTemplate) => t.category === 'TEEN' || t.category === 'TEEN_PARENT';
     const list = templates.filter((t) => isTeenKind(t) === teen);
     if (!teen) return list;
-    const visible = list.filter((t) => t.category !== 'TEEN' || !!teenOwn);
-    const rank = (t: MessageTemplate) => (t.category === 'TEEN_PARENT' ? 0 : 1);
-    return [...visible].sort((a, b) => rank(a) - rank(b));
-  }, [templates, teen, teenOwn]);
+    // Teens are reached through their parent or guardian only, and there are no teen WhatsApp groups:
+    // only the parent messages show, and none that carry a group link.
+    return list.filter((t) => t.category === 'TEEN_PARENT' && !t.body.includes('{{group_link}}'));
+  }, [templates, teen]);
   const selected = shownTemplates.find((t) => t.id === selectedId) || null;
   // A message for the teen goes to the teen's own number; everything else goes where the contact is reached.
   const targetPhone = selected?.category === 'TEEN' && teenOwn ? teenOwn : reachPhone;

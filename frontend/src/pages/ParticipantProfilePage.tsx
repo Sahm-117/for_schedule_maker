@@ -103,6 +103,13 @@ const ParticipantProfilePage: React.FC = () => {
   const [next, setNext] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [changing, setChanging] = useState(false);
+  // Signed in with a teen's own number: the guardian's password is shared and fixed, so no Change password.
+  const [passwordFixed, setPasswordFixed] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    void participantAppApi.passwordFixed().then((fixed) => { if (!cancelled) setPasswordFixed(fixed); });
+    return () => { cancelled = true; };
+  }, []);
   // Accent colour: loaded from their account, applied live, saved when they tap Save.
   const [savedTheme, setSavedTheme] = useState<string>(DEFAULT_THEME);
   const [themeDraft, setThemeDraft] = useState<string>(DEFAULT_THEME);
@@ -562,6 +569,11 @@ const ParticipantProfilePage: React.FC = () => {
         </Fold>
         </div>
 
+        {passwordFixed ? (
+          <Fold title="Password" summary="Set by your parent or guardian">
+            <p className="text-sm text-gray-600">You share this login with your parent or guardian, so the password stays as it is. If it stops working, ask your Teen Support for a new code.</p>
+          </Fold>
+        ) : (
         <Fold title="Password" summary="Change your password">
           <div className="flex flex-col gap-2.5">
             <PasswordInput autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} placeholder="Current password" className={FIELD} />
@@ -572,6 +584,7 @@ const ParticipantProfilePage: React.FC = () => {
             </button>
           </div>
         </Fold>
+        )}
 
         <p className="flex items-start gap-2 px-1 text-[12px] leading-normal text-gray-500">
           <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24" className="mt-0.5 flex-none" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M7 11V7a5 5 0 0 1 10 0v4M5 11h14a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1Z" /></svg>

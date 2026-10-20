@@ -3449,6 +3449,7 @@ export const clearAuthToken = () => {
 const accountError = (rawMessage: string | undefined, fallback: string): Error => {
   const msg = rawMessage || '';
   if (msg.includes('SESSION_EXPIRED')) return new Error('SESSION_EXPIRED');
+  if (msg.includes('TEEN_PASSWORD_FIXED')) return new Error('Your parent or guardian signs in first and chooses the password. Ask them for it.');
   if (msg.includes('NOT_ALLOWED')) return new Error("You can only see login details for your own participants.");
   if (msg.includes('NO_PHONE')) return new Error('Add a valid phone number for this person first. It is their username.');
   if (msg.includes('NO_FORM_REGISTRATION')) return new Error('No registration form found for this person. They need to fill the form first.');
@@ -3508,6 +3509,7 @@ export const participantAccountsApi = {
 const participantAppError = (rawMessage: string | undefined, fallback: string): Error => {
   const msg = rawMessage || '';
   if (msg.includes('SESSION_EXPIRED')) return new Error('SESSION_EXPIRED');
+  if (msg.includes('TEEN_PASSWORD_FIXED')) return new Error('Your password is fixed. Ask your parent or guardian, or your Teen Support for a new code.');
   if (msg.includes('GOAL_REQUIRED')) return new Error('Write one thing you will do.');
   if (msg.includes('RECAP_NOT_RELEASED')) return new Error("This week's recap is not out yet.");
   if (msg.includes('REFLECTION_LOCKED')) return new Error('This reflection can no longer be changed.');
@@ -3896,6 +3898,12 @@ export const participantAppApi = {
     });
     if (error) throw participantAppError(error.message, 'Could not save your details.');
     return data as import('../types').ProfileCompletion;
+  },
+
+  /** True when this session came in through a teen's own number: their password is fixed (set by the guardian). False if unknown. */
+  async passwordFixed(): Promise<boolean> {
+    const { data, error } = await supabase.rpc('participant_session_via_teen_number', { p_token: getSessionToken() });
+    return !error && data === true;
   },
 
   async changePassword(current: string, next: string): Promise<void> {
