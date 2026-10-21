@@ -6,7 +6,7 @@
 - The daily scripture post still opens at midnight; its push now goes out at 5:00 AM Lagos.
 
 ## Shipped (repo only, not pushed)
-- Migration `20261020120000_teen_number_password_fixed.sql` (NOT applied): patches `change_participant_password` and `set_participant_password` in place to raise `TEEN_PASSWORD_FIXED` for a `viaTeenNumber` session, and adds `participant_session_via_teen_number`.
+- Migration `20261020120000_teen_number_password_fixed.sql` (applied live 2026-10-21 after a rolled-back trial; both functions carry the guard and keep the 5-character minimum): patches `change_participant_password` and `set_participant_password` in place to raise `TEEN_PASSWORD_FIXED` for a `viaTeenNumber` session, and adds `participant_session_via_teen_number`.
 - `ParticipantProfilePage.tsx`: Password shows "Set by your parent or guardian" instead of Change password when signed in through a teen's own number (`participantAppApi.passwordFixed`, false until the migration is applied).
 - `supabase-api.ts`: plain wording for `TEEN_PASSWORD_FIXED`.
 - `MessageTemplatePicker.tsx`: teen contacts see only `TEEN_PARENT` templates without `{{group_link}}`.
@@ -14,7 +14,7 @@
 - FLOW_MAP rules 27, 67 and 83.
 
 ## Live changes
-None. Apply the migration (test in a rolled-back transaction first: check both functions still compile and a normal participant can change their password) and deploy `push-reminders`.
+Migration `20261020120000` applied live on 2026-10-21 (Supabase Management API). `push-reminders` is still not deployed, so the 5 AM scripture push is not live.
 
 ## Decisions and why
 - Only sessions through the teen's own number are blocked: on the guardian's number the app cannot tell guardian from teen, and the guardian must keep control.
