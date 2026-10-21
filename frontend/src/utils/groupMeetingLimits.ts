@@ -1,10 +1,10 @@
 // Back-office limits on when a group's call can be set (Settings > Group call limits). The same rules are checked by the
 // database (group_meeting_limits_guard) for supports; admins are not held to them.
 // The second time of a day's window is when calls must END (stored as "latestStart" for older rows); every call is taken to
-// last CALL_MINUTES, so the latest start is that much earlier (4:00 PM to 9:00 PM means starts from 4:00 PM to 8:30 PM).
+// last CALL_MINUTES, so the latest start is that much earlier (4:00 PM to 9:00 PM means starts from 4:00 PM to 8:00 PM).
 
 /** How long a group call is taken to last when working out the latest start. Internal, not a setting. */
-export const CALL_MINUTES = 30;
+export const CALL_MINUTES = 60;
 
 export interface DayWindow {
   /** Earliest start, 'HH:MM' (24 hour). */

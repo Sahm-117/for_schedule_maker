@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-21 | [Group calls last an hour](2026-10-21_group-call-one-hour.md) | Latest start is now an hour before the end (8:00 PM in a 4 to 9 PM window); popup wording updated; hub chips filter teen groups too. Migration `20261021110000` written, not applied yet. |
 | 2026-10-21 | [Group call window end](2026-10-21_group-call-window-end.md) | The second Group call limits time is when calls end; latest start is 30 minutes before it (no 9 PM start in a 4 to 9 PM window); supports already outside the limits get a popup asking them to change it, with an apology. Groups page hub filter chips. Migration `20261021100000` applied live. |
 | 2026-10-21 | [Scripture to supports, send-now switch](2026-10-21_scripture-to-supports-send-now.md) | Scripture push goes to supports too; protected scriptureNow switch; fired once on 21 Oct (75 participants, 49 supports). push-reminders v56 deployed |
 | 2026-10-20 | [Teen password fixed, guardian-only messages, scripture 5 AM](2026-10-20_teen-password-fixed-guardian-only-scripture-5am.md) | Teen-number sessions cannot change the password (migration applied 2026-10-21); teen contacts get parent messages only, no group links; scripture push at 5 AM (push-reminders v55 deployed 2026-10-21) |
