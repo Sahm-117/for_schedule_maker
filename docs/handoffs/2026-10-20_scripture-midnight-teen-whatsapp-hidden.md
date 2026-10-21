@@ -10,7 +10,7 @@ The daily Inspirational Scripture now opens at 12:00 AM Lagos on its own date (w
 - `SupportParticipantsPage.tsx`: `TeenWhatsAppGroupCard` no longer rendered. The component and `User.whatsappGroupUrl` are kept (nothing deleted).
 
 ## Live changes
-None. `push-reminders` still has to be deployed (it also carries the undeployed Team-member birthday-viewer change).
+`push-reminders` deployed as v55 on 2026-10-21, with the push moved to 5:00 AM (see the teen-password handoff of the same day).
 
 ## Decisions and why
 - Midnight reading: day N's post shows from 00:00 on its own date. The push goes out at that moment too, so participants get a notification around midnight. Say if the push should be later than the drop; it is one constant (`SCRIPTURE_OPEN_MINUTES`).

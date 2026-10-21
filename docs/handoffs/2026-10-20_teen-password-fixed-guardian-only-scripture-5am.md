@@ -14,7 +14,7 @@
 - FLOW_MAP rules 27, 67 and 83.
 
 ## Live changes
-Migration `20261020120000` applied live on 2026-10-21 (Supabase Management API). `push-reminders` is still not deployed, so the 5 AM scripture push is not live.
+Migration `20261020120000` applied live on 2026-10-21 (Supabase Management API). `push-reminders` deployed as v55 on 2026-10-21 (Management API, server-side bundle of the repo at `3c45a04`; it also carries the Team-member birthday-viewer change and the midnight post). Dry runs: `asOf` 05:05 Lagos on 22 Oct would send `SCRIPTURE:2026-10-22` to 75 participants; 00:05 sends nothing.
 
 ## Decisions and why
 - Only sessions through the teen's own number are blocked: on the guardian's number the app cannot tell guardian from teen, and the guardian must keep control.
