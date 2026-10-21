@@ -1,10 +1,15 @@
 // Back-office limits on when a group's call can be set (Settings > Group call limits). The same rules are checked by the
 // database (group_meeting_limits_guard) for supports; admins are not held to them.
+// The second time of a day's window is when calls must END (stored as "latestStart" for older rows); every call is taken to
+// last CALL_MINUTES, so the latest start is that much earlier (4:00 PM to 9:00 PM means starts from 4:00 PM to 8:30 PM).
+
+/** How long a group call is taken to last when working out the latest start. Internal, not a setting. */
+export const CALL_MINUTES = 30;
 
 export interface DayWindow {
   /** Earliest start, 'HH:MM' (24 hour). */
   earliestStart: string;
-  /** Latest start, 'HH:MM'. */
+  /** When calls must end by, 'HH:MM' (the key keeps its old name). The latest start is CALL_MINUTES before it. */
   latestStart: string;
 }
 
@@ -72,11 +77,14 @@ export const normalizeMeetingLimits = (raw: unknown): GroupMeetingLimits => {
 export const windowForDay = (limits: GroupMeetingLimits, day: string | null | undefined): DayWindow =>
   (day ? limits.dayTimes[day] : undefined) ?? { earliestStart: limits.earliestStart, latestStart: limits.latestStart };
 
+/** The latest start a call can have in a window, in minutes: CALL_MINUTES before the end. */
+export const lastStartMinutes = (w: DayWindow): number => toMinutes(w.latestStart) - CALL_MINUTES;
+
 /** Start times (15-minute steps) a support can pick on a day. */
 export const startTimeOptions = (limits: GroupMeetingLimits, day: string | null | undefined): Array<{ value: string; label: string }> => {
   const w = windowForDay(limits, day);
   const out: Array<{ value: string; label: string }> = [];
-  for (let t = toMinutes(w.earliestStart); t <= toMinutes(w.latestStart); t += 15) out.push({ value: fromMinutes(t), label: formatClock(fromMinutes(t)) });
+  for (let t = toMinutes(w.earliestStart); t <= lastStartMinutes(w); t += 15) out.push({ value: fromMinutes(t), label: formatClock(fromMinutes(t)) });
   return out;
 };
 
@@ -90,7 +98,7 @@ export const describeMeetingLimits = (limits: GroupMeetingLimits): string => {
     const g = groups.find((x) => sameWindow(x.w, w));
     if (g) g.days.push(d); else groups.push({ w, days: [d] });
   }
-  const parts = groups.map((g) => `${g.days.map(dayLabel).join(', ')}, starting between ${formatClock(g.w.earliestStart)} and ${formatClock(g.w.latestStart)}`);
+  const parts = groups.map((g) => `${g.days.map(dayLabel).join(', ')}, between ${formatClock(g.w.earliestStart)} and ${formatClock(g.w.latestStart)} (last start ${formatClock(fromMinutes(Math.max(0, lastStartMinutes(g.w))))})`);
   return `Group calls can be on ${parts.join('; ')}.`;
 };
 
@@ -100,8 +108,8 @@ export const meetingSlotProblem = (slot: { meetingDay: string | null; meetingTim
   if (slot.meetingTime) {
     const w = windowForDay(limits, slot.meetingDay);
     const start = toMinutes(slot.meetingTime);
-    if (start < toMinutes(w.earliestStart) || start > toMinutes(w.latestStart)) {
-      return `${slot.meetingDay ? `${dayLabel(slot.meetingDay)} calls` : 'Group calls'} must start between ${formatClock(w.earliestStart)} and ${formatClock(w.latestStart)}.`;
+    if (start < toMinutes(w.earliestStart) || start > lastStartMinutes(w)) {
+      return `${slot.meetingDay ? `${dayLabel(slot.meetingDay)} calls` : 'Group calls'} must start between ${formatClock(w.earliestStart)} and ${formatClock(fromMinutes(Math.max(0, lastStartMinutes(w))))}.`;
     }
   }
   return null;

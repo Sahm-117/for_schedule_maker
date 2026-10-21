@@ -22,6 +22,7 @@ export const POPUP_PRIORITY = {
   livePrayer: 28,
   prayerConsent: 30,
   hubIntro: 35,
+  meetingTimeFix: 40,
   announcement: 45,
   classFeedback: 50,
   department: 55,

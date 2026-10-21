@@ -23,6 +23,7 @@ import { useSupportClassFeedbackPrompt } from '../hooks/useSupportClassFeedbackP
 import { classFeedbackApi, groupsApi, myHubApi, notificationsApi, supportKindApi } from '../services/api';
 import { usePushTapRead } from '../hooks/usePushTapRead';
 import FollowUpCheckPrompt from './followups/FollowUpCheckPrompt';
+import MeetingTimeFixPrompt from './groups/MeetingTimeFixPrompt';
 import PracticeDock from './practice/PracticeDock';
 import type { HubJob, SupportKind } from '../types';
 import { HUB_JOB_INFO, sortHubJobs } from './hubs/hubJobs';
@@ -705,6 +706,8 @@ const AppShell: React.FC = () => {
       )}
       {user && !user.mustChangePassword && <AnnouncementPopupHost enabled={!tourBusy} />}
       {user && <FollowUpCheckPrompt enabled={isSupport && !tourBusy && !classFeedbackDueWeek && !pendingIntroJob && !showAppSetup} />}
+      {/* Supports: a group call day or time outside Settings > Group call limits must be changed. */}
+      {user && <MeetingTimeFixPrompt enabled={isSupport && !tourBusy && !user.mustChangePassword && !activeCohort?.isPractice} userId={user.id} cohortId={activeCohort?.id} />}
       {OPEN_GUIDE_AS_WELCOME && !tourBusy && !classFeedbackDueWeek && pendingIntroJob && introSlot && (
         <RoleGuideModal job={pendingIntroJob} onClose={() => finishIntro(pendingIntroJob)} />
       )}

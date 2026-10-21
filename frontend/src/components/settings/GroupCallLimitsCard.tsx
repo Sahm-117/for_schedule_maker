@@ -4,11 +4,11 @@ import { settingsApi } from '../../services/api';
 import { usePermissions } from '../../hooks/usePermissions';
 import { setCachedMeetingLimits } from '../../hooks/useGroupMeetingLimits';
 import {
-  DEFAULT_GROUP_MEETING_LIMITS, MEETING_DAYS, describeMeetingLimits, formatClock, fromMinutes, toMinutes, windowForDay,
+  CALL_MINUTES, DEFAULT_GROUP_MEETING_LIMITS, MEETING_DAYS, describeMeetingLimits, formatClock, fromMinutes, lastStartMinutes, toMinutes, windowForDay,
   type DayWindow, type GroupMeetingLimits,
 } from '../../utils/groupMeetingLimits';
 
-// Settings > Group call limits: which days, and the earliest and latest start on each day, a support can set a group's weekly call.
+// Settings > Group call limits: which days, and the window on each day (earliest start, end), a support can set a group's weekly call.
 // The meeting-time picker follows this, and the database refuses a support's change that falls outside it.
 
 const TIME_CHOICES = (() => {
@@ -53,9 +53,9 @@ const GroupCallLimitsCard: React.FC = () => {
 
   const toggle = <T,>(list: T[], item: T): T[] => (list.includes(item) ? list.filter((x) => x !== item) : [...list, item]);
   const order = (days: string[]) => MEETING_DAYS.map((d) => d.value).filter((d) => days.includes(d));
-  const badDay = draft.days.find((d) => { const w = windowForDay(draft, d); return toMinutes(w.earliestStart) > toMinutes(w.latestStart); });
+  const badDay = draft.days.find((d) => { const w = windowForDay(draft, d); return toMinutes(w.earliestStart) > lastStartMinutes(w); });
   const problem = draft.days.length === 0 ? 'Pick at least one day.'
-    : badDay ? `${MEETING_DAYS.find((d) => d.value === badDay)?.label}: the earliest start is after the latest start.`
+    : badDay ? `${MEETING_DAYS.find((d) => d.value === badDay)?.label}: calls must end at least ${CALL_MINUTES} minutes after the earliest start.`
     : '';
   const setDayTime = (day: string, patch: Partial<DayWindow>) => setDraft((p) => ({ ...p, dayTimes: { ...p.dayTimes, [day]: { ...windowForDay(p, day), ...patch } } }));
 
@@ -79,7 +79,7 @@ const GroupCallLimitsCard: React.FC = () => {
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="text-lg font-semibold text-gray-900">Group call limits</h3>
-          <p className="mt-1 text-sm text-gray-500">The days and start times a support can pick for their group's weekly call. Admins are not held to them.</p>
+          <p className="mt-1 text-sm text-gray-500">The days and times a support can pick for their group's weekly call. Admins are not held to them.</p>
         </div>
         {canEdit && !editing && !loading && (
           <button type="button" onClick={() => { setStatus(''); setEditing(true); }} className="flex-none rounded-xl bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200">Edit</button>
@@ -102,18 +102,18 @@ const GroupCallLimitsCard: React.FC = () => {
             </div>
           </div>
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Start times for each day</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Call times for each day</p>
             {MEETING_DAYS.filter((d) => draft.days.includes(d.value)).map((d) => {
               const w = windowForDay(draft, d.value);
               return (
                 <div key={d.value} className="grid grid-cols-[4.5rem_1fr_1fr] items-center gap-2">
                   <span className="text-sm font-semibold text-gray-700">{d.label}</span>
                   <AppSelect value={w.earliestStart} onChange={(v) => setDayTime(d.value, { earliestStart: v })} options={TIME_CHOICES} placeholder="Earliest" compact disabled={saving} />
-                  <AppSelect value={w.latestStart} onChange={(v) => setDayTime(d.value, { latestStart: v })} options={TIME_CHOICES} placeholder="Latest" compact disabled={saving} />
+                  <AppSelect value={w.latestStart} onChange={(v) => setDayTime(d.value, { latestStart: v })} options={TIME_CHOICES} placeholder="End" compact disabled={saving} />
                 </div>
               );
             })}
-            <p className="text-xs text-gray-400">First box is the earliest a call can start, second is the latest.</p>
+            <p className="text-xs text-gray-400">First box is the earliest a call can start, second is when calls must end. The last start is {CALL_MINUTES} minutes before the end.</p>
           </div>
           {problem && <p className="text-xs font-medium text-red-600" role="alert">{problem}</p>}
           {status && <p className="text-xs text-red-600" role="alert">{status}</p>}

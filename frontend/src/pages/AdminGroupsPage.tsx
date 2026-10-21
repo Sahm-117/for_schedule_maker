@@ -79,6 +79,7 @@ const TrainingNotice: React.FC<{ supportName: string; attended: number; total: n
 const groupNameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 const ONBOARDING_CHIPS: OnboardingChip[] = ['overdue', 'in_progress', 'not_started', 'onboarded'];
 const NO_SUPPORT_OPTION = '__no_support__';
+const NO_HUB_OPTION = '__no_hub__';
 
 const sortGroupsByName = (groups: Group[]) =>
   [...groups].sort((a, b) => groupNameCollator.compare(a.name, b.name));
@@ -495,6 +496,9 @@ const AdminGroupsContent: React.FC = () => {
   const [readyOverrideGroups, setReadyOverrideGroups] = useState<Set<string>>(new Set());
   // Which hub each support belongs to (a card names it next to the support). Empty if it could not be loaded.
   const [hubNameByUser, setHubNameByUser] = useState<Record<string, string>>({});
+  // The cohort's hubs and which hub(s) each support is in, for the hub chips beside Filters.
+  const [hubOptions, setHubOptions] = useState<Array<{ id: string; name: string }>>([]);
+  const [hubIdsByUser, setHubIdsByUser] = useState<Record<string, string[]>>({});
   const [assignedAtByGroup, setAssignedAtByGroup] = useState<Record<string, string>>({});
   // False when the assigned dates could not be read: day counts and Overdue are then unknown, and the page says so.
   const [assignedDatesKnown, setAssignedDatesKnown] = useState(true);
@@ -517,7 +521,7 @@ const AdminGroupsContent: React.FC = () => {
   // /groups?group=<id>, so the URL — not local state — decides what's in view.
   // That keeps the link shareable and survives a refresh.
   // Each filter takes several choices at once and lives in the address (`?group=` is what the Supports page links to).
-  const [filters, setFilters] = useUrlFilters(['group', 'support', 'type', 'people', 'onboarding']);
+  const [filters, setFilters] = useUrlFilters(['group', 'support', 'type', 'people', 'onboarding', 'hub']);
 
   // `silent` background refreshes (triggered by realtime liveRevision bumps)
   // update the data in place WITHOUT flipping `loading`, so the grid doesn't
@@ -576,12 +580,16 @@ const AdminGroupsContent: React.FC = () => {
       if (hubList && hubMemberships) {
         const hubNames = new Map(hubList.map((hub) => [hub.id, hub.name]));
         const byUser: Record<string, string> = {};
+        const idsByUser: Record<string, string[]> = {};
         hubMemberships.forEach((m) => {
           const name = hubNames.get(m.hubId);
           if (name) byUser[m.userId] = byUser[m.userId] ? `${byUser[m.userId]}, ${name}` : name;
+          if (name) idsByUser[m.userId] = [...(idsByUser[m.userId] ?? []), m.hubId];
         });
         setHubNameByUser(byUser);
-      } else if (!silent) setHubNameByUser({});
+        setHubIdsByUser(idsByUser);
+        setHubOptions(sortByText(hubList.map((hub) => ({ id: hub.id, name: hub.name })), (hub) => hub.name));
+      } else if (!silent) { setHubNameByUser({}); setHubIdsByUser({}); setHubOptions([]); }
       if (progressRes) {
         setOnboardingProgress(new Map(progressRes.participants.map((row) => [row.participantId, row])));
         // An admin can mark a support's step done by hand (SupportOnboardingOverride); it counts as done here too.
@@ -706,12 +714,26 @@ const AdminGroupsContent: React.FC = () => {
       case 'support': return choice === NO_SUPPORT_OPTION ? !g.supportId : g.supportId === choice;
       case 'type': return choice === 'teen' ? !!g.isTeenGroup : !g.isTeenGroup;
       case 'onboarding': return onboardingByGroup.get(g.id)?.chip === choice;
+      case 'hub': {
+        const hubIds = g.supportId ? hubIdsByUser[g.supportId] ?? [] : [];
+        return choice === NO_HUB_OPTION ? hubIds.length === 0 : hubIds.includes(choice);
+      }
       case 'people': return choice === 'empty' ? (membersByGroupId.get(g.id)?.length ?? 0) === 0 : (membersByGroupId.get(g.id)?.length ?? 0) > 0;
       default: return true;
     }
   };
   // Within a filter any chosen choice matches; every filter that has a choice must match.
-  const displayedGroups = groups.filter((g) => Object.entries(filters).every(([key, choices]) => choices.length === 0 || (key === 'onboarding' && onboardingByGroup.size === 0) || choices.some((c) => groupFits(key, c, g))));
+  // Hub chips sit beside the Filters button, not inside the sheet, so the sheet gets every filter except the hub.
+  // A hub from another cohort (an old link) has no chip to clear it, so it is ignored rather than hiding every group.
+  const hubChoices = (filters.hub ?? []).filter((v) => v === NO_HUB_OPTION || hubOptions.some((hub) => hub.id === v));
+  const sheetFilters = Object.fromEntries(Object.entries(filters).filter(([key]) => key !== 'hub'));
+  const displayedGroups = groups.filter((g) => Object.entries({ ...sheetFilters, hub: hubChoices }).every(([key, choices]) => choices.length === 0 || (key === 'onboarding' && onboardingByGroup.size === 0) || choices.some((c) => groupFits(key, c, g))));
+  const hubChipOptions = [
+    ...hubOptions.map((hub) => ({ value: hub.id, label: hub.name })),
+    { value: NO_HUB_OPTION, label: 'No hub' },
+  ].map((o) => ({ ...o, count: groups.filter((g) => groupFits('hub', o.value, g)).length }))
+    .filter((o) => o.value !== NO_HUB_OPTION || o.count > 0 || hubChoices.includes(NO_HUB_OPTION));
+  const toggleHub = (value: string) => setFilters({ ...filters, hub: hubChoices.includes(value) ? hubChoices.filter((v) => v !== value) : [...hubChoices, value] });
   const filterGroups: FilterGroup[] = (() => {
     const opt = (key: string, value: string, label: string) => ({ value, label, count: groups.filter((g) => groupFits(key, value, g)).length });
     const out: FilterGroup[] = [];
@@ -799,8 +821,36 @@ const AdminGroupsContent: React.FC = () => {
           )}
           <FilterBar
             groups={filterGroups}
-            value={filters}
-            onChange={setFilters}
+            value={sheetFilters}
+            onChange={(next) => setFilters({ ...next, hub: hubChoices })}
+            searching={hubChoices.length > 0}
+            extra={hubOptions.length > 0 && (
+              <div data-wt="groups-hub-chips" className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter by hub">
+                <button
+                  type="button"
+                  aria-pressed={hubChoices.length === 0}
+                  onClick={() => setFilters({ ...filters, hub: [] })}
+                  className={`inline-flex min-h-[32px] items-center rounded-full border px-2.5 text-xs font-semibold active:scale-95 ${hubChoices.length === 0 ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'}`}
+                >
+                  All hubs
+                </button>
+                {hubChipOptions.map((o) => {
+                  const active = hubChoices.includes(o.value);
+                  return (
+                    <button
+                      key={o.value}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => toggleHub(o.value)}
+                      className={`inline-flex min-h-[32px] items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold active:scale-95 ${active ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'} ${o.count === 0 && !active ? 'opacity-50' : ''}`}
+                    >
+                      {o.label}
+                      <span className={`rounded-full px-1.5 text-[11px] ${active ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'}`}>{o.count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             toggles={[{ key: 'archived', label: 'Show archived groups', value: showArchived, onChange: setShowArchived, hint: 'Include groups that were archived.' }]}
             shown={displayedGroups.length}
             total={groups.length}
@@ -1053,7 +1103,8 @@ const AdminGroupsContent: React.FC = () => {
           cohortName={activeCohort?.name ?? 'Cohort'}
           unassignedParticipants={groupablePeople.filter((p) => !p.groupId).length}
           filters={[
-            ...describeFilters(filterGroups, filters),
+            ...describeFilters(filterGroups, sheetFilters),
+            ...hubChoices.map((v) => `Hub: ${hubChipOptions.find((o) => o.value === v)?.label ?? v}`),
             showArchived ? 'Including archived' : '',
           ].filter(Boolean)}
           onClose={() => setExportOpen(false)}
