@@ -731,8 +731,11 @@ const AdminGroupsContent: React.FC = () => {
   const hubChipOptions = [
     ...hubOptions.map((hub) => ({ value: hub.id, label: hub.name })),
     { value: NO_HUB_OPTION, label: 'No hub' },
-  ].map((o) => ({ ...o, count: groups.filter((g) => groupFits('hub', o.value, g)).length }))
+  // Counts include teen groups, since a chip filters the Teen groups section too.
+  ].map((o) => ({ ...o, count: [...groups, ...teenGroups].filter((g) => groupFits('hub', o.value, g)).length }))
     .filter((o) => o.value !== NO_HUB_OPTION || o.count > 0 || hubChoices.includes(NO_HUB_OPTION));
+  // Teen groups sit in their own section; the hub chips filter it too (a teen group's hub is its Teen Support's).
+  const displayedTeenGroups = hubChoices.length === 0 ? teenGroups : teenGroups.filter((g) => hubChoices.some((c) => groupFits('hub', c, g)));
   const toggleHub = (value: string) => setFilters({ ...filters, hub: hubChoices.includes(value) ? hubChoices.filter((v) => v !== value) : [...hubChoices, value] });
   const filterGroups: FilterGroup[] = (() => {
     const opt = (key: string, value: string, label: string) => ({ value, label, count: groups.filter((g) => groupFits(key, value, g)).length });
@@ -885,10 +888,14 @@ const AdminGroupsContent: React.FC = () => {
 
       {activeCohort && !loading && teenGroups.length > 0 && (
         <section className="mt-8">
-          <h2 className="text-sm font-bold text-gray-900">Teen groups</h2>
+          <h2 className="text-sm font-bold text-gray-900">
+            Teen groups
+            {hubChoices.length > 0 && <span className="ml-1.5 text-xs font-medium text-gray-500">{displayedTeenGroups.length} of {teenGroups.length} in the chosen hubs</span>}
+          </h2>
           <p className="mb-3 text-xs text-gray-500">Each Teen Support's teens. No meetings or recaps; Sunday attendance only.</p>
+          {displayedTeenGroups.length === 0 && <p className="text-sm text-gray-500">No teen groups in the chosen hubs.</p>}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {teenGroups.map((g) => {
+            {displayedTeenGroups.map((g) => {
               const members = membersByGroupId.get(g.id) ?? [];
               return (
                 <div key={g.id} className="flex flex-col gap-3 surface-card p-5">

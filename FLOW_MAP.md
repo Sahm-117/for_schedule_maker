@@ -437,7 +437,8 @@ duplicating the logic anywhere else is a bug waiting to happen.
     sign-up status there is the follow-up status, so a hand-set Access confirmed is not the same as logged in. Pages
     whose selector picks the data to load (Feedback by week or group, Birthdays' cohort) keep a single selector.
     The Groups page also shows its hub choices as chips beside the Filters button (`FilterBar` `extra`, `?hub=`, same
-    any-of matching and counts; a group's hub is its support's `HubMembership`), so a hub is one tap away.
+    any-of matching and counts; a group's hub is its support's `HubMembership`), so a hub is one tap away. The chips also
+    filter the Teen groups section (a teen group's hub is its Teen Support's); the chip counts include teen groups; "Showing N of M" is adult groups.
     Source: `FilterBar`, `useUrlFilters`, each page. No database change.
 
 35. **The Get ready list needs the venue map, and goes away at first attendance.** A participant opens the
