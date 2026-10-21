@@ -11,7 +11,7 @@ Follows `2026-10-21_group-call-window-end.md`. Every group call is now taken to 
 - FLOW_MAP rules 34, 61 and 85 updated.
 
 ## Live changes
-- Migration `20261021110000_group_call_one_hour.sql`: NOT APPLIED YET. Compiled on live in a rolled-back transaction. Apply after this app version is live on Vercel, otherwise an open picker still offers 8:15 to 8:30 PM and the database refuses them.
+- Migration `20261021110000_group_call_one_hour.sql`: applied live on 2026-10-21 (Management API) after `0928f8c` was live on Vercel. Checked in rolled-back transactions with a non-admin session: Thursday 20:15 refused ("must start between 16:00 and 20:00"), 20:00 accepted. The two 9:00 PM groups were left as they were.
 
 ## How it was tested
 - `npm run build` passes; type errors unchanged (7, Website and Practice files).
@@ -20,5 +20,4 @@ Follows `2026-10-21_group-call-window-end.md`. Every group call is now taken to 
 - Not tried in a browser.
 
 ## Open items
-- Apply the migration after the deploy.
 - The call length lives in two places (`CALL_MINUTES` and the `- 60` in the trigger). Changing it again means both, or move it into the `group_meeting_limits` setting.
