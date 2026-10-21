@@ -818,7 +818,7 @@ const AdminHubsPage: React.FC = () => {
                             { label: 'Hub roles', onClick: () => setLeadTarget(h) },
                             { label: 'Meeting time & link', onClick: () => setMeetingTarget(h) },
                             { label: 'Recap attendance', onClick: () => setRecapTarget(h) },
-                            ...(isAdmin ? [{ label: 'Open recording', onClick: () => setOpenRecTarget(h) }] : []),
+                            ...(isAdmin ? [{ label: 'Open meeting', onClick: () => setOpenRecTarget(h) }] : []),
                             { label: 'Edit name', onClick: () => { setEditing(h); setFormOpen(true); } },
                           ] : []),
                           ...(canDelete ? [{ label: 'Delete hub', onClick: () => setDeleteTarget(h), tone: 'danger' as const }] : []),

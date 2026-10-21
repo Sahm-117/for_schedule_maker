@@ -50,10 +50,10 @@ const OpenRecordingModal: React.FC<{
   };
 
   return (
-    <ModalShell isOpen={isOpen} onClose={onClose} title="Open recording" subtitle={name}>
+    <ModalShell isOpen={isOpen} onClose={onClose} title="Open meeting" subtitle={name}>
       <div className="flex flex-col gap-4">
         <p className="text-[13px] leading-relaxed text-gray-600">
-          Meetings can be recorded from 10 minutes before their time until midnight that day. Open a week here if the meeting was held on another day, or was missed. It stays open for 24 hours.
+          A meeting can normally be taken (attendance and marking it held) from 10 minutes before its time until midnight that day. Open a week here if the meeting was held on another day, or was missed. It stays open for 24 hours.
         </p>
         <AppSelect
           label="Week"

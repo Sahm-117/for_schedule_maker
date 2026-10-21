@@ -5,10 +5,10 @@ A hub lead's attendance taps all failed on Sun 18 Oct ("Couldn't save, try again
 
 ## Shipped (frontend pushed; database migration NOT applied)
 - `supabase/migrations/20261019140000_meeting_recording_opening.sql`: table `MeetingRecordingOpening`, `admin_open_meeting_recording`, `admin_close_meeting_recording`, `meeting_recording_opening`, and `fof_assert_meeting_open` replaced (the live definition from 20261018110000 plus an early return while an opening is live). FLOW_MAP rule 84.
-- `OpenRecordingModal.tsx`; "Open recording" in the Admin Hubs and Admin Groups card menus; `useRecordingOpening` in `utils/meetingWindow.ts`, used by the hub meeting panel, the teen meeting card and the group meeting panel; `meetingRecordingApi`.
+- `OpenRecordingModal.tsx`; "Open meeting" (was "Open recording") in the Admin Hubs and Admin Groups card menus; `useRecordingOpening` in `utils/meetingWindow.ts`, used by the hub meeting panel, the teen meeting card and the group meeting panel; `meetingRecordingApi`.
 
 ## Live changes
-None yet. **To apply:** run the migration (in a rolled-back transaction first), then in the app open a hub's menu > Open recording, pick a week, and check a Hub Lead's Meeting tab shows the recording steps instead of the "Opens …" notice. Until then the menu item errors cleanly and the app behaves as before.
+None yet. **To apply:** run the migration (in a rolled-back transaction first), then in the app open a hub's menu > Open meeting, pick a week, and check a Hub Lead's Meeting tab shows the recording steps instead of the "Opens …" notice. Until then the menu item errors cleanly and the app behaves as before.
 
 ## Decisions and why
 - Per hub or group and week, 24 hours, by admin only; not a global switch.

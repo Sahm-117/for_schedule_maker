@@ -838,7 +838,7 @@ const AdminGroupsContent: React.FC = () => {
                     { label: 'Manage members', onClick: () => setMembersTarget(g) },
                     { label: 'Assign support', onClick: () => setSupportTarget(g) },
                     ...(g.supportId && !g.isTeenGroup ? [{ label: 'Support steps', onClick: () => setStepsTarget(g) }] : []),
-                    { label: 'Open recording', onClick: () => setOpenRecTarget(g) },
+                    { label: 'Open meeting', onClick: () => setOpenRecTarget(g) },
                     { label: 'Edit', onClick: () => { setEditing(g); setFormOpen(true); } },
                     { label: 'Archive group', onClick: () => setArchiveTarget(g), tone: 'danger' as const },
                   ] : []),
