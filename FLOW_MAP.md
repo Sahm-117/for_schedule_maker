@@ -514,7 +514,13 @@ duplicating the logic anywhere else is a bug waiting to happen.
     All groups), and No support / Male, no support / Female, no support / Mixed, no support (new groups only). The row shows
     when the draft has more than one gender or any group without a support. A gender view is live (a group follows its people);
     a no-support view is a snapshot so cards do not jump as supports are given. Groups outside the view are hidden, so moving
-    someone into one needs "All groups". Frontend only (`GroupEngineWizard.tsx`).
+    someone into one needs "All groups". An Ages row (All ages, then each age range with how many draft groups have someone
+    in it, several at once) narrows the same list to groups with someone in a chosen range; empty groups always show, as they
+    take moves. It is not saved and resets when the builder opens.
+    The builder opens on the Draft step: once it has loaded and the hubs are ready it continues the saved draft, or builds one
+    with the cohort's saved rules (empty groups not filled), and says so in a note. A continued saved draft can be discarded
+    there ("Discard it and start again"). People and
+    Rules are one Back away; Rebuild applies changes. Frontend only (`GroupEngineWizard.tsx`).
 44. **A support left without a group can be given an empty group on the Draft step.** "Make a group for each" in Supports
     without a group adds one empty draft group per unused support (named after the next free "Group n"), and each support in that
     list also has its own "Make a group" button for just that one; people are then moved in by hand. A group made this way and still empty at the end is created empty too (to be filled later; the Draft step says "N empty groups will be created"); an empty group that already exists is left alone, and an empty draft group has a Remove button. Empty groups are their own bucket in the gender chips ("Empty

@@ -183,6 +183,13 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   const [saved, setSaved] = useState<SavedGroupingDraft | null>(null);
   const [savingDraft, setSavingDraft] = useState(false);
   const [draftNote, setDraftNote] = useState('');
+  // The builder opens on a draft straight away (the saved one, or one built with the cohort's saved rules); People and
+  // Rules stay one Back away. This makes it happen once per opening.
+  const autoDrafted = useRef(false);
+  // True while the draft on screen was brought back from the saved one on opening, so it can be discarded from there.
+  const [fromSaved, setFromSaved] = useState(false);
+  // Draft step: show only groups with someone in these age ranges (empty groups always show; they take moves).
+  const [draftAges, setDraftAges] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!isOpen) return;
@@ -206,6 +213,9 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     setSaved(null);
     setHubData(null);
     setDraftNote('');
+    autoDrafted.current = false;
+    setFromSaved(false);
+    setDraftAges(new Set());
     createdAny.current = false;
     setLoading(true);
     Promise.all([
@@ -429,6 +439,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   const men = [...people.values()].filter((p) => p.gender === 'Male').length;
 
   const rebuild = (r: GroupingRules = rules) => {
+    setFromSaved(false);
     const ruleSet = { ...r, tagRules: r.tagRules.filter((t) => tagNames[t.tagId]) };
     // Running groups with space are topped up first; whoever is left goes to new groups.
     const top = topUpFirst
@@ -544,7 +555,12 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   // A gender view also keeps the empty groups on screen, so they alone must not keep it active.
   const viewActive = !!supportViewState && draft.some((g) => inPickedView(g) && (supportViewState.kind === 'empty' || genderOfGroup(g) !== 'Empty' || !supportViewState.kind.startsWith('gender:')));
   const activeView: SupportView = viewActive ? supportViewState!.kind : 'all';
-  const visibleDraft = viewActive ? draft.filter(inPickedView) : draft;
+  // Age ranges of a group's people, counting those already in a group being topped up.
+  const agesOf = (g: DraftGroup) => new Set([...(g.existingMemberIds ?? []), ...g.memberIds].map((id) => topUpPeople.get(id)?.ageRange).filter((a): a is string => !!a));
+  const draftAgeCounts = AGE_RANGE_OPTIONS.map((range) => ({ range, count: draft.filter((g) => agesOf(g).has(range)).length })).filter((x) => x.count > 0 || draftAges.has(x.range));
+  const fitsDraftAges = (g: DraftGroup) => draftAges.size === 0 || genderOfGroup(g) === 'Empty' || [...agesOf(g)].some((a) => draftAges.has(a));
+  const visibleDraft = (viewActive ? draft.filter(inPickedView) : draft).filter(fitsDraftAges);
+  const toggleDraftAge = (range: string) => setDraftAges((prev) => { const next = new Set(prev); if (next.has(range)) next.delete(range); else next.add(range); return next; });
   const genderKinds = [groupsByGender.Male, groupsByGender.Female, groupsByGender.Mixed].filter((n) => n > 0).length;
   const newCount = toCreate.filter((g) => !g.topUp).length;
   const topUpCount = toCreate.filter((g) => g.topUp).length;
@@ -646,6 +662,20 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     setSaved(null);
     setStep('draft');
   };
+
+  // Open on a draft: once everything has loaded, bring back the saved draft or build one with the saved rules.
+  useEffect(() => {
+    if (!isOpen || loading || !hubsReady || autoDrafted.current || step !== 'people') return;
+    autoDrafted.current = true;
+    if (saved) { continueDraft(); setFromSaved(true); return; }
+    if (readyCount === 0) return;
+    rebuild(rules);
+    setDraftNote([
+      'Built with this cohort’s saved rules. Use Back to change who is included or the rules, then Rebuild.',
+      emptyGroups.length > 0 ? `Your ${emptyGroups.length} empty ${emptyGroups.length === 1 ? 'group was' : 'groups were'} not filled; choose on People to use ${emptyGroups.length === 1 ? 'it' : 'them'}.` : '',
+    ].filter(Boolean).join(' '));
+    setStep('draft');
+  }, [isOpen, loading, hubsReady, step, saved, readyCount]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Create ──
   const create = async () => {
@@ -1259,7 +1289,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                 {emptyWithSupport > 0 && <> · <span className="font-semibold text-sky-700">{emptyWithSupport} empty {emptyWithSupport === 1 ? 'group' : 'groups'} will be created</span></>}
                 {' · '}Tap a person, then “Move here” on another group.
               </p>
-              {(draft.length > 0 && (genderKinds > 1 || noSupportCount > 0 || viewActive)) && (
+              {(draft.length > 0 && (genderKinds > 1 || noSupportCount > 0 || viewActive || draftAgeCounts.length > 1 || draftAges.size > 0)) && (
                 <div className="flex flex-col gap-2" role="group" aria-label="Filter the groups">
                   {noSupportCount > 0 && (
                     <p className="text-[12px] font-semibold text-gray-700">
@@ -1289,7 +1319,31 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                       </button>
                     ))}
                   </div>
-                  {viewActive && <p className="text-[11px] text-gray-500">Showing {visibleDraft.length} of {draft.length} groups{activeView.startsWith('gender:') && groupsByGender.Empty > 0 ? ' (empty groups always show)' : ''}. Groups outside this filter are hidden, so to move someone into one of them pick “All groups”.</p>}
+                  {(draftAgeCounts.length > 1 || draftAges.size > 0) && (
+                    <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter by age range">
+                      <span className="mr-0.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Ages</span>
+                      <button
+                        type="button"
+                        aria-pressed={draftAges.size === 0}
+                        onClick={() => setDraftAges(new Set())}
+                        className={`rounded-full px-3 py-1.5 text-xs font-semibold transition active:scale-95 ${draftAges.size === 0 ? 'bg-primary text-white shadow-sm' : 'border border-gray-100 bg-white text-gray-600 hover:bg-gray-50'}`}
+                      >
+                        All ages
+                      </button>
+                      {draftAgeCounts.map(({ range, count }) => (
+                        <button
+                          key={range}
+                          type="button"
+                          aria-pressed={draftAges.has(range)}
+                          onClick={() => toggleDraftAge(range)}
+                          className={`rounded-full px-3 py-1.5 text-xs font-semibold transition active:scale-95 ${draftAges.has(range) ? 'bg-primary text-white shadow-sm' : 'border border-gray-100 bg-white text-gray-600 hover:bg-gray-50'}`}
+                        >
+                          {shortAge(range)} <span className={draftAges.has(range) ? 'opacity-90' : 'text-gray-400'}>{count}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {(viewActive || draftAges.size > 0) && <p className="text-[11px] text-gray-500">Showing {visibleDraft.length} of {draft.length} groups{(activeView.startsWith('gender:') || draftAges.size > 0) && groupsByGender.Empty > 0 ? ' (empty groups always show)' : ''}. Groups outside this filter are hidden, so to move someone into one of them pick “All groups” and “All ages”.</p>}
                 </div>
               )}
               <div className="flex flex-wrap items-center gap-2">
@@ -1349,6 +1403,18 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                 </div>
               )}
               {draftNote && <p className="rounded-2xl bg-sky-100/80 px-3 py-2 text-[12px] font-semibold text-sky-700">{draftNote}</p>}
+              {fromSaved && (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-white px-3 py-2 text-[12px] text-gray-600 shadow-[0_1px_2px_rgba(17,24,39,0.06)]">
+                  <span>This is your saved draft.</span>
+                  <button
+                    type="button"
+                    onClick={() => { void settingsApi.setGroupingDraft(cohortId, null).catch(() => {}); rebuild(rules); setDraftNote('Saved draft discarded. This draft is built with the cohort’s saved rules.'); }}
+                    className="min-h-[32px] rounded-full border border-gray-200 px-3 text-[11px] font-semibold text-gray-700 hover:bg-gray-50 active:scale-95"
+                  >
+                    Discard it and start again
+                  </button>
+                </div>
+              )}
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {visibleDraft.map((g) => {
                   // A topped-up group is judged as it will be: the people already there plus those being added.
