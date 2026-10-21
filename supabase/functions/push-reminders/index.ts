@@ -329,7 +329,7 @@ const resolveLiveWeeks = async (todayIso: string, hour: number): Promise<LiveWee
  * than a duplicate.
  */
 const claimReminder = async (
-  kind: 'ACTIVITY' | 'GROUP_MEETING' | 'HUB_MEETING' | 'HUB_LEADS_MEETING' | 'RECAP_SUPPORT' | 'MANUAL_SUPPORT',
+  kind: 'ACTIVITY' | 'GROUP_MEETING' | 'HUB_MEETING' | 'HUB_LEADS_MEETING' | 'RECAP_SUPPORT' | 'MANUAL_SUPPORT' | 'SCRIPTURE',
   targetId: string,
   userId: string,
   reminderDate: string,
@@ -344,6 +344,77 @@ const claimReminder = async (
   throw new Error(error.message)
 }
 
+// The day's Inspirational Scripture: one push + bell to every participant with an active login and every
+// support in the current programme cohort, once a day each (ParticipantReminderLog / PushReminderLog claims,
+// so the 5 AM run and a manual { scriptureNow } never send it twice). Nothing goes out unless scriptures are
+// switched on and the day has a post.
+const sendScriptureDrop = async (todayIso: string, dryRun: boolean, debug: Record<string, unknown>[]): Promise<void> => {
+  const cohortId = await getCurrentProgrammeCohortId()
+  if (!cohortId) return
+  const { data: cohort } = await supabase.from('Cohort').select('id, startDate, endDate').eq('id', cohortId).maybeSingle()
+  if (!(cohort as any)?.startDate) return
+  const startIso = String((cohort as any).startDate).slice(0, 10)
+  const endIso = (cohort as any).endDate ? String((cohort as any).endDate).slice(0, 10) : null
+  if (daysBetweenIso(startIso, todayIso) < 0 || (endIso && todayIso > endIso)) return
+
+  const [{ data: enabledRow }, { data: startDayRow }, { data: scriptureRows }] = await Promise.all([
+    supabase.from('AppSetting').select('value').eq('settingKey', 'scriptures_enabled').maybeSingle(),
+    supabase.from('AppSetting').select('value').eq('settingKey', 'scripture_start_day').maybeSingle(),
+    supabase.from('Scripture').select('dayNumber'),
+  ])
+  const scripturesOn = (enabledRow as any)?.value !== false && (enabledRow as any)?.value !== 'false'
+  const startDay = Number((startDayRow as any)?.value) || 1
+  const position = daysBetweenIso(startIso, todayIso) + 1 - startDay + 1 // FOF day N opens at midnight on its own date
+  const hasPost = ((scriptureRows ?? []) as any[]).some((row) => Number(row.dayNumber) === position)
+  if (!scripturesOn || position < 1 || !hasPost) return
+  const line = SCRIPTURE_DROP_LINES[(position - 1) % SCRIPTURE_DROP_LINES.length]
+  const tag = `SCRIPTURE:${todayIso}`
+
+  const [{ data: accounts }, { data: members }] = await Promise.all([
+    supabase.from('ParticipantAccount').select('participantId, participant:Participant!inner(id, cohortId, status)').eq('isActive', true).eq('participant.cohortId', cohortId).eq('participant.status', 'ACTIVE'),
+    supabase.from('UserCohort').select('userId').eq('cohortId', cohortId),
+  ])
+  const participantIds = [...new Set(((accounts ?? []) as any[]).map((a) => a.participantId as string))]
+  const memberIds = [...new Set(((members ?? []) as any[]).map((m) => m.userId as string))]
+  const { data: users } = memberIds.length
+    ? await supabase.from('User').select('id, role, roles, isTest').in('id', memberIds)
+    : { data: [] }
+  const supportIds = ((users ?? []) as any[]).filter((u) => isSupportOrTagged(u) && !u.isTest).map((u) => u.id as string)
+  if (dryRun) { debug.push({ wouldSendScripture: tag, participants: participantIds.length, supports: supportIds.length, title: line.title, body: line.body }); return }
+  const payloadFor = (path: string) => JSON.stringify({ title: line.title, body: line.body, icon: '/icon-192.png', tag, data: { path } })
+
+  // Participants
+  const claimedParticipants: string[] = []
+  for (const participantId of participantIds) {
+    const { error } = await supabase.from('ParticipantReminderLog').insert([{ kind: 'SCRIPTURE', targetKey: tag, participantId, occurrence: 'once' }])
+    if (!error) claimedParticipants.push(participantId)
+    else if (error.code !== '23505') throw new Error(error.message)
+  }
+  if (claimedParticipants.length > 0) {
+    await insertParticipantNotifications(supabase, claimedParticipants.map((participantId) => ({ participantId, title: line.title, body: line.body, path: '/me', type: 'REMINDER' })))
+    const { data: subs } = await supabase.from('ParticipantPushSubscription').select('participantId, endpoint, p256dh, auth').in('participantId', claimedParticipants)
+    const rows = ((subs ?? []) as any[]).map((row) => ({ userId: row.participantId, endpoint: row.endpoint, p256dh: row.p256dh, auth: row.auth }))
+    if (rows.length > 0) {
+      const r = await sendToSubscriptions(webPush, supabase, rows, payloadFor('/me'), undefined, PARTICIPANT_PUSH_STORE)
+      if (r.failed > 0) console.error(`push-reminders (participants ${tag}): ${r.sent} sent, ${r.failed} failed, ${r.removed} removed`, JSON.stringify(r.errors))
+    }
+  }
+
+  // Supports
+  const claimedSupports: string[] = []
+  for (const userId of supportIds) if (await claimReminder('SCRIPTURE', todayIso, userId, todayIso, 0)) claimedSupports.push(userId)
+  if (claimedSupports.length > 0) {
+    await insertNotifications(supabase, claimedSupports.map((userId) => ({ userId, title: line.title, body: line.body, path: '/support', type: 'REMINDER' })))
+    const { data: subs } = await supabase.from('PushSubscription').select('userId, endpoint, p256dh, auth').in('userId', claimedSupports)
+    const rows = ((subs ?? []) as any[]).map((row) => ({ userId: row.userId, endpoint: row.endpoint, p256dh: row.p256dh, auth: row.auth }))
+    if (rows.length > 0) {
+      const r = await sendToSubscriptions(webPush, supabase, rows, payloadFor('/support'))
+      if (r.failed > 0) console.error(`push-reminders (supports ${tag}): ${r.sent} sent, ${r.failed} failed, ${r.removed} removed`, JSON.stringify(r.errors))
+    }
+  }
+  debug.push({ sentScripture: tag, participants: claimedParticipants.length, supports: claimedSupports.length })
+}
+
 Deno.serve(async (req) => {
   try {
     // Test hooks. dryRun computes everything but sends/logs nothing; onlyUserIds
@@ -355,6 +426,8 @@ Deno.serve(async (req) => {
     let asOf: Date | null = null
     // Limit the participant reminders to one cohort, whatever its status (dry runs).
     let onlyCohortId: string | null = null
+    // Send today's Inspirational Scripture now, and nothing else (needs the service key).
+    let scriptureNow = false
     try {
       const body = await req.json()
       dryRun = body?.dryRun === true
@@ -365,6 +438,7 @@ Deno.serve(async (req) => {
         onlyParticipantIds = body.onlyParticipantIds.map(String)
       }
       if (typeof body?.cohortId === 'string') onlyCohortId = body.cohortId
+      scriptureNow = body?.scriptureNow === true
       if (typeof body?.asOf === 'string' && !Number.isNaN(Date.parse(body.asOf))) {
         asOf = new Date(body.asOf)
       }
@@ -373,6 +447,15 @@ Deno.serve(async (req) => {
     }
 
     const debug: Record<string, unknown>[] = []
+
+    if (scriptureNow) {
+      const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+      if (!serviceKey || req.headers.get('Authorization') !== `Bearer ${serviceKey}`) {
+        return new Response(JSON.stringify({ ok: false, error: 'Not allowed' }), { status: 403, headers: { 'Content-Type': 'application/json' } })
+      }
+      await sendScriptureDrop(getLagosDateParts(new Date()).isoDate, dryRun, debug)
+      return new Response(JSON.stringify({ ok: true, scriptureNow: true, debug }), { headers: { 'Content-Type': 'application/json' } })
+    }
 
     // Pauses the admin sets in Settings: AppSetting 'reminder_pauses' = { class?: 'YYYY-MM-DD' | 'ALWAYS', activities?: ... }.
     // A date means "paused through that Lagos day"; 'ALWAYS' stays paused until switched off.
@@ -959,26 +1042,11 @@ Deno.serve(async (req) => {
           }
         }
 
-        // c2) A new Inspirational Scripture opens at 12:00 AM Lagos and is announced at 5:00 AM (FOF day N opens at midnight on its own date,
-        //     the same rule as scriptureDayIndex in the app). One push + bell a day per participant, the
-        //     line rotating by post so nobody reads the same one twice in a row. We cannot tell who has
-        //     opened a post, so everyone with an active login gets it. pushParticipants' claim (the tag
-        //     carries the date) stops the 10-minute cron repeating it; the window lets a late run catch up.
-        if (daysBetweenIso(startIso, pToday) >= 0 && (!endIso || pToday <= endIso) && pNowMinutes >= SCRIPTURE_PUSH_MINUTES && pNowMinutes < SCRIPTURE_PUSH_MINUTES + 180) {
-          const [{ data: enabledRow }, { data: startDayRow }, { data: scriptureRows }] = await Promise.all([
-            supabase.from('AppSetting').select('value').eq('settingKey', 'scriptures_enabled').maybeSingle(),
-            supabase.from('AppSetting').select('value').eq('settingKey', 'scripture_start_day').maybeSingle(),
-            supabase.from('Scripture').select('dayNumber'),
-          ])
-          const scripturesOn = (enabledRow as any)?.value !== false && (enabledRow as any)?.value !== 'false'
-          const startDay = Number((startDayRow as any)?.value) || 1
-          const fofDay = daysBetweenIso(startIso, pToday) + 1 // from midnight on this date, this FOF day's post is open
-          const position = fofDay - startDay + 1
-          const hasPost = ((scriptureRows ?? []) as any[]).some((row) => Number(row.dayNumber) === position)
-          if (scripturesOn && position >= 1 && hasPost) {
-            const line = SCRIPTURE_DROP_LINES[(position - 1) % SCRIPTURE_DROP_LINES.length]
-            await pushParticipants([...participantIds], { ...line, path: '/me', tag: `SCRIPTURE:${pToday}` })
-          }
+        // c2) A new Inspirational Scripture opens at 12:00 AM Lagos and is announced at 5:00 AM to participants and
+        //     supports (sendScriptureDrop). The 10-minute cron repeats inside the window; the claims stop doubles, and
+        //     the window lets a late run catch up. Test runs limited to some participants or a cohort leave it out.
+        if (!onlyParticipantIds && !onlyCohortId && pNowMinutes >= SCRIPTURE_PUSH_MINUTES && pNowMinutes < SCRIPTURE_PUSH_MINUTES + 180) {
+          await sendScriptureDrop(pToday, dryRun, debug)
         }
 
         // d) Supports get their own recap push+bell once their configured release

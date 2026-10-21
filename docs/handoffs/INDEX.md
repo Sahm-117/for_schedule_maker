@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-21 | [Scripture to supports, send-now switch](2026-10-21_scripture-to-supports-send-now.md) | Scripture push goes to supports too; protected scriptureNow switch; fired once on 21 Oct (75 participants, 49 supports). push-reminders v56 deployed |
 | 2026-10-20 | [Teen password fixed, guardian-only messages, scripture 5 AM](2026-10-20_teen-password-fixed-guardian-only-scripture-5am.md) | Teen-number sessions cannot change the password (migration applied 2026-10-21); teen contacts get parent messages only, no group links; scripture push at 5 AM (push-reminders v55 deployed 2026-10-21) |
 | 2026-10-20 | [Teen meeting link, guardian login message](2026-10-20_teen-meeting-link-guardian-message.md) | Teen meeting card sets a call link guardians and teens see as Join call; teen login message addressed to the guardian. Frontend only |
 | 2026-10-20 | [Teen Support guardian reset, admin shows guardian](2026-10-20_teen-guardian-reset-admin-guardian.md) | Guardian login card stays on the teen card so a Teen Support can create a new code after sign-in; admin lists, profile and groups label the guardian's number and show the name. Frontend only |
