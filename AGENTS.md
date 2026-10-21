@@ -29,6 +29,7 @@ This file is project-specific. Keep changes here limited to guidance for this re
 - Never delete files, scripts, tables, columns, cron jobs, deployed functions, or configuration as an incidental part of a larger change. First inspect the target and its usages, check whether it is tracked, then obtain explicit per-target approval. Prefer a recoverable move where appropriate.
 - Do not make backend, Supabase schema, cron, or deployment changes unless the request clearly includes them. Verify any database-facing change against the deployed environment after applying it.
 - Avoid adjacent cleanup or unrelated refactors. Keep the change set limited to the requested feature or fix.
+- When querying live data to report findings (for example "which groups break a rule"), scope it the way the app does before telling the owner anything: the current cohort (or the one being discussed), not archived, not Practice, not test accounts. Old cohorts keep their rows, and an unscoped query once flagged three Cohort 9 groups as an FOF 10 problem. If a result looks surprising, check its cohort and dates first.
 
 ## Export behavior
 

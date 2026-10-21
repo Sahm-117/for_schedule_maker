@@ -12,6 +12,8 @@ Settings > Group call limits now reads the second time of each day as when calls
 
 - `frontend/src/pages/AdminGroupsPage.tsx`: hub filter as chips beside the Filters button ("All hubs", one chip per hub with its group count, "No hub" when any group has none). Several can be picked; it lives in the address as `?hub=` and is listed in the export's filter line. A group belongs to a hub through its support's `HubMembership`. A hub id from another cohort is ignored. Filters > Clear leaves the hub chips alone.
 
+- Groups page: the separate Onboarding chip row (All / Overdue / In progress / Not started / Onboarded) is gone; Onboarding is chosen in the Filters sheet, as before. The "Day counts unavailable" warning stays under the filter line.
+
 ## Live changes
 - Migration `20261021100000_group_call_window_end.sql`: NOT APPLIED YET (compiled on live inside a rolled-back transaction only).
 
@@ -24,7 +26,7 @@ Settings > Group call limits now reads the second time of each day as when calls
 - Two adult groups already have a 9:00 PM start (one Thursday, one Saturday). The guard only checks a change, so they keep working; their supports see the popup above until they pick a new time. Check after a few days that both moved.
 - Teen groups use the same picker and guard, so a Teen Support cannot set a Sunday meeting (allowed days are Thursday, Friday, Saturday). The Teen Supports' meeting on 17 Oct asked for weekend recap times around 6 or 7 PM.
 
-- Three adult groups meet on Wednesday at 8:00 PM, a day the limits no longer allow. The popup deliberately does not ask them; decide whether they should move.
+- Three groups with a Wednesday 8:00 PM call are Cohort 9 groups set in June/July, before the limits existed (10 Oct). Not an FOF 10 issue; the popup only reads the support's group in the cohort being viewed. No FOF 10 group is on a disallowed day.
 
 ## Gotchas
 - The key is still called `latestStart` in `AppSetting` and `DayWindow`; it means the end of the window.

@@ -747,7 +747,7 @@ const AdminGroupsContent: React.FC = () => {
       });
     }
     if (onboardingByGroup.size > 0) {
-      out.push({ key: 'onboarding', label: 'Onboarding', options: ONBOARDING_CHIPS.map((chip) => opt('onboarding', chip, ONBOARDING_CHIP_LABEL[chip])) });
+      out.push({ key: 'onboarding', label: 'Onboarding', options: ONBOARDING_CHIPS.map((chip) => opt('onboarding', chip, ONBOARDING_CHIP_LABEL[chip])), hint: assignedDatesKnown ? undefined : 'Day counts unavailable, so Overdue can’t be shown.' });
     }
     out.push({ key: 'people', label: 'Members', options: [opt('people', 'empty', 'Empty'), opt('people', 'has', 'Has participants')] });
     return out;
@@ -789,36 +789,6 @@ const AdminGroupsContent: React.FC = () => {
 
       {activeCohort && !loading && (
         <div data-wt="groups-filters" className="mb-4">
-          {onboardingByGroup.size > 0 && (
-            <div data-wt="groups-onboarding-summary" className="mb-3 flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">Onboarding</span>
-              <button
-                type="button"
-                aria-pressed={(filters.onboarding ?? []).length === 0}
-                onClick={() => setFilters({ ...filters, onboarding: [] })}
-                className={`inline-flex min-h-[32px] items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold active:scale-95 ${(filters.onboarding ?? []).length === 0 ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'}`}
-              >
-                All {groups.filter((g) => onboardingByGroup.has(g.id)).length}
-              </button>
-              {ONBOARDING_CHIPS.map((chip) => {
-                const count = onboardingCounts[chip];
-                const active = (filters.onboarding ?? []).includes(chip);
-                return (
-                  <button
-                    key={chip}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => { const current = filters.onboarding ?? []; setFilters({ ...filters, onboarding: active ? current.filter((c) => c !== chip) : [...current, chip] }); }}
-                    className={`inline-flex min-h-[32px] items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold active:scale-95 ${active ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'} ${count === 0 && !active ? 'opacity-50' : ''}`}
-                  >
-                    {ONBOARDING_CHIP_LABEL[chip]}
-                    <span className={`rounded-full px-1.5 text-[11px] ${active ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'}`}>{count}</span>
-                  </button>
-                );
-              })}
-              {!assignedDatesKnown && <span className="text-[11px] text-amber-700">Day counts unavailable, so Overdue can’t be shown.</span>}
-            </div>
-          )}
           <FilterBar
             groups={filterGroups}
             value={sheetFilters}
@@ -856,6 +826,8 @@ const AdminGroupsContent: React.FC = () => {
             total={groups.length}
             noun="groups"
           />
+          {/* Onboarding status is chosen in the Filters sheet; this only warns when Overdue cannot be worked out. */}
+          {onboardingByGroup.size > 0 && !assignedDatesKnown && <p className="mt-1 px-0.5 text-[11px] text-amber-700">Day counts unavailable, so Overdue can’t be shown.</p>}
         </div>
       )}
 
