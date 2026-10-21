@@ -434,7 +434,9 @@ duplicating the logic anywhere else is a bug waiting to happen.
     same count. Supports and Groups keep the choices in the address (`useUrlFilters`, comma separated, so `?hub=` and
     `?group=` links still work); the others keep them in the page. The Participants page splits adults and teens, and
     its App login filter means logged in = chose a password (`participants_signed_in`), adults only (rule 33); the
-    sign-up status there is the follow-up status, so a hand-set Access confirmed is not the same as logged in. Pages
+    sign-up status there is the follow-up status, so a hand-set Access confirmed is not the same as logged in. Its sheet
+    also has the switch "Hide no response and next cohort" (sign-up status No Response or Will Join Next Cohort): it
+    leaves them out of the list, the choice counts, "Showing N of M" and the export label; it is not kept in the address. Pages
     whose selector picks the data to load (Feedback by week or group, Birthdays' cohort) keep a single selector.
     The Groups page also shows its hub choices as chips beside the Filters button (`FilterBar` `extra`, `?hub=`, same
     any-of matching and counts; a group's hub is its support's `HubMembership`), so a hub is one tap away. The chips also
@@ -516,7 +518,8 @@ duplicating the logic anywhere else is a bug waiting to happen.
     a no-support view is a snapshot so cards do not jump as supports are given. Groups outside the view are hidden, so moving
     someone into one needs "All groups". An Ages row (All ages, then each age range with how many draft groups have someone
     in it, several at once) narrows the same list to groups with someone in a chosen range; empty groups always show, as they
-    take moves. It is not saved and resets when the builder opens.
+    take moves. It is not saved and resets when the builder opens. Several people can be tapped at once (a bar shows how
+    many, with Clear); "Move N here" on a group or on "Not in a group" moves them all, in the order tapped.
     The builder opens on the Draft step: once it has loaded and the hubs are ready it continues the saved draft, or builds one
     with the cohort's saved rules (empty groups not filled), and says so in a note. A continued saved draft can be discarded
     there ("Discard it and start again"). People and
@@ -703,6 +706,7 @@ duplicating the logic anywhere else is a bug waiting to happen.
 83. **A new Inspirational Scripture opens at 12:00 AM Lagos (midnight, on its own date) and is announced at 5:00 AM to participants and supports, one line a day.** Since v56 the send lives in `sendScriptureDrop`: participants with an active login (claim `SCRIPTURE:<date>` in `ParticipantReminderLog`) and every non-test support in the current cohort (`UserCohort`, claim kind `SCRIPTURE` in `PushReminderLog`), bell row plus push. `{ "scriptureNow": true }` with the project's secret key sends today's at once and nothing else (403 without the key). `push-reminders` (block c2 in the participant section) sends a push and a bell row to every participant with an active login once the cohort has started, from 5:00 AM Lagos (`SCRIPTURE_PUSH_MINUTES`, deployed v55; a late run catches up within 3 hours); the post itself opens in the app at midnight (`scriptureDayIndex`), only when the day's post exists and scriptures are switched on. Open tracking is not possible, so everyone gets it; the line cycles through ten texts that tell them to read the post and do its exercise. Deduped by the `SCRIPTURE:<date>` claim in `ParticipantReminderLog`. Edge function only, no migration.
 84. **An admin can open recording for one hub or group and week, outside its window.** Admins > Hubs or Groups > card menu > "Open meeting" opens that week's meeting for 24 hours (`MeetingRecordingOpening`, migration `20261019140000_meeting_recording_opening.sql`: `admin_open_meeting_recording`, `admin_close_meeting_recording`, `meeting_recording_opening`; `fof_assert_meeting_open` lets the write through while an opening is live). The app reads it with `useRecordingOpening`, so the "Opens …" notice gives way to the recording steps. Needed for meetings held in a week with no Week row (the break week) or missed. Rule 78's window is otherwise unchanged.
 85. **A support whose group call starts too late for the limits is asked to change it.** `MeetingTimeFixPrompt` (AppShell, supports only, not in a Practice cohort) reads the support's own adult group (`groupsApi.getForSupport`) and the saved limits (not the defaults), and when the call is on an allowed day but starts after that day's last start (rule 61) shows a required popup (popup queue place `meetingTimeFix`) with an apology, that calls run for an hour and must finish by the day's end time, a Thursday note that church prayers start at 9:00 PM, "Change the time" (My Group) and "Later" (hidden until the next launch). A day that is no longer allowed is not asked about. Nothing is changed for them; it stops once the time fits. Frontend only.
+86. **The Hubs page shows how many women and men are in each hub.** Under each hub's name and support count, and in the page title line for all hubs, the hub members' gender from `User.gender` (normalised with `normaliseGender`): "4 women · 2 men", plus "1 not set" when a gender is missing. Frontend only (`AdminHubsPage.tsx`).
 
 ## 5. Edge functions and schedules
 

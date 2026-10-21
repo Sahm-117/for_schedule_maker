@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-21 | [Hub gender, hide not joining, multi-move](2026-10-21_hub-gender-hide-not-joining-multi-move.md) | Hubs show women/men per hub; Participants switch hides No Response and Next Cohort; group builder moves several people at once. Frontend only. |
 | 2026-10-21 | [Group builder opens on the draft](2026-10-21_group-builder-opens-on-draft.md) | Build groups opens on the Draft step (saved draft, or one built with the saved rules); Ages filter on the Draft step. Frontend only. |
 | 2026-10-21 | [Group calls last an hour](2026-10-21_group-call-one-hour.md) | Latest start is now an hour before the end (8:00 PM in a 4 to 9 PM window); popup wording updated; hub chips filter teen groups too. Migration `20261021110000` applied live. |
 | 2026-10-21 | [Group call window end](2026-10-21_group-call-window-end.md) | The second Group call limits time is when calls end; latest start is 30 minutes before it (no 9 PM start in a 4 to 9 PM window); supports already outside the limits get a popup asking them to change it, with an apology. Groups page hub filter chips. Migration `20261021100000` applied live. |

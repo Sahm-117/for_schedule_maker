@@ -152,7 +152,8 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   const [savingRules, setSavingRules] = useState(false);
   const [draft, setDraft] = useState<DraftGroup[]>([]);
   const [leftOut, setLeftOut] = useState<string[]>([]);
-  const [picked, setPicked] = useState<string | null>(null);
+  // People tapped on the Draft step, in the order tapped; "Move here" moves all of them.
+  const [picked, setPicked] = useState<string[]>([]);
   const [statuses, setStatuses] = useState<Record<string, CreateStatus>>({});
   // Why a group failed, shown on its row (cleared when it is retried).
   const [failReasons, setFailReasons] = useState<Record<string, string>>({});
@@ -198,7 +199,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     setDraft([]);
     resetSupportView();
     setLeftOut([]);
-    setPicked(null);
+    setPicked([]);
     setStatuses({});
     setFailReasons({});
     setEmptyChoice(null);
@@ -454,7 +455,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     resetSupportView();
     setDraft([...(top?.groups ?? []), ...result.groups]);
     setLeftOut([...result.needsInfo, ...result.unplaced]);
-    setPicked(null);
+    setPicked([]);
   };
 
   const saveRulesAndBuild = async () => {
@@ -476,13 +477,14 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
 
   // ── Draft edits ──
   const moveTo = (targetKey: string) => {
-    if (!picked) return;
+    if (picked.length === 0) return;
+    const moving = new Set(picked);
     setDraft((prev) => prev.map((g) => {
-      const without = g.memberIds.filter((id) => id !== picked);
-      return g.key === targetKey ? { ...g, memberIds: [...without, picked] } : { ...g, memberIds: without };
+      const without = g.memberIds.filter((id) => !moving.has(id));
+      return g.key === targetKey ? { ...g, memberIds: [...without, ...picked] } : { ...g, memberIds: without };
     }));
-    setLeftOut((prev) => (targetKey === LEFT_OUT ? [...prev.filter((id) => id !== picked), picked] : prev.filter((id) => id !== picked)));
-    setPicked(null);
+    setLeftOut((prev) => (targetKey === LEFT_OUT ? [...prev.filter((id) => !moving.has(id)), ...picked] : prev.filter((id) => !moving.has(id))));
+    setPicked([]);
   };
   const setSupport = (key: string, supportId: string) =>
     setDraft((prev) => prev.map((g) => (g.key === key ? { ...g, supportId: supportId || null } : g)));
@@ -547,6 +549,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     return view === 'none' || view === `none:${genderOfGroup(g)}`;
   };
   const pickSupportView = (view: SupportView) => {
+    setPicked([]);
     setSupportViewState(view === 'all' ? null : { kind: view, keys: new Set(draft.filter((g) => matchesView(view, g)).map((g) => g.key)) });
   };
   // If nothing from the picked view is left in the draft (after a rebuild, say), show everything.
@@ -560,7 +563,8 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   const draftAgeCounts = AGE_RANGE_OPTIONS.map((range) => ({ range, count: draft.filter((g) => agesOf(g).has(range)).length })).filter((x) => x.count > 0 || draftAges.has(x.range));
   const fitsDraftAges = (g: DraftGroup) => draftAges.size === 0 || genderOfGroup(g) === 'Empty' || [...agesOf(g)].some((a) => draftAges.has(a));
   const visibleDraft = (viewActive ? draft.filter(inPickedView) : draft).filter(fitsDraftAges);
-  const toggleDraftAge = (range: string) => setDraftAges((prev) => { const next = new Set(prev); if (next.has(range)) next.delete(range); else next.add(range); return next; });
+  // Changing what is on screen clears the selection, so nobody hidden is moved by mistake.
+  const toggleDraftAge = (range: string) => { setPicked([]); setDraftAges((prev) => { const next = new Set(prev); if (next.has(range)) next.delete(range); else next.add(range); return next; }); };
   const genderKinds = [groupsByGender.Male, groupsByGender.Female, groupsByGender.Mixed].filter((n) => n > 0).length;
   const newCount = toCreate.filter((g) => !g.topUp).length;
   const topUpCount = toCreate.filter((g) => g.topUp).length;
@@ -652,7 +656,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     resetSupportView();
     setDraft(restored);
     setLeftOut(pool.filter((p) => !placed.has(p.id)).map((p) => p.id));
-    setPicked(null);
+    setPicked([]);
     setDraftNote([
       droppedPeople > 0 ? `${droppedPeople} ${droppedPeople === 1 ? 'person was' : 'people were'} grouped since you saved and ${droppedPeople === 1 ? 'was' : 'were'} taken out.` : '',
       droppedNoFit > 0 ? `${droppedNoFit} ${droppedNoFit === 1 ? 'person no longer fits' : 'people no longer fit'} the group they were added to (it has filled up or changed) and ${droppedNoFit === 1 ? 'was' : 'were'} taken out.` : '',
@@ -783,13 +787,14 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
 
   const personRow = (id: string) => {
     const p = participantById.get(id);
-    const isPicked = picked === id;
+    const isPicked = picked.includes(id);
     return (
       <button
         key={id}
         type="button"
         data-wt="draft-person"
-        onClick={() => setPicked(isPicked ? null : id)}
+        aria-pressed={isPicked}
+        onClick={() => setPicked((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))}
         className={`flex w-full items-center gap-2.5 rounded-2xl px-2 py-1.5 text-left transition ${isPicked ? 'bg-sky-100/80 ring-2 ring-sky-300' : 'hover:bg-gray-50'}`}
       >
         <Avatar name={p?.fullName ?? '?'} avatarUrl={p?.avatarUrl} size="sm" />
@@ -801,10 +806,12 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     );
   };
 
+  const moveLabel = picked.length > 1 ? `Move ${picked.length} here` : 'Move here';
+  // Shown on every group (and "Not in a group") that is missing at least one of the people picked.
   const moveHere = (target: string, memberIdsInTarget: string[]) =>
-    picked && !memberIdsInTarget.includes(picked) ? (
+    picked.some((id) => !memberIdsInTarget.includes(id)) ? (
       <button type="button" onClick={() => moveTo(target)} className="rounded-full bg-sky-100/80 px-3 py-1 text-[11px] font-semibold text-sky-700 active:scale-95">
-        Move here
+        {moveLabel}
       </button>
     ) : null;
 
@@ -1287,7 +1294,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                 {newCount} new {newCount === 1 ? 'group' : 'groups'}{topUpCount > 0 && <> · {topUpCount} topped up</>} · {toCreate.reduce((n, g) => n + g.memberIds.length, 0)} people
                 {noSupportCount > 0 && <> · <span className="font-semibold text-red-700">{noSupportCount} without a support</span></>}
                 {emptyWithSupport > 0 && <> · <span className="font-semibold text-sky-700">{emptyWithSupport} empty {emptyWithSupport === 1 ? 'group' : 'groups'} will be created</span></>}
-                {' · '}Tap a person, then “Move here” on another group.
+                {' · '}Tap one or more people, then “Move here” on another group.
               </p>
               {(draft.length > 0 && (genderKinds > 1 || noSupportCount > 0 || viewActive || draftAgeCounts.length > 1 || draftAges.size > 0)) && (
                 <div className="flex flex-col gap-2" role="group" aria-label="Filter the groups">
@@ -1325,7 +1332,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                       <button
                         type="button"
                         aria-pressed={draftAges.size === 0}
-                        onClick={() => setDraftAges(new Set())}
+                        onClick={() => { setPicked([]); setDraftAges(new Set()); }}
                         className={`rounded-full px-3 py-1.5 text-xs font-semibold transition active:scale-95 ${draftAges.size === 0 ? 'bg-primary text-white shadow-sm' : 'border border-gray-100 bg-white text-gray-600 hover:bg-gray-50'}`}
                       >
                         All ages
@@ -1403,6 +1410,12 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                 </div>
               )}
               {draftNote && <p className="rounded-2xl bg-sky-100/80 px-3 py-2 text-[12px] font-semibold text-sky-700">{draftNote}</p>}
+              {picked.length > 0 && (
+                <div className="sticky -top-4 z-10 flex items-center justify-between gap-2 rounded-2xl bg-sky-600 px-3 py-2 text-[12px] font-semibold text-white shadow-md" role="status">
+                  <span>{picked.length} selected · tap “{moveLabel}” on a group</span>
+                  <button type="button" onClick={() => setPicked([])} className="min-h-[32px] rounded-full bg-white/20 px-3 text-[11px] font-semibold active:scale-95">Clear</button>
+                </div>
+              )}
               {fromSaved && (
                 <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-white px-3 py-2 text-[12px] text-gray-600 shadow-[0_1px_2px_rgba(17,24,39,0.06)]">
                   <span>This is your saved draft.</span>

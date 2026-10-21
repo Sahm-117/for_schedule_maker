@@ -621,6 +621,8 @@ export interface Participant {
   followUpContactId?: string | null;
   /** Pre-cohort (follow-up) status, e.g. LOGIN_SHARED. Null when they never came through follow-up. */
   followUpStatus?: FollowUpRegistrationStatus | null;
+  /** A teen marked No Response keeps TEENAGER as followUpStatus; this says they were marked (FollowUpContact.noResponseAt). */
+  followUpNoResponse?: boolean;
   status: ParticipantStatus;
   notes?: string | null;
   // Registration details (from the church platform / Google Form). All optional.

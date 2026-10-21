@@ -30,6 +30,7 @@ import Avatar from '../components/Avatar';
 import HubAuthorProfileModal from '../components/HubAuthorProfileModal';
 import { pickableUsers } from '../utils/testUsers';
 import { hasSupportRole } from '../utils/people';
+import { normaliseGender } from '../utils/groupingRules';
 
 // ── Recap Attendance Modal ────────────────────────────────────────────────────
 // Same controls and API calls as the hub lead's Recap tab in SupportMyHubPage.
@@ -693,11 +694,26 @@ const AdminHubsPage: React.FC = () => {
     return out;
   })();
 
+  // How many women and men, for the page title line and each hub's count. A missing gender is counted apart.
+  const genderSplit = (ids: string[]) => {
+    const split = { women: 0, men: 0, unknown: 0 };
+    ids.forEach((id) => {
+      const g = normaliseGender(userById.get(id)?.gender);
+      if (g === 'Female') split.women += 1; else if (g === 'Male') split.men += 1; else split.unknown += 1;
+    });
+    return split;
+  };
+  const describeSplit = (s: { women: number; men: number; unknown: number }) =>
+    [`${s.women} ${s.women === 1 ? 'woman' : 'women'}`, `${s.men} ${s.men === 1 ? 'man' : 'men'}`, s.unknown > 0 ? `${s.unknown} not set` : ''].filter(Boolean).join(' · ');
+  // The same people the hub cards list (support accounts), test accounts left out, each counted once.
+  const hubPeopleIds = [...allHubUserIds].filter((id) => userById.has(id) && !userById.get(id)?.isTest);
+  const allSplit = genderSplit(hubPeopleIds);
+
   return (
     <div className="page-content">
       <PageHeader
         title="Hubs"
-        subtitle={activeCohort ? `${hubs.length} hubs · ${activeCohort.name}` : 'No active cohort'}
+        subtitle={activeCohort ? `${hubs.length} hubs · ${hubPeopleIds.length} supports (${describeSplit(allSplit)}) · ${activeCohort.name}` : 'No active cohort'}
         action={
           activeCohort && canAdd && (
             <button type="button" onClick={() => { setEditing(null); setFormOpen(true); }} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white active:scale-95">
@@ -807,6 +823,9 @@ const AdminHubsPage: React.FC = () => {
                       <span className="truncate">{h.name}</span>
                       <span className="flex-none text-[14px] font-normal tracking-normal text-gray-400">{memberUsers.length} {memberUsers.length === 1 ? 'support' : 'supports'}</span>
                     </h3>
+                    {memberUsers.length > 0 && (
+                      <p className="mt-0.5 text-[12.5px] text-gray-500" aria-label="Gender of the hub's supports">{describeSplit(genderSplit(memberUsers.filter((u) => !u.isTest).map((u) => u.id)))}</p>
+                    )}
                   </div>
                   <div className="flex flex-shrink-0 items-center gap-1">
                     {(canEdit || canDelete) && (

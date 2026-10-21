@@ -42,6 +42,9 @@ import { departmentOptions, useChurchDepartments } from '../hooks/useChurchDepar
 import LoginDetailsCard from '../components/participants/LoginDetailsCard';
 import RequestInfoModal from '../components/participants/RequestInfoModal';
 
+// Sign-up statuses of people who are not joining this cohort; "Hide no response and next cohort" leaves them out.
+const NOT_JOINING_STATUSES = new Set<string>(['NO_RESPONSE', 'NEXT_COHORT']);
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const SOURCE_LABEL: Record<string, string> = {
@@ -784,6 +787,8 @@ const AdminParticipantsContent: React.FC = () => {
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
+  // Leaves out people who are not joining this cohort (sign-up status No Response or Will Join Next Cohort).
+  const [hideNotJoining, setHideNotJoining] = useState(false);
   const [search, setSearch] = useState('');
   // Every filter takes several choices at once (see FilterBar). Keys: people (adult / teen), login, signup
   // ('__NONE__' = added by hand or imported), group ('__UNASSIGNED__' = no group), support, gender, age,
@@ -965,10 +970,14 @@ const AdminParticipantsContent: React.FC = () => {
     }
   }, [isTeen, signedInIds, supportGroups, flagsByParticipant, noAlertsIds, healthById, completionById, wrapUpDeptById]);
 
+  const onShow = useCallback(
+    (p: Participant) => p.status === (showArchived ? 'ARCHIVED' : 'ACTIVE')
+      && !(hideNotJoining && (p.followUpNoResponse || (!!p.followUpStatus && NOT_JOINING_STATUSES.has(p.followUpStatus)))),
+    [showArchived, hideNotJoining],
+  );
+
   const displayed = useMemo(() => {
-    let ps = showArchived
-      ? participants.filter((p) => p.status === 'ARCHIVED')
-      : participants.filter((p) => p.status === 'ACTIVE');
+    let ps = participants.filter(onShow);
     // Within a group any chosen choice matches; every group that has a choice must match.
     const active = Object.entries(filters).filter(([, choices]) => choices.length > 0);
     if (active.length > 0) ps = ps.filter((p) => active.every(([group, choices]) => choices.some((choice) => fits(group, choice, p))));
@@ -977,15 +986,18 @@ const AdminParticipantsContent: React.FC = () => {
       ps = ps.filter((p) => p.fullName.toLowerCase().includes(q) || (p.phone ?? '').includes(q));
     }
     return sortByText(ps, (participant) => participant.fullName);
-  }, [participants, showArchived, search, filters, fits]);
+  }, [participants, onShow, search, filters, fits]);
 
   // The chip groups, each choice with how many people it matches among those on show (active or archived).
   const filterGroups = useMemo<FilterGroup[]>(() => {
-    const base = counted.filter((p) => p.status === (showArchived ? 'ARCHIVED' : 'ACTIVE'));
+    const base = counted.filter(onShow);
     const count = (group: string, choice: string) => base.filter((p) => fits(group, choice, p)).length;
     const opt = (group: string, value: string, label: string) => ({ value, label, count: count(group, value) });
 
+    // Every status among the active (or archived) people stays a choice, even while the switch hides some of them, so a
+    // choice already picked is never dropped; its count is what is on show.
     const signUpCounts = new Map<string, number>();
+    counted.filter((p) => p.status === (showArchived ? 'ARCHIVED' : 'ACTIVE')).forEach((p) => { const key = p.followUpStatus ?? '__NONE__'; if (!signUpCounts.has(key)) signUpCounts.set(key, 0); });
     base.forEach((p) => { const key = p.followUpStatus ?? '__NONE__'; signUpCounts.set(key, (signUpCounts.get(key) ?? 0) + 1); });
     const signUpLabel = (key: string) => key === '__NONE__' ? 'No sign-up record' : REGISTRATION_STATUS_META[key as keyof typeof REGISTRATION_STATUS_META]?.label ?? key;
 
@@ -1034,7 +1046,7 @@ const AdminParticipantsContent: React.FC = () => {
       out.push({ key: 'wants', label: 'Wants to join', options: [...departmentCounts.keys()].sort((a, b) => a.localeCompare(b)).map((name) => opt('wants', name, name)) });
     }
     return out.filter((g) => g.options.length > 0);
-  }, [counted, showArchived, fits, signedInIds, groups, supportGroups, healthById, flagsByParticipant, noAlertsIds, completionById, departmentCounts]);
+  }, [counted, onShow, showArchived, fits, signedInIds, groups, supportGroups, healthById, flagsByParticipant, noAlertsIds, completionById, departmentCounts]);
 
   // Archived and active people are different lists; a choice nobody here has is dropped, so no hidden filter stays on.
   useEffect(() => {
@@ -1056,10 +1068,11 @@ const AdminParticipantsContent: React.FC = () => {
   const exportSubtitle = useMemo(() => {
     const out: string[] = [];
     if (showArchived) out.push('Archived');
+    if (hideNotJoining) out.push('No response and next cohort hidden');
     out.push(...describeFilters(filterGroups, filters));
     if (search.trim()) out.push(`Search "${search.trim()}"`);
     return out.length ? `Filter: ${out.join(' · ')}` : undefined;
-  }, [showArchived, filterGroups, filters, search]);
+  }, [showArchived, hideNotJoining, filterGroups, filters, search]);
 
   const unassignedCount = useMemo(
     () => counted.filter((p) => p.status === 'ACTIVE' && !p.groupId).length,
@@ -1239,7 +1252,10 @@ const AdminParticipantsContent: React.FC = () => {
               groups={filterGroups}
               value={filters}
               onChange={setFilters}
-              toggles={[{ key: 'archived', label: 'Show archived', value: showArchived, onChange: setShowArchived, hint: 'Look at archived participants instead of active ones.' }]}
+              toggles={[
+                { key: 'archived', label: 'Show archived', value: showArchived, onChange: setShowArchived, hint: 'Look at archived participants instead of active ones.' },
+                { key: 'notJoining', label: 'Hide no response and next cohort', value: hideNotJoining, onChange: setHideNotJoining, hint: 'Leave out people whose sign-up status is No Response or Will Join Next Cohort.' },
+              ]}
               search={
                 <input
                   type="search"
@@ -1253,7 +1269,7 @@ const AdminParticipantsContent: React.FC = () => {
               searching={search.trim().length > 0}
               onClear={() => setSearch('')}
               shown={displayed.filter((p) => !p.isTest).length}
-              total={counted.filter((p) => p.status === (showArchived ? 'ARCHIVED' : 'ACTIVE')).length}
+              total={counted.filter(onShow).length}
               noun={showArchived ? 'archived participants' : 'participants'}
             />
           </div>

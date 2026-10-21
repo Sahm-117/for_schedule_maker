@@ -4785,7 +4785,7 @@ const PARTICIPANT_SELECT = `
   *,
   cohort:Cohort(name),
   group:GroupParticipant(group:Group(id, name)),
-  followUp:FollowUpContact(registrationStatus)
+  followUp:FollowUpContact(registrationStatus, noResponseAt)
 `.trim();
 
 // A support's own groups, a Teen Support's teen group included (the guess below never picks a teen group).
@@ -4844,6 +4844,7 @@ const mapParticipant = (row: any): import('../types').Participant => {
     source: row.source ?? 'MANUAL',
     followUpContactId: row.followUpContactId ?? null,
     followUpStatus: (Array.isArray(row.followUp) ? row.followUp[0] : row.followUp)?.registrationStatus ?? null,
+    followUpNoResponse: !!(Array.isArray(row.followUp) ? row.followUp[0] : row.followUp)?.noResponseAt,
     status: row.status ?? 'ACTIVE',
     notes: row.notes ?? null,
     email: row.email ?? null,
