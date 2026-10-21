@@ -15,7 +15,7 @@ Settings > Group call limits now reads the second time of each day as when calls
 - Groups page: the separate Onboarding chip row (All / Overdue / In progress / Not started / Onboarded) is gone; Onboarding is chosen in the Filters sheet, as before. The "Day counts unavailable" warning stays under the filter line.
 
 ## Live changes
-- Migration `20261021100000_group_call_window_end.sql`: NOT APPLIED YET (compiled on live inside a rolled-back transaction only).
+- Migration `20261021100000_group_call_window_end.sql`: applied live on 2026-10-21 (Management API), after the app (`10f2618`) was live on Vercel. Checked in rolled-back transactions with a non-admin session: 20:45 on Thursday is refused ("must start between 16:00 and 20:30"), 20:30 is accepted; the two 9:00 PM groups were left as they were.
 
 ## How it was tested
 - `npm run build` passes; type errors unchanged (7, all in the Website and Practice files).
