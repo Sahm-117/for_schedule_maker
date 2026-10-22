@@ -11,6 +11,7 @@ const TONE = {
   none: 'bg-red-100/80 text-red-700',
   some: 'bg-amber-100/80 text-amber-700',
   all: 'bg-emerald-100/80 text-emerald-700',
+  pending: 'bg-gray-100 text-gray-600',
 } as const;
 
 const dateLabel = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
@@ -27,7 +28,10 @@ const TrainingPill: React.FC<{
     .sort((a, b) => a.sessionDate.localeCompare(b.sessionDate))
     .map((session) => ({ session, mark: attendance.find((a) => a.sessionId === session.id && a.userId === userId) }));
   const attended = rows.filter((r) => r.mark && trainingMarkAttended(r.mark.status)).length;
-  const tone = attended === 0 ? 'none' : attended >= rows.length ? 'all' : 'some';
+  // Only a training from an earlier day (Lagos time) can be missed; today's may not have happened yet.
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Lagos' });
+  const missed = rows.filter((r) => r.session.sessionDate.slice(0, 10) < today && !(r.mark && trainingMarkAttended(r.mark.status))).length;
+  const tone = attended >= rows.length ? 'all' : missed === 0 ? 'pending' : attended === 0 ? 'none' : 'some';
 
   return (
     <>
@@ -37,7 +41,7 @@ const TrainingPill: React.FC<{
         className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${TONE[tone]}`}
         aria-label={`Trainings ${attended} of ${rows.length}. See which ones.`}
       >
-        Trainings {attended}/{rows.length}
+        {missed > 0 ? `Missed ${missed} of ${rows.length} training${rows.length === 1 ? '' : 's'}` : `Trainings ${attended}/${rows.length}`}
       </button>
       {open && createPortal(
         <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/30 p-3 sm:items-center" onClick={() => setOpen(false)}>

@@ -515,6 +515,18 @@ const AdminGroupsContent: React.FC = () => {
   const [showArchived, setShowArchived] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [chooserOpen, setChooserOpen] = useState(false);
+  // Every group name in the cohort, archived and teen groups included. The database keeps names unique per cohort,
+  // so a new "Group N" must skip an archived one too. Read when the chooser or the builder opens.
+  const [takenNames, setTakenNames] = useState<string[]>([]);
+  // Throws when the names cannot be read, so nothing is named blind.
+  const readTakenNames = useCallback(async () => {
+    if (!activeCohort) return [] as string[];
+    const names = await groupsApi.getAll({ cohortId: activeCohort.id, includeArchived: true, includeTeenGroups: true })
+      .then((r) => r.groups.map((g) => g.name))
+      .catch(() => { setTakenNames([]); throw new Error('Could not check the group names already used. Please try again.'); });
+    setTakenNames(names);
+    return names;
+  }, [activeCohort]);
   const [engineOpen, setEngineOpen] = useState(false);
 
   // "Open group" elsewhere (the Supports page) links straight to one group as
@@ -1045,13 +1057,27 @@ const AdminGroupsContent: React.FC = () => {
         isOpen={chooserOpen}
         onClose={() => setChooserOpen(false)}
         ungroupedCount={groupablePeople.filter((p) => !p.groupId).length}
-        onEngine={() => { setChooserOpen(false); setEngineOpen(true); }}
+        onEngine={() => {
+          // The chooser stays up while the names are read, then the builder opens.
+          void readTakenNames()
+            .catch(() => toast({ tone: 'error', message: 'Could not check the group names already used, so new group names may clash. Check them before creating.' }))
+            .finally(() => { setChooserOpen(false); setEngineOpen(true); });
+        }}
         onManual={() => { setChooserOpen(false); setEditing(null); setFormOpen(true); }}
         onEmpty={async (count) => {
           if (!activeCohort) return;
-          const names = nextGroupNames(groups.map((g) => g.name), count);
-          for (const name of names) {
-            await groupsApi.create({ cohortId: activeCohort.id, name, supportId: null });
+          const names = nextGroupNames([...groups.map((g) => g.name), ...await readTakenNames()], count);
+          let made = 0;
+          try {
+            for (const name of names) {
+              await groupsApi.create({ cohortId: activeCohort.id, name, supportId: null });
+              made += 1;
+            }
+          } catch (err) {
+            // Some may already exist: show them, and say how far it got.
+            await load(true);
+            const reason = err instanceof Error ? err.message : 'Please try again.';
+            throw new Error(made > 0 ? `Made ${made} of ${names.length} groups, then stopped: ${reason}` : reason);
           }
           setChooserOpen(false);
           await load(true);
@@ -1067,6 +1093,7 @@ const AdminGroupsContent: React.FC = () => {
           cohortName={activeCohort.name}
           participants={groupablePeople}
           groups={groups}
+          takenNames={takenNames}
           // The automatic builder never places a test support.
           supportUsers={pickableUsers(allSupportUsers)}
           trainingCounts={trainingCounts}

@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-21 | [Supports page clarity, group names](2026-10-21_supports-page-clarity-group-names.md) | Supports page: counts add up (No group tab), reasons on cards, "x of y ready", gender/age chips, clearer notes and trainings chips. Empty groups / builder skip archived group names (fixes Group_cohortId_name_key). Frontend only. |
 | 2026-10-21 | [Hub gender, hide not joining, multi-move](2026-10-21_hub-gender-hide-not-joining-multi-move.md) | Hubs show women/men per hub; Participants switch hides No Response and Next Cohort; group builder moves several people at once. Frontend only. |
 | 2026-10-21 | [Group builder opens on the draft](2026-10-21_group-builder-opens-on-draft.md) | Build groups opens on the Draft step (saved draft, or one built with the saved rules); Ages filter on the Draft step. Frontend only. |
 | 2026-10-21 | [Group calls last an hour](2026-10-21_group-call-one-hour.md) | Latest start is now an hour before the end (8:00 PM in a 4 to 9 PM window); popup wording updated; hub chips filter teen groups too. Migration `20261021110000` applied live. |

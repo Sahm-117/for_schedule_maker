@@ -19,7 +19,7 @@ import { cohortHasStarted } from '../utils/cohortStarted';
 import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
 import { useAppData } from '../context/AppDataContext';
-import { buildOnboardingReadiness, participantStepDone, type OnboardingReadiness } from '../utils/supportOnboarding';
+import { buildOnboardingReadiness, participantFinished, participantStepDone, type OnboardingReadiness } from '../utils/supportOnboarding';
 import { cohortsApi, followUpContactsApi, groupDiscussionApi, groupsApi, participantNotesApi, settingsApi, supportHubsApi, supportKindApi, supportNotesApi, supportSessionsApi, usersApi } from '../services/api';
 import type { HubMembership, OnboardingProgressParticipant, ParticipantNote, SupportHub, SupportKind, SupportNote, SupportSession, User } from '../types';
 import AppSelect from '../components/AppSelect';
@@ -33,7 +33,7 @@ import FilterBar, { describeFilters, type FilterGroup } from '../components/filt
 import { PERSON_OF_INTEREST_INFO } from '../components/hubs/hubJobs';
 import { useToast } from '../components/Toast';
 import { buildWhatsAppLink } from '../utils/phone';
-import { activeDot, activeStatus, genderAgeLine, isSupportProfileComplete, hasSupportRole, matchesGenderAge } from '../utils/people';
+import { activeDot, activeStatus, isSupportProfileComplete, hasSupportRole, matchesGenderAge } from '../utils/people';
 import { AGE_RANGE_OPTIONS } from '../constants/departments';
 import { openLoadByOwner } from '../utils/followUps';
 import HubAuthorProfileModal from '../components/HubAuthorProfileModal';
@@ -74,7 +74,10 @@ const KIND_PILL: Partial<Record<SupportKind, string>> = {
   OPERATIONAL: 'bg-sky-100/80 text-sky-700',
 };
 
-type Filter = 'all' | PersonHealth;
+// 'nogroup' = supports in this cohort who lead no group (hub leads, operational supports, Teen Supports and others).
+type Filter = 'all' | PersonHealth | 'nogroup';
+// The star on a support with notes, said in words on this page so it is not a mystery.
+const NOTES_PILL = `${PERSON_OF_INTEREST_INFO.label} Notes`;
 
 const AdminSupportsPage: React.FC = () => {
   const { isAdmin } = useAuth();
@@ -108,7 +111,7 @@ const AdminSupportsPage: React.FC = () => {
   const toast = useToast();
 
   const filterParam = searchParams.get('health');
-  const filter: Filter = filterParam === 'critical' || filterParam === 'warning' || filterParam === 'good' ? filterParam : 'all';
+  const filter: Filter = filterParam === 'critical' || filterParam === 'warning' || filterParam === 'good' || filterParam === 'nogroup' ? filterParam : 'all';
   // Each filter takes several choices at once and lives in the address: hub, role (kind), profile, notes, tags, gender, age.
   const [filters, setFilters] = useUrlFilters(['hub', 'kind', 'profile', 'notes', 'tags', 'gender', 'age']);
   const [exportOpen, setExportOpen] = useState(false);
@@ -149,6 +152,9 @@ const AdminSupportsPage: React.FC = () => {
   }, []);
   // Onboarding stage roll-up per group (one extra cohort fetch; missing data falls back to the sentence).
   const [stagesByGroup, setStagesByGroup] = useState<Record<string, StageSummary>>({});
+  // Per group: how many members count as onboarded (the Groups page rule, `participantFinished`), and whether an admin
+  // marked the group's participants ready by hand. The card divides by the group's member count, as the Groups page does.
+  const [readyByGroup, setReadyByGroup] = useState<Record<string, { ready: number; override: boolean }>>({});
   // Which groups have a meeting day and time (the support's own onboarding step). Empty if it could not be read: then the step is not judged.
   const [meetingSetByGroup, setMeetingSetByGroup] = useState<Record<string, boolean>>({});
   const [readiness, setReadiness] = useState<OnboardingReadiness | null>(null);
@@ -194,6 +200,11 @@ const AdminSupportsPage: React.FC = () => {
       const stageMap: Record<string, StageSummary> = {};
       byGroup.forEach((statuses, groupId) => { stageMap[groupId] = summarizeStages(statuses); });
       setStagesByGroup(stageMap);
+      const readyOverride = new Set((ob?.groups ?? []).filter((row) => row.overrides?.includes('READY')).map((row) => row.groupId));
+      const readyMap: Record<string, { ready: number; override: boolean }> = {};
+      byGroup.forEach((statuses, groupId) => { readyMap[groupId] = { ready: statuses.filter(participantFinished).length, override: readyOverride.has(groupId) }; });
+      readyOverride.forEach((groupId) => { if (!readyMap[groupId]) readyMap[groupId] = { ready: 0, override: true }; });
+      setReadyByGroup(readyMap);
       followUpContactsApi.getAll().then((res) => setFollowUpLoad(openLoadByOwner(res.contacts, activeCohort.id))).catch(() => {});
       setNotedIds(new Set(await supportNotesApi.getSupportIdsWithNotes(hb.map((x) => x.id)).then((res) => res.supportIds).catch(() => [] as string[])));
       const groupIds = h.groups.map((g) => g.id);
@@ -247,7 +258,7 @@ const AdminSupportsPage: React.FC = () => {
     const leading = new Set(health.groups.map((g) => g.supportId).filter(Boolean));
     const notLeading = users.filter((u) => hasSupportRole(u) && u.isActive !== false && cohortMemberIds.has(u.id) && !leading.has(u.id));
     const weekIdByNumber = new Map(health.weeks.map((w) => [w.weekNumber, w.id]));
-    return { mode, judged, evaluations, counts, total: bySupport.size, unsupported, notLeading, weekIdByNumber };
+    return { mode, judged, evaluations, counts, total: bySupport.size, bySupport, unsupported, notLeading, weekIdByNumber };
   }, [health, people, rules, users, cohortMemberIds, activeCohort, meetingSetByGroup, readiness]);
 
   // Newest report per group+week: a support can submit more than once, and the
@@ -325,7 +336,8 @@ const AdminSupportsPage: React.FC = () => {
     return passesFilters(userId);
   };
 
-  const visible = (model?.evaluations.filter((e) => filter === 'all' || e.health === filter) ?? [])
+  // A health tab shows every group of the supports in it: a support is judged by their weaker group, as the tab counts are.
+  const visible = (model?.evaluations.filter((e) => filter !== 'nogroup' && (filter === 'all' || (model.bySupport.get(e.supportId) ?? e.health) === filter)) ?? [])
     .filter((e) => matchesSearch(e.supportId));
   const userById = new Map(users.map((u) => [u.id, u]));
   const groupById = new Map((health?.groups ?? []).map((g) => [g.id, g]));
@@ -340,13 +352,13 @@ const AdminSupportsPage: React.FC = () => {
   // entirely. They have no health, so a health filter other than "all" hides
   // their card too.
   const notLeadingWithHub = (model?.notLeading ?? []).filter((u) => !!hubByUserId.get(u.id) || !isProblemKind(u.id));
-  const notLeadingCards = filter === 'all'
+  const notLeadingCards = filter === 'all' || filter === 'nogroup'
     ? notLeadingWithHub.filter((u) => matchesSearch(u.id))
     : [];
   const notLeadingCardIds = new Set(notLeadingCards.map((u) => u.id));
   // Hub leads and operational supports are never flagged as a "no group"
   // problem, regardless of the health filter/tab in view.
-  const notLeadingCollapsed = (model?.notLeading ?? [])
+  const notLeadingCollapsed = (filter === 'all' || filter === 'nogroup' ? (model?.notLeading ?? []) : [])
     .filter((u) => !notLeadingCardIds.has(u.id))
     .filter((u) => isProblemKind(u.id))
     .filter((u) => matchesSearch(u.id));
@@ -380,9 +392,15 @@ const AdminSupportsPage: React.FC = () => {
   })();
   // Headline count: everyone in this cohort's list, and how many the filters leave.
   const totalSupports = new Set([...(model?.evaluations ?? []).map((e) => e.supportId), ...(model?.notLeading ?? []).map((u) => u.id)]).size;
+  // Leading a group (judged in the tabs) and not leading one, so the tabs add up to the headline.
+  const leadingCount = model?.total ?? 0;
+  const noGroupCount = model?.notLeading.length ?? 0;
+  const splitLine = `${leadingCount} leading a group · ${noGroupCount} not`;
   const countSubtitle = shownSupports.length === totalSupports
-    ? `${totalSupports} supports · ${activeCohort?.name ?? ''}`
+    ? `${totalSupports} supports (${splitLine}) · ${activeCohort?.name ?? ''}`
     : `${shownSupports.length} of ${totalSupports} supports shown · ${activeCohort?.name ?? ''}`;
+  // Groups whose onboarding is not finished, for the line above the tabs before any week is judged.
+  const notOnboardedGroups = (model?.evaluations ?? []).filter((e) => !e.onboarding.allOnboarded).length;
   const exportSubtitle = [
     ...describeFilters(filterGroups, filters),
     search.trim() ? `Search "${search.trim()}"` : '',
@@ -435,7 +453,7 @@ const AdminSupportsPage: React.FC = () => {
                 {model.mode === 'upcoming'
                   ? "The cohort hasn't started, so only onboarding is judged for now."
                   : model.mode === 'running' && model.judged.length === 0
-                    ? 'Weekly records are judged once Week 1 is over.'
+                    ? `Week 1 records aren't judged yet, so onboarding decides for now: ${notOnboardedGroups} of ${model.evaluations.length} groups aren't fully onboarded.`
                     : 'How supports are judged'}
               </span>
               <InfoTip label="How supports are judged">
@@ -449,10 +467,11 @@ const AdminSupportsPage: React.FC = () => {
               <SegmentedTabs
                 scrollable
                 tabs={[
-                  { key: 'all', label: `All ${model.total}` },
+                  { key: 'all', label: `All ${totalSupports}` },
                   { key: 'critical', label: `Needs attention ${model.counts.critical}` },
                   { key: 'warning', label: `Keep an eye on ${model.counts.warning}` },
                   { key: 'good', label: `On track ${model.counts.good}` },
+                  { key: 'nogroup', label: `No group ${noGroupCount}` },
                 ]}
                 active={filter}
                 onChange={(k) => setFilter(k as typeof filter)}
@@ -477,7 +496,7 @@ const AdminSupportsPage: React.FC = () => {
             searching={search.trim().length > 0}
             onClear={() => setSearch('')}
             shown={shownSupports.length}
-            total={filter === 'all' ? totalSupports : (model?.evaluations ?? []).filter((e) => e.health === filter).length}
+            total={filter === 'all' ? totalSupports : filter === 'nogroup' ? noGroupCount : model.counts[filter]}
             noun={filter === 'all' ? 'supports' : 'supports in this tab'}
           />
 
@@ -511,6 +530,9 @@ const AdminSupportsPage: React.FC = () => {
                   onViewProfile={() => setProfileUserId(evaluation.supportId)}
                   lastSeen={lastSeenById[evaluation.supportId]}
                   stages={stagesByGroup[evaluation.groupId] ?? null}
+                  ready={readyByGroup[evaluation.groupId]
+                    ? { ready: readyByGroup[evaluation.groupId].override ? evaluation.members : Math.min(readyByGroup[evaluation.groupId].ready, evaluation.members), total: evaluation.members }
+                    : null}
                 />
               ))}
               {notLeadingCards.map((u) => (
@@ -556,7 +578,7 @@ const AdminSupportsPage: React.FC = () => {
                           <Avatar name={u.name} avatarUrl={u.avatarUrl} size="xs" />
                           <span className="min-w-0 truncate hover:underline">{u.name}</span>
                         </button>
-                        <span className="min-w-0 flex-1 truncate">{notedIds.has(u.id) && <span title={PERSON_OF_INTEREST_INFO.description} className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold ${PERSON_OF_INTEREST_INFO.pill}`}>{PERSON_OF_INTEREST_INFO.label}</span>}</span>
+                        <span className="min-w-0 flex-1 truncate">{notedIds.has(u.id) && <span title={PERSON_OF_INTEREST_INFO.description} className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold ${PERSON_OF_INTEREST_INFO.pill}`}>{NOTES_PILL}</span>}</span>
                         <div className="w-44 flex-none">
                           <AppSelect
                             value={kindOf(u.id)}
@@ -623,20 +645,30 @@ const STAGE_LABELS: Array<{ key: keyof StageSummary; label: string }> = [
   { key: 'readyConfirmed', label: 'Ready' },
 ];
 
-// One onboarding bar + short label on the card face; the five steps are listed under Details. Falls back
-// to the sentence when stage data is missing.
-const OnboardingBar: React.FC<{ stages: StageSummary | null; fallback: string; late: boolean }> = ({ stages, fallback, late }) => {
-  if (!stages) return <span className="text-[13px] text-gray-600">{fallback}</span>;
-  const done = STAGE_LABELS.filter((step) => stages[step.key]).length;
-  const all = done === STAGE_LABELS.length;
+// The card's onboarding line: how many of the group's participants have finished onboarding, the same figure as the
+// Groups page ("x of y ready"). Amber only when onboarding is past the limit; the five steps stay under Details.
+const ReadyBar: React.FC<{ ready: { ready: number; total: number } | null; onboarded: boolean; late: boolean; fallback: string }> = ({ ready, onboarded, late, fallback }) => {
+  if (!ready || ready.total === 0) return <span className="text-[13px] text-gray-600">{fallback}</span>;
+  const all = ready.ready >= ready.total;
   return (
     <span className="flex min-w-0 flex-1 items-center gap-2.5">
       <span className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-[#eceef2]" aria-hidden="true">
-        <span className="block h-full rounded-full bg-emerald-500" style={{ width: `${(done / STAGE_LABELS.length) * 100}%` }} />
+        <span className="block h-full rounded-full bg-emerald-500" style={{ width: `${onboarded ? 100 : (ready.ready / ready.total) * 100}%` }} />
       </span>
-      <span className={`flex-none text-[12px] font-semibold ${all ? 'text-emerald-700' : late ? 'text-red-600' : 'text-gray-500'}`}>
-        {all ? 'Onboarded' : done === 0 ? 'Not started' : `${done} of ${STAGE_LABELS.length} steps`}
+      <span className={`flex-none text-[12px] font-semibold ${onboarded ? 'text-emerald-700' : late ? 'text-amber-700' : 'text-gray-500'}`}>
+        {onboarded ? 'Onboarded' : `${ready.ready} of ${ready.total} ready${all ? ' · setup to finish' : ''}`}
       </span>
+    </span>
+  );
+};
+
+// Gender and age range as two small outlined tags, on the same line as the group (or hub) name.
+const PersonChips: React.FC<{ user: User | null }> = ({ user }) => {
+  const parts = [user?.gender, user?.ageRange?.replace(/\s*-\s*/, '–')].filter((x): x is string => !!x && !!x.trim());
+  if (parts.length === 0) return null;
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1" aria-label="Gender and age range">
+      {parts.map((part) => <span key={part} className="rounded-[5px] border border-gray-200 px-1 text-[10px] font-medium leading-[15px] text-gray-500">{part}</span>)}
     </span>
   );
 };
@@ -662,7 +694,8 @@ const SupportCard: React.FC<{
   onViewProfile: () => void;
   lastSeen: string | null | undefined;
   stages: StageSummary | null;
-}> = ({ evaluation, user, groupName, supportName, rules, judgedCount, hub, training, reportFor, kind, kindSaving, onKindChange, isTeenSupport, hasNotes, onNoteAdded, followUps, showLoad, onViewProfile, lastSeen, stages }) => {
+  ready: { ready: number; total: number } | null;
+}> = ({ evaluation, user, groupName, supportName, rules, judgedCount, hub, training, reportFor, kind, kindSaving, onKindChange, isTeenSupport, hasNotes, onNoteAdded, followUps, showLoad, onViewProfile, lastSeen, stages, ready }) => {
   const { can } = usePermissions();
   const canEdit = can('supports', 'edit');
   const canAdd = can('supports', 'add');
@@ -707,8 +740,16 @@ const SupportCard: React.FC<{
       ? `Recorded all ${judgedCount} week${judgedCount === 1 ? '' : 's'}`
       : `Missing records for week${evaluation.missedWeeks.length === 1 ? '' : 's'} ${evaluation.missedWeeks.join(', ')}`;
 
-  const subtleLine = [user ? genderAgeLine(user) : ''].filter(Boolean).join(' · ');
   const active = activeStatus(lastSeen);
+  // Why the card is amber or red, said next to the label (missed weeks, onboarding past the limit).
+  const reasons = [
+    evaluation.missedWeeks.length > 0 && evaluation.missedWeeks.length >= rules.supportAmberMissedWeeks
+      ? `missing week${evaluation.missedWeeks.length === 1 ? '' : 's'} ${evaluation.missedWeeks.join(', ')}`
+      : '',
+    onboarding.late && onboarding.days !== null
+      ? (Math.floor(onboarding.days) > rules.onboardingMaxDays ? `onboarding ${Math.floor(onboarding.days)} days (limit ${rules.onboardingMaxDays})` : `onboarding just over ${rules.onboardingMaxDays} days`)
+      : '',
+  ].filter(Boolean);
 
   return (
     <li className="surface-card rounded-[24px] p-[18px] sm:p-[22px]">
@@ -719,10 +760,11 @@ const SupportCard: React.FC<{
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-1.5">
             <button type="button" onClick={onViewProfile} className="min-w-0 truncate text-left text-[15px] font-bold tracking-tight text-gray-900 hover:underline">{supportName}</button>
-            {hasNotes && <span title={PERSON_OF_INTEREST_INFO.description} className={`flex-none rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${PERSON_OF_INTEREST_INFO.pill}`}>{PERSON_OF_INTEREST_INFO.label}</span>}
+            {hasNotes && <span title={PERSON_OF_INTEREST_INFO.description} className={`flex-none rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${PERSON_OF_INTEREST_INFO.pill}`}>{NOTES_PILL}</span>}
           </div>
-          <p className="mt-0.5 break-words text-[11px] leading-4 text-gray-500">
-            {groupName}
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 break-words text-[11px] leading-4 text-gray-500">
+            <span>{groupName}{hub?.name ? ` · ${hub.name}` : ''}</span>
+            <PersonChips user={user} />
           </p>
           <p className="mt-0.5 flex items-center gap-1.5 text-[11px] leading-4 text-gray-500">
             <span className={`h-2 w-2 flex-none rounded-full ${activeDot(active.tone)}`} aria-hidden="true" />
@@ -732,12 +774,15 @@ const SupportCard: React.FC<{
         <div className="flex-none pt-0.5"><AppOverflowMenu align="right" items={[{ label: 'View profile', onClick: onViewProfile }]} /></div>
       </div>
 
-      <div className="mt-3.5 flex min-w-0 items-baseline justify-between gap-x-3 gap-y-1">
-        <span className={`flex-none text-[13px] font-semibold ${HEALTH_TEXT[evaluation.health]}`}>{PERSON_HEALTH_LABEL[evaluation.health]}</span>
-        <span className="min-w-0 text-right text-[13px] leading-5 text-gray-600">{recordsText}</span>
+      <div className="mt-3.5 flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <span className={`min-w-0 text-[13px] font-semibold ${HEALTH_TEXT[evaluation.health]}`}>
+          {PERSON_HEALTH_LABEL[evaluation.health]}
+          {reasons.length > 0 && <span className="font-medium"> · {reasons.join(' · ')}</span>}
+        </span>
+        <span className="min-w-0 text-right text-[12px] leading-5 text-gray-500">{recordsText}</span>
       </div>
       <div className="mt-2 flex min-w-0 items-center">
-        <OnboardingBar stages={stages} fallback={onboardingText} late={onboarding.late || !onboarding.allOnboarded} />
+        <ReadyBar ready={ready} onboarded={onboarding.allOnboarded} late={onboarding.late} fallback={onboardingText} />
       </div>
       {(!onboarding.meetingSet || isTeenSupport || training.total > 0) && (
         <div className="mt-2.5 flex min-w-0 flex-wrap items-center gap-1.5">
@@ -782,9 +827,7 @@ const SupportCard: React.FC<{
           </div>
         )}
         <SupportTagRow tags={[
-          subtleLine && <span key="person" className="text-[11px] text-gray-500">{subtleLine}</span>,
           user && <ProfileTag key="profile" user={user} />,
-          hub?.name && <span key="hub" className="text-[11px] text-gray-500">{hub.name}</span>,
           <span key="members" className="text-[11px] text-gray-500">{evaluation.members} participant{evaluation.members === 1 ? '' : 's'}</span>,
           hub?.isLead && <span key="lead" className="rounded-full bg-violet-100/80 px-2 py-0.5 text-[10px] font-semibold text-violet-700">Lead</span>,
           KIND_PILL[kind] && <span key="kind" className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${KIND_PILL[kind]}`}>{KIND_LABEL[kind]}</span>,
@@ -975,7 +1018,6 @@ const NoLeadSupportCard: React.FC<{
   const [noteBody, setNoteBody] = useState('');
   const [noteSaving, setNoteSaving] = useState(false);
   const whatsapp = buildWhatsAppLink(user.phone, `Hi ${user.name.split(' ')[0]}`);
-  const subtleLine = genderAgeLine(user);
   const active = activeStatus(lastSeen);
 
   const toggleNotes = () => {
@@ -1007,9 +1049,12 @@ const NoLeadSupportCard: React.FC<{
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-1.5">
             <button type="button" onClick={onViewProfile} className="min-w-0 truncate text-left text-[15px] font-bold tracking-tight text-gray-900 hover:underline">{user.name}</button>
-            {hasNotes && <span title={PERSON_OF_INTEREST_INFO.description} className={`flex-none rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${PERSON_OF_INTEREST_INFO.pill}`}>{PERSON_OF_INTEREST_INFO.label}</span>}
+            {hasNotes && <span title={PERSON_OF_INTEREST_INFO.description} className={`flex-none rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${PERSON_OF_INTEREST_INFO.pill}`}>{NOTES_PILL}</span>}
           </div>
-          <p className="mt-0.5 break-words text-[11px] leading-4 text-gray-500">{[hub?.name, subtleLine].filter(Boolean).join(' · ')}</p>
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 break-words text-[11px] leading-4 text-gray-500">
+            <span>{hub?.name ?? 'No hub'}</span>
+            <PersonChips user={user} />
+          </p>
           <p className="mt-0.5 flex items-center gap-1.5 text-[11px] leading-4 text-gray-500">
             <span className={`h-2 w-2 flex-none rounded-full ${activeDot(active.tone)}`} aria-hidden="true" />
             {active.label}

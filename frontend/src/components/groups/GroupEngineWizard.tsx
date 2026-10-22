@@ -52,6 +52,8 @@ interface GroupEngineWizardProps {
   supportUsers: User[];
   trainingCounts: Map<string, { attended: number; total: number }>;
   trainingsTotal: number;
+  /** Every group name in the cohort, archived ones included: a new group's name must not repeat any of them. */
+  takenNames?: string[];
   minTrainingsAttended: number;
 }
 
@@ -139,7 +141,7 @@ const StatTile: React.FC<{ value: number; label: string; tone?: 'amber' | 'neutr
 type CreateStatus = 'waiting' | 'creating' | 'done' | 'failed';
 
 const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
-  isOpen, onClose, onCreated, cohortId, cohortName, participants, groups, supportUsers, trainingCounts, trainingsTotal, minTrainingsAttended,
+  isOpen, onClose, onCreated, cohortId, cohortName, participants, groups, supportUsers, trainingCounts, trainingsTotal, minTrainingsAttended, takenNames = [],
 }) => {
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
@@ -448,7 +450,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
       : null;
     const toppedUp = new Set((top?.groups ?? []).flatMap((g) => g.memberIds));
     const result = buildDraft(
-      [...people.values()].filter((p) => !toppedUp.has(p.id)), supportPool.free, ruleSet, groups.map((g) => g.name), emptyChoice === 'fill' ? seeds : [],
+      [...people.values()].filter((p) => !toppedUp.has(p.id)), supportPool.free, ruleSet, [...groups.map((g) => g.name), ...takenNames], emptyChoice === 'fill' ? seeds : [],
       { ignoredAgeRanges: [...ignoredAges], tagNames, hubs: hubSpread },
     );
     setDraftInfo({ ignored: result.ignored.length, tagNotes: result.tagNotes });
@@ -495,7 +497,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   const makeGroupsFor = (supportsToUse: typeof supportPool.free, single: boolean) => {
     const unusedSupports = supportsToUse.filter((s) => !usedSupports.has(s.id));
     if (unusedSupports.length === 0) return;
-    const names = nextGroupNames([...groups.map((g) => g.name), ...draft.map((g) => g.name)], unusedSupports.length);
+    const names = nextGroupNames([...groups.map((g) => g.name), ...takenNames, ...draft.map((g) => g.name)], unusedSupports.length);
     const stamp = Date.now();
     const made = unusedSupports.map((s, i) => ({ key: `manual-${s.id}-${stamp}`, name: names[i], memberIds: [] as string[], supportId: s.id }));
     setDraft((prev) => [...prev, ...made]);
@@ -654,6 +656,13 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     setEmptyChoice(saved.emptyChoice);
     setTopUpFirst(saved.topUpFirst === true);
     resetSupportView();
+    // A new group saved under the name of a group archived since gets the next free name. A live group of that name is
+    // left alone: it may be this draft's own group from an earlier run that stopped part way, which Create reuses.
+    const live = new Set(groups.map((g) => g.name.trim().toLowerCase()));
+    const taken = new Set(takenNames.map((n) => n.trim().toLowerCase()).filter((n) => !live.has(n)));
+    const clashing = restored.filter((g) => !g.topUp && !g.existingGroupId && taken.has(g.name.trim().toLowerCase()));
+    const freshNames = nextGroupNames([...groups.map((g) => g.name), ...takenNames, ...restored.map((g) => g.name)], clashing.length);
+    clashing.forEach((g, i) => { g.name = freshNames[i]; });
     setDraft(restored);
     setLeftOut(pool.filter((p) => !placed.has(p.id)).map((p) => p.id));
     setPicked([]);
