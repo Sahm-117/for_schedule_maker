@@ -9,6 +9,8 @@ Date: 2026-10-22. Follows [One number, several people](2026-10-22_shared-number.
 - **Teen weekend call times (rule 92).** `AppSetting` `teen_group_meeting_limits` saved live: Saturday and Sunday, earliest start 5 PM, end 9 PM (so the last start is 8 PM, calls are an hour). This is a starting value from the 17 Oct recap ("around 6 or 7 PM"); admins change it in Settings > Group call limits > Teen groups. One current Cohort 10 teen group already had Saturday 3 PM; the limits only judge new or changed slots, so it keeps that slot until someone edits it.
 - **Fix: participant Home crash.** `ParticipantHomePage` called `useState` (`tickingIntro`) after its loading/error early returns (from `affa6b1`), so after Home finished loading React threw "Rendered more hooks than during the previous render" and the error boundary took over. Moved the hook above the early returns. Found in the browser check.
 
+- **Add someone is on Profile only.** The picture menu no longer has "Add someone on this number"; it only switches account (plus View profile, Help, Log out). Adding stays on Profile > People on this number. Picture guides for participants and teens were made from the real screens (not in the repo).
+
 ## Deployed live
 
 - Edge functions: `push-reminders` v58, `send-announcement` v28, `notify-users` v10, `receive-form-registration` v20 (v57/v27/v9/v19 earlier the same day, replaced after the code review below).

@@ -120,15 +120,6 @@ const ShellLayout: React.FC = () => {
   const { home, reload } = useParticipantApp();
   const navigate = useNavigate();
   const toast = useToast();
-  // "Add someone on this number" (rule 95): offered while the admins keep it open for this cohort.
-  const [addOpen, setAddOpen] = useState(false);
-  const cohortId = home?.cohort?.id;
-  useEffect(() => {
-    if (!cohortId) return undefined;
-    let cancelled = false;
-    participantAppApi.getAddOnNumberState(cohortId).then((s) => { if (!cancelled) setAddOpen(s.open); }).catch(() => undefined);
-    return () => { cancelled = true; };
-  }, [cohortId]);
   const groupMeetingLive = !!home?.groupMeetingLive;
   const location = useLocation();
   // An alert for someone else on this shared phone opens with ?for=<their id> (rule 91): switch to them.
@@ -261,7 +252,6 @@ const ShellLayout: React.FC = () => {
               onHelp={() => setHelpOpen(true)}
               accounts={members}
               onSwitchAccount={(id) => { void switchTo(id).catch((err) => toast({ message: err instanceof Error ? err.message : 'Could not open that profile. Please try again.', tone: 'error' })); }}
-              onAddPerson={addOpen ? () => navigate('/me/add-person') : undefined}
             />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-gray-900">{user.name}</p>

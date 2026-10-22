@@ -21,13 +21,11 @@ interface ProfileMenuProps {
   /** Participant app: everyone on this phone number, shown as "Switch account" (rule 91). */
   accounts?: Array<{ id: string; name: string; current: boolean }>;
   onSwitchAccount?: (id: string) => void;
-  /** Participant app: "Add someone on this number", while adding is open. */
-  onAddPerson?: () => void;
 }
 
 const ROLE_NAME: Record<string, string> = { ADMIN: 'Admin', SUPPORT: 'Support', STAFF: 'Team member' };
 
-const ProfileMenu: React.FC<ProfileMenuProps> = ({ name, avatarUrl, profilePath, onLogout, roles, activeRole, onSwitchRole, onHelp, accounts, onSwitchAccount, onAddPerson }) => {
+const ProfileMenu: React.FC<ProfileMenuProps> = ({ name, avatarUrl, profilePath, onLogout, roles, activeRole, onSwitchRole, onHelp, accounts, onSwitchAccount }) => {
   const navigate = useNavigate();
   // A Team member without the Settings module has no profile page to open.
   const { canOpen } = usePermissions();
@@ -128,12 +126,6 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ name, avatarUrl, profilePath,
               ))}
               <div className="mx-2 my-1 h-px bg-gray-100" />
             </>
-          )}
-          {onAddPerson && (
-            <button type="button" role="menuitem" onClick={() => { setOpen(false); onAddPerson(); }} className={`${item} text-[#9a3412] hover:bg-orange-50`}>
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeWidth="2.2" d="M12 5v14M5 12h14" /></svg>
-              Add someone on this number
-            </button>
           )}
           {canOpen(profilePath) && (
             <button type="button" role="menuitem" onClick={() => { setOpen(false); navigate(profilePath); }} className={`${item} text-gray-800 hover:bg-orange-50`}>
