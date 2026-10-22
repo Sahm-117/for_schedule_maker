@@ -170,7 +170,7 @@ const SlotEditorModal: React.FC<Props> = ({ isOpen, onClose, cohortId, slot, hub
       isOpen={isOpen}
       onClose={onClose}
       title={slot ? 'Edit slot' : 'Add a slot'}
-      subtitle="Slots run every day, from the start week to the end of the cohort."
+      subtitle="Slots run every day, from the Monday of the start week to the end of the cohort."
       footer={(
         <>
           <button type="button" onClick={stepIndex === 0 ? onClose : back} className={SECONDARY_BTN}>{stepIndex === 0 ? 'Cancel' : 'Back'}</button>

@@ -579,8 +579,9 @@ duplicating the logic anywhere else is a bug waiting to happen.
 
 50. **Corporate prayer is opt-out, and the pop-up cannot be closed.** `Participant."prayerConsent"` is NULL (not answered, counts as
     included), `IN` or `OUT`; `set_prayer_consent` records it (and keeps the older `sharedForPrayer` flag in step). Admin sets, per
-    cohort in Faith Project settings, `prayersStartWeekNumber` (the week whose class day corporate prayers start on, read with
-    `week_class_date`, so a moved class moves it) and `prayerPopupDaysBefore` (default 3). From that many days before, `participant_home`
+    cohort in Faith Project settings, `prayersStartWeekNumber` (corporate prayers start the day after that week's class, so the Monday after a
+    Sunday class; read with `week_class_date`, so a moved class moves it; `faith_prayers_start_date`,
+    `20261022170000_prayers_start_day_after_class.sql`) and `prayerPopupDaysBefore` (default 3). From that many days before, `participant_home`
     returns `prayerPrompt` until the participant answers, and the app shows `PrayerConsentModal` as a required popup (priority 30): no
     close button, no tap-outside or Escape, only "I'm fine with this" or "Opt out". A project is prayable when
     `faith_project_prayable` says so: SAVED, has text, the person has not opted out, and they said yes / were already shared

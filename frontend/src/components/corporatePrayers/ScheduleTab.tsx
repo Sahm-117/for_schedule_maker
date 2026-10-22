@@ -104,7 +104,7 @@ const ScheduleTab: React.FC<Props> = ({ overview, cohortId, weeks, onReload, onA
     <div className="space-y-5">
       <section className="surface-card p-5" aria-labelledby="cp-start">
         <h2 id="cp-start" className="text-base font-bold text-gray-900">When prayers start</h2>
-        <p className="mt-1 text-[13px] leading-normal text-gray-500">From the class day of this week, the slots below run every day. A few days before, participants are asked whether they are happy to be prayed for.</p>
+        <p className="mt-1 text-[13px] leading-normal text-gray-500">From the day after this week's class (the Monday), the slots below run every day. A few days before, participants are asked whether they are happy to be prayed for.</p>
         <fieldset disabled={!canEdit} className="contents">
         <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_auto_auto] sm:items-end">
           <AppSelect

@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-22 | [Prayers start on the Monday](2026-10-22_prayers-start-monday.md) | Corporate prayers start the day after the start week's class (Cohort 10: Mon 26 Oct, pop-up from Fri 23 Oct). One live migration. |
 | 2026-10-22 | [Server functions in sync](2026-10-22_functions-in-sync.md) | Roles and permissions function code deployed to 10 functions (admin alerts also reach Team members with that area); send-notification retired (code kept, commented out, returns 410). All 18 live functions now match the repo. |
 | 2026-10-22 | [Teen ready fix, continuity docs](2026-10-22_teen-ready-fix-and-continuity-docs.md) | Teen cards show "Ready for class" again (onboarding passed for teen groups). README and HANDOVER brought up to date; function drift, cron-job.org and a live-only function recorded. No live changes. |
 | 2026-10-22 | [Shared number: named alerts, nickname rule, teen weekend](2026-10-22_shared-number-finish.md) | Alerts on a shared phone carry the person's name and open their space (`?for=`); sign-up form claims a prospect only on a name subset with matching gender; teen call limits saved (Sat/Sun 5–9 PM); participant Home hooks crash fixed. push-reminders v58, send-announcement v28, notify-users v10, receive-form-registration v20; one AppSetting row. |
