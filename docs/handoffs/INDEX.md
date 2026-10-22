@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-22 | [Teen consent and outcomes](2026-10-22_teen-consent-outcomes.md) | Teen card: parent consent tick, Can't reach (No response flag) and Not interested (reported for admins); admin Teens card shows consent counts and teens to follow up. One live migration. |
 | 2026-10-22 | [Teen meeting: Start / End meeting](2026-10-22_teen-meeting-start-end.md) | Teen meeting card uses Start meeting / End meeting, pencils instead of Change, a teen group's tab reads Teens, questions card under it. Frontend only. |
 | 2026-10-22 | [Teen call limits](2026-10-22_teen-call-limits.md) | Settings > Group call limits has Adult / Teen groups tabs; teen groups follow the adult limits until teen ones are saved, then the Teen Support's picker and the database use them. One live migration. |
 | 2026-10-22 | [One number, several people](2026-10-22_shared-number.md) | Couples and families on one phone: one password per number, "Who is this?" for everyone, reset covers the number, alerts reach everyone, sign-up form makes a spouse a new person. One live migration (rule 3 changed), receive-form-registration v18. Named alerts not done. |

@@ -75,6 +75,7 @@ import {
   teenRecapDocumentsApi as supabaseTeenRecapDocumentsApi,
   earlierClassDocumentsApi as supabaseEarlierClassDocumentsApi,
   manualQuestionsApi as supabaseManualQuestionsApi,
+  teenCardApi as supabaseTeenCardApi,
   onboardingEventsApi as supabaseOnboardingEventsApi,
   hubApi as supabaseHubApi,
   participantAccountsApi as supabaseParticipantAccountsApi,
@@ -1016,6 +1017,10 @@ export const manualQuestionsApi = USE_SUPABASE ? supabaseManualQuestionsApi : {
   async reply(_id: string, _reply: string): Promise<never> { return peopleUnavailable(); },
   async addForTeen(_participantId: string, _weekId: number, _body: string, _hideName: boolean): Promise<never> { return peopleUnavailable(); },
   async updateForTeen(_id: string, _body: string, _hideName: boolean, _weekId: number): Promise<never> { return peopleUnavailable(); },
+};
+
+export const teenCardApi = USE_SUPABASE ? supabaseTeenCardApi : {
+  async mark(_participantId: string, _what: 'CONSENT' | 'CANT_REACH' | 'NOT_INTERESTED', _on: boolean, _note?: string): Promise<never> { return peopleUnavailable(); },
 };
 
 export const groupPrayersApi = USE_SUPABASE ? supabaseGroupPrayersApi : {

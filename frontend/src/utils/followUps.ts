@@ -865,6 +865,11 @@ export interface TeenOverview {
   /** No Teen Support yet (no same-gender room, or not assigned yet). */
   waiting: number;
   perSupport: Array<{ ownerId: string; name: string; count: number }>;
+  /** Teens with a Teen Support whose parent consent is ticked / not yet. */
+  consentIn: number;
+  noConsent: number;
+  /** Can't reach or reported not interested: for an admin to follow up. */
+  toFollowUp: Array<{ id: string; name: string; supportName: string; kind: 'CANT_REACH' | 'NOT_INTERESTED'; since: string; note: string | null }>;
 }
 
 /** Counts for the admin Teen overview card; pass the contacts already scoped to the cohort. */
@@ -883,6 +888,19 @@ export const computeTeenOverview = (contacts: FollowUpContact[]): TeenOverview =
     onboarded: teens.filter((c) => c.registrationStatus === 'TEEN_ONBOARDED').length,
     waiting: teens.filter((c) => !c.ownerId).length,
     perSupport: Array.from(load, ([ownerId, v]) => ({ ownerId, ...v })).sort((a, b) => a.name.localeCompare(b.name)),
+    consentIn: teens.filter((c) => c.ownerId && c.guardianConsentAt).length,
+    noConsent: teens.filter((c) => c.ownerId && !c.guardianConsentAt && !c.notInterestedAt).length,
+    toFollowUp: teens
+      .filter((c) => c.notInterestedAt || c.noResponseAt)
+      .map((c) => ({
+        id: c.id,
+        name: c.fullName,
+        supportName: c.ownerName ?? 'No Teen Support',
+        kind: c.notInterestedAt ? 'NOT_INTERESTED' as const : 'CANT_REACH' as const,
+        since: (c.notInterestedAt ?? c.noResponseAt)!,
+        note: c.notInterestedAt ? c.notInterestedNote ?? null : null,
+      }))
+      .sort((a, b) => a.since.localeCompare(b.since)),
   };
 };
 

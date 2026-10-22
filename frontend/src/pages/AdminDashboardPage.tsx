@@ -588,6 +588,30 @@ const TeenOverviewCard: React.FC<{ overview: TeenOverview; meetings: TeenMeeting
           {overview.perSupport.map((row) => `${row.name} ${row.count}`).join(' · ')}
         </p>
       )}
+      {(overview.consentIn + overview.noConsent) > 0 && (
+        <p className="mt-3 text-sm text-gray-700" data-testid="teen-consent">
+          Parent consent: <span className="font-semibold tabular-nums">{overview.consentIn}</span> in
+          {overview.noConsent > 0 && <> · <span className="font-semibold tabular-nums text-amber-700">{overview.noConsent}</span> not yet</>}
+        </p>
+      )}
+      {overview.toFollowUp.length > 0 && (
+        <div className="mt-4 rounded-2xl bg-gray-50/80 p-4" data-testid="teen-follow-up">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Teens to follow up · {overview.toFollowUp.length}</p>
+          <ul className="mt-2 divide-y divide-gray-200/70">
+            {overview.toFollowUp.map((t) => (
+              <li key={t.id} className="py-2">
+                <NavLink to="/follow-ups?tab=contacts&status=TEENAGER" className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+                  <span className="font-semibold text-gray-900">{t.name}</span>
+                  <span className={`rounded-md border px-1.5 py-px text-[11px] font-bold ${t.kind === 'NOT_INTERESTED' ? 'border-orange-300 text-orange-800' : 'border-sky-300 text-sky-800'}`}>{t.kind === 'NOT_INTERESTED' ? 'Not interested' : "Can't reach"}</span>
+                  <span className="text-xs text-gray-500">{t.supportName} · since {new Date(t.since).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>
+                </NavLink>
+                {t.note && <p className="mt-0.5 text-xs text-gray-600">&ldquo;{t.note}&rdquo;</p>}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-xs text-gray-500">Not interested is only reported; mark them Not Interested on Follow-ups once confirmed.</p>
+        </div>
+      )}
       {meetings && (meetings.met.length + meetings.notYet.length) > 0 && (
         <div className="mt-4 rounded-2xl bg-gray-50/80 p-4" data-testid="teen-meetings-summary">
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Saturday meetings · Week {meetings.weekNumber}</p>

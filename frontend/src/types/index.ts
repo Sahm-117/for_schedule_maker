@@ -516,6 +516,11 @@ export interface FollowUpContact {
   guardianName?: string | null;
   /** When a support marked them No response. A teen keeps their Teen Support; an adult is released. */
   noResponseAt?: string | null;
+  /** Teen: the Teen Support ticked that the parent or guardian agreed. */
+  guardianConsentAt?: string | null;
+  /** Teen: reported not interested by their Teen Support, for an admin to decide. */
+  notInterestedAt?: string | null;
+  notInterestedNote?: string | null;
   /** What warranted marking a teen Onboarded. */
   teenOnboardedHow?: TeenOnboardedHow | null;
   createdAt?: string;
@@ -632,6 +637,13 @@ export interface Participant {
   followUpStatus?: FollowUpRegistrationStatus | null;
   /** A teen marked No Response keeps TEENAGER as followUpStatus; this says they were marked (FollowUpContact.noResponseAt). */
   followUpNoResponse?: boolean;
+  /** Teen card (from the teen's follow-up record): when it was flagged No response / can't reach. */
+  noResponseAt?: string | null;
+  /** The Teen Support ticked that the parent or guardian has agreed. */
+  guardianConsentAt?: string | null;
+  /** The Teen Support reported the teen is not interested (an admin decides). */
+  notInterestedAt?: string | null;
+  notInterestedNote?: string | null;
   status: ParticipantStatus;
   notes?: string | null;
   // Registration details (from the church platform / Google Form). All optional.

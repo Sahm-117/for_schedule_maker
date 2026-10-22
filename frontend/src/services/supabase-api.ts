@@ -4044,6 +4044,9 @@ const mapFollowUpContact = (row: any): import('../types').FollowUpContact => ({
   guardianPhone: row.guardianPhone ?? null,
   guardianName: row.guardianName ?? null,
   noResponseAt: row.noResponseAt ?? null,
+  guardianConsentAt: row.guardianConsentAt ?? null,
+  notInterestedAt: row.notInterestedAt ?? null,
+  notInterestedNote: row.notInterestedNote ?? null,
   teenOnboardedHow: row.teenOnboardedHow ?? null,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
@@ -4797,7 +4800,7 @@ const PARTICIPANT_SELECT = `
   *,
   cohort:Cohort(name),
   group:GroupParticipant(group:Group(id, name)),
-  followUp:FollowUpContact(registrationStatus, noResponseAt)
+  followUp:FollowUpContact(registrationStatus, noResponseAt, guardianConsentAt, notInterestedAt, notInterestedNote)
 `.trim();
 
 // A support's own groups, a Teen Support's teen group included (the guess below never picks a teen group).
@@ -4857,6 +4860,10 @@ const mapParticipant = (row: any): import('../types').Participant => {
     followUpContactId: row.followUpContactId ?? null,
     followUpStatus: (Array.isArray(row.followUp) ? row.followUp[0] : row.followUp)?.registrationStatus ?? null,
     followUpNoResponse: !!(Array.isArray(row.followUp) ? row.followUp[0] : row.followUp)?.noResponseAt,
+    noResponseAt: (Array.isArray(row.followUp) ? row.followUp[0] : row.followUp)?.noResponseAt ?? null,
+    guardianConsentAt: (Array.isArray(row.followUp) ? row.followUp[0] : row.followUp)?.guardianConsentAt ?? null,
+    notInterestedAt: (Array.isArray(row.followUp) ? row.followUp[0] : row.followUp)?.notInterestedAt ?? null,
+    notInterestedNote: (Array.isArray(row.followUp) ? row.followUp[0] : row.followUp)?.notInterestedNote ?? null,
     status: row.status ?? 'ACTIVE',
     notes: row.notes ?? null,
     email: row.email ?? null,
@@ -8471,6 +8478,15 @@ export const earlierClassDocumentsApi = {
     const { data, error } = await supabase.rpc('list_earlier_class_documents', { p_exclude_cohort_id: excludeCohortId ?? null });
     if (error) throw new Error(error.message);
     return { documents: (data as import('../types').EarlierClassDocument[]) || [] };
+  },
+};
+
+// Teen card: parent consent, can't reach (the teen No response flag) and not interested (reported for an admin).
+export const teenCardApi = {
+  async mark(participantId: string, what: 'CONSENT' | 'CANT_REACH' | 'NOT_INTERESTED', on: boolean, note?: string): Promise<{ guardianConsentAt: string | null; noResponseAt: string | null; notInterestedAt: string | null; notInterestedNote: string | null }> {
+    const { data, error } = await supabase.rpc('teen_card_mark', { p_participant_id: participantId, p_what: what, p_on: on, p_note: note ?? null });
+    if (error) throw new Error(error.message);
+    return data as { guardianConsentAt: string | null; noResponseAt: string | null; notInterestedAt: string | null; notInterestedNote: string | null };
   },
 };
 

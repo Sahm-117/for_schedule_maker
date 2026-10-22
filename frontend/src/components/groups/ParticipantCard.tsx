@@ -10,7 +10,7 @@ import DepartmentHandoff from '../participants/DepartmentHandoff';
 import ProfileOverview from '../participants/ProfileOverview';
 import RetakingChip, { RetakeMarkModal } from '../participants/RetakingChip';
 import { useToast } from '../Toast';
-import { departmentReferralsApi, faithHelpRequestsApi, faithProjectsApi, participantCheckInsApi, participantFlagsApi, participantsApi } from '../../services/api';
+import { departmentReferralsApi, faithHelpRequestsApi, faithProjectsApi, participantCheckInsApi, participantFlagsApi, participantsApi, teenCardApi } from '../../services/api';
 import { buildParticipantMessageLink, buildWhatsAppLink } from '../../utils/phone';
 import WhatsAppIcon from '../WhatsAppIcon';
 import { FAITH_PROJECT_STATUS_LABEL, shortMoment } from '../../utils/participantApp';
@@ -345,6 +345,28 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
   // A teen's card is a short summary (header, three facts, one next step); the rest sits under Details.
   const isTeen = isTeenAgeRange(participant.ageRange);
   const [teenOpen, setTeenOpen] = useState(false);
+  // Teen card marks (FLOW_MAP rule 94): parent consent, can't reach, not interested (reported for an admin).
+  const [teenMarks, setTeenMarks] = useState({
+    guardianConsentAt: participant.guardianConsentAt ?? null,
+    noResponseAt: participant.noResponseAt ?? null,
+    notInterestedAt: participant.notInterestedAt ?? null,
+    notInterestedNote: participant.notInterestedNote ?? null,
+  });
+  const [teenMarkBusy, setTeenMarkBusy] = useState(false);
+  const [notInterestedOpen, setNotInterestedOpen] = useState(false);
+  const [notInterestedNote, setNotInterestedNote] = useState('');
+  const markTeen = async (what: 'CONSENT' | 'CANT_REACH' | 'NOT_INTERESTED', on: boolean, note?: string) => {
+    setTeenMarkBusy(true);
+    try {
+      setTeenMarks(await teenCardApi.mark(participant.id, what, on, note));
+      return true;
+    } catch (err) {
+      showToast({ message: err instanceof Error ? err.message : 'Could not save that. Please try again.', tone: 'error' });
+      return false;
+    } finally {
+      setTeenMarkBusy(false);
+    }
+  };
   const [retakeMarkOpen, setRetakeMarkOpen] = useState(false);
   const updateRetake = async (patch: ParticipantUpdate) => {
     const { participant: saved } = await participantsApi.update(participant.id, patch);
@@ -500,6 +522,8 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
         const ready = !!onboarding?.completed;
         const nextStep = accessConfirmed === false
           ? 'Send the guardian their login details so they can sign in.'
+          : !teenMarks.guardianConsentAt
+          ? "Get the parent or guardian's consent, then tick it below."
           : !ready && onboarding
             ? (() => {
               const todo = PROGRESS_STEPS.find((step) => !participantStepDone(onboarding, step.key));
@@ -515,6 +539,11 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[15px] font-bold text-gray-900">{participant.fullName}</p>
                 <p className={`text-xs font-semibold ${ready ? 'text-[#15803d]' : 'text-[#b45309]'}`}>{ready ? 'Ready for class' : 'Not ready for class'}</p>
+                {(teenMarks.noResponseAt || teenMarks.notInterestedAt) && (
+                  <span className={`mt-1 inline-block rounded-md border px-1.5 py-px text-[11px] font-bold ${teenMarks.notInterestedAt ? 'border-orange-300 text-[#9a3412]' : 'border-sky-300 text-sky-800'}`}>
+                    {teenMarks.notInterestedAt ? 'Not interested · admin told' : `Can't reach · since ${shortMoment(teenMarks.noResponseAt!)}`}
+                  </span>
+                )}
               </div>
               {messageLink && (
                 <a href={messageLink} target="_blank" rel="noreferrer" aria-label={`WhatsApp ${participant.fullName}`} title="Message on WhatsApp" className="grid h-11 w-11 flex-none place-items-center rounded-xl border border-gray-200 bg-white">
@@ -539,6 +568,19 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
                 <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${participant.guardianPhone ? 'bg-emerald-100/80 text-emerald-700' : 'bg-amber-100/80 text-amber-800'}`}>{participant.guardianPhone ? 'Added' : 'Not added'}</span>
               </div>
             </div>
+            <label className={`flex min-h-[52px] cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 ${teenMarks.guardianConsentAt ? 'border-emerald-200 bg-emerald-50' : 'border-gray-200 bg-white'}`}>
+              <input
+                type="checkbox"
+                checked={!!teenMarks.guardianConsentAt}
+                disabled={teenMarkBusy}
+                onChange={(e) => { void markTeen('CONSENT', e.target.checked); }}
+                className="h-5 w-5 flex-none accent-[rgb(var(--color-primary-rgb))]"
+              />
+              <span className="min-w-0">
+                <span className={`block text-[13.5px] font-semibold ${teenMarks.guardianConsentAt ? 'text-emerald-900' : 'text-gray-900'}`}>Parent or guardian has agreed</span>
+                <span className="block text-[12px] text-gray-500">{teenMarks.guardianConsentAt ? `Ticked ${shortMoment(teenMarks.guardianConsentAt)}` : 'Tick once they have said yes to their teen taking part'}</span>
+              </span>
+            </label>
             {(participant.status === 'ARCHIVED' || unseenTestimonyIds.length > 0) && (
               <div className="flex flex-wrap gap-2">
                 {participant.status === 'ARCHIVED' && <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-semibold text-neutral-600">Archived</span>}
@@ -735,6 +777,17 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
               )}
               <button type="button" className={menuItemCls} onClick={() => setMenu('concern')}>{flag ? 'Attention flagged' : 'Flag concern'}</button>
               {!isTeenAgeRange(participant.ageRange) && <button type="button" className={menuItemCls} onClick={() => { setMenu('closed'); setRetakeMarkOpen(true); }}>Mark as retaking</button>}
+              {isTeen && (
+                <>
+                  <p className="px-3 pb-0.5 pt-2 text-[11px] font-bold uppercase tracking-[0.06em] text-gray-400">Mark as</p>
+                  <button type="button" disabled={teenMarkBusy} className={menuItemCls} onClick={() => { setMenu('closed'); void markTeen('CANT_REACH', !teenMarks.noResponseAt); }}>
+                    {teenMarks.noResponseAt ? 'Reached them' : "Can't reach"}
+                  </button>
+                  <button type="button" disabled={teenMarkBusy} className={menuItemCls} onClick={() => { setMenu('closed'); if (teenMarks.notInterestedAt) void markTeen('NOT_INTERESTED', false); else { setNotInterestedNote(''); setNotInterestedOpen(true); } }}>
+                    {teenMarks.notInterestedAt ? 'Undo not interested' : 'Not interested'}
+                  </button>
+                </>
+              )}
             </>
           ) : (
             <>
@@ -752,6 +805,24 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
         </div>,
         document.body
       )}
+
+      <Sheet
+        open={notInterestedOpen}
+        onClose={() => setNotInterestedOpen(false)}
+        title="Not interested"
+        subtitle={participant.fullName}
+        maxWidth="max-w-[520px]"
+        footer={(
+          <>
+            <button type="button" onClick={() => setNotInterestedOpen(false)} className="min-h-[46px] rounded-xl border border-gray-200 bg-white px-[18px] py-3 text-sm font-semibold text-gray-700">Cancel</button>
+            <button type="button" disabled={teenMarkBusy} onClick={() => { void markTeen('NOT_INTERESTED', true, notInterestedNote).then((ok) => { if (ok) setNotInterestedOpen(false); }); }} className="min-h-[46px] flex-1 rounded-xl bg-primary px-[18px] py-3 text-sm font-semibold text-white disabled:opacity-60">Tell the admins</button>
+          </>
+        )}
+      >
+        <p className="text-[13.5px] leading-relaxed text-gray-600">The teen or their parent said they don&apos;t want to take part. An admin follows up and decides; nothing else changes until then.</p>
+        <label htmlFor={`not-interested-${participant.id}`} className="mt-3 block text-[13px] font-semibold text-gray-900">What was said (optional)</label>
+        <textarea id={`not-interested-${participant.id}`} value={notInterestedNote} onChange={(e) => setNotInterestedNote(e.target.value)} rows={3} maxLength={500} className="mt-1.5 w-full resize-y rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" />
+      </Sheet>
 
       <Sheet
         open={!!concernReason}
