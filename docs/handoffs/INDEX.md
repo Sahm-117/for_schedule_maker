@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-22 | [Teen ready fix, continuity docs](2026-10-22_teen-ready-fix-and-continuity-docs.md) | Teen cards show "Ready for class" again (onboarding passed for teen groups). README and HANDOVER brought up to date; function drift, cron-job.org and a live-only function recorded. No live changes. |
 | 2026-10-22 | [Shared number: named alerts, nickname rule, teen weekend](2026-10-22_shared-number-finish.md) | Alerts on a shared phone carry the person's name and open their space (`?for=`); sign-up form claims a prospect only on a name subset with matching gender; teen call limits saved (Sat/Sun 5–9 PM); participant Home hooks crash fixed. push-reminders v58, send-announcement v28, notify-users v10, receive-form-registration v20; one AppSetting row. |
 | 2026-10-22 | [Add someone on this number](2026-10-22_add-on-this-number.md) | Participants add a spouse or child on their number from Profile (Access confirmed, same password); tap your picture to switch account; Teen Supports add a brother or sister from a teen's card; admin on/off and cut-off week. One live migration. |
 | 2026-10-22 | [Teen consent and outcomes](2026-10-22_teen-consent-outcomes.md) | Teen card: parent consent tick, Can't reach (No response flag) and Not interested (reported for admins); admin Teens card shows consent counts and teens to follow up. One live migration. |

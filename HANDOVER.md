@@ -7,6 +7,8 @@ written here. Every secret is named below and its value lives in the team's pass
 ## 1. The short version
 
 FOF Ops is a web app (installable on phones) for running the Foundation of Faith programme.
+Older names for the same app: the repo `for_schedule_maker`, the Vercel site `for-schedule-maker`, the
+Supabase project "FOF Schedule Editor" and the npm package `fof-sop-scheduler`.
 
 | Piece | What it is | Where it lives |
 |---|---|---|
@@ -28,6 +30,9 @@ Get yourself added as an **owner** on each. Collaborator access is not enough to
 | **Vercel** | The live website and its settings | Owner invites you to the team/project. Project settings: root directory `frontend`, build `npm run build` |
 | **Supabase**, organisation "Awesohme's Org" | Database, server functions, secrets, project settings | Owner adds you under Organization → Team as Owner |
 | Email (Resend), Telegram bot, OpenRouter (AI), a Google Sheet + Apps Script | Sends emails and alerts, AI helper, syncs sign-ups to a sheet | Each has its own login; the keys are in Supabase function secrets (section 3) |
+| **cron-job.org** | Calls the `daily-checks` function once a day (the daily reminders and digests) with the `CRON_SECRET` header | Its own login. If this account is lost, the daily checks stop silently |
+| **Google account** that owns the FOF Signup Form and its sheet | The sign-up feed into the app (`integrations/README.md`) | The form owner shares it, or transfers ownership |
+| **Microsoft Clarity** | Usage analytics | Its own login |
 
 ## 3. Where the secrets are (names only)
 
@@ -84,8 +89,10 @@ Do these in order, and don't remove yourself from anything until the new person 
    ```
    The local app talks to the **real** database. There is no separate test database, so what you do
    while signed in is real.
-3. Read `README.md` (what the app does), `AGENTS.md` (the working rules), and the newest file in
-   `.sessions/` (what was last done and what is open).
+3. Run `scripts/setup-git-hooks.sh` once (it turns on the pre-push check that `AGENTS.md` describes).
+4. Read `README.md` (what the app does), `AGENTS.md` (the working rules), `FLOW_MAP.md` (how it works;
+   section 4 is the business rules), and `docs/handoffs/INDEX.md` then the newest handoffs (what was last
+   done, what is live, what is open).
 
 ## 6. Making a change
 
@@ -117,8 +124,8 @@ Saving the code in the repo does not deploy it.
 Claude Code can do all of section 6 for you. To set it up:
 
 1. Install Claude Code and open a terminal in the repo folder, then run `claude`.
-2. It reads `AGENTS.md` by itself. Start by telling it: *"Read the latest handoff in `.sessions/` and
-   `HANDOVER.md`."*
+2. It reads `AGENTS.md` by itself. Start by telling it: *"Read `HANDOVER.md`, `docs/handoffs/INDEX.md`
+   and the newest handoffs."*
 3. To let it inspect or change the live database, give it a Supabase access token and project ref in the
    git-ignored `.env.local` (Supabase → Account → Access Tokens). Without them it can still change code but
    not check the database.
@@ -128,21 +135,45 @@ Claude Code can do all of section 6 for you. To set it up:
 5. Commits are authored as the repo owner's name and email (see `git log`). `AGENTS.md` asks it to keep
    that, and to ask before changing it. Set `git config user.name` and `user.email` to your own once, and
    tell it to keep yours.
-6. When a piece of work is finished, ask it to add a short note to `.sessions/` and `.sessions/INDEX.md`. That
-   is how the next person (or the next Claude session) learns what happened. The folder is git-ignored but
-   its files are committed with `git add -f`.
+6. When a piece of work is finished, ask it to add a handoff in `docs/handoffs/` and a row in its
+   `INDEX.md` (`AGENTS.md` requires this). That is how the next person (or the next Claude session) learns
+   what happened and what is live. `.sessions/` only holds older notes.
 
 ## 8. Things that run on their own
 
 - **Nightly backup** (2:30 UTC) and **Backup Restore Check**: GitHub Actions. See `BACKUP_RESTORE.md`.
 - **Keep-alive**: a daily GitHub Action pings the database so the Free plan doesn't pause it. See
   `KEEP_ALIVE_SETUP.md`.
-- **Scheduled database jobs** (Supabase → Integrations → Cron): push reminders every 10 minutes,
-  follow-up assignment every 10 minutes, attendance windows closing every minute, Sunday attendance at
-  noon, old reminder logs cleaned nightly, public holidays refreshed twice a month. They call the server
-  functions through the two Vault entries in section 3.
-- **Server functions**: 18 in `supabase/functions/`. They send notifications, emails and the sheet sync,
-  and assign follow-ups.
+- **Scheduled database jobs** (Supabase → Integrations → Cron), 8 in total (checked 22 Oct 2026):
+  push reminders every 10 minutes, follow-up assignment every 10 minutes, attendance windows closing every
+  minute, corporate prayer slot alerts every minute, Sunday attendance finalised at noon, age brackets
+  refreshed nightly, old reminder logs cleaned nightly, public holidays refreshed twice a month. The ones
+  that call server functions use the two Vault entries in section 3.
+- **Daily checks**: cron-job.org calls the `daily-checks` function once a day (section 2).
+- **Telegram alerts**: database triggers send each new bell notification to `telegram-send`.
+- **Server functions**: 17 in `supabase/functions/`. They send notifications, emails and the sheet sync,
+  assign follow-ups, and run the AI helper and Telegram. A handoff records each deploy and its version.
+
+### The live functions do not all match the repo (checked 22 Oct 2026)
+
+Saving a function in the repo does not deploy it, so the two can drift. On 22 Oct 2026:
+
+- **Same as the repo:** `ai-assist`, `push-reminders`, `send-announcement`, `refresh-public-holidays`,
+  `sync-lead-to-sheet`, `telegram-send`, `telegram-webhook`.
+- **The repo is ahead (not deployed):** the "Roles and permissions, phase 1" change (commit `cb65c72`,
+  10 Oct) that sends admin notifications to Team members whose roles include that area as well. Never
+  deployed to `daily-checks`, `notify-followup-issue`, `notify-followup-terminal-status`,
+  `notify-group-meeting-completed`, `notify-onboarding-event`, `notify-users` and
+  `run-followup-assignment` (and the matching part of `receive-form-registration`). Live, those still notify admins only. The database side
+  (`module_viewers`) is live. **Deploying any of these functions from the repo switches that on for that
+  function**, so decide first, then deploy them together.
+- **Only the shared helper files differ:** `notify-followup-assignment` and `notify-hub` run older copies of
+  `_shared/`. Redeploying them picks up the newer helpers (named alerts on shared phones) and changes
+  nothing else.
+- **Live only:** `send-notification` (last changed October 2025). Nothing in the app or the database calls
+  it, and its code is not in the repo. Leave it until someone decides to remove it.
+
+To recheck: download a live function with `supabase functions download <name>` and compare it with the repo.
 
 ## 9. Good to know
 
@@ -155,6 +186,9 @@ Claude Code can do all of section 6 for you. To set it up:
   avoids it. Vercel's Pro plan removes the cap.
 - **Free plan**: no automatic Supabase backups (that is why the nightly one exists). Upgrading to Pro adds
   daily backups and optional point-in-time recovery.
-- **Open items at handover** (also in the newest `.sessions/` note): a leadership preview test login may
-  still need deleting; two participant records share a phone number with earlier-cohort people and need a
-  human decision; the recap files in Storage may be readable by anyone who has a direct link (not checked).
+- **Open items**: each handoff in `docs/handoffs/` has an "Open items" list; start with the newest. From
+  the 1 Oct handover, not rechecked since: a leadership preview test login may still need deleting; two
+  participant records share a phone number with earlier-cohort people and need a human decision; the recap
+  files in Storage may be readable by anyone who has a direct link.
+- **One database, no test copy.** Local development and every check runs against the live data. Use
+  accounts marked as test, and remove what you create.

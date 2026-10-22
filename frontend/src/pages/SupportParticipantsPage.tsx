@@ -332,11 +332,12 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
     [participants, selectedGroupId]
   );
 
-  // Teen groups have no onboarding (FLOW_MAP rule 22), so they get no steps or progress bar.
+  // Teen groups have no group onboarding (FLOW_MAP rule 22), so they get no steps or progress bar.
   const showOnboarding = !isTeenSupport && !groups.find((g) => g.id === selectedGroupId)?.isTeenGroup;
+  // Each teen's own Get ready steps still reach their card ("Ready for class", the next step).
   const onboardingByPerson = useMemo(
-    () => new Map((showOnboarding ? onboarding?.participants ?? [] : []).map((entry) => [entry.participantId, entry])),
-    [onboarding, showOnboarding]
+    () => new Map((onboarding?.participants ?? []).map((entry) => [entry.participantId, entry])),
+    [onboarding]
   );
   const onboardingGroup = onboarding?.groups.find((entry) => entry.groupId === selectedGroupId) ?? null;
   // Keeps the tab in the address, so a refresh or a shared link comes back to the same tab.

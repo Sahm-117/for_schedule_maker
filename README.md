@@ -5,6 +5,23 @@ A Progressive Web App for running the Foundation of Faith (FOF) discipleship pro
 **Live app:** https://for-schedule-maker.vercel.app
 **GitHub:** https://github.com/Sahm-117/for_schedule_maker
 
+**One app, several names.** The product is **FOF Ops**. The same app also appears as: the GitHub repo
+`for_schedule_maker`, the Vercel site `for-schedule-maker`, the Supabase project "FOF Schedule Editor"
+and the npm package `fof-sop-scheduler` in `frontend/package.json`. These are older names from when it
+was only a schedule maker. They all refer to the same thing; do not rename them casually (URLs,
+installed phone apps and backups depend on them).
+
+## Start here if you are taking over
+
+| Read | For |
+|---|---|
+| [`HANDOVER.md`](HANDOVER.md) | Accounts, where every secret lives (names only), first day, how to change and deploy safely, what runs on its own |
+| [`AGENTS.md`](AGENTS.md) | The working rules for this repo (people and AI agents) |
+| [`FLOW_MAP.md`](FLOW_MAP.md) | How the app works end to end; section 4 lists the numbered business rules and where each is enforced |
+| [`docs/handoffs/INDEX.md`](docs/handoffs/INDEX.md) | What was done, when, what is live and what is still open (newest first) |
+| [`BACKUP_RESTORE.md`](BACKUP_RESTORE.md) | Nightly backups and how to restore |
+| [`integrations/README.md`](integrations/README.md) | The Google Form / Sheet sign-up feed |
+
 ---
 
 ## What it does
@@ -60,20 +77,34 @@ Participants sign in with their phone number once their support enrols them. The
 
 | Layer | Technology |
 |---|---|
-| Frontend | React 19 + TypeScript + Vite 7 + Tailwind CSS |
-| PWA | vite-plugin-pwa (Workbox `injectManifest`) |
-| Database | Supabase (PostgreSQL) |
-| Serverless | Supabase Edge Functions (push + announcements) |
-| Hosting | Vercel |
+| Frontend | React 19, TypeScript 5.9, Vite 7, Tailwind CSS 3, React Router 7 |
+| PWA | vite-plugin-pwa (Workbox `injectManifest`), service worker in `frontend/src/sw.ts` |
+| Database | Supabase: PostgreSQL 17 with row-level security, `SECURITY DEFINER` functions, Storage for files |
+| Scheduled jobs | `pg_cron` inside the database (reminders, follow-up assignment, attendance windows, and more; see `HANDOVER.md`) |
+| Server functions | Supabase Edge Functions (Deno, TypeScript): 17 in `supabase/functions/` for push, notifications, announcements, reminders, follow-up assignment, the form feed, Telegram, AI help |
+| Hosting | Vercel (deploys `main`) |
 | Push | Web Push (VAPID) |
-| Documents | pdf.js (`pdfjs-dist`) for in-app viewing, jsPDF for exports |
+| Email | Resend |
+| Alerts | A Telegram bot (daily digest and alerts to the team) |
+| AI helper | OpenRouter (`ai-assist` function) |
+| Sign-up form | Google Form + Sheet with an Apps Script (`integrations/google-sheet-lead-sync.gs`) that posts to `receive-form-registration` |
+| Analytics | Microsoft Clarity |
+| Documents | pdf.js (`pdfjs-dist`) for in-app viewing; jsPDF and html2canvas for exports |
+| Other libraries | `@supabase/supabase-js`, `@dnd-kit/core` (drag and drop) |
+| Automation | GitHub Actions: nightly backup, backup restore check, keep-alive ping |
+| Checks | `npm run build` and `npm run lint`; changes are checked in a real browser with Playwright. There is no automated test suite yet. |
 
 ---
 
 ## Project structure
 
 ```
-fof_schedule/
+for_schedule_maker/
+├── AGENTS.md, HANDOVER.md, FLOW_MAP.md, BACKUP_RESTORE.md
+├── docs/handoffs/              # One note per stretch of work (INDEX.md lists them)
+├── .github/workflows/          # Nightly backup, restore check, keep-alive
+├── .githooks/pre-push          # Requires a Flow-Map line in every commit
+├── integrations/               # Google Sheet Apps Script for the sign-up form
 ├── frontend/                   # React PWA
 │   ├── src/
 │   │   ├── components/         # Shared UI (AppSelect, AppDateTimePicker,
@@ -92,16 +123,23 @@ fof_schedule/
 │   ├── migrations/             # SQL migrations, applied in order
 │   └── functions/              # Edge functions (notify-*, send-announcement,
 │                               #   push-reminders, daily-checks, …)
-├── scripts/                    # Maintainer scripts (apply-migration.cjs, …)
-└── supabase-schema.sql         # Full schema for a fresh setup
+├── scripts/                    # Maintainer scripts (apply-migration.cjs, flow-map-check.sh,
+│                               #   setup-git-hooks.sh, …)
+└── supabase-schema.sql         # The original schema (September 2026); see "Database" below
 ```
+
+Older files kept for history only, not current: `PRD.md` (the first product brief, schedule only),
+`IMPLEMENTATION_SUMMARY.md` and the old Express keep-alive it describes, `api/`, the loose SQL files
+in the root (`complete-database-fix.sql`, `fixed-database-script.sql`, `fix-days-for-new-weeks.sql`),
+`linkedin-post.html` and `user-guide.html`. `.sessions/` holds older auto-written notes; new notes go in
+`docs/handoffs/`.
 
 ---
 
 ## Local development
 
 ### Prerequisites
-- Node.js 18+
+- Node.js 20.19+ or 22.12+ (Vite 7 needs one of these)
 - Access to the project's Supabase project (or your own)
 
 ### Setup
@@ -127,6 +165,7 @@ The app runs at `http://localhost:5173` and talks to the hosted Supabase project
 | `VITE_VAPID_PUBLIC_KEY` | Web Push public key |
 | `VITE_DATA_PROVIDER` | `supabase` (default) |
 | `VITE_API_URL` | Only for the unused `backend` provider mode |
+| `VITE_LOCAL_FUNCTIONS_URL` | Optional, dev only: send function calls to a local `supabase functions serve` |
 
 A root `.env.local` holds **maintainer-only secrets** used by scripts and migrations — the service-role key, the database password and a Supabase access token. It is gitignored and must never reach the browser bundle or the repo.
 
@@ -144,7 +183,8 @@ npm run preview           # serve the built app
 
 ## Database
 
-- **Fresh setup:** run `supabase-schema.sql` in the Supabase SQL editor, then the files in `supabase/migrations/` in filename order.
+- **The live database is the source of truth.** There is one Supabase project and no staging copy.
+- **Rebuilding from scratch:** the dependable way is to restore a nightly backup (`BACKUP_RESTORE.md`); the restore is tested automatically every night. Replaying `supabase-schema.sql` and then all migrations in filename order has not been tested recently and may need fixes.
 - **Existing database:** apply only the new migration files, in order. `node scripts/apply-migration.cjs supabase/migrations/<file>.sql` applies one file using the root `.env.local` (set `PG_PATH` to a folder containing the `pg` package if it isn't installed).
 - Migrations are additive by convention, so a deployed app keeps working while a new frontend rolls out.
 
@@ -184,13 +224,16 @@ Every push to `main` deploys to Vercel automatically.
 - Build: `npm run build`, output `dist`
 - Set `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` and `VITE_VAPID_PUBLIC_KEY` in the Vercel dashboard
 
+### Server functions
+
+Saving a function in `supabase/functions/` does **not** deploy it. Deploy each one with the Supabase CLI
+(`supabase functions deploy <name>`), and record the version in a handoff. The repo and the live
+functions can differ; `HANDOVER.md` section 8 says which ones do today.
+
 ### Supabase keep-alive
 
-The free tier pauses after 7 days idle, so a daily cron on [cron-job.org](https://cron-job.org) pings the REST API:
-
-```
-https://YOUR_PROJECT_REF.supabase.co/rest/v1/Week?select=id&limit=1&apikey=YOUR_ANON_KEY
-```
+The Free plan pauses a project after 7 days idle, so a daily GitHub Action (`.github/workflows/keep-alive.yml`)
+pings the database. See `KEEP_ALIVE_SETUP.md`.
 
 ---
 
@@ -223,12 +266,15 @@ Status chips follow a soft-pill palette: a pastel surface with saturated text (e
 
 ## Contributing
 
-1. Branch from `main`
-2. Make changes in `frontend/`
-3. `npm run build-with-types` and fix anything new
-4. Drive the change in a real browser as the role that uses it — not just admin
-5. Clean up any test data you create in the shared database
-6. Open a pull request describing what changed and why
+Read `AGENTS.md` first; it is the full set of rules. In short:
+
+1. Once per clone, run `scripts/setup-git-hooks.sh` (turns on the pre-push check).
+2. Make the change. Database changes are new files in `supabase/migrations/`, applied to the live database and checked there.
+3. `cd frontend && npm run build` (and `npm run build-with-types`) must pass.
+4. Drive the change in a real browser as the role that uses it, not just admin. Clean up any test data you create.
+5. Re-read `FLOW_MAP.md` section 4. Every commit needs a `Flow-Map: checked` line (or `Flow-Map: n/a <reason>`); the pre-push hook refuses it otherwise.
+6. Add a handoff in `docs/handoffs/` and a row in its `INDEX.md`, listing any migration applied and function deployed.
+7. Push to `main` (Vercel deploys it), or open a pull request if someone should review first.
 
 ### Before you change anything
 
