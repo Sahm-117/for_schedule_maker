@@ -31,12 +31,14 @@ import { buildTrainingCounts, trainingCountFor, DEFAULT_PROGRAMME_RULES } from '
 import { normalizeLink } from '../utils/links';
 import Spinner from '../components/Spinner';
 import { genderAgeLine, hasSupportRole } from '../utils/people';
+import { REGISTRATION_STATUS_META } from '../utils/followUps';
+import { AGE_RANGE_OPTIONS } from '../constants/departments';
 import TeenMoveModal from '../components/groups/TeenMoveModal';
 import GroupCard from '../components/groups/GroupCard';
 import SupportStepsOverrideModal from '../components/groups/SupportStepsOverrideModal';
 import { ONBOARDING_CHIP_LABEL, summarizeGroupOnboarding, type GroupOnboardingSummary, type OnboardingChip } from '../utils/groupOnboarding';
 import { useToast } from '../components/Toast';
-import { isTeenAgeRange } from '../utils/groupingRules';
+import { isTeenAgeRange, normaliseAgeRange, normaliseGender } from '../utils/groupingRules';
 
 // ── Training (Phase 4) ────────────────────────────────────────────────────────
 // Shared by GroupFormModal and AssignSupportModal: a support who attended fewer
@@ -319,10 +321,28 @@ interface MembersModalProps {
   onClose: () => void;
   group: Group;
   allParticipants: Participant[];
+  /** The group's support's gender ('Male' / 'Female'), so the list starts with people who match; null when unknown. */
+  supportGender: string | null;
+  /** Teen handling is on: teens are grouped through a Teen Support, so an adult group does not offer them. */
+  hideTeens: boolean;
   onUpdated: (g: Group, memberIds: string[]) => void;
 }
 
-const MembersModal: React.FC<MembersModalProps> = ({ isOpen, onClose, group, allParticipants, onUpdated }) => {
+// Sign-up statuses of people not joining this cohort; hidden by default when assigning members.
+const NOT_JOINING_STATUSES = new Set<string>(['NO_RESPONSE', 'NEXT_COHORT']);
+const isNotJoining = (p: Participant) => !!p.followUpNoResponse || (!!p.followUpStatus && NOT_JOINING_STATUSES.has(p.followUpStatus));
+// Readiest first: confirmed access, then login shared, then registered, then everyone else, then those not joining.
+const readinessRank = (p: Participant) => {
+  if (isNotJoining(p)) return 4;
+  switch (p.followUpStatus) {
+    case 'ACCESS_CONFIRMED': case 'ATTENDED': return 0;
+    case 'LOGIN_SHARED': return 1;
+    case 'REGISTERED': return 2;
+    default: return 3;
+  }
+};
+
+const MembersModal: React.FC<MembersModalProps> = ({ isOpen, onClose, group, allParticipants, supportGender, hideTeens, onUpdated }) => {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
@@ -365,27 +385,80 @@ const MembersModal: React.FC<MembersModalProps> = ({ isOpen, onClose, group, all
   };
 
   const [search, setSearch] = useState('');
+  // Starts on the support's gender; "Everyone" shows all. People already ticked always stay in the list.
+  const [genderView, setGenderView] = useState<string>('all');
+  const [hideNotJoining, setHideNotJoining] = useState(true);
+  // Age ranges to show; empty = every age. Several at once.
+  const [ageView, setAgeView] = useState<Set<string>>(new Set());
+  // Reset on opening. The support's gender may arrive a moment later (supports load separately): it then sets the gender
+  // view only if the admin has not picked one yet, and never clears what they typed or chose.
+  const genderPicked = useRef(false);
+  useEffect(() => {
+    if (!isOpen) return;
+    genderPicked.current = false;
+    setGenderView('all');
+    setHideNotJoining(true);
+    setAgeView(new Set());
+    setSearch('');
+  }, [isOpen, group.id]);
+  useEffect(() => {
+    if (isOpen && !genderPicked.current) setGenderView(supportGender ?? 'all');
+  }, [isOpen, supportGender]);
+  const pickGender = (g: string) => { genderPicked.current = true; setGenderView(g); };
   // Only offer participants who aren't already in another group — assignable
   // means unassigned, or already a member of THIS group (so current members
   // still show and can be toggled off). Anyone in a different group is hidden.
+  // Teens (10 - 17) are grouped through a Teen Support, so an adult group does not offer them (unless already in it).
   const assignable = useMemo(
-    () => allParticipants.filter((p) => !p.groupId || p.groupId === group.id || selected.has(p.id)),
-    [allParticipants, group.id, selected]
+    () => allParticipants.filter((p) => (!p.groupId || p.groupId === group.id || selected.has(p.id))
+      && (!hideTeens || group.isTeenGroup || !isTeenAgeRange(p.ageRange) || selected.has(p.id))),
+    [allParticipants, group.id, group.isTeenGroup, hideTeens, selected]
   );
+  // Each person's gender and age range, tidied once ('18-24', 'Below 18' and the like map to the standard ranges).
+  const norm = useMemo(
+    () => new Map(assignable.map((p) => [p.id, { gender: normaliseGender(p.gender), age: normaliseAgeRange(p.ageRange) }])),
+    [assignable]
+  );
+  const genderOf = (p: Participant) => norm.get(p.id)?.gender ?? null;
+  const ageOf = (p: Participant) => norm.get(p.id)?.age ?? null;
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const list = q
-      ? assignable.filter((p) => p.fullName.toLowerCase().includes(q) || (p.phone ?? '').toLowerCase().includes(q))
-      : assignable;
-    return selectedFirst(list, (p) => selected.has(p.id));
-  }, [assignable, search, selected]);
+    const list = assignable.filter((p) => selected.has(p.id) || (
+      (!q || p.fullName.toLowerCase().includes(q) || (p.phone ?? '').toLowerCase().includes(q))
+      && (genderView === 'all' || genderOf(p) === genderView)
+      && (ageView.size === 0 || ageView.has(ageOf(p) ?? ''))
+      && !(hideNotJoining && isNotJoining(p))
+    ));
+    const ranked = [...list].sort((a, b) => readinessRank(a) - readinessRank(b) || a.fullName.localeCompare(b.fullName));
+    return selectedFirst(ranked, (p) => selected.has(p.id));
+  }, [assignable, search, selected, genderView, ageView, hideNotJoining, norm]); // eslint-disable-line react-hooks/exhaustive-deps
+  // People on offer under the not-joining switch; the chip counts are taken from them.
+  const offered = useMemo(() => assignable.filter((p) => !(hideNotJoining && isNotJoining(p))), [assignable, hideNotJoining]);
+  // Age chips: ranges among those on offer for the chosen gender, with how many each.
+  const ageCounts = AGE_RANGE_OPTIONS
+    .map((range) => ({ range, count: offered.filter((p) => ageOf(p) === range && (genderView === 'all' || genderOf(p) === genderView)).length }))
+    .filter((x) => x.count > 0 || ageView.has(x.range));
+  const toggleAge = (range: string) => setAgeView((prev) => { const next = new Set(prev); if (next.has(range)) next.delete(range); else next.add(range); return next; });
+  // Gender chip counts follow the age choice, so a chip's number is what that chip would show.
+  const countGender = (g: string) => offered.filter((p) => genderOf(p) === g && (ageView.size === 0 || ageView.has(ageOf(p) ?? ''))).length;
+  const notJoiningCount = assignable.filter((p) => isNotJoining(p) && !selected.has(p.id)).length;
+  // "3 selected · 2 women, 1 man", so the balance is visible while picking.
+  const picked = assignable.filter((p) => selected.has(p.id));
+  const pickedWomen = picked.filter((p) => genderOf(p) === 'Female').length;
+  const pickedMen = picked.filter((p) => genderOf(p) === 'Male').length;
+  const subtitle = [
+    `${selected.size} selected`,
+    selected.size > 0 ? [pickedWomen ? `${pickedWomen} ${pickedWomen === 1 ? 'woman' : 'women'}` : '', pickedMen ? `${pickedMen} ${pickedMen === 1 ? 'man' : 'men'}` : ''].filter(Boolean).join(', ') : '',
+    supportGender ? `Support: ${supportGender === 'Female' ? 'woman' : 'man'}` : '',
+  ].filter(Boolean).join(' · ');
+  const chipClass = (on: boolean) => `inline-flex min-h-[32px] items-center gap-1.5 rounded-full border px-3 text-xs font-semibold active:scale-95 ${on ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'}`;
 
   return (
     <ModalShell
       isOpen={isOpen}
       onClose={onClose}
       title={`Members — ${group.name}`}
-      subtitle={`${selected.size} selected`}
+      subtitle={subtitle}
       wide
       footer={
         <>
@@ -406,6 +479,27 @@ const MembersModal: React.FC<MembersModalProps> = ({ isOpen, onClose, group, all
           placeholder="Search participants…"
           className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
         />
+        <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter participants">
+          {(['Female', 'Male'] as const).map((g) => (
+            <button key={g} type="button" aria-pressed={genderView === g} onClick={() => pickGender(g)} className={chipClass(genderView === g)}>
+              {g === 'Female' ? 'Women' : 'Men'}{supportGender === g ? ' (like the support)' : ''} <span className="opacity-70">{countGender(g)}</span>
+            </button>
+          ))}
+          <button type="button" aria-pressed={genderView === 'all'} onClick={() => pickGender('all')} className={chipClass(genderView === 'all')}>Everyone</button>
+          <button type="button" aria-pressed={!hideNotJoining} onClick={() => setHideNotJoining((v) => !v)} className={`ml-auto ${chipClass(!hideNotJoining)}`}>
+            {hideNotJoining ? `Show no response and next cohort${notJoiningCount ? ` (${notJoiningCount})` : ''}` : 'Hide no response and next cohort'}
+          </button>
+        </div>
+        {(ageCounts.length > 1 || ageView.size > 0) && (
+          <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter by age range">
+            <button type="button" aria-pressed={ageView.size === 0} onClick={() => setAgeView(new Set())} className={chipClass(ageView.size === 0)}>All ages</button>
+            {ageCounts.map(({ range, count }) => (
+              <button key={range} type="button" aria-pressed={ageView.has(range)} onClick={() => toggleAge(range)} className={chipClass(ageView.has(range))}>
+                {range.replace(/\s*-\s*/, '–')} <span className="opacity-70">{count}</span>
+              </button>
+            ))}
+          </div>
+        )}
         {loading ? (
           <p className="flex items-center gap-1.5 text-sm text-gray-400"><Spinner className="h-3.5 w-3.5" />Loading…</p>
         ) : (
@@ -430,10 +524,20 @@ const MembersModal: React.FC<MembersModalProps> = ({ isOpen, onClose, group, all
                   tabIndex={-1}
                   className="pointer-events-none h-4 w-4 accent-primary"
                 />
-                <span className="flex-1 text-sm text-gray-800">
-                  {p.fullName}
-                  {p.phone && <span className="ml-2 text-xs text-gray-400">{p.phone}</span>}
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate text-sm text-gray-800">{p.fullName}</span>
+                  <span className="mt-0.5 flex flex-wrap items-center gap-1">
+                    {[genderOf(p), ageOf(p)?.replace(/\s*-\s*/, '–')].filter(Boolean).map((part) => (
+                      <span key={part} className="rounded-[5px] border border-gray-200 px-1 text-[10px] font-medium leading-[15px] text-gray-500">{part}</span>
+                    ))}
+                    {(() => {
+                      const status = p.followUpNoResponse ? 'NO_RESPONSE' : p.followUpStatus;
+                      const meta = status ? REGISTRATION_STATUS_META[status] : null;
+                      return meta ? <span className={`rounded-full px-1.5 text-[10px] font-semibold leading-[16px] ${meta.tone}`}>{meta.label}</span> : null;
+                    })()}
+                  </span>
                 </span>
+                {p.phone && <span className="hidden flex-none text-xs text-gray-400 sm:inline">{p.phone}</span>}
               </li>
             ))}
             {filtered.length === 0 && <li className="py-4 text-center text-sm text-gray-400">No participants found</li>}
@@ -1025,6 +1129,8 @@ const AdminGroupsContent: React.FC = () => {
           onClose={() => setMembersTarget(null)}
           group={membersTarget}
           allParticipants={participants}
+          supportGender={normaliseGender(supportUsers.find((u) => u.id === membersTarget.supportId)?.gender)}
+          hideTeens={teenFlowOn}
           onUpdated={(g, memberIds) => {
             setGroups((prev) => sortGroupsByName(prev.map((x) => x.id === g.id ? g : x)));
             // Reflect the new membership in `participants` immediately so the
