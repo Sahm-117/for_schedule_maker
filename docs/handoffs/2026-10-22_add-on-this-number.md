@@ -10,6 +10,8 @@ From the owner's mockups (canvas rows "Add someone on this number" and "A brothe
 
 ## Live changes
 - Migration `20261022150000_add_on_this_number.sql` applied live 2026-10-22: `add_on_number_state`, private `household_add_person`, `participant_add_on_number`, `support_add_sibling`. No AppSetting row written (defaults apply). No edge function.
+- Code review follow-up `20261022160000_add_on_number_review_fixes.sql` applied live 2026-10-22: the new person gets any active login on the number (not only the adder's); a date of birth must be 10 to 17 for a teen and 18+ for an adult; new `participant_add_on_number_state` (closed through a teen's own number), which the app now uses. Checked rolled back (sibling of a teen with no login gets the number's login; wrong ages refused; own-number session sees it closed).
+- Review fixes in the app: "Switch to X now" remembers the choice; only the right fields are sent for adult/teen; "Stay as" reloads so the picture menu lists the new person; a teen's done screen says Teenager and names their Teen Support; failed switches show a message; no endless loading without a cohort.
 
 ## Decisions and why
 - Owner: anyone signed in can add (teens too, but a teen needs the parent tick), no admin approval, admin-controlled cut-off week.

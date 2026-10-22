@@ -61,13 +61,15 @@ export const useSwitchPerson = (): { members: TeenFamilyMember[]; switchTo: (id:
     participantAppApi.getFamily().then((m) => { if (!cancelled) setMembers(m.length > 1 ? m : []); }).catch(() => undefined);
     return () => { cancelled = true; };
   }, []);
-  const switchTo = useCallback(async (id: string) => {
-    await participantAppApi.switchTo(id);
-    markChosen();
-    // A clean start as the other person: their home, notifications and caches all load fresh.
-    window.location.assign('/me');
-  }, []);
-  return { members, switchTo };
+  return { members, switchTo: switchPersonTo };
+};
+
+/** Open another person on this number and remember the choice, so "Who is using the app now?" does not ask again. */
+export const switchPersonTo = async (id: string): Promise<void> => {
+  await participantAppApi.switchTo(id);
+  markChosen();
+  // A clean start as the other person: their home, notifications and caches all load fresh.
+  window.location.assign('/me');
 };
 
 const initials = (name: string): string => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('');

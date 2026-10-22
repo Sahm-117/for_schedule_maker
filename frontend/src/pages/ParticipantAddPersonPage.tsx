@@ -7,6 +7,8 @@ import AppMultiSelect from '../components/AppMultiSelect';
 import BirthDateSelect from '../components/BirthDateSelect';
 import Spinner from '../components/Spinner';
 import { AGE_RANGE_OPTIONS, DEPARTMENTS, toSelectOptions } from '../constants/departments';
+import { ageRangeFromDate } from '../utils/people';
+import { switchPersonTo } from '../components/participantApp/FamilyPicker';
 
 // Add someone on this number (FLOW_MAP rule 95): a husband, wife, child, brother or sister who uses the same
 // phone number. Three short steps with the registration form's questions; they join this number's login and
@@ -48,16 +50,18 @@ const ParticipantAddPersonPage: React.FC = () => {
   const [consent, setConsent] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [added, setAdded] = useState<{ participantId: string; name: string; isTeen: boolean } | null>(null);
+  const [added, setAdded] = useState<{ participantId: string; name: string; isTeen: boolean; teenSupportName: string | null; teenWaiting: boolean } | null>(null);
   const [switching, setSwitching] = useState(false);
 
   const cohortId = home?.cohort?.id;
+  const hasHome = !!home;
   useEffect(() => {
-    if (!cohortId) return undefined;
+    // Without a cohort there is nothing to add to: show "closed" rather than loading for ever.
+    if (!cohortId) { if (hasHome) setOpen(false); return undefined; }
     let cancelled = false;
     participantAppApi.getAddOnNumberState(cohortId).then((s) => { if (!cancelled) setOpen(s.open); }).catch(() => { if (!cancelled) setOpen(false); });
     return () => { cancelled = true; };
-  }, [cohortId]);
+  }, [cohortId, hasHome]);
 
   const me = home?.participant.name ?? '';
   const them = firstName(fullName) || 'them';
@@ -72,6 +76,8 @@ const ParticipantAddPersonPage: React.FC = () => {
       setStep('details');
     } else if (step === 'details') {
       if (!isTeen && !ageRange) { setError('Choose their age range.'); return; }
+      // The database sets the age range from the date of birth, so a teen's must say 10 to 17.
+      if (isTeen && dateOfBirth && ageRangeFromDate(dateOfBirth) !== '10 - 17') { setError('That date of birth is not 10 to 17 years old. Check it, or add them as an adult.'); return; }
       if (isTeen && !consent) { setError(`Only a parent or guardian can add a teenager. Tick the box to say you agree.`); return; }
       setStep('check');
     }
@@ -83,10 +89,12 @@ const ParticipantAddPersonPage: React.FC = () => {
     setError('');
     try {
       const res = await participantAppApi.addOnNumber({
+        // Only the answers for the kind of person chosen: a date of birth left from the teen path would turn an adult into a teen.
         fullName: fullName.trim(), gender, isTeen: !!isTeen, ageRange: isTeen ? null : ageRange,
-        dateOfBirth: dateOfBirth || null, email: email.trim() || null, departments, request: request.trim() || null, consent,
+        dateOfBirth: isTeen ? dateOfBirth || null : null, email: isTeen ? null : email.trim() || null,
+        departments: isTeen ? [] : departments, request: request.trim() || null, consent: !!isTeen && consent,
       });
-      setAdded({ participantId: res.participantId, name: res.name, isTeen: res.isTeen });
+      setAdded({ participantId: res.participantId, name: res.name, isTeen: res.isTeen, teenSupportName: res.teenSupportName, teenWaiting: res.teenWaiting });
       setStep('done');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not add them. Please try again.');
@@ -99,8 +107,7 @@ const ParticipantAddPersonPage: React.FC = () => {
     if (!added) return;
     setSwitching(true);
     try {
-      await participantAppApi.switchTo(added.participantId);
-      window.location.assign('/me');
+      await switchPersonTo(added.participantId);
     } catch {
       setSwitching(false);
       setError(`Could not open ${firstName(added.name)}'s space. Tap your picture at the top and choose them.`);
@@ -125,12 +132,14 @@ const ParticipantAddPersonPage: React.FC = () => {
         </span>
         <h1 className="text-[24px] font-bold tracking-[-0.02em] text-gray-900">{firstName(added.name)} is in</h1>
         <div className="flex flex-wrap justify-center gap-1.5">
-          <span className="rounded-full bg-emerald-50 px-3 py-1 text-[13px] font-bold text-emerald-800">Access confirmed</span>
+          <span className="rounded-full bg-emerald-50 px-3 py-1 text-[13px] font-bold text-emerald-800">{added.isTeen ? 'Teenager' : 'Access confirmed'}</span>
           {added.isTeen && <span className="rounded-full bg-emerald-50 px-3 py-1 text-[13px] font-bold text-emerald-800">Parent consent given</span>}
         </div>
         <p className="max-w-[320px] text-[15px] leading-relaxed text-gray-600">
           {added.isTeen
-            ? `A Teen Support of the same gender will look after ${firstName(added.name)}.`
+            ? (added.teenSupportName
+              ? `${firstName(added.name)}'s Teen Support is ${added.teenSupportName}.`
+              : `A Teen Support of the same gender will look after ${firstName(added.name)}.`)
             : `${firstName(added.name)} is now on this number. ${pronoun} will be put in a group with a support before the first class.`}
         </p>
         <p className="text-[13px] leading-relaxed text-gray-500">To use {firstName(added.name)}&apos;s space, tap the picture at the top and choose {firstName(added.name)}.</p>
@@ -139,7 +148,7 @@ const ParticipantAddPersonPage: React.FC = () => {
           <button type="button" onClick={() => void switchNow()} disabled={switching} className="min-h-[50px] rounded-xl bg-primary px-5 text-[15px] font-bold text-white disabled:opacity-60">
             {switching ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-4 w-4" />Opening…</span>) : `Switch to ${firstName(added.name)} now`}
           </button>
-          <button type="button" onClick={() => navigate('/me/profile')} className="min-h-[46px] rounded-xl border border-gray-200 bg-white px-5 text-[15px] font-semibold text-gray-700">Stay as {firstName(me)}</button>
+          <button type="button" onClick={() => window.location.assign('/me/profile')} className="min-h-[46px] rounded-xl border border-gray-200 bg-white px-5 text-[15px] font-semibold text-gray-700">Stay as {firstName(me)}</button>
         </div>
       </div>
     );

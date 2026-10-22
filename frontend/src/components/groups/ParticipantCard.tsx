@@ -24,6 +24,7 @@ import NotOpenedTag from '../participants/NotOpenedTag';
 import LoginDetailsCard from '../participants/LoginDetailsCard';
 import Spinner from '../Spinner';
 import BirthDateSelect from '../BirthDateSelect';
+import { ageRangeFromDate } from '../../utils/people';
 
 const TESTIMONY_STATUS_CHIP: Record<Testimony['status'], { label: string; cls: string }> = {
   PENDING: { label: 'Waiting for approval', cls: 'bg-amber-100/80 text-amber-700' },
@@ -369,15 +370,17 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
   const [sibling, setSibling] = useState({ fullName: '', gender: '', dateOfBirth: '', consent: false });
   const [siblingBusy, setSiblingBusy] = useState(false);
   const [siblingError, setSiblingError] = useState('');
-  const [siblingAdded, setSiblingAdded] = useState<{ name: string; teenSupportName: string | null; teenWaiting: boolean } | null>(null);
+  const [siblingAdded, setSiblingAdded] = useState<{ name: string; teenSupportName: string | null; teenWaiting: boolean; hasLogin: boolean } | null>(null);
   const addSibling = async () => {
     if (sibling.fullName.trim().length < 2) { setSiblingError('Enter their full name.'); return; }
     if (!sibling.gender) { setSiblingError('Choose Male or Female.'); return; }
+    // The database sets the age range from the date of birth, so a brother or sister's must say 10 to 17.
+    if (sibling.dateOfBirth && ageRangeFromDate(sibling.dateOfBirth) !== '10 - 17') { setSiblingError('That date of birth is not 10 to 17 years old.'); return; }
     setSiblingBusy(true);
     setSiblingError('');
     try {
       const res = await siblingApi.add(participant.id, { fullName: sibling.fullName.trim(), gender: sibling.gender, dateOfBirth: sibling.dateOfBirth || null, consent: sibling.consent });
-      setSiblingAdded({ name: res.name, teenSupportName: res.teenSupportName, teenWaiting: res.teenWaiting });
+      setSiblingAdded({ name: res.name, teenSupportName: res.teenSupportName, teenWaiting: res.teenWaiting, hasLogin: res.hasLogin });
     } catch (err) {
       setSiblingError(err instanceof Error ? err.message : 'Could not add them. Please try again.');
     } finally {
@@ -863,9 +866,11 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
           return (
             <div className="flex flex-col gap-3">
               <p className="rounded-xl bg-emerald-50 px-3.5 py-3 text-[14px] leading-relaxed text-emerald-900">
-                Access confirmed. {siblingAdded.teenWaiting
+                {siblingAdded.teenWaiting
                   ? `${first} is waiting for a Teen Support of the same gender with room. The admins have been told.`
-                  : `${first}'s Teen Support is ${siblingAdded.teenSupportName}.`} Next time the parent signs in, they can choose {first}.
+                  : `${first}'s Teen Support is ${siblingAdded.teenSupportName}.`} {siblingAdded.hasLogin
+                  ? `Next time the parent signs in, they can choose ${first}.`
+                  : `${participant.fullName.split(' ')[0]} has no login yet, so ${first} has none either. Issue one from ${first}'s card.`}
               </p>
               <p className="text-[13px] font-semibold text-gray-900">Let the parent know</p>
               <p className="rounded-xl bg-[#f9fafb] px-3.5 py-3 text-[13.5px] leading-relaxed text-gray-700">{text}</p>

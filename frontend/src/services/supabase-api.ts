@@ -3567,8 +3567,9 @@ export const participantAppApi = {
   },
 
   // Add someone on this number (rule 95): whether it is open for the cohort, and the add itself.
-  async getAddOnNumberState(cohortId: string): Promise<{ open: boolean; enabled: boolean; untilWeek: number; untilDate: string | null }> {
-    const { data, error } = await supabase.rpc('add_on_number_state', { p_cohort_id: cohortId });
+  // For the signed-in person (closed through a teen's own number); the cohort id only says when to ask.
+  async getAddOnNumberState(_cohortId: string): Promise<{ open: boolean; enabled: boolean; untilWeek: number; untilDate: string | null }> {
+    const { data, error } = await supabase.rpc('participant_add_on_number_state', { p_token: getSessionToken() });
     if (error) return { open: false, enabled: false, untilWeek: 0, untilDate: null };
     return data as { open: boolean; enabled: boolean; untilWeek: number; untilDate: string | null };
   },
@@ -8520,13 +8521,13 @@ export const earlierClassDocumentsApi = {
 
 // Teen card: a Teen Support adds a brother or sister on the teen's guardian number (rule 95).
 export const siblingApi = {
-  async add(siblingId: string, input: { fullName: string; gender: string; dateOfBirth?: string | null; consent: boolean }): Promise<{ participantId: string; name: string; teenSupportName: string | null; teenWaiting: boolean }> {
+  async add(siblingId: string, input: { fullName: string; gender: string; dateOfBirth?: string | null; consent: boolean }): Promise<{ participantId: string; name: string; teenSupportName: string | null; teenWaiting: boolean; hasLogin: boolean }> {
     const { data, error } = await supabase.rpc('support_add_sibling', {
       p_token: getSessionToken(), p_sibling_id: siblingId, p_full_name: input.fullName, p_gender: input.gender,
       p_date_of_birth: input.dateOfBirth || null, p_consent: input.consent,
     });
     if (error) throw new Error(error.message);
-    return data as { participantId: string; name: string; teenSupportName: string | null; teenWaiting: boolean };
+    return data as { participantId: string; name: string; teenSupportName: string | null; teenWaiting: boolean; hasLogin: boolean };
   },
 };
 
