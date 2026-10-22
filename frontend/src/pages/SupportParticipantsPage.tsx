@@ -5,6 +5,7 @@ import AppSelect from '../components/AppSelect';
 import SegmentedTabs from '../components/SegmentedTabs';
 import StaffDiscussionPanel from '../components/discussion/StaffDiscussionPanel';
 import GroupCallCard, { formatMeetingSlot } from '../components/groups/GroupCallCard';
+import TeenQuestionsCard from '../components/questions/TeenQuestionsCard';
 import TeenMeetingCard from '../components/groups/TeenMeetingCard';
 import MeetingModePanel from '../components/groups/MeetingModePanel';
 import SupportOnboardingSteps from '../components/groups/SupportOnboardingSteps';
@@ -451,6 +452,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
       {isTeenSupport && (
         <div className="mb-3 max-w-[760px]">
           <TeenMeetingCard userId={user.id} userName={user.name} />
+          <div className="mt-3"><TeenQuestionsCard userId={user.id} /></div>
         </div>
       )}
 
@@ -490,7 +492,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
                   const slot = formatMeetingSlot(selectedGroupData?.meetingDay, selectedGroupData?.meetingTime);
                   return slot ? ` · meets ${slot}` : '';
                 })()}
-                {` · ${selectedParticipants.length} participant${selectedParticipants.length === 1 ? '' : 's'}`}
+                {` · ${selectedParticipants.length} ${selectedGroupData?.isTeenGroup ? 'teen' : 'participant'}${selectedParticipants.length === 1 ? '' : 's'}`}
               </p>
               {groupOptions.length > 1 && (
                 <div className="ml-auto w-full max-w-[14rem]">
@@ -510,7 +512,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
                 tabs={[
                   { key: 'discussion', label: 'Discussion', dot: discussionUnseen > 0 },
                   ...(selectedGroupData?.isTeenGroup ? [] : [{ key: 'prayers', label: 'Group meetings', shortLabel: 'Meetings' }]),
-                  { key: 'faith', label: 'Participants', shortLabel: 'People' },
+                  selectedGroupData?.isTeenGroup ? { key: 'faith', label: 'Teens' } : { key: 'faith', label: 'Participants', shortLabel: 'People' },
                 ]}
                 active={activeTab}
                 onChange={(key) => selectTab(key as GroupTab)}

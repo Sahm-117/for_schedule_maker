@@ -29,6 +29,12 @@ const addDays = (iso: string, days: number) => {
   return d.toISOString().slice(0, 10);
 };
 
+const PencilIcon = () => (
+  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+  </svg>
+);
+
 const dayLabel = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 
 // A Teen Support's weekly meeting with their teens (usually Saturday, but whenever the group can
@@ -176,7 +182,7 @@ const TeenMeetingCard: React.FC<TeenMeetingCardProps> = ({ userId, userName }) =
       setError(`The meeting follows the class on ${dayLabel(classDateIso(activeCohort.startDate, week))}. Pick that day or later.`);
       return;
     }
-    if (!allMarked) { setError('Mark each teen as joined, excused or missed.'); return; }
+    if (!allMarked) { setError('Mark each teen as joined, excused or missed before ending the meeting.'); return; }
     setSaving(true);
     setError('');
     const wasDone = saved?.done === true;
@@ -210,6 +216,15 @@ const TeenMeetingCard: React.FC<TeenMeetingCardProps> = ({ userId, userName }) =
   };
 
   const weekIndex = week ? startedWeeks.findIndex((w) => w.id === week.id) : -1;
+
+  // Start meeting: the form opens for marking who is here and notes; End meeting saves it. Starting only works while
+  // recording is open, which is the meeting day, so the day is today.
+  const [startedAt, setStartedAt] = useState('');
+  const startMeeting = () => {
+    setMetOn(today);
+    setStartedAt(new Date().toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Africa/Lagos' }));
+    setEditing(true);
+  };
 
   return (
     <section className="rounded-[20px] border border-[#ffdeca] bg-white p-[18px] shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]" data-testid="teen-meeting">
@@ -269,30 +284,53 @@ const TeenMeetingCard: React.FC<TeenMeetingCardProps> = ({ userId, userName }) =
                   <p className="text-sm font-bold text-gray-900">{slotLabel ?? 'Not set yet'}</p>
                   <p className="truncate text-[12.5px] text-gray-500">{group?.callLink ? group.callLink : 'No meeting link yet'}</p>
                 </div>
-                <button type="button" onClick={startSlotEdit} className="min-h-[36px] flex-none rounded-full bg-white px-3.5 text-[13px] font-semibold text-gray-800">{slotLabel ? 'Change' : 'Set time and link'}</button>
+                {slotLabel ? (
+                  <button type="button" onClick={startSlotEdit} aria-label="Edit meeting time and link" className="grid h-10 w-10 flex-none place-items-center rounded-full bg-white text-gray-800">
+                    <PencilIcon />
+                  </button>
+                ) : (
+                  <button type="button" onClick={startSlotEdit} className="min-h-[36px] flex-none rounded-full bg-white px-3.5 text-[13px] font-semibold text-gray-800">Set time and link</button>
+                )}
               </div>
             )}
           </div>
 
           {saved?.done && !editing ? (
             <div className="mt-3 rounded-2xl bg-emerald-50 px-4 py-3">
-              <p className="text-sm font-semibold text-emerald-800">
-                You met{saved.metOn ? ` on ${dayLabel(saved.metOn)}` : ''}
-              </p>
-              <p className="mt-0.5 text-[13px] text-emerald-800">{counts.joined} joined · {counts.excused} excused · {counts.missed} missed</p>
+              <div className="flex items-start gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-emerald-800">
+                    Meeting ended{saved.metOn ? ` · ${dayLabel(saved.metOn)}` : ''}
+                  </p>
+                  <p className="mt-0.5 text-[13px] text-emerald-800">{counts.joined} joined · {counts.excused} excused · {counts.missed} missed</p>
+                </div>
+                {canRecord && (
+                  <button type="button" onClick={() => setEditing(true)} aria-label="Edit this meeting" className="grid h-9 w-9 flex-none place-items-center rounded-full bg-white text-emerald-800">
+                    <PencilIcon />
+                  </button>
+                )}
+              </div>
               {saved.notes && <p className="mt-2 whitespace-pre-line text-[13px] text-gray-700">{saved.notes}</p>}
-              {canRecord && <button type="button" onClick={() => setEditing(true)} className="mt-2 text-[13px] font-semibold text-primary">Edit</button>}
             </div>
           ) : !canRecord ? (
             <div className="mt-3"><MeetingWindowNotice window={windowState} onSetTime={startSlotEdit} /></div>
           ) : !editing && !saved?.done ? (
-            <button type="button" onClick={() => setEditing(true)} className="mt-3 min-h-[46px] w-full rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white">We met</button>
+            <button type="button" onClick={startMeeting} className="mt-3 min-h-[46px] w-full rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white">Start meeting</button>
           ) : (
             <div className="mt-3 flex flex-col gap-3.5">
-              <div>
-                <label htmlFor="teen-met-on" className="mb-1.5 block text-[13px] font-semibold text-gray-900">Day you met</label>
-                <input id="teen-met-on" type="date" value={metOn} max={today} min={activeCohort?.startDate && week ? classDateIso(activeCohort.startDate, week) : undefined} onChange={(e) => setMetOn(e.target.value)} className="min-h-[46px] w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" />
-              </div>
+              {!saved?.done && (
+                <p className="flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2.5 text-[13px] font-semibold text-emerald-800" role="status">
+                  <span className="h-2 w-2 flex-none rounded-full bg-emerald-600" aria-hidden="true" />
+                  Meeting started{startedAt ? ` · ${startedAt}` : ''}
+                </p>
+              )}
+              {saved?.done && (
+                <div>
+                  <label htmlFor="teen-met-on" className="mb-1.5 block text-[13px] font-semibold text-gray-900">Day you met</label>
+                  <input id="teen-met-on" type="date" value={metOn} max={today} min={activeCohort?.startDate && week ? classDateIso(activeCohort.startDate, week) : undefined} onChange={(e) => setMetOn(e.target.value)} className="min-h-[46px] w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" />
+                </div>
+              )}
+              <p className="-mb-1 text-[13px] font-semibold text-gray-900">Who&apos;s here?</p>
               <ul className="flex flex-col gap-2.5">
                 {teens.map((teen) => (
                   <li key={teen.id} className="rounded-2xl border border-gray-100 px-3.5 py-3">
@@ -323,7 +361,7 @@ const TeenMeetingCard: React.FC<TeenMeetingCardProps> = ({ userId, userName }) =
                   <button type="button" onClick={() => { void loadWeek(); }} className="min-h-[46px] flex-none rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-700">Cancel</button>
                 )}
                 <button type="button" onClick={() => { void save(); }} disabled={saving} className="min-h-[46px] min-w-0 flex-auto rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white disabled:opacity-60">
-                  {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : saved?.done ? 'Save changes' : 'We met'}
+                  {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : saved?.done ? 'Save changes' : 'End meeting'}
                 </button>
               </div>
             </div>
