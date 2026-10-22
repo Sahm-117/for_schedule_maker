@@ -81,7 +81,7 @@ Participants sign in with their phone number once their support enrols them. The
 | PWA | vite-plugin-pwa (Workbox `injectManifest`), service worker in `frontend/src/sw.ts` |
 | Database | Supabase: PostgreSQL 17 with row-level security, `SECURITY DEFINER` functions, Storage for files |
 | Scheduled jobs | `pg_cron` inside the database (reminders, follow-up assignment, attendance windows, and more; see `HANDOVER.md`) |
-| Server functions | Supabase Edge Functions (Deno, TypeScript): 17 in `supabase/functions/` for push, notifications, announcements, reminders, follow-up assignment, the form feed, Telegram, AI help |
+| Server functions | Supabase Edge Functions (Deno, TypeScript): 17 active in `supabase/functions/` (plus `send-notification`, retired) for push, notifications, announcements, reminders, follow-up assignment, the form feed, Telegram, AI help |
 | Hosting | Vercel (deploys `main`) |
 | Push | Web Push (VAPID) |
 | Email | Resend |
@@ -228,7 +228,7 @@ Every push to `main` deploys to Vercel automatically.
 
 Saving a function in `supabase/functions/` does **not** deploy it. Deploy each one with the Supabase CLI
 (`supabase functions deploy <name>`), and record the version in a handoff. The repo and the live
-functions can differ; `HANDOVER.md` section 8 says which ones do today.
+functions can drift apart; `HANDOVER.md` section 8 says when they were last checked.
 
 ### Supabase keep-alive
 

@@ -151,27 +151,19 @@ Claude Code can do all of section 6 for you. To set it up:
   that call server functions use the two Vault entries in section 3.
 - **Daily checks**: cron-job.org calls the `daily-checks` function once a day (section 2).
 - **Telegram alerts**: database triggers send each new bell notification to `telegram-send`.
-- **Server functions**: 17 in `supabase/functions/`. They send notifications, emails and the sheet sync,
+- **Server functions**: 18 in `supabase/functions/` (one, `send-notification`, retired). They send notifications, emails and the sheet sync,
   assign follow-ups, and run the AI helper and Telegram. A handoff records each deploy and its version.
 
-### The live functions do not all match the repo (checked 22 Oct 2026)
+### Live functions and the repo
 
-Saving a function in the repo does not deploy it, so the two can drift. On 22 Oct 2026:
+Saving a function in the repo does not deploy it, so the two can drift. On 22 Oct 2026 every live function
+was checked and all 18 match the repo exactly. That day the "Roles and permissions, phase 1" change
+(commit `cb65c72`) went live in all of them: admin notifications for an area now also reach Team members
+whose roles include that area (database function `module_viewers`; inactive users are skipped).
 
-- **Same as the repo:** `ai-assist`, `push-reminders`, `send-announcement`, `refresh-public-holidays`,
-  `sync-lead-to-sheet`, `telegram-send`, `telegram-webhook`.
-- **The repo is ahead (not deployed):** the "Roles and permissions, phase 1" change (commit `cb65c72`,
-  10 Oct) that sends admin notifications to Team members whose roles include that area as well. Never
-  deployed to `daily-checks`, `notify-followup-issue`, `notify-followup-terminal-status`,
-  `notify-group-meeting-completed`, `notify-onboarding-event`, `notify-users` and
-  `run-followup-assignment` (and the matching part of `receive-form-registration`). Live, those still notify admins only. The database side
-  (`module_viewers`) is live. **Deploying any of these functions from the repo switches that on for that
-  function**, so decide first, then deploy them together.
-- **Only the shared helper files differ:** `notify-followup-assignment` and `notify-hub` run older copies of
-  `_shared/`. Redeploying them picks up the newer helpers (named alerts on shared phones) and changes
-  nothing else.
-- **Live only:** `send-notification` (last changed October 2025). Nothing in the app or the database calls
-  it, and its code is not in the repo. Leave it until someone decides to remove it.
+`send-notification` is **retired**: the first version's schedule-approval email/Telegram sender. Nothing
+calls it. It is kept, not deleted; its original code is commented out in
+`supabase/functions/send-notification/index.ts`, and the live copy answers every call with 410 Gone.
 
 To recheck: download a live function with `supabase functions download <name>` and compare it with the repo.
 
