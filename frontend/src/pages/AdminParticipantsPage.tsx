@@ -153,7 +153,7 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, on
     } catch (e: any) {
       const raw = e?.message || '';
       const isDupPhone = e?.code === '23505' || /duplicate key|uniq_participant_phone/i.test(raw);
-      setErr(isDupPhone ? 'A participant with this phone number already exists.' : (raw || 'Failed to save'));
+      setErr(isDupPhone ? 'A participant with this name and phone number already exists.' : (raw || 'Failed to save'));
     } finally {
       setSaving(false);
     }

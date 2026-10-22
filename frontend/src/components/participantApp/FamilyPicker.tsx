@@ -10,7 +10,17 @@ import type { TeenFamilyMember } from '../../types';
 type Choice = { status: 'loading' } | { status: 'app' } | { status: 'choose'; members: TeenFamilyMember[] };
 
 const chosenKey = (): string => `fof-family-chosen:${getSessionToken().slice(-12)}`;
-const markChosen = () => { try { localStorage.setItem(chosenKey(), '1'); } catch { /* the choice just shows again */ } };
+const markChosen = () => {
+  try {
+    // One remembered choice per phone: earlier sign-ins' keys are dropped so they do not pile up.
+    const keep = chosenKey();
+    for (let i = localStorage.length - 1; i >= 0; i -= 1) {
+      const key = localStorage.key(i);
+      if (key && key !== keep && key.startsWith('fof-family-chosen:')) localStorage.removeItem(key);
+    }
+    localStorage.setItem(keep, '1');
+  } catch { /* the choice just shows again */ }
+};
 const wasChosen = () => { try { return localStorage.getItem(chosenKey()) === '1'; } catch { return false; } };
 
 export const useFamilyChoice = (): { choice: Choice; choose: (id: string) => Promise<void>; error: string } => {

@@ -91,7 +91,7 @@ export const startTimeOptions = (limits: GroupMeetingLimits, day: string | null 
 const sameWindow = (a: DayWindow, b: DayWindow) => a.earliestStart === b.earliestStart && a.latestStart === b.latestStart;
 
 /** A sentence for the "Meeting time rules" hint and the Settings summary: days sharing the same times are grouped. */
-export const describeMeetingLimits = (limits: GroupMeetingLimits): string => {
+export const describeMeetingLimits = (limits: GroupMeetingLimits, subject = 'Group calls'): string => {
   const groups: Array<{ w: DayWindow; days: string[] }> = [];
   for (const d of limits.days) {
     const w = windowForDay(limits, d);
@@ -99,7 +99,7 @@ export const describeMeetingLimits = (limits: GroupMeetingLimits): string => {
     if (g) g.days.push(d); else groups.push({ w, days: [d] });
   }
   const parts = groups.map((g) => `${g.days.map(dayLabel).join(', ')}, between ${formatClock(g.w.earliestStart)} and ${formatClock(g.w.latestStart)} (last start ${formatClock(fromMinutes(Math.max(0, lastStartMinutes(g.w))))})`);
-  return `Group calls can be on ${parts.join('; ')}.`;
+  return `${subject} can be on ${parts.join('; ')}.`;
 };
 
 /** null when the slot fits the limits (or is not a full slot yet), otherwise what to tell the person. */

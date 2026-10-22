@@ -10,7 +10,7 @@ import Spinner from '../Spinner';
 import GroupMeetingSlotEditor, { formatMeetingSlot, type MeetingSlot } from '../GroupMeetingSlotEditor';
 import { normalizeLink } from '../../utils/links';
 import MeetingWindowNotice from './MeetingWindowNotice';
-import { friendlyMeetingError, meetingWindowState, useMinuteClock, useRecordingOpening } from '../../utils/meetingWindow';
+import { MEETING_OPENS_BEFORE_MINUTES, friendlyMeetingError, meetingWindow, meetingWindowState, useMinuteClock, useRecordingOpening } from '../../utils/meetingWindow';
 
 interface TeenMeetingCardProps {
   userId: string;
@@ -217,8 +217,14 @@ const TeenMeetingCard: React.FC<TeenMeetingCardProps> = ({ userId, userName }) =
 
   const weekIndex = week ? startedWeeks.findIndex((w) => w.id === week.id) : -1;
 
-  // Start meeting: the form opens for marking who is here and notes; End meeting saves it. Starting only works while
-  // recording is open, which is the meeting day, so the day is today.
+  // Start meeting: the form opens for marking who is here and notes; End meeting saves it. Recording is normally open
+  // only on the meeting day, so the day is today. An admin's opening or a practice cohort can open it on another day:
+  // then the day field shows so the real meeting day can be picked.
+  const scheduledDay = useMemo(() => {
+    const w = meetingWindow(group?.meetingDay, group?.meetingTime, week, activeCohort?.startDate);
+    return w ? lagosTodayIso(new Date(w.opensAt.getTime() + MEETING_OPENS_BEFORE_MINUTES * 60000)) : null;
+  }, [group?.meetingDay, group?.meetingTime, week, activeCohort?.startDate]);
+  const showDayField = saved?.done === true || scheduledDay !== today;
   const [startedAt, setStartedAt] = useState('');
   const startMeeting = () => {
     setMetOn(today);
@@ -324,7 +330,7 @@ const TeenMeetingCard: React.FC<TeenMeetingCardProps> = ({ userId, userName }) =
                   Meeting started{startedAt ? ` · ${startedAt}` : ''}
                 </p>
               )}
-              {saved?.done && (
+              {showDayField && (
                 <div>
                   <label htmlFor="teen-met-on" className="mb-1.5 block text-[13px] font-semibold text-gray-900">Day you met</label>
                   <input id="teen-met-on" type="date" value={metOn} max={today} min={activeCohort?.startDate && week ? classDateIso(activeCohort.startDate, week) : undefined} onChange={(e) => setMetOn(e.target.value)} className="min-h-[46px] w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" />

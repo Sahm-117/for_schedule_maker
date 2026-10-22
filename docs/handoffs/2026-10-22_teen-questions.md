@@ -11,6 +11,8 @@ From the 17 Oct Teen Supports meeting: teens' questions are collected (by the te
 ## Live changes
 - Migration `20261022100000_teen_questions.sql` applied live on 2026-10-22 (Management API): `ManualQuestion."askedById"`, `"hideName"`; `ask_manual_question` (teen names hidden by default), new `support_ask_manual_question`, `support_update_manual_question`, `list_manual_questions` (adds isTeen, hideName, askedById, askedByName), `participant_home` (live body, one expression changed: `askedByName` on each question). Rollback notes at the top of the file. No edge function deployed.
 
+- Code review follow-up `20261022140000_teen_question_edit_owner.sql` applied live 2026-10-22: `support_update_manual_question` also requires the caller to still be the teen's Teen Support (checked rolled back: edit refused after the teen moves group).
+
 ## Decisions and why
 - Owner chose: any time (not only class day), names hidden by default, the admin Questions list is the Q&A screen (no new view), Teen Supports only (adult supports cannot add for adults).
 - "Teen" is worked out from the participant's age range (`fof_is_teen_age`), not stored.

@@ -180,10 +180,10 @@ const TeenQuestionsCard: React.FC<TeenQuestionsCardProps> = ({ userId, onChanged
   }, [activeCohort?.startDate]);
   const weekOptions = useMemo(() => cohortWeeks.map((w) => ({ value: String(w.id), label: weekLabel(w) })), [cohortWeeks, weekLabel]);
 
-  const loadQuestions = useCallback(async (gid: string) => {
+  const loadQuestions = useCallback(async (gid: string, isCancelled: () => boolean = () => false) => {
     if (!activeCohort) return;
     const res = await manualQuestionsApi.listForCohort(activeCohort.id, { groupId: gid });
-    setQuestions(res.questions);
+    if (!isCancelled()) setQuestions(res.questions);
   }, [activeCohort]);
 
   useEffect(() => {
@@ -203,7 +203,7 @@ const TeenQuestionsCard: React.FC<TeenQuestionsCardProps> = ({ userId, onChanged
           gid ? peopleRes.participants.filter((p) => p.status === 'ACTIVE' && p.groupId === gid && isTeenAgeRange(p.ageRange)) : [],
           (p) => p.fullName,
         ));
-        if (gid) await loadQuestions(gid);
+        if (gid) await loadQuestions(gid, () => cancelled);
       })
       .catch((err) => { if (!cancelled) setLoadError(err instanceof Error ? err.message : 'Could not load your teens.'); })
       .finally(() => { if (!cancelled) setLoading(false); });
@@ -259,7 +259,10 @@ const TeenQuestionsCard: React.FC<TeenQuestionsCardProps> = ({ userId, onChanged
                     </div>
                     <p className="mt-1 text-sm leading-relaxed text-gray-700">{q.body}</p>
                     <p className="mt-1 text-[12px] text-gray-500">
-                      {q.status === 'REPLIED' ? 'Replied' : q.status === 'IN_CLASS' ? 'To be answered in class' : q.askedById ? 'Sent by you' : `Asked by ${firstName(q.participantName)}`}
+                      {q.status === 'REPLIED' ? 'Replied' : q.status === 'IN_CLASS' ? 'To be answered in class'
+                        : q.askedById === userId ? 'Sent by you'
+                        : q.askedById ? `Sent by ${q.askedByName ? firstName(q.askedByName) : 'staff'}`
+                        : `Asked by ${firstName(q.participantName)}`}
                     </p>
                   </li>
                 );

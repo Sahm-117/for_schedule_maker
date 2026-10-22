@@ -352,6 +352,15 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
     notInterestedAt: participant.notInterestedAt ?? null,
     notInterestedNote: participant.notInterestedNote ?? null,
   });
+  // A reloaded list (or another screen's change) brings fresh marks: follow them.
+  useEffect(() => {
+    setTeenMarks({
+      guardianConsentAt: participant.guardianConsentAt ?? null,
+      noResponseAt: participant.noResponseAt ?? null,
+      notInterestedAt: participant.notInterestedAt ?? null,
+      notInterestedNote: participant.notInterestedNote ?? null,
+    });
+  }, [participant.guardianConsentAt, participant.noResponseAt, participant.notInterestedAt, participant.notInterestedNote]);
   const [teenMarkBusy, setTeenMarkBusy] = useState(false);
   const [notInterestedOpen, setNotInterestedOpen] = useState(false);
   const [notInterestedNote, setNotInterestedNote] = useState('');

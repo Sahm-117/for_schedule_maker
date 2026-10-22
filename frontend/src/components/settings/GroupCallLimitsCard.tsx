@@ -113,7 +113,7 @@ const GroupCallLimitsCard: React.FC = () => {
       ) : !editing ? (
         <div className="space-y-2">
           {teen && !teenOwn && <p className="text-xs font-medium text-amber-700">Teen groups follow the adult limits until you save their own.</p>}
-          <p className="text-sm leading-relaxed text-gray-700">{teen ? describeMeetingLimits(saved).replace(/^Group calls/, 'Teen group calls') : describeMeetingLimits(saved)}</p>
+          <p className="text-sm leading-relaxed text-gray-700">{describeMeetingLimits(saved, teen ? 'Teen group calls' : undefined)}</p>
           {status && <p className="text-xs text-emerald-700" role="status">{status}</p>}
         </div>
       ) : (
