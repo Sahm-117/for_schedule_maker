@@ -30,7 +30,7 @@ import NextCohortAssignModal from '../components/followups/NextCohortAssignModal
 import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
 import { useAppData } from '../context/AppDataContext';
-import { announcementsApi, cohortsApi, followUpContactsApi, groupDiscussionApi, groupsApi, settingsApi, supportActivityCompletionsApi, teenMeetingsApi, usersApi } from '../services/api';
+import { announcementsApi, cohortsApi, faithProjectsApi, followUpContactsApi, groupDiscussionApi, groupsApi, settingsApi, supportActivityCompletionsApi, teenMeetingsApi, usersApi } from '../services/api';
 import { buildOnboardingReadiness, type OnboardingReadiness } from '../utils/supportOnboarding';
 import { DEFAULT_PROGRAMME_RULES, type CohortPeoplePayload, type ProgrammeRules } from '../utils/programmeRules';
 import type { Announcement, FollowUpContact, SupportActivityCompletion, User } from '../types';
@@ -70,6 +70,7 @@ const AdminDashboardPage: React.FC = () => {
 
   const [health, setHealth] = useState<CohortHealthPayload | null>(null);
   const [people, setPeople] = useState<CohortPeoplePayload | null>(null);
+  const [savedFaithIds, setSavedFaithIds] = useState<string[] | null>(null);
   const [rules, setRules] = useState<ProgrammeRules>(DEFAULT_PROGRAMME_RULES);
   const [signUpTarget, setSignUpTarget] = useState<number | null>(null);
   // Sign-up numbers, worked out the same way as Follow-ups → Overview.
@@ -113,7 +114,7 @@ const AdminDashboardPage: React.FC = () => {
     try {
       setHealthError('');
       const cohortId = activeCohort.id;
-      const [nextHealth, nextPeople, nextRules, nextTarget, nextContacts, nextTeenMeetings] = await Promise.all([
+      const [nextHealth, nextPeople, nextRules, nextTarget, nextContacts, nextTeenMeetings, nextSavedFaith] = await Promise.all([
         cohortsApi.getHealth(activeCohort.id),
         // Person-level rules are extra; the page still works without them.
         cohortsApi.getPeople(activeCohort.id).catch(() => null),
@@ -121,10 +122,12 @@ const AdminDashboardPage: React.FC = () => {
         settingsApi.getMobilisationTarget(activeCohort.id).catch(() => ({ target: null })),
         followUpContactsApi.getAll().catch(() => null),
         teenMeetingsApi.getForCohort(activeCohort.id).catch(() => null),
+        faithProjectsApi.getSavedParticipantIds(activeCohort.id).catch(() => null),
       ]);
       setTeenMeetings(nextTeenMeetings);
       setHealth(nextHealth);
       setPeople(nextPeople);
+      setSavedFaithIds(nextSavedFaith);
       setRules(nextRules);
       setSignUpTarget(nextTarget.target);
       setFollowUpContacts(nextContacts
@@ -191,8 +194,9 @@ const AdminDashboardPage: React.FC = () => {
       rules,
       new Date(),
       readiness,
+      savedFaithIds,
     );
-  }, [health, activeCohort, globalPendingChanges.length, people, rules, readiness]);
+  }, [health, activeCohort, globalPendingChanges.length, people, rules, readiness, savedFaithIds]);
 
   const todaysDay = useMemo(() => {
     if (!activeWeek) return null;
@@ -397,8 +401,7 @@ const VitalSigns: React.FC<{ health: CohortHealthPayload; model: DashboardModel 
   const meetingRate = completed ? (pooled.slots ? pooled.reports / pooled.slots : null) : last?.meetingRate ?? null;
 
   const faith = model.faith;
-  const active = Number(health.participants.active);
-  const faithRate = active ? faith.saved / active : null;
+  const faithRate = faith.total ? faith.saved / faith.total : null;
   // Faith projects take time; don't flag them before the cohort's halfway point.
   const judgeFaith = completed || model.currentWeek > model.stats.length / 2;
 
@@ -418,7 +421,7 @@ const VitalSigns: React.FC<{ health: CohortHealthPayload; model: DashboardModel 
           statusLabel="This week so far"
           value={`${classNow.marked}/${classNow.expected}`}
           unit="marked"
-          detail={`Week ${classNow.weekNumber} · ${classNow.attended} present or late`}
+          detail={`In groups only · Week ${classNow.weekNumber} · ${classNow.attended} present or late`}
           to="/attendance"
         >
           <Sparkline values={recordingSeries} color={SUNDAY_COLOR} label="Share of participants marked each week" />
@@ -431,8 +434,8 @@ const VitalSigns: React.FC<{ health: CohortHealthPayload; model: DashboardModel 
         value={recordingRate === null ? '–' : completed ? `${pooled.marked}/${pooled.expected}` : `${last?.marked}/${last?.expected}`}
         unit="marked"
         detail={completed
-          ? `${pct(sundayRate)}% attended among marked records`
-          : last ? `Week ${last.weekNumber} · ${last.marked ? `${last.attended} present or late` : 'Attendance not recorded'}` : 'No completed weeks yet'}
+          ? `In groups only · ${pct(sundayRate)}% attended among marked records`
+          : last ? `In groups only · Week ${last.weekNumber} · ${last.marked ? `${last.attended} present or late` : 'Attendance not recorded'}` : 'No completed weeks yet'}
         to="/attendance"
       >
         <Sparkline values={recordingSeries} color={SUNDAY_COLOR} label="Share of participants marked each week" />
@@ -459,7 +462,7 @@ const VitalSigns: React.FC<{ health: CohortHealthPayload; model: DashboardModel 
         statusLabel={judgeFaith ? undefined : 'In progress'}
         value={faith.saved}
         unit="written"
-        detail={`of ${active} participants`}
+        detail={`of ${faith.total} participants in groups`}
         to="/faith-projects"
       >
         <SegmentBar

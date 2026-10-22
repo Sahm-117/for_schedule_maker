@@ -7421,6 +7421,17 @@ export const faithProjectsApi = {
     return { projects: ((data as any[]) || []).map(mapFaithProject) };
   },
 
+  // Who in the cohort has a saved project (ids only, for the dashboard's in-groups count).
+  async getSavedParticipantIds(cohortId: string): Promise<string[]> {
+    const { data, error } = await supabase
+      .from('FaithProject')
+      .select('participantId, Participant!inner(cohortId)')
+      .eq('status', 'SAVED')
+      .eq('Participant.cohortId', cohortId);
+    if (error) throw new Error(error.message);
+    return [...new Set(((data as any[]) || []).map((row) => row.participantId as string))];
+  },
+
   // Only the category changes; the saved text and its "saved" time are left alone.
   async setCategory(projectId: string, categoryId: string | null): Promise<void> {
     const { error } = await supabase.from('FaithProject').update({ categoryId }).eq('id', projectId);

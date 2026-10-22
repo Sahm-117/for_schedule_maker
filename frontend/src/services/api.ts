@@ -903,6 +903,7 @@ export const plannerApi = USE_SUPABASE ? supabasePlannerApi : {
 export const faithProjectsApi = USE_SUPABASE ? supabaseFaithProjectsApi : {
   async getByParticipant(_participantId: string): Promise<{ projects: import('../types').FaithProject[] }> { return { projects: [] }; },
   async getAll(_options?: any): Promise<{ projects: import('../types').FaithProject[] }> { return { projects: [] }; },
+  async getSavedParticipantIds(_cohortId: string): Promise<string[]> { return []; },
   async getVersions(_participantId: string): Promise<{ versions: import('../types').FaithProjectVersion[] }> { return { versions: [] }; },
   async setCategory(_projectId: string, _categoryId: string | null): Promise<never> { return peopleUnavailable(); },
   async delete(_id: string): Promise<never> { return peopleUnavailable(); },

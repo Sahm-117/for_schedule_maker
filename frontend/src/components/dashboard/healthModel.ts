@@ -86,20 +86,25 @@ export interface WeekStat {
   recapUploaded: boolean;
 }
 
+/** Active participants in a group (teen groups included). Someone not placed yet has no support to mark or chase them. */
+export const groupedActiveIds = (people: CohortPeoplePayload): Set<string> =>
+  new Set(people.participants.filter((p) => p.status === 'ACTIVE' && p.groupId).map((p) => p.id));
+
 export const buildWeekStats = (data: CohortHealthPayload, people: CohortPeoplePayload | null = null): WeekStat[] => {
   const activeGroups = data.groups.filter((g) => g.members > 0);
   const activeGroupIds = new Set(activeGroups.map((g) => g.id));
   const groupCount = activeGroups.length;
+  // Only people in a group count, by today's placement (past weeks included).
+  const activeIds = people ? groupedActiveIds(people) : new Set<string>();
 
   return [...data.weeks]
     .sort((a, b) => a.weekNumber - b.weekNumber)
     .map((week) => {
       const rows = data.attendance.filter((row) => row.weekId === week.id && activeGroupIds.has(row.groupId));
       const recordedGroups = new Set(rows.map((row) => row.groupId)).size;
-      const activeIds = new Set(people?.participants.filter((p) => p.status === 'ACTIVE').map((p) => p.id));
       const marks = people ? [...new Map(people.sunday.filter((r) => r.weekId === week.id && activeIds.has(r.participantId)).map((r) => [r.participantId, r])).values()] : null;
       const marked = marks?.length ?? 0;
-      const expected = people ? activeIds.size : Number(data.participants.active);
+      const expected = people ? activeIds.size : Number(data.participants.inGroups);
       const attended = marks?.filter(sundayMarkAttended).length ?? 0;
       const meetingsSubmitted = new Set(
         data.meetings.filter((m) => m.weekId === week.id && activeGroupIds.has(m.groupId)).map((m) => m.groupId),
@@ -171,12 +176,15 @@ export const buildGroupEngagement = (data: CohortHealthPayload, weekNumbers: num
     .sort((a, b) => a.score - b.score || a.name.localeCompare(b.name, undefined, { numeric: true }));
 };
 
-export const faithProjectCounts = (data: CohortHealthPayload) => {
-  const fp = data.faithProjects ?? {};
+/** Faith projects among active people in a group. Without the per-person lists it falls back to the cohort-wide saved count. */
+export const faithProjectCounts = (data: CohortHealthPayload, people: CohortPeoplePayload | null = null, savedIds: string[] | null = null) => {
   // A saved project is the only finished state now; anything else (including a seed from the form) is "not started".
-  const saved = Number(fp.SAVED ?? 0);
-  const active = Number(data.participants.active);
-  return { saved, notStarted: Math.max(0, active - saved), active };
+  const inGroups = people ? groupedActiveIds(people) : null;
+  const total = inGroups ? inGroups.size : Number(data.participants.inGroups);
+  const saved = inGroups && savedIds
+    ? savedIds.filter((id) => inGroups.has(id)).length
+    : Math.min(total, Number(data.faithProjects?.SAVED ?? 0));
+  return { saved, notStarted: Math.max(0, total - saved), total };
 };
 
 export interface AttentionItem {
@@ -312,6 +320,7 @@ export const buildDashboardModel = (
   rules: ProgrammeRules,
   now = new Date(),
   readiness: OnboardingReadiness | null = null,
+  savedFaithIds: string[] | null = null,
 ): DashboardModel => {
   const mode = cohortMode(cohort, now);
   const stats = buildWeekStats(data, peopleData);
@@ -343,7 +352,7 @@ export const buildDashboardModel = (
     judgedStats,
     lastJudged: judgedStats[judgedStats.length - 1] ?? null,
     engagement: buildGroupEngagement(data, judged),
-    faith: faithProjectCounts(data),
+    faith: faithProjectCounts(data, peopleData, savedFaithIds),
     people,
     attention: buildAttention(data, mode, stats, currentWeek, { pendingApprovals, people }),
   };

@@ -637,7 +637,7 @@ const AdminGroupsContent: React.FC = () => {
   // /groups?group=<id>, so the URL — not local state — decides what's in view.
   // That keeps the link shareable and survives a refresh.
   // Each filter takes several choices at once and lives in the address (`?group=` is what the Supports page links to).
-  const [filters, setFilters] = useUrlFilters(['group', 'support', 'type', 'people', 'onboarding', 'hub']);
+  const [filters, setFilters] = useUrlFilters(['group', 'support', 'type', 'people', 'onboarding', 'gender', 'hub']);
 
   // `silent` background refreshes (triggered by realtime liveRevision bumps)
   // update the data in place WITHOUT flipping `loading`, so the grid doesn't
@@ -823,6 +823,18 @@ const AdminGroupsContent: React.FC = () => {
     return counts;
   }, [onboardingByGroup]);
 
+  // A group's gender for the Gender filter: the members' gender (people with none on file are skipped),
+  // 'Mixed' when they differ, and the support's gender for a group with no gendered members yet.
+  const genderByGroup = useMemo(() => {
+    const map = new Map<string, string>();
+    [...groups, ...teenGroups].forEach((g) => {
+      const genders = new Set((membersByGroupId.get(g.id) ?? []).map((p) => normaliseGender(p.gender)).filter(Boolean));
+      const gender = genders.size > 1 ? 'Mixed' : [...genders][0] ?? normaliseGender(supportUsers.find((u) => u.id === g.supportId)?.gender);
+      if (gender) map.set(g.id, gender);
+    });
+    return map;
+  }, [groups, teenGroups, membersByGroupId, supportUsers]);
+
   // Does this group fit one chosen choice of one filter group?
   const groupFits = (key: string, choice: string, g: Group): boolean => {
     switch (key) {
@@ -830,6 +842,7 @@ const AdminGroupsContent: React.FC = () => {
       case 'support': return choice === NO_SUPPORT_OPTION ? !g.supportId : g.supportId === choice;
       case 'type': return choice === 'teen' ? !!g.isTeenGroup : !g.isTeenGroup;
       case 'onboarding': return onboardingByGroup.get(g.id)?.chip === choice;
+      case 'gender': return genderByGroup.get(g.id) === choice;
       case 'hub': {
         const hubIds = g.supportId ? hubIdsByUser[g.supportId] ?? [] : [];
         return choice === NO_HUB_OPTION ? hubIds.length === 0 : hubIds.includes(choice);
@@ -851,13 +864,20 @@ const AdminGroupsContent: React.FC = () => {
   ].map((o) => ({ ...o, count: [...groups, ...teenGroups].filter((g) => groupFits('hub', o.value, g)).length }))
     .filter((o) => o.value !== NO_HUB_OPTION || o.count > 0 || hubChoices.includes(NO_HUB_OPTION));
   // Teen groups sit in their own section; the hub chips filter it too (a teen group's hub is its Teen Support's).
-  const displayedTeenGroups = hubChoices.length === 0 ? teenGroups : teenGroups.filter((g) => hubChoices.some((c) => groupFits('hub', c, g)));
+  // The Gender filter applies to the Teen groups section as well.
+  const genderChoices = filters.gender ?? [];
+  const displayedTeenGroups = teenGroups.filter((g) => (hubChoices.length === 0 || hubChoices.some((c) => groupFits('hub', c, g))) && (genderChoices.length === 0 || genderChoices.some((c) => groupFits('gender', c, g))));
   const toggleHub = (value: string) => setFilters({ ...filters, hub: hubChoices.includes(value) ? hubChoices.filter((v) => v !== value) : [...hubChoices, value] });
   const filterGroups: FilterGroup[] = (() => {
     const opt = (key: string, value: string, label: string) => ({ value, label, count: groups.filter((g) => groupFits(key, value, g)).length });
     const out: FilterGroup[] = [];
     if (groups.some((g) => g.isTeenGroup)) out.push({ key: 'type', label: 'Adults or teens', options: [opt('type', 'adult', 'Adult groups'), opt('type', 'teen', 'Teen groups')] });
     out.push({ key: 'group', label: 'Group', options: groups.map((g) => opt('group', g.id, g.name)) });
+    // Counts include teen groups, since the Gender filter applies to the Teen groups section too.
+    const genderOpt = (value: string, label: string) => ({ value, label, count: [...groups, ...teenGroups].filter((g) => groupFits('gender', value, g)).length });
+    const genderOptions = [genderOpt('Female', 'Women'), genderOpt('Male', 'Men'), genderOpt('Mixed', 'Mixed')]
+      .filter((o) => o.value !== 'Mixed' || o.count > 0 || genderChoices.includes('Mixed'));
+    out.push({ key: 'gender', label: 'Gender', options: genderOptions });
     if (supportUsers.length > 0) {
       out.push({
         key: 'support',
@@ -1006,7 +1026,7 @@ const AdminGroupsContent: React.FC = () => {
         <section className="mt-8">
           <h2 className="text-sm font-bold text-gray-900">
             Teen groups
-            {hubChoices.length > 0 && <span className="ml-1.5 text-xs font-medium text-gray-500">{displayedTeenGroups.length} of {teenGroups.length} in the chosen hubs</span>}
+            {(hubChoices.length > 0 || genderChoices.length > 0) && <span className="ml-1.5 text-xs font-medium text-gray-500">{displayedTeenGroups.length} of {teenGroups.length} {hubChoices.length > 0 && genderChoices.length === 0 ? 'in the chosen hubs' : 'match the filters'}</span>}
           </h2>
           <p className="mb-3 text-xs text-gray-500">Each Teen Support's teens. No meetings or recaps; Sunday attendance only.</p>
           {displayedTeenGroups.length === 0 && <p className="text-sm text-gray-500">No teen groups in the chosen hubs.</p>}

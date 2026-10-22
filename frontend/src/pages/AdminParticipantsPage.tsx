@@ -1314,7 +1314,7 @@ const AdminParticipantsContent: React.FC = () => {
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Name</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Phone</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Group</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Profile</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Gender</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Age range</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Source</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Support</th>
@@ -1333,12 +1333,8 @@ const AdminParticipantsContent: React.FC = () => {
                         {p.phone && isTeenAgeRange(p.ageRange) && <span className="block text-[11px] font-semibold text-gray-400">Guardian’s number</span>}
                       </td>
                       <td className="px-4 py-3 text-gray-500">{p.groupName ?? '—'}</td>
-                      <td className="px-4 py-3">
-                        {completionById.has(p.id) ? (
-                          <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${completionById.get(p.id)!.percent === 100 ? 'bg-emerald-100/80 text-emerald-700' : 'bg-neutral-100 text-neutral-600'}`}>
-                            {completionById.get(p.id)!.percent}%
-                          </span>
-                        ) : <span className="text-gray-400">—</span>}
+                      <td className="px-4 py-3 text-gray-600">
+                        {normaliseGender(p.gender) ?? <span className="text-gray-400">—</span>}
                       </td>
                       <td className="px-4 py-3 text-gray-600">
                         {normaliseAgeRange(p.ageRange) ?? p.ageRange ?? <span className="text-gray-400">—</span>}
