@@ -53,19 +53,21 @@ export const useFamilyChoice = (): { choice: Choice; choose: (id: string) => Pro
   return { choice, choose, error };
 };
 
-/** True when more than one person on this number can be opened, plus the action that reopens the choice. */
-export const useSwitchPerson = (): { canSwitch: boolean; switchPerson: () => void } => {
-  const [canSwitch, setCanSwitch] = useState(false);
+/** Everyone on this number who can be opened (empty for one person), and switching straight to one of them. */
+export const useSwitchPerson = (): { members: TeenFamilyMember[]; switchTo: (id: string) => Promise<void> } => {
+  const [members, setMembers] = useState<TeenFamilyMember[]>([]);
   useEffect(() => {
     let cancelled = false;
-    participantAppApi.getFamily().then((m) => { if (!cancelled) setCanSwitch(m.length > 1); }).catch(() => undefined);
+    participantAppApi.getFamily().then((m) => { if (!cancelled) setMembers(m.length > 1 ? m : []); }).catch(() => undefined);
     return () => { cancelled = true; };
   }, []);
-  const switchPerson = useCallback(() => {
-    try { localStorage.removeItem(chosenKey()); } catch { /* ignore */ }
+  const switchTo = useCallback(async (id: string) => {
+    await participantAppApi.switchTo(id);
+    markChosen();
+    // A clean start as the other person: their home, notifications and caches all load fresh.
     window.location.assign('/me');
   }, []);
-  return { canSwitch, switchPerson };
+  return { members, switchTo };
 };
 
 const initials = (name: string): string => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('');
@@ -75,8 +77,8 @@ const FamilyPicker: React.FC<{ members: TeenFamilyMember[]; onChoose: (id: strin
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#f7f8fa] px-4 py-10">
       <div className="w-full max-w-sm rounded-3xl border border-[#eef0f4] bg-white p-6 shadow-[0_18px_40px_-22px_rgba(17,24,39,0.25)]">
-        <h1 className="text-[22px] font-bold text-gray-900">Who is this?</h1>
-        <p className="mt-1 text-[14px] text-gray-500">More than one person uses this number. Choose whose space to open.</p>
+        <h1 className="text-[22px] font-bold text-gray-900">Who is using the app now?</h1>
+        <p className="mt-1 text-[14px] text-gray-500">More than one person uses this phone number. Tap your name.</p>
         <ul className="mt-5 space-y-2">
           {members.map((m) => (
             <li key={m.id}>
@@ -95,6 +97,7 @@ const FamilyPicker: React.FC<{ members: TeenFamilyMember[]; onChoose: (id: strin
             </li>
           ))}
         </ul>
+        <p className="mt-4 text-[13px] leading-relaxed text-gray-500">The app remembers who you chose. To change later, tap your picture at the top.</p>
         {error && <p className="mt-3 text-[13px] text-red-600">{error}</p>}
         <button type="button" onClick={logout} className="mt-5 w-full text-center text-[13px] font-medium text-gray-500">Log out</button>
       </div>

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import PrayerSignalProvider from '../corporatePrayers/PrayerSignalProvider';
 import { createPortal } from 'react-dom';
-import { Navigate, NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { ParticipantAppProvider, useParticipantApp } from '../../context/ParticipantAppContext';
 import { ToastProvider } from '../Toast';
@@ -116,8 +116,18 @@ const useSessionDismiss = (key: string) => {
 
 const ShellLayout: React.FC = () => {
   const { user, logout } = useAuth();
-  const { canSwitch, switchPerson } = useSwitchPerson();
+  const { members, switchTo } = useSwitchPerson();
   const { home, reload } = useParticipantApp();
+  const navigate = useNavigate();
+  // "Add someone on this number" (rule 95): offered while the admins keep it open for this cohort.
+  const [addOpen, setAddOpen] = useState(false);
+  const cohortId = home?.cohort?.id;
+  useEffect(() => {
+    if (!cohortId) return undefined;
+    let cancelled = false;
+    participantAppApi.getAddOnNumberState(cohortId).then((s) => { if (!cancelled) setAddOpen(s.open); }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [cohortId]);
   const groupMeetingLive = !!home?.groupMeetingLive;
   const location = useLocation();
   const [moreOpen, setMoreOpen] = useState(false);
@@ -211,11 +221,6 @@ const ShellLayout: React.FC = () => {
               <p className="truncate text-sm font-semibold text-gray-900">{user.name}</p>
               <p className="text-xs text-gray-500">Participant</p>
             </div>
-            {canSwitch && (
-              <button type="button" onClick={switchPerson} className="rounded-xl border border-orange-200 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-white">
-                Switch
-              </button>
-            )}
             <button type="button" onClick={logout} className="rounded-xl border border-orange-200 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-white">
               Logout
             </button>
@@ -226,7 +231,16 @@ const ShellLayout: React.FC = () => {
       <div className="lg:pl-[19rem]">
         <header className="sticky top-0 z-20 border-b border-white/70 bg-white/80 backdrop-blur-xl">
           <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
-            <ProfileMenu name={user.name} avatarUrl={home?.profile?.avatarUrl} profilePath="/me/profile" onLogout={logout} onHelp={() => setHelpOpen(true)} />
+            <ProfileMenu
+              name={user.name}
+              avatarUrl={home?.profile?.avatarUrl}
+              profilePath="/me/profile"
+              onLogout={logout}
+              onHelp={() => setHelpOpen(true)}
+              accounts={members}
+              onSwitchAccount={(id) => { void switchTo(id).catch(() => undefined); }}
+              onAddPerson={addOpen ? () => navigate('/me/add-person') : undefined}
+            />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-gray-900">{user.name}</p>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
@@ -292,12 +306,6 @@ const ShellLayout: React.FC = () => {
                 {item.label}
               </NavLink>
             ))}
-            {canSwitch && (
-              <button type="button" onClick={() => { setMoreOpen(false); switchPerson(); }} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold text-gray-800 hover:bg-gray-50">
-                <Icon d="M7 16V4m0 0L3 8m4-4 4 4M17 8v12m0 0 4-4m-4 4-4-4" />
-                Switch person · {user.name.split(' ')[0]}
-              </button>
-            )}
             <button type="button" onClick={() => { setMoreOpen(false); logout(); }} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold text-gray-800 hover:bg-gray-50">
               <Icon d="M15 17l5-5-5-5M20 12H9M12 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7" />
               Sign out

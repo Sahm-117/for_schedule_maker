@@ -10,7 +10,7 @@ import DepartmentHandoff from '../participants/DepartmentHandoff';
 import ProfileOverview from '../participants/ProfileOverview';
 import RetakingChip, { RetakeMarkModal } from '../participants/RetakingChip';
 import { useToast } from '../Toast';
-import { departmentReferralsApi, faithHelpRequestsApi, faithProjectsApi, participantCheckInsApi, participantFlagsApi, participantsApi, teenCardApi } from '../../services/api';
+import { departmentReferralsApi, faithHelpRequestsApi, faithProjectsApi, participantCheckInsApi, participantFlagsApi, participantsApi, siblingApi, teenCardApi } from '../../services/api';
 import { buildParticipantMessageLink, buildWhatsAppLink } from '../../utils/phone';
 import WhatsAppIcon from '../WhatsAppIcon';
 import { FAITH_PROJECT_STATUS_LABEL, shortMoment } from '../../utils/participantApp';
@@ -23,6 +23,7 @@ import { participantStepDone } from '../../utils/supportOnboarding';
 import NotOpenedTag from '../participants/NotOpenedTag';
 import LoginDetailsCard from '../participants/LoginDetailsCard';
 import Spinner from '../Spinner';
+import BirthDateSelect from '../BirthDateSelect';
 
 const TESTIMONY_STATUS_CHIP: Record<Testimony['status'], { label: string; cls: string }> = {
   PENDING: { label: 'Waiting for approval', cls: 'bg-amber-100/80 text-amber-700' },
@@ -363,6 +364,26 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
   }, [participant.guardianConsentAt, participant.noResponseAt, participant.notInterestedAt, participant.notInterestedNote]);
   const [teenMarkBusy, setTeenMarkBusy] = useState(false);
   const [notInterestedOpen, setNotInterestedOpen] = useState(false);
+  // Add a brother or sister on this teen's guardian number (rule 95).
+  const [siblingOpen, setSiblingOpen] = useState(false);
+  const [sibling, setSibling] = useState({ fullName: '', gender: '', dateOfBirth: '', consent: false });
+  const [siblingBusy, setSiblingBusy] = useState(false);
+  const [siblingError, setSiblingError] = useState('');
+  const [siblingAdded, setSiblingAdded] = useState<{ name: string; teenSupportName: string | null; teenWaiting: boolean } | null>(null);
+  const addSibling = async () => {
+    if (sibling.fullName.trim().length < 2) { setSiblingError('Enter their full name.'); return; }
+    if (!sibling.gender) { setSiblingError('Choose Male or Female.'); return; }
+    setSiblingBusy(true);
+    setSiblingError('');
+    try {
+      const res = await siblingApi.add(participant.id, { fullName: sibling.fullName.trim(), gender: sibling.gender, dateOfBirth: sibling.dateOfBirth || null, consent: sibling.consent });
+      setSiblingAdded({ name: res.name, teenSupportName: res.teenSupportName, teenWaiting: res.teenWaiting });
+    } catch (err) {
+      setSiblingError(err instanceof Error ? err.message : 'Could not add them. Please try again.');
+    } finally {
+      setSiblingBusy(false);
+    }
+  };
   const [notInterestedNote, setNotInterestedNote] = useState('');
   const markTeen = async (what: 'CONSENT' | 'CANT_REACH' | 'NOT_INTERESTED', on: boolean, note?: string) => {
     setTeenMarkBusy(true);
@@ -788,6 +809,9 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
               {!isTeenAgeRange(participant.ageRange) && <button type="button" className={menuItemCls} onClick={() => { setMenu('closed'); setRetakeMarkOpen(true); }}>Mark as retaking</button>}
               {isTeen && (
                 <>
+                  <button type="button" className={`${menuItemCls} text-[#9a3412]`} onClick={() => { setMenu('closed'); setSibling({ fullName: '', gender: '', dateOfBirth: '', consent: false }); setSiblingError(''); setSiblingAdded(null); setSiblingOpen(true); }}>
+                    + Add a brother or sister
+                  </button>
                   <p className="px-3 pb-0.5 pt-2 text-[11px] font-bold uppercase tracking-[0.06em] text-gray-400">Mark as</p>
                   <button type="button" disabled={teenMarkBusy} className={menuItemCls} onClick={() => { setMenu('closed'); void markTeen('CANT_REACH', !teenMarks.noResponseAt); }}>
                     {teenMarks.noResponseAt ? 'Reached them' : "Can't reach"}
@@ -814,6 +838,64 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
         </div>,
         document.body
       )}
+
+      <Sheet
+        open={siblingOpen}
+        onClose={() => setSiblingOpen(false)}
+        title={siblingAdded ? `${siblingAdded.name.split(' ')[0]} added` : `Add ${participant.fullName.split(' ')[0]}'s brother or sister`}
+        subtitle={siblingAdded ? undefined : 'Same guardian number and login'}
+        maxWidth="max-w-[520px]"
+        footer={siblingAdded ? (
+          <button type="button" onClick={() => setSiblingOpen(false)} className="min-h-[46px] flex-1 rounded-xl border border-gray-200 bg-white px-[18px] py-3 text-sm font-semibold text-gray-700">Done</button>
+        ) : (
+          <>
+            <button type="button" onClick={() => setSiblingOpen(false)} className="min-h-[46px] rounded-xl border border-gray-200 bg-white px-[18px] py-3 text-sm font-semibold text-gray-700">Cancel</button>
+            <button type="button" disabled={siblingBusy} onClick={() => { void addSibling(); }} className="min-h-[46px] flex-1 rounded-xl bg-primary px-[18px] py-3 text-sm font-semibold text-white disabled:opacity-60">
+              {siblingBusy ? 'Adding…' : `Add ${sibling.fullName.trim().split(' ')[0] || 'them'}`}
+            </button>
+          </>
+        )}
+      >
+        {siblingAdded ? (() => {
+          const first = siblingAdded.name.split(' ')[0];
+          const text = `Hello, ${first} is now in FOF too. Sign in with your usual number and password, then tap your picture at the top and choose ${first}.`;
+          const link = buildWhatsAppLink(participant.guardianPhone || participant.phone, text);
+          return (
+            <div className="flex flex-col gap-3">
+              <p className="rounded-xl bg-emerald-50 px-3.5 py-3 text-[14px] leading-relaxed text-emerald-900">
+                Access confirmed. {siblingAdded.teenWaiting
+                  ? `${first} is waiting for a Teen Support of the same gender with room. The admins have been told.`
+                  : `${first}'s Teen Support is ${siblingAdded.teenSupportName}.`} Next time the parent signs in, they can choose {first}.
+              </p>
+              <p className="text-[13px] font-semibold text-gray-900">Let the parent know</p>
+              <p className="rounded-xl bg-[#f9fafb] px-3.5 py-3 text-[13.5px] leading-relaxed text-gray-700">{text}</p>
+              {link && <a href={link} target="_blank" rel="noreferrer" className="flex min-h-[44px] items-center justify-center rounded-xl bg-[#16a34a] text-sm font-semibold text-white">Open WhatsApp</a>}
+            </div>
+          );
+        })() : (
+          <div className="flex flex-col gap-3.5">
+            <label className="block">
+              <span className="text-[13px] font-semibold text-gray-900">Full name</span>
+              <input value={sibling.fullName} onChange={(e) => setSibling((p) => ({ ...p, fullName: e.target.value }))} className="mt-1.5 min-h-[46px] w-full rounded-xl border border-gray-200 px-3 text-[15px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" />
+            </label>
+            <div role="radiogroup" aria-label="Gender" className="grid grid-cols-2 gap-2">
+              {['Female', 'Male'].map((g) => (
+                <button key={g} type="button" role="radio" aria-checked={sibling.gender === g} onClick={() => setSibling((p) => ({ ...p, gender: g }))} className={`min-h-[44px] rounded-xl text-[14px] font-semibold ${sibling.gender === g ? 'bg-[#fff1e6] text-[#9a3412] ring-[1.5px] ring-inset ring-primary' : 'border border-gray-200 bg-white text-gray-700'}`}>{g}</button>
+              ))}
+            </div>
+            <div>
+              <span className="text-[13px] font-semibold text-gray-900">Date of birth (optional)</span>
+              <div className="mt-1.5"><BirthDateSelect value={sibling.dateOfBirth} onChange={(iso) => setSibling((p) => ({ ...p, dateOfBirth: iso }))} /></div>
+            </div>
+            <p className="rounded-xl bg-[#f9fafb] px-3.5 py-2.5 text-[13px] text-gray-600">Guardian&apos;s number: same as {participant.fullName.split(' ')[0]}&apos;s.</p>
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 px-3.5 py-3">
+              <input type="checkbox" checked={sibling.consent} onChange={(e) => setSibling((p) => ({ ...p, consent: e.target.checked }))} className="mt-0.5 h-5 w-5 flex-none accent-[rgb(var(--color-primary-rgb))]" />
+              <span className="text-[13.5px] leading-relaxed text-gray-700">The parent or guardian has agreed to them taking part</span>
+            </label>
+            {siblingError && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{siblingError}</p>}
+          </div>
+        )}
+      </Sheet>
 
       <Sheet
         open={notInterestedOpen}

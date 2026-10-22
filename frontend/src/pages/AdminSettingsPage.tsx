@@ -17,6 +17,7 @@ import Spinner from '../components/Spinner';
 import FollowUpAssignmentSettings from '../components/followups/FollowUpAssignmentSettings';
 import TeenSettingsCard from '../components/followups/TeenSettingsCard';
 import PracticeModeCard from '../components/settings/PracticeModeCard';
+import AddOnNumberCard from '../components/settings/AddOnNumberCard';
 import GroupCallLimitsCard from '../components/settings/GroupCallLimitsCard';
 import ReminderPausesCard from '../components/settings/ReminderPausesCard';
 import TelegramCard from '../components/TelegramCard';
@@ -875,6 +876,7 @@ const AdminSettingsPage: React.FC = () => {
         <div data-wt="settings-timings" className="mb-4 break-inside-avoid"><RecapTimingsCard /></div>
         <div className="mb-4 break-inside-avoid"><ReminderPausesCard /></div>
         <div data-wt="settings-group-call-limits" className="mb-4 break-inside-avoid"><GroupCallLimitsCard /></div>
+        <div className="mb-4 break-inside-avoid"><AddOnNumberCard /></div>
         <div data-wt="settings-ai" className="mb-4 break-inside-avoid"><AiSettingsCard /></div>
         <div data-wt="settings-departments" className="mb-4 break-inside-avoid"><ChurchDepartmentsCard /></div>
         <div data-wt="settings-contact" className="mb-4 break-inside-avoid"><SupportContactCard /></div>

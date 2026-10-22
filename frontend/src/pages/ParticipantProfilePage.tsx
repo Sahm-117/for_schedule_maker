@@ -15,7 +15,8 @@ import { currentWeekNumber, formatTime, titleCaseDay } from '../utils/participan
 import { AGE_RANGE_OPTIONS, GENDER_OPTIONS, toSelectOptions } from '../constants/departments';
 import { ageRangeFromDate } from '../utils/people';
 import { applyTheme, DEFAULT_THEME, THEME_SWATCHES } from '../utils/theme';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSwitchPerson } from '../components/participantApp/FamilyPicker';
 import type { ProfileFieldEntry } from '../types';
 import Spinner from '../components/Spinner';
 import PasswordInput from '../components/PasswordInput';
@@ -78,8 +79,18 @@ const Fold: React.FC<{ title: string; summary: string; children: React.ReactNode
 };
 
 const ParticipantProfilePage: React.FC = () => {
+  const navigate = useNavigate();
+  const { members: household } = useSwitchPerson();
+  const [addOpen, setAddOpen] = useState(false);
   const { user } = useAuth();
   const { home, loading, reload } = useParticipantApp();
+  const profileCohortId = home?.cohort?.id;
+  useEffect(() => {
+    if (!profileCohortId) return undefined;
+    let cancelled = false;
+    participantAppApi.getAddOnNumberState(profileCohortId).then((st) => { if (!cancelled) setAddOpen(st.open); }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [profileCohortId]);
   const toast = useToast();
   const push = useParticipantPush();
   const appSetup = useAppSetup();
@@ -340,6 +351,30 @@ const ParticipantProfilePage: React.FC = () => {
             )}
           </div>
         </section>
+
+        {/* People on this number (rules 91, 95): who shares this phone number, and adding someone while it is open. */}
+        {(household.length > 1 || addOpen) && (
+          <section className={CARD}>
+            <h2 className="text-[16px] font-bold text-gray-900">People on this number</h2>
+            <p className="mt-1 text-[13.5px] leading-relaxed text-gray-600">Does your husband, wife or child share this phone number with you? Add them here. They&apos;ll use the same password.</p>
+            <ul className="mt-3 flex flex-col gap-2">
+              {(household.length > 1 ? household : [{ id: home.participant.id, name: home.participant.name, current: true }]).map((m) => (
+                <li key={m.id} className="flex items-center gap-2.5 rounded-2xl bg-[#f9fafb] px-3 py-2.5">
+                  <Avatar name={m.name} avatarUrl={null} size="sm" />
+                  <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-gray-900">{m.name}</span>
+                  {m.current && <span className="text-[12px] font-semibold text-gray-500">You</span>}
+                </li>
+              ))}
+            </ul>
+            {addOpen && (
+              <button type="button" onClick={() => navigate('/me/add-person')} className="mt-3 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-orange-300 bg-[#fff7ed] text-[15px] font-bold text-[#9a3412]">
+                <svg className="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeWidth="2.4" d="M12 5v14M5 12h14" /></svg>
+                Add someone on this number
+              </button>
+            )}
+            {household.length > 1 && <p className="mt-2.5 text-[12.5px] text-gray-500">To use someone else&apos;s space, tap your picture at the top and choose their name.</p>}
+          </section>
+        )}
 
         {/* The details: one clear Edit button, and anything blank says Add. */}
         <section data-wt="pp-details" className={`${CARD} !py-2`}>

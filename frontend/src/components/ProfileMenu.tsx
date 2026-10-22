@@ -18,11 +18,16 @@ interface ProfileMenuProps {
   onSwitchRole?: (role: 'ADMIN' | 'SUPPORT' | 'STAFF') => Promise<void>;
   /** Adds a Help item above Log out (the app guide and the support contact). */
   onHelp?: () => void;
+  /** Participant app: everyone on this phone number, shown as "Switch account" (rule 91). */
+  accounts?: Array<{ id: string; name: string; current: boolean }>;
+  onSwitchAccount?: (id: string) => void;
+  /** Participant app: "Add someone on this number", while adding is open. */
+  onAddPerson?: () => void;
 }
 
 const ROLE_NAME: Record<string, string> = { ADMIN: 'Admin', SUPPORT: 'Support', STAFF: 'Team member' };
 
-const ProfileMenu: React.FC<ProfileMenuProps> = ({ name, avatarUrl, profilePath, onLogout, roles, activeRole, onSwitchRole, onHelp }) => {
+const ProfileMenu: React.FC<ProfileMenuProps> = ({ name, avatarUrl, profilePath, onLogout, roles, activeRole, onSwitchRole, onHelp, accounts, onSwitchAccount, onAddPerson }) => {
   const navigate = useNavigate();
   // A Team member without the Settings module has no profile page to open.
   const { canOpen } = usePermissions();
@@ -73,7 +78,7 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ name, avatarUrl, profilePath,
         ref={trigger}
         type="button"
         onClick={toggle}
-        aria-label="Open profile menu"
+        aria-label={accounts && accounts.length > 1 ? `${name}: tap to switch account` : 'Open profile menu'}
         aria-haspopup="menu"
         aria-expanded={open}
         className="flex-none rounded-full ring-2 ring-white transition active:scale-95"
@@ -85,7 +90,7 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ name, avatarUrl, profilePath,
           ref={menu}
           role="menu"
           style={{ top: pos.top, left: pos.left }}
-          className="fixed z-[120] w-52 rounded-2xl bg-white p-1.5 shadow-[0_18px_40px_-12px_rgba(17,24,39,0.28)] ring-1 ring-black/5"
+          className={`fixed z-[120] ${accounts && accounts.length > 1 ? 'w-72' : 'w-52'} rounded-2xl bg-white p-1.5 shadow-[0_18px_40px_-12px_rgba(17,24,39,0.28)] ring-1 ring-black/5`}
         >
           <p className="truncate px-3 pb-1.5 pt-2 text-xs font-medium text-gray-500">{name}{canSwitch && activeRole ? ` · ${ROLE_NAME[activeRole] ?? activeRole}` : ''}</p>
           {view === 'roles' ? (
@@ -101,6 +106,35 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ name, avatarUrl, profilePath,
             </>
           ) : (
             <>
+          {accounts && accounts.length > 1 && onSwitchAccount && (
+            <>
+              <p className="px-3 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Switch account</p>
+              {accounts.map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={a.current}
+                  onClick={() => { setOpen(false); if (!a.current) onSwitchAccount(a.id); }}
+                  className={`${item} ${a.current ? 'bg-orange-50 text-gray-900' : 'text-gray-800 hover:bg-orange-50'}`}
+                >
+                  <Avatar name={a.name} size="sm" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate">{a.name}</span>
+                    <span className="block text-[11.5px] font-medium text-gray-500">{a.current ? 'Using now' : `Tap to switch to ${a.name.split(' ')[0]}`}</span>
+                  </span>
+                  {a.current && <span aria-hidden="true" className="text-[#c2410c]">✓</span>}
+                </button>
+              ))}
+              <div className="mx-2 my-1 h-px bg-gray-100" />
+            </>
+          )}
+          {onAddPerson && (
+            <button type="button" role="menuitem" onClick={() => { setOpen(false); onAddPerson(); }} className={`${item} text-[#9a3412] hover:bg-orange-50`}>
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeWidth="2.2" d="M12 5v14M5 12h14" /></svg>
+              Add someone on this number
+            </button>
+          )}
           {canOpen(profilePath) && (
             <button type="button" role="menuitem" onClick={() => { setOpen(false); navigate(profilePath); }} className={`${item} text-gray-800 hover:bg-orange-50`}>
               <svg className="h-4 w-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.9" d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" /></svg>

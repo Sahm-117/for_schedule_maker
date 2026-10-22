@@ -76,6 +76,7 @@ import {
   earlierClassDocumentsApi as supabaseEarlierClassDocumentsApi,
   manualQuestionsApi as supabaseManualQuestionsApi,
   teenCardApi as supabaseTeenCardApi,
+  siblingApi as supabaseSiblingApi,
   onboardingEventsApi as supabaseOnboardingEventsApi,
   hubApi as supabaseHubApi,
   participantAccountsApi as supabaseParticipantAccountsApi,
@@ -557,6 +558,8 @@ export const settingsApi = USE_SUPABASE ? supabaseSettingsApi : {
   async getClassStartTime(): Promise<string> { return DEFAULT_CLASS_START_TIME; },
   async getGroupMeetingLimits(_teen = false): Promise<import('../utils/groupMeetingLimits').GroupMeetingLimits> { return DEFAULT_GROUP_MEETING_LIMITS; },
   async hasTeenGroupMeetingLimits(): Promise<boolean> { return false; },
+  async getAddOnNumberSetting(): Promise<{ enabled: boolean; untilWeek: number }> { return { enabled: true, untilWeek: 2 }; },
+  async setAddOnNumberSetting(_value: { enabled: boolean; untilWeek: number }): Promise<void> { return undefined; },
   async setGroupMeetingLimits(limits: import('../utils/groupMeetingLimits').GroupMeetingLimits, _teen = false): Promise<import('../utils/groupMeetingLimits').GroupMeetingLimits> { return limits; },
   async setClassStartTime(time: string): Promise<string> { return time; },
   async getReminderPauses(): Promise<Record<string, string | null>> { return {}; },
@@ -1019,6 +1022,10 @@ export const manualQuestionsApi = USE_SUPABASE ? supabaseManualQuestionsApi : {
   async updateForTeen(_id: string, _body: string, _hideName: boolean, _weekId: number): Promise<never> { return peopleUnavailable(); },
 };
 
+export const siblingApi = USE_SUPABASE ? supabaseSiblingApi : {
+  async add(_siblingId: string, _input: { fullName: string; gender: string; dateOfBirth?: string | null; consent: boolean }): Promise<never> { return peopleUnavailable(); },
+};
+
 export const teenCardApi = USE_SUPABASE ? supabaseTeenCardApi : {
   async mark(_participantId: string, _what: 'CONSENT' | 'CANT_REACH' | 'NOT_INTERESTED', _on: boolean, _note?: string): Promise<never> { return peopleUnavailable(); },
 };
@@ -1079,6 +1086,8 @@ export const participantAppApi = USE_SUPABASE ? supabaseParticipantAppApi : {
   async getTeenInfo(): Promise<import('../types').ParticipantTeenInfo> { return { isTeen: false }; },
   async getFamily(): Promise<import('../types').TeenFamilyMember[]> { return []; },
   async switchTo(_participantId: string): Promise<void> { return peopleUnavailable(); },
+  async getAddOnNumberState(_cohortId: string): Promise<{ open: boolean; enabled: boolean; untilWeek: number; untilDate: string | null }> { return { open: false, enabled: false, untilWeek: 0, untilDate: null }; },
+  async addOnNumber(_input: { fullName: string; gender: string; isTeen: boolean; ageRange?: string | null; dateOfBirth?: string | null; email?: string | null; departments?: string[]; request?: string | null; consent?: boolean }): Promise<never> { return peopleUnavailable(); },
   async getHome(): Promise<never> { return peopleUnavailable(); },
   async getPeople(): Promise<never> { return peopleUnavailable(); },
   async getReadySteps(): Promise<string[]> { return []; },

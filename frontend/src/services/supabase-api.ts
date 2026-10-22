@@ -2306,6 +2306,19 @@ export const settingsApi = {
     return value;
   },
 
+  // Add someone on this number (rule 95): on/off and the last week it is open. Missing = on, until week 2.
+  async getAddOnNumberSetting(): Promise<{ enabled: boolean; untilWeek: number }> {
+    const { data, error } = await supabase.from('AppSetting').select('value').eq('settingKey', 'add_on_number').maybeSingle();
+    if (error) throw new Error(error.message);
+    const v = ((data as { value?: { enabled?: unknown; untilWeek?: unknown } } | null)?.value) ?? {};
+    return { enabled: v.enabled !== false, untilWeek: Number.isInteger(v.untilWeek) ? Number(v.untilWeek) : 2 };
+  },
+
+  async setAddOnNumberSetting(value: { enabled: boolean; untilWeek: number }): Promise<void> {
+    const { error } = await supabase.from('AppSetting').upsert([{ settingKey: 'add_on_number', value, updatedAt: new Date().toISOString() }], { onConflict: 'settingKey' });
+    if (error) throw new Error(error.message);
+  },
+
   async getClassStartTime(): Promise<string> {
     const { data, error } = await supabase
       .from('AppSetting')
@@ -3553,7 +3566,31 @@ export const participantAppApi = {
     return (data as import('../types').TeenFamilyMember[] | null) ?? [];
   },
 
-  // Open another teen on the same guardian number: a fresh session replaces this one.
+  // Add someone on this number (rule 95): whether it is open for the cohort, and the add itself.
+  async getAddOnNumberState(cohortId: string): Promise<{ open: boolean; enabled: boolean; untilWeek: number; untilDate: string | null }> {
+    const { data, error } = await supabase.rpc('add_on_number_state', { p_cohort_id: cohortId });
+    if (error) return { open: false, enabled: false, untilWeek: 0, untilDate: null };
+    return data as { open: boolean; enabled: boolean; untilWeek: number; untilDate: string | null };
+  },
+
+  async addOnNumber(input: { fullName: string; gender: string; isTeen: boolean; ageRange?: string | null; dateOfBirth?: string | null; email?: string | null; departments?: string[]; request?: string | null; consent?: boolean }): Promise<{ participantId: string; name: string; isTeen: boolean; teenSupportName: string | null; teenWaiting: boolean }> {
+    const { data, error } = await supabase.rpc('participant_add_on_number', {
+      p_token: getSessionToken(),
+      p_full_name: input.fullName,
+      p_gender: input.gender,
+      p_is_teen: input.isTeen,
+      p_age_range: input.ageRange ?? null,
+      p_date_of_birth: input.dateOfBirth || null,
+      p_email: input.email || null,
+      p_departments: input.departments ?? null,
+      p_request: input.request || null,
+      p_consent: input.consent ?? false,
+    });
+    if (error) throw participantAppError(error.message, 'Could not add them. Please try again.');
+    return data as { participantId: string; name: string; isTeen: boolean; teenSupportName: string | null; teenWaiting: boolean };
+  },
+
+  // Open another person on the same number: a fresh session replaces this one.
   async switchTo(participantId: string): Promise<void> {
     const { data, error } = await supabase.rpc('participant_switch', { p_token: getSessionToken(), p_participant_id: participantId });
     if (error || !data) throw new Error('Could not open that profile. Please try again.');
@@ -8478,6 +8515,18 @@ export const earlierClassDocumentsApi = {
     const { data, error } = await supabase.rpc('list_earlier_class_documents', { p_exclude_cohort_id: excludeCohortId ?? null });
     if (error) throw new Error(error.message);
     return { documents: (data as import('../types').EarlierClassDocument[]) || [] };
+  },
+};
+
+// Teen card: a Teen Support adds a brother or sister on the teen's guardian number (rule 95).
+export const siblingApi = {
+  async add(siblingId: string, input: { fullName: string; gender: string; dateOfBirth?: string | null; consent: boolean }): Promise<{ participantId: string; name: string; teenSupportName: string | null; teenWaiting: boolean }> {
+    const { data, error } = await supabase.rpc('support_add_sibling', {
+      p_token: getSessionToken(), p_sibling_id: siblingId, p_full_name: input.fullName, p_gender: input.gender,
+      p_date_of_birth: input.dateOfBirth || null, p_consent: input.consent,
+    });
+    if (error) throw new Error(error.message);
+    return data as { participantId: string; name: string; teenSupportName: string | null; teenWaiting: boolean };
   },
 };
 
