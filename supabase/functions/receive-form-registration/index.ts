@@ -172,18 +172,40 @@ const findContact = async (normalised: string | null, targetCohortId: string | n
     .filter((c) => normalisePhone(String(c.phone ?? '')) === normalised)
     // A teen form needs the same name. An adult form must not take over a teen's
     // contact just because they share a phone (a parent's number): teens match only
-    // on the same name, whoever is filling the form.
+    // on the same name, whoever is filling the form. An adult form also leaves alone
+    // someone ELSE who has already signed up on that number (a husband and wife on
+    // one phone are two people, FLOW_MAP rule 91); it still claims a prospect a
+    // support added under another name (a nickname) who has not signed up yet.
     .filter((c) => {
       const sameName = nameKey(String(c.fullName ?? '')) === nameKey(formName)
-      if (teenForm) return sameName
+      if (teenForm || sameName) return sameName
       const isTeen = c.registrationStatus === 'TEENAGER' || c.registrationStatus === 'TEEN_ONBOARDED'
-      return !isTeen || sameName
+      return !isTeen && !SIGNED_UP_STATUSES.has(String(c.registrationStatus))
     })
+    // Their own record first, when several people share the number.
+    .sort((a, b) => Number(nameKey(String(b.fullName ?? '')) === nameKey(formName)) - Number(nameKey(String(a.fullName ?? '')) === nameKey(formName)))
   const targetMatch = matches.find((c) => targetCohortId && c.cohortId === targetCohortId)
   const unscopedOpenMatch = matches.find((c) =>
     c.cohortId == null && c.archivedAt == null && c.nextAction !== 'CLOSE'
   )
   return targetMatch ?? unscopedOpenMatch ?? null
+}
+
+// Someone else already signed up on this number in the cohort (a shared phone), for the admin alert.
+const signedUpOnSameNumber = async (normalised: string | null, targetCohortId: string | null, formName: string): Promise<string | null> => {
+  if (!normalised || !targetCohortId) return null
+  const { data, error } = await supabase
+    .from('FollowUpContact')
+    .select('fullName, phone, registrationStatus')
+    .eq('cohortId', targetCohortId)
+    .is('archivedAt', null)
+    .limit(5000)
+  if (error) return null
+  const other = ((data ?? []) as Array<Record<string, unknown>>).find((c) =>
+    normalisePhone(String(c.phone ?? '')) === normalised
+    && nameKey(String(c.fullName ?? '')) !== nameKey(formName)
+    && SIGNED_UP_STATUSES.has(String(c.registrationStatus)))
+  return other ? String(other.fullName) : null
 }
 
 const currentProgrammeCohortId = async () => {
@@ -415,7 +437,13 @@ Deno.serve(async (req) => {
       if (isBelow18(answers) && teenSetting?.value === true) {
         await tellAdmins('New teen sign-up from the form', `${fullName} signed up on the registration form as a teen. They go to a Teen Support.`)
       } else if (normalised) {
-        await tellAdmins('New sign-up from the form', `${fullName} signed up on the registration form. They're waiting to be assigned their login.`)
+        const sharesWith = await signedUpOnSameNumber(normalised, cohortId, fullName)
+        await tellAdmins(
+          sharesWith ? 'New sign-up on a shared number' : 'New sign-up from the form',
+          sharesWith
+            ? `${fullName} signed up on the same number as ${sharesWith}, so they were added as a separate person (one login for that number). If it is really ${sharesWith} correcting their name, archive the new record.`
+            : `${fullName} signed up on the registration form. They're waiting to be assigned their login.`,
+        )
       } else {
         // run_followup_assignment holds these back until the number is fixed.
         await tellAdmins('Sign-up needs a valid number', `${fullName} wrote "${phone}" as their WhatsApp number. Fix it on Follow-ups so they can be assigned.`)

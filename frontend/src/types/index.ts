@@ -1077,6 +1077,8 @@ export interface ParticipantLoginDetails {
   issuedAt: string | null;
   passwordSetAt: string | null;
   lastSignInAt: string | null;
+  /** The others on the same number in the cohort; those with a login share this one. */
+  household?: Array<{ name: string; hasLogin: boolean; isTeen: boolean }>;
 }
 
 // ── Participant app ───────────────────────────────────────────────────────────
@@ -1137,6 +1139,8 @@ export interface TeenFamilyMember {
   id: string;
   name: string;
   current: boolean;
+  /** Adult or teen, for the "Who is this?" tag. */
+  isTeen?: boolean;
 }
 
 /** Where a teen stands on having a number of their own: NONE = can be added, LOCKED = the guardian has not chosen a password yet. */

@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-22 | [One number, several people](2026-10-22_shared-number.md) | Couples and families on one phone: one password per number, "Who is this?" for everyone, reset covers the number, alerts reach everyone, sign-up form makes a spouse a new person. One live migration (rule 3 changed), receive-form-registration v18. Named alerts not done. |
 | 2026-10-22 | [Teen questions for the joint Q&A](2026-10-22_teen-questions.md) | Teen Supports add questions for their teens (Home and Classes card), teen names hidden by default, admin Questions list tags teens and puts them first, teens can ask before the manual is out. One live migration. |
 | 2026-10-22 | [Members popup: gender, age, status](2026-10-22_members-popup-gender-status.md) | Group Members popup shows gender, age and sign-up status, opens on the support's gender, hides No Response and Next Cohort by default. Frontend only. |
 | 2026-10-21 | [Supports page clarity, group names](2026-10-21_supports-page-clarity-group-names.md) | Supports page: counts add up (No group tab), reasons on cards, "x of y ready", gender/age chips, clearer notes and trainings chips. Empty groups / builder skip archived group names (fixes Group_cohortId_name_key). Frontend only. |

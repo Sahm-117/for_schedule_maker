@@ -27,7 +27,7 @@ import AnnouncementPopupHost from '../AnnouncementPopupHost';
 import { POPUP_PRIORITY, usePopupSlot, useSettled } from '../../utils/popupQueue';
 import { applyTheme } from '../../utils/theme';
 import PageLoader from '../PageLoader';
-import FamilyPicker, { useFamilyChoice, useSwitchTeen } from './FamilyPicker';
+import FamilyPicker, { useFamilyChoice, useSwitchPerson } from './FamilyPicker';
 
 // Layout for the participant app: sidebar on desktop, floating bar on mobile, the
 // same look as the support app. Also asks "are you okay?" when their attendance
@@ -116,7 +116,7 @@ const useSessionDismiss = (key: string) => {
 
 const ShellLayout: React.FC = () => {
   const { user, logout } = useAuth();
-  const { canSwitch, switchTeen } = useSwitchTeen();
+  const { canSwitch, switchPerson } = useSwitchPerson();
   const { home, reload } = useParticipantApp();
   const groupMeetingLive = !!home?.groupMeetingLive;
   const location = useLocation();
@@ -212,7 +212,7 @@ const ShellLayout: React.FC = () => {
               <p className="text-xs text-gray-500">Participant</p>
             </div>
             {canSwitch && (
-              <button type="button" onClick={switchTeen} className="rounded-xl border border-orange-200 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-white">
+              <button type="button" onClick={switchPerson} className="rounded-xl border border-orange-200 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-white">
                 Switch
               </button>
             )}
@@ -293,9 +293,9 @@ const ShellLayout: React.FC = () => {
               </NavLink>
             ))}
             {canSwitch && (
-              <button type="button" onClick={() => { setMoreOpen(false); switchTeen(); }} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold text-gray-800 hover:bg-gray-50">
+              <button type="button" onClick={() => { setMoreOpen(false); switchPerson(); }} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold text-gray-800 hover:bg-gray-50">
                 <Icon d="M7 16V4m0 0L3 8m4-4 4 4M17 8v12m0 0 4-4m-4 4-4-4" />
-                Switch teen
+                Switch person · {user.name.split(' ')[0]}
               </button>
             )}
             <button type="button" onClick={() => { setMoreOpen(false); logout(); }} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold text-gray-800 hover:bg-gray-50">

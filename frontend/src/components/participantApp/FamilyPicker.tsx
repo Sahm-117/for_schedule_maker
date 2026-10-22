@@ -3,15 +3,15 @@ import { useAuth } from '../../hooks/useAuth';
 import { participantAppApi, getSessionToken } from '../../services/api';
 import type { TeenFamilyMember } from '../../types';
 
-// A guardian who signs in on a number that several teens share chooses which teen to open.
-// The database only offers this for a session that came in through the guardian's number, so a
-// teen who signs in with their own number never sees their brothers and sisters here.
+// Several people on one number (a couple, a parent and their teens): after signing in they choose
+// whose space to open. The phone remembers the choice for this sign-in until "Switch person". The
+// database never offers this to a session that came in through a teen's own number.
 
 type Choice = { status: 'loading' } | { status: 'app' } | { status: 'choose'; members: TeenFamilyMember[] };
 
 const chosenKey = (): string => `fof-family-chosen:${getSessionToken().slice(-12)}`;
-const markChosen = () => { try { sessionStorage.setItem(chosenKey(), '1'); } catch { /* the choice just shows again */ } };
-const wasChosen = () => { try { return sessionStorage.getItem(chosenKey()) === '1'; } catch { return false; } };
+const markChosen = () => { try { localStorage.setItem(chosenKey(), '1'); } catch { /* the choice just shows again */ } };
+const wasChosen = () => { try { return localStorage.getItem(chosenKey()) === '1'; } catch { return false; } };
 
 export const useFamilyChoice = (): { choice: Choice; choose: (id: string) => Promise<void>; error: string } => {
   const [choice, setChoice] = useState<Choice>({ status: 'loading' });
@@ -33,7 +33,7 @@ export const useFamilyChoice = (): { choice: Choice; choose: (id: string) => Pro
     try {
       await participantAppApi.switchTo(id);
       markChosen();
-      // A clean start as the other teen: their home, notifications and caches all load fresh.
+      // A clean start as the other person: their home, notifications and caches all load fresh.
       window.location.assign('/me');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not open that profile. Please try again.');
@@ -43,19 +43,19 @@ export const useFamilyChoice = (): { choice: Choice; choose: (id: string) => Pro
   return { choice, choose, error };
 };
 
-/** True when the signed-in guardian has more than one teen to choose between, plus the action that reopens the choice. */
-export const useSwitchTeen = (): { canSwitch: boolean; switchTeen: () => void } => {
+/** True when more than one person on this number can be opened, plus the action that reopens the choice. */
+export const useSwitchPerson = (): { canSwitch: boolean; switchPerson: () => void } => {
   const [canSwitch, setCanSwitch] = useState(false);
   useEffect(() => {
     let cancelled = false;
     participantAppApi.getFamily().then((m) => { if (!cancelled) setCanSwitch(m.length > 1); }).catch(() => undefined);
     return () => { cancelled = true; };
   }, []);
-  const switchTeen = useCallback(() => {
-    try { sessionStorage.removeItem(chosenKey()); } catch { /* ignore */ }
+  const switchPerson = useCallback(() => {
+    try { localStorage.removeItem(chosenKey()); } catch { /* ignore */ }
     window.location.assign('/me');
   }, []);
-  return { canSwitch, switchTeen };
+  return { canSwitch, switchPerson };
 };
 
 const initials = (name: string): string => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('');
@@ -66,7 +66,7 @@ const FamilyPicker: React.FC<{ members: TeenFamilyMember[]; onChoose: (id: strin
     <div className="flex min-h-screen items-center justify-center bg-[#f7f8fa] px-4 py-10">
       <div className="w-full max-w-sm rounded-3xl border border-[#eef0f4] bg-white p-6 shadow-[0_18px_40px_-22px_rgba(17,24,39,0.25)]">
         <h1 className="text-[22px] font-bold text-gray-900">Who is this?</h1>
-        <p className="mt-1 text-[14px] text-gray-500">More than one teen is on this number. Choose whose space to open.</p>
+        <p className="mt-1 text-[14px] text-gray-500">More than one person uses this number. Choose whose space to open.</p>
         <ul className="mt-5 space-y-2">
           {members.map((m) => (
             <li key={m.id}>
@@ -77,6 +77,9 @@ const FamilyPicker: React.FC<{ members: TeenFamilyMember[]; onChoose: (id: strin
               >
                 <span className="grid h-10 w-10 flex-none place-items-center rounded-full bg-[#fff1e6] text-[13px] font-bold text-[#9a4a12]">{initials(m.name)}</span>
                 <span className="min-w-0 flex-1 truncate text-[15px] font-semibold text-gray-900">{m.name}</span>
+                {m.isTeen !== undefined && (
+                  <span className="flex-none rounded-full border border-gray-200 px-2 py-0.5 text-[11px] font-semibold text-gray-500">{m.isTeen ? 'Teen' : 'Adult'}</span>
+                )}
                 <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" className="flex-none text-gray-400" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="m9 5 7 7-7 7" /></svg>
               </button>
             </li>

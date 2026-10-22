@@ -105,6 +105,10 @@ const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, foll
     }
   };
 
+  // Everyone else on this number shares one login (FLOW_MAP rule 91).
+  const sharedWith = (details?.household ?? []).filter((h) => h.hasLogin).map((h) => h.name.split(' ')[0]);
+  const sharedNames = sharedWith.length <= 1 ? sharedWith.join('') : `${sharedWith.slice(0, -1).join(', ')} and ${sharedWith[sharedWith.length - 1]}`;
+
   const subline = details?.status === 'NO_PARTICIPANT'
     ? 'Not in Participants yet'
     : details?.status === 'ACTIVE'
@@ -129,6 +133,11 @@ const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, foll
 
       {open && (
         <div className="px-3.5 pb-3.5">
+          {sharedWith.length > 0 && !error && (
+            <p className="mb-2 rounded-[10px] bg-white px-3 py-2 text-[12.5px] leading-normal text-gray-600">
+              Shared number: one login and password for {firstName} and {sharedNames}. After signing in they choose whose space to open.
+            </p>
+          )}
           {error ? (
             <p className="rounded-[10px] bg-white px-3 py-2.5 text-[13px] text-red-700">{error}</p>
           ) : loading && !message ? (
@@ -162,6 +171,7 @@ const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, foll
               {confirmNewCode ? (
                 <div className="mt-2.5">
                   <p className="text-[12.5px] text-gray-500">{guardian ? 'A new code replaces the family’s password and signs out the guardian and the teen. Send it to the guardian straight after.' : 'A new code replaces their password and signs them out. Send it to them straight after.'}</p>
+                  {sharedWith.length > 0 && <p className="mt-1 text-[12.5px] font-semibold text-[#c2410c]">This also resets {sharedNames}&apos;s login on the same number.</p>}
                   <div className="mt-2 flex gap-2">
                     <button type="button" onClick={() => setConfirmNewCode(false)} className="min-h-[40px] flex-1 rounded-[10px] border border-gray-200 bg-white px-3 text-[13px] font-semibold text-gray-700">Cancel</button>
                     <button type="button" onClick={() => { setConfirmNewCode(false); void load({ newCode: true }); }} disabled={loading} className="min-h-[40px] flex-1 rounded-[10px] bg-primary px-3 text-[13px] font-semibold text-white disabled:opacity-60">Create new code</button>
