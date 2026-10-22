@@ -14,6 +14,7 @@ import { useLeaveGuard } from '../hooks/useLeaveGuard';
 import Spinner from '../components/Spinner';
 import ClassManualReader from '../components/classManual/ClassManualReader';
 import { hasManualForWeek, useManualContent } from '../components/classManual/manuals';
+import { isTeenAgeRange } from '../utils/groupingRules';
 
 const MANUAL_QUESTION_STATUS_LABEL: Record<string, string> = {
   NEW: 'To be answered in class',
@@ -123,6 +124,8 @@ const ParticipantWeekPage: React.FC = () => {
   const week = home?.weeks.find((w) => w.weekNumber === Number(weekParam)) ?? null;
   const manualComic = useManualContent(week?.title);
   const reflection = week && home ? reflectionFor(home.reflections, week.id) : null;
+  // Teens can ask for the joint Q&A any time, not only once the manual is out.
+  const isTeen = isTeenAgeRange(home?.profile?.ageRange);
   const now = new Date();
   const editable = reflectionEditable(reflection, now);
 
@@ -223,7 +226,7 @@ const ParticipantWeekPage: React.FC = () => {
       <textarea
         value={question}
         onChange={(e) => { setQuestion(e.target.value); setQuestionError(''); }}
-        placeholder="Ask anything about this week's manual."
+        placeholder={week.manual ? "Ask anything about this week's manual." : "Ask anything about this week's class."}
         rows={2}
         className="w-full resize-y rounded-2xl border-0 bg-[#f5f5f7] px-4 py-3.5 text-[15px] placeholder:text-gray-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/30"
       />
@@ -242,6 +245,7 @@ const ParticipantWeekPage: React.FC = () => {
           {week.manualQuestions.map((q) => (
             <li key={q.id} className="rounded-2xl bg-[#f5f5f7] p-4">
               <p className="text-sm leading-relaxed text-gray-800">{q.body}</p>
+              {q.askedByName && <p className="mt-1 text-[12px] text-gray-500">Sent by {q.askedByName.split(' ')[0]} for you</p>}
               {q.status === 'REPLIED' && q.reply ? (
                 <p className="mt-1.5 text-[13px] leading-relaxed text-gray-600"><span className="font-semibold text-gray-800">Reply: </span>{q.reply}</p>
               ) : (
@@ -376,11 +380,13 @@ const ParticipantWeekPage: React.FC = () => {
           </section>
         )}
 
-        {week.manual && (
+        {(week.manual || isTeen) && (
           <section className={`${SURFACE} px-6 py-1.5 sm:px-8`}>
-            <DisclosureRow label="My notes" hint={week.manualNote?.trim() ? 'Saved' : undefined} open={notesOpen} onToggle={() => setNotesOpen((o) => !o)}>
-              <ManualNoteBox weekId={week.id} initialBody={week.manualNote} onSaved={applyManualNote} bare />
-            </DisclosureRow>
+            {week.manual && (
+              <DisclosureRow label="My notes" hint={week.manualNote?.trim() ? 'Saved' : undefined} open={notesOpen} onToggle={() => setNotesOpen((o) => !o)}>
+                <ManualNoteBox weekId={week.id} initialBody={week.manualNote} onSaved={applyManualNote} bare />
+              </DisclosureRow>
+            )}
             <DisclosureRow
               label="Ask a question"
               hint={week.manualQuestions.length > 0 ? `${week.manualQuestions.length} sent` : undefined}

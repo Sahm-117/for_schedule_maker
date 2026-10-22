@@ -8485,6 +8485,17 @@ export const manualQuestionsApi = {
     const { error } = await supabase.rpc('reply_manual_question', { p_id: id, p_reply: reply });
     if (error) throw new Error(error.message);
   },
+
+  // A Teen Support types a question for one of their own teens.
+  async addForTeen(participantId: string, weekId: number, body: string, hideName: boolean): Promise<void> {
+    const { error } = await supabase.rpc('support_ask_manual_question', { p_participant_id: participantId, p_week_id: weekId, p_body: body, p_hide_name: hideName });
+    if (error) throw new Error(error.message);
+  },
+
+  async updateForTeen(id: string, body: string, hideName: boolean, weekId: number): Promise<void> {
+    const { error } = await supabase.rpc('support_update_manual_question', { p_id: id, p_body: body, p_hide_name: hideName, p_week_id: weekId });
+    if (error) throw new Error(error.message);
+  },
 };
 
 // ---------------------------------------------------------------------------

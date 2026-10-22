@@ -1013,6 +1013,8 @@ export const manualQuestionsApi = USE_SUPABASE ? supabaseManualQuestionsApi : {
   async listForCohort(_cohortId: string, _filters?: { weekId?: number; groupId?: string }): Promise<{ questions: import('../types').ManualQuestion[] }> { return { questions: [] }; },
   async markInClass(_id: string): Promise<never> { return peopleUnavailable(); },
   async reply(_id: string, _reply: string): Promise<never> { return peopleUnavailable(); },
+  async addForTeen(_participantId: string, _weekId: number, _body: string, _hideName: boolean): Promise<never> { return peopleUnavailable(); },
+  async updateForTeen(_id: string, _body: string, _hideName: boolean, _weekId: number): Promise<never> { return peopleUnavailable(); },
 };
 
 export const groupPrayersApi = USE_SUPABASE ? supabaseGroupPrayersApi : {

@@ -7,6 +7,7 @@ import DocumentViewerSheet from '../components/DocumentViewerSheet';
 import { TeacherChip, TeacherSheet, classTeacher, type ClassTeacher } from '../components/TeacherSheet';
 import Spinner from '../components/Spinner';
 import ClassManualReader from '../components/classManual/ClassManualReader';
+import TeenQuestionsCard from '../components/questions/TeenQuestionsCard';
 import { hasManualForWeek, loadManualForWeek } from '../components/classManual/manuals';
 import type { ManualContent } from '../components/classManual/types';
 import { useAppData } from '../context/AppDataContext';
@@ -115,6 +116,11 @@ const QuestionRow: React.FC<{ question: ManualQuestion; onChanged: () => void }>
   return (
     <li className="rounded-2xl bg-[#f5f5f7] p-4">
       <p className="text-[13px] font-semibold text-gray-900">{question.participantName}</p>
+      {(question.askedByName || question.hideName) && (
+        <p className="text-[12px] text-gray-500">
+          {[question.askedByName ? `Added by ${question.askedByName}` : null, question.hideName ? 'name hidden at the Q&A' : null].filter(Boolean).join(' · ')}
+        </p>
+      )}
       <p className="mt-1 text-sm leading-relaxed text-gray-700">{question.body}</p>
       {question.status === 'REPLIED' && question.reply ? (
         <p className="mt-2 text-[13px] leading-relaxed text-gray-600"><span className="font-semibold text-gray-800">Reply: </span>{question.reply}</p>
@@ -391,6 +397,7 @@ const SupportRecapPage: React.FC = () => {
         </section>
       ) : (
         <div className="flex flex-col gap-8">
+          {isTeenSupport && user && <TeenQuestionsCard userId={user.id} onChanged={load} />}
           {weekList('Past classes', pastWeeks)}
           <section data-wt="support-recap-week" className={`${SURFACE} px-6 pb-6 pt-7 sm:px-8 sm:pb-8 sm:pt-9`}>
             <div className="flex items-start gap-4">

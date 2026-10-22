@@ -306,6 +306,8 @@ export interface ParticipantManualQuestion {
   status: ManualQuestionStatus;
   reply: string | null;
   createdAt: string;
+  /** The support who typed it for them, when it was not the participant. */
+  askedByName?: string | null;
 }
 
 /** A question as support/admin see it via list_manual_questions(). */
@@ -322,6 +324,13 @@ export interface ManualQuestion {
   reply: string | null;
   repliedAt: string | null;
   createdAt: string;
+  /** Asked by (or for) a teen; teen questions go first at the joint Q&A. */
+  isTeen?: boolean;
+  /** Read out as "A teen asked" at the Q&A. */
+  hideName?: boolean;
+  /** The support who typed it for the participant, if any. */
+  askedById?: string | null;
+  askedByName?: string | null;
 }
 
 /** One row from list_earlier_class_documents(), for the "choose an earlier file" picker. */

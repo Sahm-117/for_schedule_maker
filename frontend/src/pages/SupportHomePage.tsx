@@ -28,6 +28,8 @@ import TrainingLearnedCard from '../components/supports/TrainingLearnedCard';
 import ProfileCompletionStrip from '../components/supports/ProfileCompletionStrip';
 import PendingSurveyCards from '../components/surveys/PendingSurveyCards';
 import AppNudgeCard from '../components/supports/AppNudgeCard';
+import TeenQuestionsCard from '../components/questions/TeenQuestionsCard';
+import { useTeenSupportIds } from '../hooks/useTeenSupportIds';
 import SupportScriptures from '../components/supports/SupportScriptures';
 import { isCallJoinable } from '../utils/joinWindow';
 import SupportNextClassCard from '../components/supports/SupportNextClassCard';
@@ -81,6 +83,8 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
   const practiceEntry = usePracticeEntry();
   const { userLabelIds, userCohortIds } = useAuth();
   const { activeCohort, selectedWeek, weeks, liveRevision, myHub } = useAppData();
+  const { ids: teenSupportIds } = useTeenSupportIds(true);
+  const isTeenSupport = !!teenSupportIds?.has(user.id);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [faithProjects, setFaithProjects] = useState<FaithProject[]>([]);
@@ -399,6 +403,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
           <ProfileCompletionStrip user={user} variant="home" />
 
           <SupportNextClassCard week={nextWeek} dateLabel={nextClassDate} hasWeeks={cohortWeeks.length > 0} />
+          {isTeenSupport && <TeenQuestionsCard userId={user.id} />}
 
           {/* Everything about the group (or hub) as plain rows. */}
           <section data-wt="home-quick-links" className="overflow-hidden rounded-[22px] border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">

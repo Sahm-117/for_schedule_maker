@@ -136,7 +136,17 @@ const ManualQuestionRow: React.FC<{ question: ManualQuestion; onChanged: () => v
 
   return (
     <li className="rounded-2xl bg-gray-50 px-4 py-3">
-      <p className="text-sm font-semibold text-gray-900">{question.participantName}{question.groupName ? ` · ${question.groupName}` : ''}</p>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <p className="text-sm font-semibold text-gray-900">
+          {question.hideName ? 'A teen asked' : question.participantName}{!question.hideName && question.groupName ? ` · ${question.groupName}` : ''}
+        </p>
+        {question.isTeen && <span className="rounded-full bg-violet-100/80 px-2 py-0.5 text-[11px] font-semibold text-violet-700">Teen</span>}
+      </div>
+      {(question.hideName || question.askedByName) && (
+        <p className="text-[12px] text-gray-500">
+          {[question.hideName ? `Name hidden for the Q&A (${question.participantName}${question.groupName ? `, ${question.groupName}` : ''})` : null, question.askedByName ? `added by ${question.askedByName}` : null].filter(Boolean).join(' · ')}
+        </p>
+      )}
       <p className="mt-1 text-sm text-gray-700">{question.body}</p>
       {question.status === 'REPLIED' && question.reply ? (
         <p className="mt-2 text-sm text-gray-600"><span className="font-semibold text-gray-800">Reply: </span>{question.reply}</p>
@@ -191,6 +201,13 @@ const AdminFeedbackPage: React.FC = () => {
   const [questionsError, setQuestionsError] = useState('');
   const [questionWeekId, setQuestionWeekId] = useState('');
   const [questionGroupId, setQuestionGroupId] = useState('');
+  // Teen questions are taken first at the joint Q&A.
+  const [teensFirst, setTeensFirst] = useState(true);
+  const shownQuestions = useMemo(() => {
+    if (!questions || !teensFirst) return questions;
+    return [...questions].sort((a, b) => Number(!!b.isTeen) - Number(!!a.isTeen));
+  }, [questions, teensFirst]);
+  const teenQuestionCount = questions?.filter((q) => q.isTeen).length ?? 0;
 
   useEffect(() => {
     if (!activeCohort) return;
@@ -348,16 +365,28 @@ const AdminFeedbackPage: React.FC = () => {
           <div className="flex flex-wrap gap-3">
             <div className="w-full max-w-xs sm:w-auto"><AppSelect value={questionWeekId} onChange={setQuestionWeekId} options={questionWeekOptions} placeholder="All weeks" compact /></div>
             <div className="w-full max-w-xs sm:w-auto"><AppSelect value={questionGroupId} onChange={setQuestionGroupId} options={groupOptions} placeholder="All groups" compact /></div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={teensFirst}
+              onClick={() => setTeensFirst((on) => !on)}
+              className="flex min-h-[40px] items-center gap-2.5 rounded-full bg-gray-50 px-3.5 text-sm font-semibold text-gray-700"
+            >
+              <span className={`relative h-6 w-10 flex-none rounded-full transition ${teensFirst ? 'bg-primary' : 'bg-gray-300'}`} aria-hidden="true">
+                <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${teensFirst ? 'left-[18px]' : 'left-0.5'}`} />
+              </span>
+              Teens first{teenQuestionCount > 0 ? ` · ${teenQuestionCount}` : ''}
+            </button>
           </div>
           {questionsError ? (
             <p className="mt-4 text-sm text-red-700">{questionsError}</p>
-          ) : questions === null ? (
+          ) : shownQuestions === null ? (
             <p className="mt-4 flex items-center gap-1.5 text-sm text-gray-500"><Spinner className="h-3.5 w-3.5" />Loading questions…</p>
-          ) : questions.length === 0 ? (
+          ) : shownQuestions.length === 0 ? (
             <p className="mt-4 text-sm text-gray-400">No questions yet.</p>
           ) : (
             <ul className="mt-4 space-y-2">
-              {questions.map((q) => <ManualQuestionRow key={q.id} question={q} onChanged={loadQuestions} />)}
+              {shownQuestions.map((q) => <ManualQuestionRow key={q.id} question={q} onChanged={loadQuestions} />)}
             </ul>
           )}
         </section>
