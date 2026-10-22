@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-22 | [Teen call limits](2026-10-22_teen-call-limits.md) | Settings > Group call limits has Adult / Teen groups tabs; teen groups follow the adult limits until teen ones are saved, then the Teen Support's picker and the database use them. One live migration. |
 | 2026-10-22 | [One number, several people](2026-10-22_shared-number.md) | Couples and families on one phone: one password per number, "Who is this?" for everyone, reset covers the number, alerts reach everyone, sign-up form makes a spouse a new person. One live migration (rule 3 changed), receive-form-registration v18. Named alerts not done. |
 | 2026-10-22 | [Teen questions for the joint Q&A](2026-10-22_teen-questions.md) | Teen Supports add questions for their teens (Home and Classes card), teen names hidden by default, admin Questions list tags teens and puts them first, teens can ask before the manual is out. One live migration. |
 | 2026-10-22 | [Members popup: gender, age, status](2026-10-22_members-popup-gender-status.md) | Group Members popup shows gender, age and sign-up status, opens on the support's gender, hides No Response and Next Cohort by default. Frontend only. |

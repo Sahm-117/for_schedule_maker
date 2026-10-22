@@ -14,6 +14,8 @@ interface Props {
   disabled?: boolean;
   /** Admin-set meetings: any day, any time. Group calls keep the usual limits. */
   anySlot?: boolean;
+  /** A teen group: Settings > Group call limits > Teen groups. */
+  teen?: boolean;
 }
 
 const ALL_DAY_OPTIONS = [
@@ -36,10 +38,10 @@ export const formatMeetingSlot = (slot: { meetingDay?: string | null; meetingTim
   return `${dayLabel} · ${displayH}:${displayM} ${ampm}`;
 };
 
-const GroupMeetingSlotEditor: React.FC<Props> = ({ value, onChange, disabled, anySlot = false }) => {
+const GroupMeetingSlotEditor: React.FC<Props> = ({ value, onChange, disabled, anySlot = false, teen = false }) => {
   const [expanded, setExpanded] = useState(false);
   // The back-office limits (Settings > Group call limits) decide what the pickers offer, unless this is an admin-set meeting.
-  const limits = useGroupMeetingLimits();
+  const limits = useGroupMeetingLimits(teen);
   // A slot saved before the limits changed stays selectable, so it is never shown as blank.
   const withCurrent = (options: Array<{ value: string; label: string }>, current: string | null | undefined, label?: string) =>
     current && !options.some((o) => o.value === current) ? [{ value: current, label: label ?? current }, ...options] : options;

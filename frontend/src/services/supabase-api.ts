@@ -2279,17 +2279,29 @@ export const settingsApi = {
   // Sunday class start time shown in the Sat/Sun participant nudges
   // (Settings > Programme > Timings).
   // Limits on the day, time and length a group call can be set to (Settings > Group call limits).
-  async getGroupMeetingLimits(): Promise<import('../utils/groupMeetingLimits').GroupMeetingLimits> {
-    const { data, error } = await supabase.from('AppSetting').select('value').eq('settingKey', 'group_meeting_limits').maybeSingle();
+  // Teen groups have their own limits ("teen_group_meeting_limits"); until saved they follow the adult ones.
+  async getGroupMeetingLimits(teen = false): Promise<import('../utils/groupMeetingLimits').GroupMeetingLimits> {
+    const keys = teen ? ['teen_group_meeting_limits', 'group_meeting_limits'] : ['group_meeting_limits'];
+    const { data, error } = await supabase.from('AppSetting').select('settingKey, value').in('settingKey', keys);
     if (error) throw new Error(error.message);
+    const rows = (data as Array<{ settingKey: string; value?: unknown }> | null) ?? [];
+    const row = keys.map((k) => rows.find((r) => r.settingKey === k)).find(Boolean);
     const { normalizeMeetingLimits } = await import('../utils/groupMeetingLimits');
-    return normalizeMeetingLimits((data as { value?: unknown } | null)?.value);
+    return normalizeMeetingLimits(row?.value);
   },
 
-  async setGroupMeetingLimits(limits: import('../utils/groupMeetingLimits').GroupMeetingLimits): Promise<import('../utils/groupMeetingLimits').GroupMeetingLimits> {
+  /** Whether an admin has saved teen limits yet (otherwise teen groups follow the adult ones). */
+  async hasTeenGroupMeetingLimits(): Promise<boolean> {
+    const { data, error } = await supabase.from('AppSetting').select('settingKey').eq('settingKey', 'teen_group_meeting_limits').maybeSingle();
+    if (error) throw new Error(error.message);
+    return !!data;
+  },
+
+  async setGroupMeetingLimits(limits: import('../utils/groupMeetingLimits').GroupMeetingLimits, teen = false): Promise<import('../utils/groupMeetingLimits').GroupMeetingLimits> {
     const { normalizeMeetingLimits } = await import('../utils/groupMeetingLimits');
     const value = normalizeMeetingLimits(limits);
-    const { error } = await supabase.from('AppSetting').upsert([{ settingKey: 'group_meeting_limits', value, updatedAt: new Date().toISOString() }], { onConflict: 'settingKey' });
+    const settingKey = teen ? 'teen_group_meeting_limits' : 'group_meeting_limits';
+    const { error } = await supabase.from('AppSetting').upsert([{ settingKey, value, updatedAt: new Date().toISOString() }], { onConflict: 'settingKey' });
     if (error) throw new Error(error.message);
     return value;
   },

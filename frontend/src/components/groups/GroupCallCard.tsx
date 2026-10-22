@@ -37,6 +37,8 @@ export interface MeetingSaveInput {
 }
 
 export interface MeetingCallCardProps {
+  /** A teen group: its own call limits. */
+  teen?: boolean;
   slot: MeetingSlot;
   callPlatform: GroupCallPlatform | null;
   callLink: string | null;
@@ -75,8 +77,9 @@ export const MeetingCallCard: React.FC<MeetingCallCardProps> = ({
   onSave,
   anySlot = false,
   live = false,
+  teen = false,
 }) => {
-  const limits = useGroupMeetingLimits();
+  const limits = useGroupMeetingLimits(teen);
   const callLink = savedCallLink?.trim() || fallbackLink?.trim() || null;
   const hasSetup = !!callLink && !!slot.meetingDay && !!slot.meetingTime;
   const savedPlatform: GroupCallPlatform = callPlatform ?? platformFromLink(callLink) ?? 'WHATSAPP';
@@ -157,7 +160,7 @@ export const MeetingCallCard: React.FC<MeetingCallCardProps> = ({
                 <span className="text-[13px] font-semibold text-gray-900">Day and time</span>
                 <InfoTip label="Meeting time rules">{anySlot ? 'Admins can set any day and time.' : describeMeetingLimits(limits)}</InfoTip>
               </div>
-              <GroupMeetingSlotEditor value={slotDraft} onChange={setSlotDraft} anySlot={anySlot} />
+              <GroupMeetingSlotEditor value={slotDraft} onChange={setSlotDraft} anySlot={anySlot} teen={teen} />
               </div>
             </>
           ) : (
@@ -247,6 +250,7 @@ const GroupCallCard: React.FC<GroupCallCardProps> = ({ group, fallbackLink, onGr
       linkLabel="Group Call Link"
       saveLabel="Save group meeting"
       onSave={handleSave}
+      teen={!!group?.isTeenGroup}
     />
   );
 };

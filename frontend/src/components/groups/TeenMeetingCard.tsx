@@ -240,7 +240,7 @@ const TeenMeetingCard: React.FC<TeenMeetingCardProps> = ({ userId, userName }) =
           <div className="mt-3 rounded-2xl bg-[#f5f5f7] px-3.5 py-3">
             {slotEditing ? (
               <div className="flex flex-col gap-2.5">
-                <GroupMeetingSlotEditor value={slotDraft} onChange={setSlotDraft} />
+                <GroupMeetingSlotEditor value={slotDraft} onChange={setSlotDraft} teen />
                 <div>
                   <label htmlFor="teen-call-link" className="mb-1.5 block text-[13px] font-semibold text-gray-900">Meeting link</label>
                   <input

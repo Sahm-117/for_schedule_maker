@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import AppSelect from '../AppSelect';
+import SegmentedTabs from '../SegmentedTabs';
 import { settingsApi } from '../../services/api';
 import { usePermissions } from '../../hooks/usePermissions';
 import { setCachedMeetingLimits } from '../../hooks/useGroupMeetingLimits';
@@ -9,7 +10,8 @@ import {
 } from '../../utils/groupMeetingLimits';
 
 // Settings > Group call limits: which days, and the window on each day (earliest start, end), a support can set a group's weekly call.
-// The meeting-time picker follows this, and the database refuses a support's change that falls outside it.
+// The meeting-time picker follows this, and the database refuses a support's change that falls outside it. Teen groups have
+// their own limits (the Teen groups tab); until those are saved, teen groups follow the adult ones.
 
 const TIME_CHOICES = (() => {
   const out: Array<{ value: string; label: string }> = [];
@@ -38,8 +40,12 @@ const Chip: React.FC<{ on: boolean; label: string; onClick: () => void; disabled
 const GroupCallLimitsCard: React.FC = () => {
   const { can } = usePermissions();
   const canEdit = can('settings', 'edit');
+  const [kind, setKind] = useState<'adult' | 'teen'>('adult');
+  const teen = kind === 'teen';
   const [saved, setSaved] = useState<GroupMeetingLimits>(DEFAULT_GROUP_MEETING_LIMITS);
   const [draft, setDraft] = useState<GroupMeetingLimits>(DEFAULT_GROUP_MEETING_LIMITS);
+  // Teen groups follow the adult limits until teen limits are saved.
+  const [teenOwn, setTeenOwn] = useState(false);
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -47,9 +53,15 @@ const GroupCallLimitsCard: React.FC = () => {
 
   useEffect(() => {
     let cancelled = false;
-    settingsApi.getGroupMeetingLimits().then((l) => { if (!cancelled) { setSaved(l); setDraft(l); } }).catch(() => { /* defaults stay */ }).finally(() => { if (!cancelled) setLoading(false); });
+    setLoading(true);
+    setEditing(false);
+    setStatus('');
+    Promise.all([settingsApi.getGroupMeetingLimits(teen), teen ? settingsApi.hasTeenGroupMeetingLimits() : Promise.resolve(false)])
+      .then(([l, own]) => { if (!cancelled) { setSaved(l); setDraft(l); setTeenOwn(own); } })
+      .catch(() => { /* defaults stay */ })
+      .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, []);
+  }, [teen]);
 
   const toggle = <T,>(list: T[], item: T): T[] => (list.includes(item) ? list.filter((x) => x !== item) : [...list, item]);
   const order = (days: string[]) => MEETING_DAYS.map((d) => d.value).filter((d) => days.includes(d));
@@ -63,8 +75,9 @@ const GroupCallLimitsCard: React.FC = () => {
     setSaving(true);
     setStatus('');
     try {
-      const value = await settingsApi.setGroupMeetingLimits({ ...effective(draft), days: order(draft.days) });
-      setSaved(value); setDraft(value); setCachedMeetingLimits(value);
+      const value = await settingsApi.setGroupMeetingLimits({ ...effective(draft), days: order(draft.days) }, teen);
+      setSaved(value); setDraft(value); setCachedMeetingLimits(value, teen);
+      if (teen) setTeenOwn(true);
       setEditing(false);
       setStatus('Saved. Supports are held to these from now on. Calls already set keep working until someone changes them.');
     } catch {
@@ -86,11 +99,21 @@ const GroupCallLimitsCard: React.FC = () => {
         )}
       </div>
 
+      <div className="mb-4">
+        <SegmentedTabs
+          accent
+          tabs={[{ key: 'adult', label: 'Adult groups' }, { key: 'teen', label: 'Teen groups' }]}
+          active={kind}
+          onChange={(key) => { if (!saving) setKind(key as 'adult' | 'teen'); }}
+        />
+      </div>
+
       {loading ? (
         <p className="text-sm text-gray-400">Loading…</p>
       ) : !editing ? (
         <div className="space-y-2">
-          <p className="text-sm leading-relaxed text-gray-700">{describeMeetingLimits(saved)}</p>
+          {teen && !teenOwn && <p className="text-xs font-medium text-amber-700">Teen groups follow the adult limits until you save their own.</p>}
+          <p className="text-sm leading-relaxed text-gray-700">{teen ? describeMeetingLimits(saved).replace(/^Group calls/, 'Teen group calls') : describeMeetingLimits(saved)}</p>
           {status && <p className="text-xs text-emerald-700" role="status">{status}</p>}
         </div>
       ) : (
@@ -118,7 +141,7 @@ const GroupCallLimitsCard: React.FC = () => {
           {problem && <p className="text-xs font-medium text-red-600" role="alert">{problem}</p>}
           {status && <p className="text-xs text-red-600" role="alert">{status}</p>}
           <div className="flex flex-wrap items-center gap-2">
-            <button type="button" disabled={saving || !!problem || same(draft, saved)} onClick={() => void save()} className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{saving ? 'Saving…' : 'Save limits'}</button>
+            <button type="button" disabled={saving || !!problem || (same(draft, saved) && (!teen || teenOwn))} onClick={() => void save()} className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{saving ? 'Saving…' : teen ? 'Save teen limits' : 'Save limits'}</button>
             <button type="button" disabled={saving} onClick={() => { setDraft(saved); setStatus(''); setEditing(false); }} className="rounded-xl bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700">Cancel</button>
             <button type="button" disabled={saving} onClick={() => setDraft(DEFAULT_GROUP_MEETING_LIMITS)} className="ml-auto text-xs font-semibold text-primary">Reset to the original rules</button>
           </div>
