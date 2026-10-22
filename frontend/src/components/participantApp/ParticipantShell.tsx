@@ -131,13 +131,34 @@ const ShellLayout: React.FC = () => {
   }, [cohortId]);
   const groupMeetingLive = !!home?.groupMeetingLive;
   const location = useLocation();
+  // An alert for someone else on this shared phone opens with ?for=<their id> (rule 91): switch to them.
+  // The tap's #fof-tap hash rides along, so the bell copy is marked read as the right person.
+  const myParticipantId = home?.participant.id;
+  const forPending = new URLSearchParams(location.search).has('for');
+  const switchingFor = useRef(false);
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const forId = params.get('for');
+    if (!forId || !myParticipantId || switchingFor.current) return;
+    params.delete('for');
+    const search = params.toString() ? `?${params.toString()}` : '';
+    const stay = () => navigate({ pathname: location.pathname, search, hash: location.hash }, { replace: true });
+    if (forId === myParticipantId) { stay(); return; }
+    switchingFor.current = true;
+    switchTo(forId, `${location.pathname}${search}${location.hash}`).catch(() => {
+      switchingFor.current = false;
+      toast({ message: 'That alert was for someone else on this number. Tap your picture to switch to them.', tone: 'error' });
+      stay();
+    });
+  }, [location.pathname, location.search, location.hash, myParticipantId, navigate, switchTo, toast]);
   const [moreOpen, setMoreOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const { enable } = useParticipantPush();
   const appSetup = useAppSetup();
   const appSetupDismiss = useSessionDismiss('fof_appsetup_dismissed_session');
   // A tapped phone push counts as reading its bell copy.
-  usePushTapRead(!!user, React.useCallback((title: string, body: string) => participantAppApi.markPushTapped(title, body), []));
+  // Wait while a ?for= alert is switching person, so the tap is marked read for the person it was for.
+  usePushTapRead(!!user && !forPending, React.useCallback((title: string, body: string) => participantAppApi.markPushTapped(title, body), []));
   // Their accent colour: the saved one shows straight away, then the account's one is fetched.
   useEffect(() => {
     if (!user?.id) return;

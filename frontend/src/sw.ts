@@ -74,7 +74,9 @@ self.addEventListener('notificationclick', (event) => {
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
       const targetPath = typeof event.notification.data?.path === 'string' ? event.notification.data.path : '/'
       // Tell the app which push was tapped (its title and text), so the matching bell copy counts as read.
-      const tap = targetPath.includes('#') ? '' : `#fof-tap=${encodeURIComponent(JSON.stringify({ t: event.notification.title, b: event.notification.body }))}`
+      // On a shared phone the title carries the person's name; readTitle is the bell copy's own title.
+      const readTitle = typeof event.notification.data?.readTitle === 'string' ? event.notification.data.readTitle : event.notification.title
+      const tap = targetPath.includes('#') ? '' : `#fof-tap=${encodeURIComponent(JSON.stringify({ t: readTitle, b: event.notification.body }))}`
       const targetUrl = `${self.location.origin}${targetPath.startsWith('/') ? targetPath : `/${targetPath}`}${tap}`
       for (const client of clients) {
         if (client.url.includes(self.location.origin) && 'focus' in client) {

@@ -53,6 +53,7 @@ export async function sendToSubscriptions(
 ): Promise<DeliverySummary> {
   const summary: DeliverySummary = { sent: 0, failed: 0, removed: 0, errors: [] }
   const maxAttempts = 3
+  const payloadFor = store.table === PARTICIPANT_PUSH_STORE.table ? await sharedPhoneLabeller(supabase, subs, payload) : () => payload
 
   for (const sub of subs) {
     const pushSub = { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }
@@ -62,7 +63,7 @@ export async function sendToSubscriptions(
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        await webPush.sendNotification(pushSub, payload)
+        await webPush.sendNotification(pushSub, payloadFor(sub))
         delivered = true
         break
       } catch (err) {
@@ -108,3 +109,65 @@ export async function sendToSubscriptions(
 }
 
 export const PARTICIPANT_PUSH_STORE = { table: 'ParticipantPushSubscription', ownerColumn: 'participantId' }
+
+// One phone, several people (FLOW_MAP rule 91): when a phone is registered for more than one active participant
+// of the same cohort, each alert says whose it is ("Tomi: …"), keeps its own tag so two people's alerts do not
+// replace each other, and opens with ?for=<participantId> so the app switches to that person. data.readTitle keeps
+// the bell copy's title for marking it read on tap. If the lookup fails the alert goes out unlabelled, as before.
+const NAME_TITLES = new Set(['mr', 'mrs', 'miss', 'ms', 'dr', 'pastor', 'pst', 'bro', 'brother', 'sis', 'sister', 'deacon', 'dcn', 'deaconess', 'evang', 'prof', 'engr', 'barr', 'chief', 'mummy', 'daddy', 'aunty', 'uncle'])
+const firstNameOf = (fullName: string): string => {
+  const words = fullName.trim().split(/\s+/).filter(Boolean)
+  return words.find((w) => !NAME_TITLES.has(w.toLowerCase().replace(/[^a-z]/g, ''))) ?? words[0] ?? ''
+}
+type Person = { id: string; fullName: string; status: string; cohortId: string | null }
+// Cached briefly so a run that sends in a loop (push-reminders) looks each phone and person up once.
+const CACHE_MS = 5 * 60 * 1000
+const ownersCache = new Map<string, { at: number; ids: string[] }>()
+const peopleCache = new Map<string, { at: number; person: Person | null }>()
+
+async function sharedPhoneLabeller(supabase: SupabaseClient, subs: PushSubRow[], payload: string): Promise<(sub: PushSubRow) => string> {
+  try {
+    const now = Date.now()
+    const endpoints = [...new Set(subs.map((s) => s.endpoint))]
+    const missing = endpoints.filter((e) => (ownersCache.get(e)?.at ?? 0) < now - CACHE_MS)
+    if (missing.length > 0) {
+      const { data: rows, error } = await supabase.from(PARTICIPANT_PUSH_STORE.table).select('participantId, endpoint').in('endpoint', missing)
+      if (error) return () => payload
+      const found = new Map<string, string[]>(missing.map((e) => [e, []]))
+      for (const row of (rows ?? []) as Array<{ participantId: string; endpoint: string }>) found.get(row.endpoint)?.push(row.participantId)
+      for (const [e, ids] of found) ownersCache.set(e, { at: now, ids: [...new Set(ids)] })
+    }
+    const ownersOf = (e: string) => ownersCache.get(e)?.ids ?? []
+    // Only a phone saved for two or more people needs names.
+    const ids = [...new Set(endpoints.filter((e) => ownersOf(e).length > 1).flatMap(ownersOf))]
+    if (ids.length === 0) return () => payload
+    const needPeople = ids.filter((id) => (peopleCache.get(id)?.at ?? 0) < now - CACHE_MS)
+    if (needPeople.length > 0) {
+      const { data: people, error } = await supabase.from('Participant').select('id, fullName, status, cohortId').in('id', needPeople)
+      if (error) return () => payload
+      const byId = new Map(((people ?? []) as Person[]).map((p) => [p.id, p]))
+      for (const id of needPeople) peopleCache.set(id, { at: now, person: byId.get(id) ?? null })
+    }
+    const person = (id: string) => peopleCache.get(id)?.person ?? null
+    // The people this phone serves now: active, in the same cohort as the person the alert is for.
+    const sharesWith = (sub: PushSubRow) => {
+      const me = person(sub.userId)
+      if (!me) return 0
+      return ownersOf(sub.endpoint).filter((id) => { const p = person(id); return p && p.status === 'ACTIVE' && p.cohortId === me.cohortId }).length
+    }
+    const base = JSON.parse(payload)
+    return (sub: PushSubRow) => {
+      const name = firstNameOf(String(person(sub.userId)?.fullName ?? ''))
+      if (!name || sharesWith(sub) < 2) return payload
+      const path = typeof base?.data?.path === 'string' ? base.data.path : '/me'
+      return JSON.stringify({
+        ...base,
+        title: `${name}: ${base.title ?? ''}`,
+        tag: `${base.tag || 'fof-reminder'}-${sub.userId.slice(0, 8)}`,
+        data: { ...(base.data ?? {}), readTitle: base.title ?? '', path: `${path}${path.includes('?') ? '&' : '?'}for=${sub.userId}` },
+      })
+    }
+  } catch {
+    return () => payload
+  }
+}

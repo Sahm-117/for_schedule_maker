@@ -61,6 +61,8 @@ const ParticipantHomePage: React.FC = () => {
   const [goalSaving, setGoalSaving] = useState(false);
   const [introOpen, setIntroOpen] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
+  // Above the early returns below, so every render calls the same hooks.
+  const [tickingIntro, setTickingIntro] = useState(false);
   const [giftOpen, setGiftOpen] = useState(false);
   const [onboarding, setOnboarding] = useState<OnboardingState | null>(null);
   // Once attended the list is gone for good, so stop re-reading the state on every focus.
@@ -205,7 +207,6 @@ const ParticipantHomePage: React.FC = () => {
   const badgeEarned = !!onboarding && allDone && (onboarding.readyConfirmed || onboarding.completed);
 
   // After the first class a participant can tick "Introduce yourself" by hand, once their support has introduced themselves.
-  const [tickingIntro, setTickingIntro] = useState(false);
   const tickIntro = async () => {
     setTickingIntro(true);
     try {

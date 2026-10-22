@@ -54,7 +54,7 @@ export const useFamilyChoice = (): { choice: Choice; choose: (id: string) => Pro
 };
 
 /** Everyone on this number who can be opened (empty for one person), and switching straight to one of them. */
-export const useSwitchPerson = (): { members: TeenFamilyMember[]; switchTo: (id: string) => Promise<void> } => {
+export const useSwitchPerson = (): { members: TeenFamilyMember[]; switchTo: (id: string, to?: string) => Promise<void> } => {
   const [members, setMembers] = useState<TeenFamilyMember[]>([]);
   useEffect(() => {
     let cancelled = false;
@@ -65,11 +65,11 @@ export const useSwitchPerson = (): { members: TeenFamilyMember[]; switchTo: (id:
 };
 
 /** Open another person on this number and remember the choice, so "Who is using the app now?" does not ask again. */
-export const switchPersonTo = async (id: string): Promise<void> => {
+export const switchPersonTo = async (id: string, to = '/me'): Promise<void> => {
   await participantAppApi.switchTo(id);
   markChosen();
   // A clean start as the other person: their home, notifications and caches all load fresh.
-  window.location.assign('/me');
+  window.location.assign(to);
 };
 
 const initials = (name: string): string => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('');

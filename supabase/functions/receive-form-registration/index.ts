@@ -153,14 +153,34 @@ const upsertParticipant = async (contact: Record<string, unknown>) => {
  * the target cohort wins over an unscoped open contact; contacts belonging to
  * another cohort are ignored so a retaker gets a new target-cohort record.
  */
-const findContact = async (normalised: string | null, targetCohortId: string | null, formName: string, teenForm: boolean) => {
+// Titles and short words never make two names "the same person".
+const NAME_TITLES = new Set(['mr', 'mrs', 'miss', 'ms', 'dr', 'pastor', 'pst', 'bro', 'brother', 'sis', 'sister', 'deacon', 'dcn', 'deaconess', 'evang', 'prof', 'engr', 'barr', 'chief', 'mummy', 'daddy', 'aunty', 'uncle'])
+const nameWords = (name: string): Set<string> => new Set(
+  name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter((w) => w.length >= 3 && !NAME_TITLES.has(w)),
+)
+// The shorter name fits inside the longer one ("Mrs Ade" in "Bola Ade", "Bola" in "Bola Adeyemi"); a word
+// may be a short form inside a longer one ("Bimbo" in "Abimbola", "Tolu" in "Tolulope"). Two different first
+// names on one surname ("Tunde Adeyemi", "Tolu Adeyemi") are two people.
+const namesOverlap = (a: string, b: string): boolean => {
+  const [small, big] = [nameWords(a), nameWords(b)].sort((x, y) => x.size - y.size)
+  if (small.size === 0) return false
+  for (const w of small) if (![...big].some((v) => v.includes(w) || w.includes(v))) return false
+  return true
+}
+
+const formGender = (answers: Record<string, unknown>): string | null => {
+  const g = String(answers["What's your Gender?"] ?? '').trim().toLowerCase()
+  return g === 'male' ? 'Male' : g === 'female' ? 'Female' : null
+}
+
+const findContact = async (normalised: string | null, targetCohortId: string | null, formName: string, teenForm: boolean, gender: string | null = null) => {
   if (!normalised) return null
   // Numbers are stored as typed, so this compares in code rather than SQL;
   // with tens of active contacts that is cheaper than it looks, but it is the
   // thing to revisit if the table ever grows into the thousands.
   let query = supabase
     .from('FollowUpContact')
-    .select('id, fullName, phone, email, cohortId, registrationStatus, archivedAt, nextAction, createdAt, guardianPhone, guardianName')
+    .select('id, fullName, phone, email, cohortId, registrationStatus, archivedAt, nextAction, createdAt, guardianPhone, guardianName, gender')
     .limit(5000)
   query = targetCohortId ? query.or(`cohortId.eq.${targetCohortId},cohortId.is.null`) : query.is('cohortId', null)
   const { data: candidates, error } = await query
@@ -175,12 +195,17 @@ const findContact = async (normalised: string | null, targetCohortId: string | n
     // on the same name, whoever is filling the form. An adult form also leaves alone
     // someone ELSE who has already signed up on that number (a husband and wife on
     // one phone are two people, FLOW_MAP rule 91); it still claims a prospect a
-    // support added under another name (a nickname) who has not signed up yet.
+    // support added under a related name who has not signed up yet.
     .filter((c) => {
       const sameName = nameKey(String(c.fullName ?? '')) === nameKey(formName)
       if (teenForm || sameName) return sameName
       const isTeen = c.registrationStatus === 'TEENAGER' || c.registrationStatus === 'TEEN_ONBOARDED'
-      return !isTeen && !SIGNED_UP_STATUSES.has(String(c.registrationStatus))
+      // A prospect saved under a shorter form of the name is claimed ("Mrs Ade" for "Bola Ade"); a
+      // different person on the same phone (a wife after her husband) is a new person.
+      // "Mr Adeyemi" fits inside "Tolu Adeyemi" too, so a known gender that differs keeps them apart.
+      const contactGender = c.gender === 'Male' || c.gender === 'Female' ? c.gender : null
+      if (gender && contactGender && gender !== contactGender) return false
+      return !isTeen && !SIGNED_UP_STATUSES.has(String(c.registrationStatus)) && namesOverlap(String(c.fullName ?? ''), formName)
     })
     // Their own record first, when several people share the number.
     .sort((a, b) => Number(nameKey(String(b.fullName ?? '')) === nameKey(formName)) - Number(nameKey(String(a.fullName ?? '')) === nameKey(formName)))
@@ -281,7 +306,7 @@ Deno.serve(async (req) => {
       if (already) return json({ ok: true, outcome: 'DUPLICATE', wouldDo: 'Already imported; nothing would change.' })
     }
 
-    const match = await findContact(normalised, await currentProgrammeCohortId(), fullName, isBelow18(answers))
+    const match = await findContact(normalised, await currentProgrammeCohortId(), fullName, isBelow18(answers), formGender(answers))
     return json({
       ok: true,
       outcome: match ? 'MATCHED' : 'CREATED',
@@ -338,7 +363,7 @@ Deno.serve(async (req) => {
 
     // Match on the normalised number rather than the raw text, so formatting
     // differences between the form and the app don't hide an existing prospect.
-    const contact = await findContact(normalised, cohortId, fullName, isBelow18(answers))
+    const contact = await findContact(normalised, cohortId, fullName, isBelow18(answers), formGender(answers))
 
     if (contact) {
       const adoptingUnscopedContact = contact.cohortId == null && cohortId != null
