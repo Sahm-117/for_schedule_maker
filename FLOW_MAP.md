@@ -657,7 +657,9 @@ duplicating the logic anywhere else is a bug waiting to happen.
     menu item is gone and `/support/onboarding` redirects to `/support/participants?tab=faith`
     (`SupportOnboardingPage.tsx` is unused). Teen groups show none of it (rule 22). The tab is kept in the address
     (`?tab=`), which the Practice "visit" steps read. The card's "Not seen in the app yet" only shows once
-    `participants_app_details` has loaded. Frontend only: `SupportParticipantsPage.tsx`, `ParticipantCard.tsx`.
+    `participants_app_details` has loaded. The collapsed card's "Not ready ›" opens a sheet listing the five steps in the
+    participant's own wording (done ticked, the rest with what to do in their app; "not signed in yet" first when access is
+    not confirmed), using the same `participantStepDone` rule. Frontend only: `SupportParticipantsPage.tsx`, `ParticipantCard.tsx`.
 
 58. **Likes, downloads and shares on the Inspirational Scripture posts are counted by database functions, one like per person, and the admin totals leave out practice and test accounts.**
     Participants and supports use `scripture_react` (like toggles; a double tap on download or share counts once), `scripture_my_likes` and, for admins only, `scripture_engagement_summary`.

@@ -312,6 +312,15 @@ interface ParticipantCardProps {
   retakeMatches?: RetakeMatch[];
 }
 
+// The Get ready steps in the participant's own words, with how a support can help with each.
+const readySteps = (o: OnboardingState) => [
+  { key: 'introPosted' as const, label: 'Introduce yourself', help: 'They post a short hello in your group Discussion. They can only do it after you have posted yours. If they introduced themselves on the call, they can tick it in their app.' },
+  { key: 'venueMapAcknowledged' as const, label: 'Check the venue map', help: 'On their Home, under Get ready, they open the venue map and tick that they have seen it.' },
+  { key: 'introGuideRead' as const, label: 'Read the Intro Class guide', help: 'On their Home, under Get ready, they open and read the Intro Class guide.' },
+  { key: 'profileComplete' as const, label: 'Finish your profile', help: o.profileMissing > 0 ? `Their profile has ${o.profileMissing} ${o.profileMissing === 1 ? 'thing' : 'things'} missing, often the photo. They add it from Profile in their app.` : 'They fill in the rest of their profile from Profile in their app.' },
+  { key: 'readyConfirmed' as const, label: 'Ready for class', help: 'At the end of Get ready they tick "I have all I need to be ready for class".' },
+].map((step) => ({ ...step, done: participantStepDone(o, step.key) }));
+
 const ParticipantCard: React.FC<ParticipantCardProps> = ({
   participant,
   groupName,
@@ -403,6 +412,8 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
   const [retakeMarkOpen, setRetakeMarkOpen] = useState(false);
   // Share their first-time login, or reset it once they have chosen a password (the sheet checks which is true).
   const [loginSheet, setLoginSheet] = useState<'share' | 'reset' | null>(null);
+  // "Not ready ›": what they still have to do before class, and how to help with each step.
+  const [readyOpen, setReadyOpen] = useState(false);
   // What the login card last reported wins over the page's signed-in list, so a reset here flips the menu back to Share.
   const [passwordSet, setPasswordSet] = useState<boolean | null>(null);
   const hasOwnPassword = passwordSet ?? accessConfirmed ?? null;
@@ -695,11 +706,19 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
           <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-semibold text-neutral-600">Archived</span>
         )}
         <RetakingChip participant={participant} matches={retakeMatches} onUpdate={updateRetake} />
-        {onboarding && !expanded && !isTeen && (
-          <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${onboarding.completed ? 'bg-emerald-100/80 text-emerald-700' : 'bg-orange-100/80 text-orange-700'}`}>
-            {onboarding.completed ? 'Ready for class' : 'Not ready'}
-          </span>
-        )}
+        {onboarding && !expanded && !isTeen && (onboarding.completed ? (
+          <span className="rounded-full bg-emerald-100/80 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">Ready for class</span>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setReadyOpen(true)}
+            title="See what they still need to do"
+            className="inline-flex items-center gap-1 rounded-full bg-orange-100/80 py-1 pl-2.5 pr-2 text-[11px] font-semibold text-orange-700"
+          >
+            Not ready
+            <svg width="10" height="10" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.4" d="m9 5 7 7-7 7" /></svg>
+          </button>
+        ))}
         <AccessChip confirmed={accessConfirmed} />
         {notInstalled && (
           <NotOpenedTag className="px-2.5 py-1 text-[11px]" />
@@ -910,6 +929,40 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
               <span className="text-[13.5px] leading-relaxed text-gray-700">The parent or guardian has agreed to them taking part</span>
             </label>
             {siblingError && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{siblingError}</p>}
+          </div>
+        )}
+      </Sheet>
+
+      <Sheet
+        open={readyOpen && !!onboarding}
+        onClose={() => setReadyOpen(false)}
+        title={`What ${firstNameOf(participant.fullName)} still needs to do`}
+        subtitle="The same list they see under Get ready on their Home"
+        maxWidth="max-w-[520px]"
+        footer={<button type="button" onClick={() => setReadyOpen(false)} className="min-h-[46px] flex-1 rounded-xl border border-gray-200 bg-white px-[18px] py-3 text-sm font-semibold text-gray-700">Done</button>}
+      >
+        {onboarding && (
+          <div className="flex flex-col gap-2">
+            {accessConfirmed === false && (
+              <div className="rounded-xl border border-orange-200 bg-orange-50 px-3.5 py-3">
+                <p className="text-[13.5px] font-semibold text-gray-900">They haven&apos;t signed in yet</p>
+                <p className="mt-0.5 text-[12.5px] leading-relaxed text-gray-600">None of the steps can start until they do. Use ⋮ › Share login details to send them their login.</p>
+              </div>
+            )}
+            {readySteps(onboarding).map((step) => (
+              <div key={step.key} className={`flex gap-3 rounded-xl border px-3.5 py-3 ${step.done ? 'border-[#eef0f4] bg-white' : 'border-orange-200 bg-white'}`}>
+                <span className={`mt-0.5 grid h-5 w-5 flex-none place-items-center rounded-full ${step.done ? 'bg-emerald-600 text-white' : 'border-2 border-orange-300'}`} aria-hidden="true">
+                  {step.done && <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="m5 13 4 4L19 7" /></svg>}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className={`text-[13.5px] font-semibold ${step.done ? 'text-gray-500' : 'text-gray-900'}`}>{step.label}<span className="sr-only">{step.done ? ' (done)' : ' (to do)'}</span></p>
+                  {!step.done && <p className="mt-0.5 text-[12.5px] leading-relaxed text-gray-600">{step.help}</p>}
+                </div>
+              </div>
+            ))}
+            {onboarding.hasAttended && (
+              <p className="px-1 text-[12px] text-gray-500">They have been to class, so the map, the guide and the ready tick no longer count.</p>
+            )}
           </div>
         )}
       </Sheet>

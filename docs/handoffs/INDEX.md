@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-23 | [Not ready shows what is left](2026-10-23_not-ready-sheet.md) | Participant card "Not ready ›" opens the participant's remaining Get ready steps with what to do for each. Frontend only. |
 | 2026-10-23 | [Supports share or reset logins](2026-10-23_support-share-reset-login.md) | Participant card ⋮ menu on My Group: Share login details before a password is set, Reset password after. Frontend only. |
 | 2026-10-22 | [Dashboard counts people in groups](2026-10-22_dashboard-in-groups-gender.md) | Class attendance and Faith projects cards count only people in a group and say so; Participants table shows Gender instead of Profile %; Groups page Gender filter. Frontend only. |
 | 2026-10-22 | [Prayers start on the Monday](2026-10-22_prayers-start-monday.md) | Corporate prayers start the day after the start week's class (Cohort 10: Mon 26 Oct, pop-up from Fri 23 Oct). One live migration. |
