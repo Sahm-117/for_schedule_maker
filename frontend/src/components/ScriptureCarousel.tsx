@@ -42,6 +42,8 @@ const ScriptureCarousel: React.FC<ScriptureCarouselProps> = ({ scriptures, start
   const [scriptureAnimating, setScriptureAnimating] = useState(false);
   const scriptureTrackRef = useRef<HTMLDivElement>(null);
   const scriptureDrag = useRef<{ pointerId: number; x: number; y: number; time: number } | null>(null);
+  // Set once a finger moves far enough to be a swipe, so the click that follows it does not open the picture.
+  const swiped = useRef(false);
   // Slide timers are cleared if the card goes away mid-slide, so nothing updates a card that is gone.
   const timers = useRef<number[]>([]);
   useEffect(() => () => { timers.current.forEach((id) => window.clearTimeout(id)); }, []);
@@ -85,6 +87,7 @@ const ScriptureCarousel: React.FC<ScriptureCarouselProps> = ({ scriptures, start
   };
 
   const onScripturePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    swiped.current = false;
     if (scriptureAnimating || (event.pointerType === 'mouse' && event.button !== 0)) return;
     event.currentTarget.setPointerCapture(event.pointerId);
     scriptureDrag.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, time: performance.now() };
@@ -94,6 +97,7 @@ const ScriptureCarousel: React.FC<ScriptureCarouselProps> = ({ scriptures, start
     const drag = scriptureDrag.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     let dx = event.clientX - drag.x;
+    if (Math.abs(dx) > 8) swiped.current = true;
     // Rubber-band resistance: can't drag past the first or last post.
     if ((dx < 0 && !canGoNext) || (dx > 0 && !canGoPrev)) {
       dx = Math.max(-MAX_RESISTANCE_PX, Math.min(MAX_RESISTANCE_PX, dx * RESISTANCE));
@@ -110,8 +114,8 @@ const ScriptureCarousel: React.FC<ScriptureCarouselProps> = ({ scriptures, start
     const width = scriptureTrackRef.current?.offsetWidth || 1;
     const velocity = Math.abs(dx) / dt;
     if (Math.abs(dx) < 12 && Math.abs(event.clientY - drag.y) < 12) {
+      // A tap: the click handler opens the picture (phones can cancel the pointer on a tap, but still send the click).
       setScriptureDragPx(0);
-      if (event.type === 'pointerup' && dt < 900) setEnlarged(true);
       return;
     }
     const pastThreshold = Math.abs(dx) > width * 0.25 || (Math.abs(dx) > FLICK_MIN_PX && velocity > FLICK_VELOCITY);
@@ -135,7 +139,12 @@ const ScriptureCarousel: React.FC<ScriptureCarouselProps> = ({ scriptures, start
         <div className="px-5 pb-4">
           <div
             ref={scriptureTrackRef}
-            className="aspect-[4/5] w-full touch-pan-y overflow-hidden rounded-2xl bg-[#f6f7f9]"
+            role="button"
+            tabIndex={0}
+            aria-label="Show this picture full size"
+            className="aspect-[4/5] w-full cursor-pointer touch-pan-y overflow-hidden rounded-2xl bg-[#f6f7f9]"
+            onClick={() => { if (swiped.current || scriptureAnimating) { swiped.current = false; return; } setEnlarged(true); }}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setEnlarged(true); } }}
             onPointerDown={onScripturePointerDown}
             onPointerMove={onScripturePointerMove}
             onPointerUp={endScriptureDrag}

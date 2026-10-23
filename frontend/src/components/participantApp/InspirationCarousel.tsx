@@ -34,6 +34,8 @@ const InspirationCarousel: React.FC<{
   const { liked, toggle } = useScriptureLikes();
   const [dragPx, setDragPx] = useState(0);
   const dragStart = useRef<{ id: number; x: number } | null>(null);
+  // Set once a finger moves far enough to be a swipe, so the click that follows it does not open the post.
+  const swiped = useRef(false);
   const [hidden, setHidden] = useState(() => typeof document !== 'undefined' && document.visibilityState === 'hidden');
 
   const today = scripturePosition(scriptureDayIndex(cohortStartDate, new Date()), startDay, scriptures.length);
@@ -70,6 +72,7 @@ const InspirationCarousel: React.FC<{
 
   const go = (next: number) => setIndex(((next % count) + count) % count);
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    swiped.current = false;
     if (count < 2) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     dragStart.current = { id: e.pointerId, x: e.clientX };
@@ -77,7 +80,15 @@ const InspirationCarousel: React.FC<{
   };
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const start = dragStart.current;
-    if (start && start.id === e.pointerId) setDragPx(e.clientX - start.x);
+    if (!start || start.id !== e.pointerId) return;
+    const dx = e.clientX - start.x;
+    if (Math.abs(dx) > 8) swiped.current = true;
+    setDragPx(dx);
+  };
+  // A tap (the browser's own click, which a scroll or swipe never sends) opens the post full size.
+  const openCurrent = () => {
+    if (swiped.current) { swiped.current = false; return; }
+    if (recent[index]) setViewDay(recent[index].day);
   };
   const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
     const start = dragStart.current;
@@ -96,7 +107,12 @@ const InspirationCarousel: React.FC<{
         <button type="button" onClick={() => setAllOpen(true)} className="-my-1.5 min-h-[32px] px-0.5 text-[12px] font-bold text-[#c2410c]">See all ›</button>
       </div>
       <div
-        className="touch-pan-y overflow-hidden rounded-2xl bg-[#f6f7f9]"
+        role="button"
+        tabIndex={0}
+        aria-label="Open this post full size"
+        className="cursor-pointer touch-pan-y overflow-hidden rounded-2xl bg-[#f6f7f9]"
+        onClick={openCurrent}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openCurrent(); } }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
