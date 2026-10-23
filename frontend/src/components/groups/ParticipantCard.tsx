@@ -401,6 +401,8 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
     }
   };
   const [retakeMarkOpen, setRetakeMarkOpen] = useState(false);
+  // Share their first-time login, or reset it once they have chosen a password (the sheet checks which is true).
+  const [loginSheet, setLoginSheet] = useState<'share' | 'reset' | null>(null);
   const updateRetake = async (patch: ParticipantUpdate) => {
     const { participant: saved } = await participantsApi.update(participant.id, patch);
     onParticipantUpdated({ ...participant, ...saved, groupId: participant.groupId, groupName: participant.groupName });
@@ -808,6 +810,9 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
                   Send message
                 </a>
               )}
+              <button type="button" className={menuItemCls} onClick={() => { setMenu('closed'); setLoginSheet(accessConfirmed ? 'reset' : 'share'); }}>
+                {accessConfirmed ? 'Reset password' : 'Share login details'}
+              </button>
               <button type="button" className={menuItemCls} onClick={() => setMenu('concern')}>{flag ? 'Attention flagged' : 'Flag concern'}</button>
               {!isTeenAgeRange(participant.ageRange) && <button type="button" className={menuItemCls} onClick={() => { setMenu('closed'); setRetakeMarkOpen(true); }}>Mark as retaking</button>}
               {isTeen && (
@@ -900,6 +905,17 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
             {siblingError && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{siblingError}</p>}
           </div>
         )}
+      </Sheet>
+
+      <Sheet
+        open={!!loginSheet}
+        onClose={() => setLoginSheet(null)}
+        title={loginSheet === 'reset' ? `Reset ${participant.fullName.split(' ')[0]}'s password` : `Share ${participant.fullName.split(' ')[0]}'s login details`}
+        subtitle={isTeen ? 'The login belongs to their parent or guardian' : participant.fullName}
+        maxWidth="max-w-[520px]"
+        footer={<button type="button" onClick={() => setLoginSheet(null)} className="min-h-[46px] flex-1 rounded-xl border border-gray-200 bg-white px-[18px] py-3 text-sm font-semibold text-gray-700">Done</button>}
+      >
+        {loginSheet && <LoginDetailsCard participantId={participant.id} email={participant.email} guardian={isTeen} defaultOpen startWithReset={loginSheet === 'reset'} />}
       </Sheet>
 
       <Sheet

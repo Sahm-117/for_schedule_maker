@@ -24,6 +24,8 @@ interface LoginDetailsCardProps {
   email?: string | null;
   /** A teen: the login belongs to the parent or guardian, who is also the one who can ask for a reset. */
   guardian?: boolean;
+  /** Opened from "Reset password": once their password is set, go straight to the new-code confirmation. */
+  startWithReset?: boolean;
 }
 
 const formatDay = (value: string | null) =>
@@ -35,14 +37,14 @@ const errorText = (err: unknown) => {
   return message || 'Could not load the login details. Please try again.';
 };
 
-const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, followUpContactId, defaultOpen = false, className = '', startDate, email, guardian = false }) => {
+const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, followUpContactId, defaultOpen = false, className = '', startDate, email, guardian = false, startWithReset = false }) => {
   const { user } = useAuth();
   const [details, setDetails] = useState<ParticipantLoginDetails | null>(null);
   const [open, setOpen] = useState(defaultOpen);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
-  const [confirmNewCode, setConfirmNewCode] = useState(false);
+  const [confirmNewCode, setConfirmNewCode] = useState(startWithReset);
 
   const target = { participantId, followUpContactId };
 
