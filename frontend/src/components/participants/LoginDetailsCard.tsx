@@ -26,6 +26,8 @@ interface LoginDetailsCardProps {
   guardian?: boolean;
   /** Opened from "Reset password": once their password is set, go straight to the new-code confirmation. */
   startWithReset?: boolean;
+  /** Told each time the login status loads or changes (a new code means they are back to "not set"). */
+  onDetails?: (details: ParticipantLoginDetails) => void;
 }
 
 const formatDay = (value: string | null) =>
@@ -37,7 +39,7 @@ const errorText = (err: unknown) => {
   return message || 'Could not load the login details. Please try again.';
 };
 
-const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, followUpContactId, defaultOpen = false, className = '', startDate, email, guardian = false, startWithReset = false }) => {
+const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, followUpContactId, defaultOpen = false, className = '', startDate, email, guardian = false, startWithReset = false, onDetails }) => {
   const { user } = useAuth();
   const [details, setDetails] = useState<ParticipantLoginDetails | null>(null);
   const [open, setOpen] = useState(defaultOpen);
@@ -52,7 +54,9 @@ const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, foll
     setLoading(true);
     setError('');
     try {
-      setDetails(await fetchLoginDetails(target, options));
+      const next = await fetchLoginDetails(target, options);
+      setDetails(next);
+      onDetails?.(next);
     } catch (err) {
       setError(errorText(err));
     } finally {
@@ -68,7 +72,7 @@ const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, foll
   const toggle = () => {
     const next = !open;
     setOpen(next);
-    setConfirmNewCode(false);
+    setConfirmNewCode(next && startWithReset);
     if (next && (!details || details.status === 'NONE' || details.status === 'NO_PARTICIPANT')) void load({ issue: true });
   };
 

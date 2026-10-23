@@ -24,7 +24,7 @@ import NotOpenedTag from '../participants/NotOpenedTag';
 import LoginDetailsCard from '../participants/LoginDetailsCard';
 import Spinner from '../Spinner';
 import BirthDateSelect from '../BirthDateSelect';
-import { ageRangeFromDate } from '../../utils/people';
+import { ageRangeFromDate, firstNameOf } from '../../utils/people';
 
 const TESTIMONY_STATUS_CHIP: Record<Testimony['status'], { label: string; cls: string }> = {
   PENDING: { label: 'Waiting for approval', cls: 'bg-amber-100/80 text-amber-700' },
@@ -403,6 +403,11 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
   const [retakeMarkOpen, setRetakeMarkOpen] = useState(false);
   // Share their first-time login, or reset it once they have chosen a password (the sheet checks which is true).
   const [loginSheet, setLoginSheet] = useState<'share' | 'reset' | null>(null);
+  // What the login card last reported wins over the page's signed-in list, so a reset here flips the menu back to Share.
+  const [passwordSet, setPasswordSet] = useState<boolean | null>(null);
+  const hasOwnPassword = passwordSet ?? accessConfirmed ?? null;
+  // Remounts the teen's inline guardian login card after the sheet changed the login.
+  const [loginRev, setLoginRev] = useState(0);
   const updateRetake = async (patch: ParticipantUpdate) => {
     const { participant: saved } = await participantsApi.update(participant.id, patch);
     onParticipantUpdated({ ...participant, ...saved, groupId: participant.groupId, groupName: participant.groupName });
@@ -730,7 +735,7 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
       </div>
       )}
       {(!isTeen || teenOpen) && <TeenLoginPhone participant={participant} />}
-      {isTeen && teenOpen && <LoginDetailsCard participantId={participant.id} email={participant.email} guardian className="mt-2.5" />}
+      {isTeen && teenOpen && <LoginDetailsCard key={loginRev} participantId={participant.id} email={participant.email} guardian className="mt-2.5" />}
       {(isTeen ? teenOpen : expanded) && (
         <button type="button" onClick={() => setViewOpen(true)} className="mt-2.5 rounded-full border border-gray-200 bg-white px-3.5 py-1.5 text-[12.5px] font-semibold text-gray-700">
           All details
@@ -810,9 +815,11 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
                   Send message
                 </a>
               )}
-              <button type="button" className={menuItemCls} onClick={() => { setMenu('closed'); setLoginSheet(accessConfirmed ? 'reset' : 'share'); }}>
-                {accessConfirmed ? 'Reset password' : 'Share login details'}
-              </button>
+              {participant.status === 'ACTIVE' && (
+                <button type="button" className={menuItemCls} onClick={() => { setMenu('closed'); setLoginSheet(hasOwnPassword ? 'reset' : 'share'); }}>
+                  {hasOwnPassword === null ? 'Login details' : hasOwnPassword ? 'Reset password' : 'Share login details'}
+                </button>
+              )}
               <button type="button" className={menuItemCls} onClick={() => setMenu('concern')}>{flag ? 'Attention flagged' : 'Flag concern'}</button>
               {!isTeenAgeRange(participant.ageRange) && <button type="button" className={menuItemCls} onClick={() => { setMenu('closed'); setRetakeMarkOpen(true); }}>Mark as retaking</button>}
               {isTeen && (
@@ -909,13 +916,13 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
 
       <Sheet
         open={!!loginSheet}
-        onClose={() => setLoginSheet(null)}
-        title={loginSheet === 'reset' ? `Reset ${participant.fullName.split(' ')[0]}'s password` : `Share ${participant.fullName.split(' ')[0]}'s login details`}
+        onClose={() => { setLoginSheet(null); setLoginRev((n) => n + 1); }}
+        title={hasOwnPassword ? `Reset ${firstNameOf(participant.fullName)}'s password` : `Share ${firstNameOf(participant.fullName)}'s login details`}
         subtitle={isTeen ? 'The login belongs to their parent or guardian' : participant.fullName}
         maxWidth="max-w-[520px]"
-        footer={<button type="button" onClick={() => setLoginSheet(null)} className="min-h-[46px] flex-1 rounded-xl border border-gray-200 bg-white px-[18px] py-3 text-sm font-semibold text-gray-700">Done</button>}
+        footer={<button type="button" onClick={() => { setLoginSheet(null); setLoginRev((n) => n + 1); }} className="min-h-[46px] flex-1 rounded-xl border border-gray-200 bg-white px-[18px] py-3 text-sm font-semibold text-gray-700">Done</button>}
       >
-        {loginSheet && <LoginDetailsCard participantId={participant.id} email={participant.email} guardian={isTeen} defaultOpen startWithReset={loginSheet === 'reset'} />}
+        {loginSheet && <LoginDetailsCard participantId={participant.id} email={participant.email} guardian={isTeen} defaultOpen startWithReset={loginSheet === 'reset'} onDetails={(d) => { if (d.status === 'ACTIVE') setPasswordSet(true); else if (d.status === 'CODE_READY') setPasswordSet(false); }} />}
       </Sheet>
 
       <Sheet
