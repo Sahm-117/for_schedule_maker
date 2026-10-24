@@ -8823,6 +8823,12 @@ export const scriptureEngagementApi = {
     if (error) throw new Error(error.message);
     return (data as number[]) ?? [];
   },
+  /** All-time totals per post, shown to participants and supports as social proof. */
+  async publicCounts(): Promise<import('../types').ScriptureEngagementCounts[]> {
+    const { data, error } = await supabase.rpc('scripture_public_counts', { p_token: getSessionToken() });
+    if (error) throw new Error(error.message);
+    return (data as import('../types').ScriptureEngagementCounts[]) ?? [];
+  },
   async summary(cohortId: string | null = null): Promise<import('../types').ScriptureEngagementCounts[]> {
     const { data, error } = await supabase.rpc('scripture_engagement_summary', { p_token: getSessionToken(), p_cohort_id: cohortId });
     if (error) throw new Error(error.message);

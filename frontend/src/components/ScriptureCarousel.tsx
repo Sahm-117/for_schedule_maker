@@ -36,7 +36,7 @@ const ScriptureCarousel: React.FC<ScriptureCarouselProps> = ({ scriptures, start
     window.addEventListener('keydown', onKey);
     return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = overflow; };
   }, [enlarged]);
-  const { liked, toggle } = useScriptureLikes();
+  const { liked, toggle, counts, counted } = useScriptureLikes();
   // Live drag offset (px) while swiping, or the animated value while settling/springing back.
   const [scriptureDragPx, setScriptureDragPx] = useState(0);
   const [scriptureAnimating, setScriptureAnimating] = useState(false);
@@ -167,7 +167,7 @@ const ScriptureCarousel: React.FC<ScriptureCarouselProps> = ({ scriptures, start
               <span key={day} className={`h-1.5 w-1.5 rounded-full ${day === scriptureDay ? 'bg-primary' : 'bg-gray-200'}`} />
             ))}
           </div>
-          <ScriptureActions day={scriptureDay} imageUrl={scripture.imageUrl} liked={liked.has(scriptureDay)} onToggleLike={() => void toggle(scriptureDay)} />
+          <ScriptureActions day={scriptureDay} imageUrl={scripture.imageUrl} liked={liked.has(scriptureDay)} onToggleLike={() => void toggle(scriptureDay)} counts={counts.get(scriptureDay)} onCounted={(a) => counted(scriptureDay, a)} />
         </div>
         {enlarged && createPortal(
           <div role="dialog" aria-modal="true" aria-label="Inspirational scripture" onClick={() => setEnlarged(false)} className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4">

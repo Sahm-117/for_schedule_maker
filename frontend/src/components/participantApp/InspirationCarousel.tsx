@@ -31,7 +31,7 @@ const InspirationCarousel: React.FC<{
   const actingTimer = useRef<number | null>(null);
   useEffect(() => () => { if (actingTimer.current) window.clearTimeout(actingTimer.current); }, []);
   const onActing = () => { setActing(true); if (actingTimer.current) window.clearTimeout(actingTimer.current); actingTimer.current = window.setTimeout(() => setActing(false), 6000); };
-  const { liked, toggle } = useScriptureLikes();
+  const { liked, toggle, counts, counted } = useScriptureLikes();
   const [dragPx, setDragPx] = useState(0);
   const dragStart = useRef<{ id: number; x: number } | null>(null);
   // Set once a finger moves far enough to be a swipe, so the click that follows it does not open the post.
@@ -143,7 +143,7 @@ const InspirationCarousel: React.FC<{
           ))}
         </div>
       )}
-      {recent[index] && <div onPointerDown={onActing}><ScriptureActions day={recent[index].day} imageUrl={recent[index].imageUrl} liked={liked.has(recent[index].day)} onToggleLike={() => void toggle(recent[index].day)} /></div>}
+      {recent[index] && <div onPointerDown={onActing}><ScriptureActions day={recent[index].day} imageUrl={recent[index].imageUrl} liked={liked.has(recent[index].day)} onToggleLike={() => void toggle(recent[index].day)} counts={counts.get(recent[index].day)} onCounted={(a) => counted(recent[index].day, a)} /></div>}
       {allOpen && (
         <HomeSheet label="All inspirational posts" onClose={() => setAllOpen(false)}>
           <h2 className="pr-10 text-lg font-extrabold tracking-tight text-gray-900">All inspirational posts</h2>
@@ -165,7 +165,7 @@ const InspirationCarousel: React.FC<{
         <HomeSheet label={`Inspirational scripture, day ${viewPost.day}`} onClose={() => setViewDay(null)}>
           <h2 className="pr-10 text-lg font-extrabold tracking-tight text-gray-900">{viewPost.day === today ? `Today · Day ${viewPost.day}` : `Day ${viewPost.day}`}</h2>
           <img src={viewPost.imageUrl} alt={`Inspirational scripture, day ${viewPost.day}`} className="mt-2 w-full rounded-2xl bg-gray-100" />
-          <ScriptureActions day={viewPost.day} imageUrl={viewPost.imageUrl} liked={liked.has(viewPost.day)} onToggleLike={() => void toggle(viewPost.day)} />
+          <ScriptureActions day={viewPost.day} imageUrl={viewPost.imageUrl} liked={liked.has(viewPost.day)} onToggleLike={() => void toggle(viewPost.day)} counts={counts.get(viewPost.day)} onCounted={(a) => counted(viewPost.day, a)} />
         </HomeSheet>
       )}
     </section>

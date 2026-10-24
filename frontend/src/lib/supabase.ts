@@ -73,7 +73,7 @@ const timeoutSignalFor = (ms: number): AbortSignal => {
 const READ_ONLY_RPCS = [
   'my_help_contact', 'get_my_hubs', 'get_my_hub', 'support_recaps', 'my_notifications',
   'my_followup_check', 'announcement_popups_pending', 'survey_pending',
-  'current_programme_cohort_id', 'group_onboarding_progress', 'scripture_my_likes', 'reflection_activity',
+  'current_programme_cohort_id', 'group_onboarding_progress', 'scripture_my_likes', 'scripture_public_counts', 'reflection_activity',
   'participants_signed_in', 'participants_app_details', 'participants_without_push', 'participants_without_app',
   'participant_retake_matches',
 ];
