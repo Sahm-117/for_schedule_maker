@@ -741,6 +741,8 @@ duplicating the logic anywhere else is a bug waiting to happen.
 
 105. **A class picture can be reused, and a picture another class still uses is never deleted.** In the week editor (Cohorts > a week > Class card) the class graphic and each teacher photo (adults and teens) have "Use an earlier one", which lists only that kind of picture from earlier classes in any cohort except Practice (`earlierClassImagesApi`, read from `Week.classGraphicUrl / teacherPhotoUrl / teenTeacherPhotoUrl`; nothing is uploaded). Because two classes can now share one stored file, `removeClassImage` first checks that no `Week` still points at the URL in any of the three columns and leaves the file when it cannot check. Recap and manual documents already had "Use an earlier one" (`list_earlier_class_documents`). Frontend only. Source: `EarlierImagePicker.tsx`, `CohortsPage.tsx`, `supabase-api.ts`.
 
+106. **Attendance opens on the class still to come, and the Today view of the Schedule never hides a task.** The support and admin Attendance pages pick the week with `nextClassWeek` (today's class on a Sunday, otherwise the coming one; the last week once classes are over), not the last class already held; the week picker still reaches earlier weeks. On the support Schedule, tasks with no day show under "Anytime this week" on Today and Full week even when the day has no activities, and a line says how many open tasks are due on other days this week and opens the full week. Frontend only. Source: `SupportAttendancePage.tsx`, `AdminAttendancePage.tsx`, `SupportSchedulePage.tsx`.
+
 ## 5. Edge functions and schedules
 
 All functions authenticate with the session token (`x-session-token`) or the

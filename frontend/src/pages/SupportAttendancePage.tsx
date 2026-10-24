@@ -12,7 +12,7 @@ import { attendanceApi, groupsApi, participantsApi, settingsApi } from '../servi
 import TrainingAttendancePanel from '../components/TrainingAttendancePanel';
 import type { AttendanceRecord, AttendanceSession, AttendanceStatus, Participant, User, Week } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
-import { classDateIso } from '../utils/participantApp';
+import { classDateIso, nextClassWeek } from '../utils/participantApp';
 import { sortByText } from '../utils/sort';
 import { countdownLabel, useDeadlineClock } from '../hooks/useDeadlineClock';
 import Spinner from '../components/Spinner';
@@ -137,7 +137,8 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
   useEffect(() => {
     if (cohortWeeks.length === 0) return;
     if (selectedWeekId !== 'ALL' && (!selectedWeekId || !cohortWeeks.some((week) => week.id === selectedWeekId))) {
-      setSelectedWeekId(getIdealWeekForCohort(activeCohort, cohortWeeks)?.id ?? cohortWeeks[0].id);
+      // The register opens on the class still to come (today's, on a Sunday), not the one already taken; after the last class, the last one.
+      setSelectedWeekId((nextClassWeek(activeCohort?.startDate, cohortWeeks, new Date()) ?? getIdealWeekForCohort(activeCohort, cohortWeeks))?.id ?? cohortWeeks[0].id);
     }
   }, [activeCohort, cohortWeeks, selectedWeekId]);
 

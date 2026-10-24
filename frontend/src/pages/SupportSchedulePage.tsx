@@ -153,6 +153,11 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
 
   const showActivities = filter !== 'tasks';
   const showTasks = filter !== 'activities';
+  // Tasks with no day go under "Anytime this week", on Today and Full week.
+  const anytimeVisible = useMemo(
+    () => (showTasks && (viewMode === 'week' || viewMode === 'today') ? anytimeTasks.filter((item) => autoHide.isVisible(item)) : []),
+    [anytimeTasks, autoHide, showTasks, viewMode],
+  );
 
   const dayGroups = useMemo(() => {
     if (!selectedWeek) return [];
@@ -167,6 +172,13 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
       .filter((day) => day.activities.length + day.tasks.length > 0)
       .sort((a, b) => getProgramDayIndex(a.dayName) - getProgramDayIndex(b.dayName));
   }, [autoHide, currentDayName, selectedWeek, showActivities, showTasks, span, tomorrowName, userLabelIds, viewMode, weekTasks]);
+
+  // Open tasks this week that the day on screen does not show (due another day): said out loud so they are never missed.
+  const hiddenTasks = useMemo(() => {
+    if (!showTasks || viewMode === 'week') return 0;
+    const shown = new Set([...dayGroups.flatMap((day) => day.tasks.map((item) => item.id)), ...anytimeVisible.map((item) => item.id)]);
+    return weekTasks.filter((item) => !item.done && !shown.has(item.id)).length;
+  }, [anytimeVisible, dayGroups, showTasks, viewMode, weekTasks]);
 
   // Things per weekday for the day strip: this person's activities and the tasks due that day.
   const countByDay = useMemo(() => {
@@ -531,7 +543,12 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
                 <p className="mt-1 text-[13px] text-gray-500">Your coordinator is still finalising this week’s plan. Your tasks are below.</p>
               </div>
             )}
-            {dayGroups.length === 0 && (viewMode === 'week' ? anytimeTasks.length === 0 : true) ? (
+            {hiddenTasks > 0 && (
+              <button type="button" onClick={() => setViewMode('week')} className="rounded-2xl border border-[#ffdeca] bg-[#fff4ec] px-4 py-3 text-left text-[13.5px] font-semibold text-[#c2410c]">
+                {hiddenTasks === 1 ? '1 task is' : `${hiddenTasks} tasks are`} due on other days this week. Show the full week →
+              </button>
+            )}
+            {dayGroups.length === 0 && anytimeVisible.length === 0 ? (
               <div className={`${CARD} px-5 py-12 text-center`}>
                 <p className="text-base font-semibold text-gray-700">
                   {viewMode === 'today' ? 'Nothing for today' : viewMode === 'tomorrow' ? 'Nothing for tomorrow' : viewMode === 'week' ? 'Nothing for you this week' : `Nothing for ${viewMode}`}
@@ -600,13 +617,13 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
                     </section>
                   );
                 })}
-                {showTasks && (viewMode === 'week' || viewMode === 'today') && anytimeTasks.filter((item) => autoHide.isVisible(item)).length > 0 && (
-                  <section className={`${CARD} p-[18px]`}>
-                    <h3 className="text-base font-bold text-gray-900">Anytime this week</h3>
-                    <div className="mt-2.5 flex flex-col gap-2">{anytimeTasks.filter((item) => autoHide.isVisible(item)).map(taskRow)}</div>
-                  </section>
-                )}
               </div>
+            )}
+            {anytimeVisible.length > 0 && (
+              <section className={`${CARD} p-[18px]`}>
+                <h3 className="text-base font-bold text-gray-900">Anytime this week</h3>
+                <div className="mt-2.5 flex flex-col gap-2">{anytimeVisible.map(taskRow)}</div>
+              </section>
             )}
           </>
         )}
