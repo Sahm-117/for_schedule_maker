@@ -74,6 +74,7 @@ import {
   manualDocumentsApi as supabaseManualDocumentsApi,
   teenRecapDocumentsApi as supabaseTeenRecapDocumentsApi,
   earlierClassDocumentsApi as supabaseEarlierClassDocumentsApi,
+  earlierClassImagesApi as supabaseEarlierClassImagesApi,
   manualQuestionsApi as supabaseManualQuestionsApi,
   teenCardApi as supabaseTeenCardApi,
   siblingApi as supabaseSiblingApi,
@@ -1012,6 +1013,10 @@ export const manualDocumentsApi = USE_SUPABASE ? supabaseManualDocumentsApi : {
   async upload(_weekId: number, _file: File): Promise<never> { return peopleUnavailable(); },
   async remove(_weekId: number): Promise<never> { return peopleUnavailable(); },
   async choose(_weekId: number, _url: string, _name: string | null): Promise<never> { return peopleUnavailable(); },
+};
+
+export const earlierClassImagesApi = USE_SUPABASE ? supabaseEarlierClassImagesApi : {
+  async getAll(): Promise<{ images: import('../types').EarlierClassImage[] }> { return { images: [] }; },
 };
 
 export const earlierClassDocumentsApi = USE_SUPABASE ? supabaseEarlierClassDocumentsApi : {

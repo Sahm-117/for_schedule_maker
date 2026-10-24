@@ -8,8 +8,9 @@ import NextCohortAssignModal from '../components/followups/NextCohortAssignModal
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
-import { uploadClassImage, removeClassImage, cohortsApi, supportHubsApi, usersApi, weeksApi, groupsApi, participantsApi, followUpContactsApi, recapDocumentsApi, teenRecapDocumentsApi, manualDocumentsApi, earlierClassDocumentsApi, aiApi, settingsApi } from '../services/api';
-import type { Cohort, EarlierClassDocument, FollowUpContact, User, Week } from '../types';
+import { uploadClassImage, removeClassImage, cohortsApi, supportHubsApi, usersApi, weeksApi, groupsApi, participantsApi, followUpContactsApi, recapDocumentsApi, teenRecapDocumentsApi, manualDocumentsApi, earlierClassDocumentsApi, earlierClassImagesApi, aiApi, settingsApi } from '../services/api';
+import type { Cohort, EarlierClassDocument, EarlierClassImage, FollowUpContact, User, Week } from '../types';
+import EarlierImagePicker from '../components/schedule/EarlierImagePicker';
 import { sortByText } from '../utils/sort';
 import { DEFAULT_RECAP_RELEASE_TIMES, formatRecapReleaseAt, manualReleaseAt, recapReleaseAt, type RecapReleaseTimes } from '../utils/recapReleaseTimes';
 import Spinner from '../components/Spinner';
@@ -234,6 +235,11 @@ const CohortsPage: React.FC = () => {
   const [earlierDocs, setEarlierDocs] = useState<EarlierClassDocument[]>([]);
   const [earlierDocsLoading, setEarlierDocsLoading] = useState(false);
   const [earlierDocsError, setEarlierDocsError] = useState('');
+  // "Use an earlier one" for the class graphic and the teacher photos.
+  const [earlierImagePicker, setEarlierImagePicker] = useState<'graphic' | 'teacher' | 'teenTeacher' | null>(null);
+  const [earlierImages, setEarlierImages] = useState<EarlierClassImage[]>([]);
+  const [earlierImagesLoading, setEarlierImagesLoading] = useState(false);
+  const [earlierImagesError, setEarlierImagesError] = useState('');
 
   useEffect(() => {
     settingsApi.getRecapReleaseTimes().then(setRecapReleaseTimes).catch(() => {});
@@ -558,6 +564,7 @@ const CohortsPage: React.FC = () => {
     setManualAiError('');
     setManualDocError('');
     setEarlierPicker(null);
+    setEarlierImagePicker(null);
     setStatus('');
   };
 
@@ -759,6 +766,28 @@ const CohortsPage: React.FC = () => {
     } finally {
       setClassImageBusy(null);
     }
+  };
+
+  const openEarlierImagePicker = async (kind: 'graphic' | 'teacher' | 'teenTeacher') => {
+    setEarlierImagePicker(kind);
+    setEarlierImagesLoading(true);
+    setEarlierImagesError('');
+    try {
+      const { images } = await earlierClassImagesApi.getAll();
+      setEarlierImages(images);
+    } catch (error) {
+      setEarlierImagesError(error instanceof Error ? error.message : 'Could not load earlier pictures.');
+    } finally {
+      setEarlierImagesLoading(false);
+    }
+  };
+
+  // An earlier picture is already stored, so choosing it uploads nothing; it joins this week when the editor is saved.
+  const chooseEarlierImage = (image: EarlierClassImage) => {
+    if (earlierImagePicker === 'graphic') setClassGraphicDraft(image.url);
+    else if (earlierImagePicker === 'teenTeacher') setTeenTeacherPhotoDraft(image.url);
+    else if (earlierImagePicker === 'teacher') setTeacherPhotoDraft(image.url);
+    setEarlierImagePicker(null);
   };
 
   const handleManualDocument = async (file: File | null) => {
@@ -1617,9 +1646,11 @@ const CohortsPage: React.FC = () => {
                         {classImageBusy === 'graphic' ? 'Uploading…' : classGraphicDraft ? 'Replace' : 'Add graphic'}
                         <input type="file" accept="image/*" className="hidden" disabled={classImageBusy !== null} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void handleClassImage('graphic', file); }} />
                       </label>
+                      <button type="button" onClick={() => void openEarlierImagePicker('graphic')} disabled={classImageBusy !== null} className="text-xs font-semibold text-primary disabled:opacity-50">Use an earlier one</button>
                       {classGraphicDraft && <button type="button" onClick={() => setClassGraphicDraft(null)} className="text-xs font-semibold text-red-600">Remove</button>}
                     </div>
                   </div>
+                  <EarlierImagePicker open={earlierImagePicker === 'graphic'} images={earlierImages.filter((i) => i.kind === 'graphic')} loading={earlierImagesLoading} error={earlierImagesError} onChoose={chooseEarlierImage} onCancel={() => setEarlierImagePicker(null)} />
                 </div>
                 {classImageError && <p className="mt-2 text-xs font-semibold text-red-600">{classImageError}</p>}
 
@@ -1653,9 +1684,11 @@ const CohortsPage: React.FC = () => {
                               {classImageBusy === busyKind ? 'Uploading…' : photo ? 'Replace' : 'Add photo'}
                               <input type="file" accept="image/*" className="hidden" disabled={classImageBusy !== null} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void handleClassImage(busyKind, file); }} />
                             </label>
+                            <button type="button" onClick={() => void openEarlierImagePicker(busyKind)} disabled={classImageBusy !== null} className="text-xs font-semibold text-primary disabled:opacity-50">Use an earlier one</button>
                             {photo && <button type="button" onClick={() => setPhoto(null)} className="text-xs font-semibold text-red-600">Remove</button>}
                           </div>
                         </div>
+                        <EarlierImagePicker round open={earlierImagePicker === busyKind} images={earlierImages.filter((i) => i.kind === 'photo')} loading={earlierImagesLoading} error={earlierImagesError} onChoose={chooseEarlierImage} onCancel={() => setEarlierImagePicker(null)} />
                         <div className="mt-3 space-y-2">
                           <input type="text" value={name} onChange={(event) => (teens ? setTeenTeacherNameDraft : setTeacherNameDraft)(event.target.value)} placeholder={teens ? "Teen teacher's name" : "Teacher's name"} maxLength={60} className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none" />
                           <input type="text" value={teens ? teenTeacherRoleDraft : teacherRoleDraft} onChange={(event) => (teens ? setTeenTeacherRoleDraft : setTeacherRoleDraft)(event.target.value)} placeholder="Role or title (optional)" maxLength={80} className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none" />

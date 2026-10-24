@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-24 | [Reuse an earlier class picture](2026-10-24_reuse-earlier-class-pictures.md) | Week editor: "Use an earlier one" for the class graphic and teacher photos (only that kind, nothing re-uploaded); replaced pictures still used by another class are no longer deleted. Frontend only; FLOW_MAP rule 105. |
 | 2026-10-24 | [Schedule and tasks as one list](2026-10-24_schedule-and-tasks-one-list.md) | Support Schedule shows activities and tasks together (All / Activities / Tasks); supports add their own tasks with a deadline; tasks may have a date instead of a class week, so the 3 rest weeks carry follow-up tasks; admin pop-up gains Rest weeks and Group leaders. 1 live migration; FLOW_MAP rule 104. |
 | 2026-10-24 | [Inspirational post counts for everyone](2026-10-24_scripture-public-counts.md) | Participants and supports see all-time likes, downloads and shares beside the icons (social proof). 1 live migration (`scripture_public_counts`); FLOW_MAP rule 58. |
 | 2026-10-24 | [Prayer streak, badges, I'm here](2026-10-24_prayer-streak-and-redesign.md) | Corporate prayer streak (days in a row, total, group total), badges 5/10/21/30/70 with celebration and share picture, "I'm here / Can't come today" on the attendance card, Faith gear icon, scripture above the call rows, compact My Group. Two live migrations (`20261024100000`, `20261024110000`); no function deploys. |

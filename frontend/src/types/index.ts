@@ -342,6 +342,16 @@ export interface EarlierClassDocument {
   weekNumber: number;
 }
 
+/** A class graphic or teacher photo used by an earlier class, for the "use an earlier one" picker. */
+export interface EarlierClassImage {
+  kind: 'graphic' | 'photo';
+  url: string;
+  /** The teacher's name for a photo; "Class graphic" otherwise. */
+  label: string;
+  cohortName: string;
+  weekNumber: number;
+}
+
 export interface SupportActivityCompletion {
   id: string;
   activityId: number;

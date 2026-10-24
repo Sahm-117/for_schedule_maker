@@ -441,12 +441,17 @@ export const uploadClassImage = async (cohortId: string, weekId: number, kind: '
 };
 
 // Deletes a class picture we stored (only ones under classes/ in our own bucket; anything else is left alone).
+// A picture another class (or another field of the same class) still uses is never deleted: classes can reuse an earlier picture.
 export const removeClassImage = async (url: string): Promise<void> => {
   const marker = '/object/public/resources/';
   const at = url.indexOf(marker);
   if (at < 0) return;
   const path = url.slice(at + marker.length);
   if (!path.startsWith('classes/')) return;
+  const uses = await Promise.all((['classGraphicUrl', 'teacherPhotoUrl', 'teenTeacherPhotoUrl'] as const).map((column) =>
+    supabase.from('Week').select('id', { count: 'exact', head: true }).eq(column, url)));
+  // If it cannot be checked, leave the file: an orphan is harmless, a deleted picture is not.
+  if (uses.some((r) => r.error || (r.count ?? 0) > 0)) return;
   await supabase.storage.from('resources').remove([path]).catch(() => { /* leaving an orphan is harmless */ });
 };
 
@@ -8579,6 +8584,33 @@ export const manualDocumentsApi = {
 
 // "Choose an earlier file" picker: every distinct manual/recap document ever
 // uploaded, from other cohorts.
+// Class graphics and teacher photos used by earlier classes (any cohort but Practice), newest first, one row per picture.
+export const earlierClassImagesApi = {
+  async getAll(): Promise<{ images: import('../types').EarlierClassImage[] }> {
+    const { data, error } = await supabase.from('Week')
+      .select('id, weekNumber, classGraphicUrl, teacherName, teacherPhotoUrl, teenTeacherName, teenTeacherPhotoUrl, Cohort(name, isPractice)')
+      .or('classGraphicUrl.not.is.null,teacherPhotoUrl.not.is.null,teenTeacherPhotoUrl.not.is.null')
+      .order('id', { ascending: false });
+    if (error) throw new Error(error.message);
+    const seen = new Set<string>();
+    const images: import('../types').EarlierClassImage[] = [];
+    for (const week of (data as any[]) || []) {
+      const cohort = Array.isArray(week.Cohort) ? week.Cohort[0] : week.Cohort;
+      if (cohort?.isPractice) continue;
+      const base = { cohortName: cohort?.name ?? 'Cohort', weekNumber: week.weekNumber };
+      const add = (kind: 'graphic' | 'photo', url: string | null, label: string) => {
+        if (!url || seen.has(url)) return;
+        seen.add(url);
+        images.push({ kind, url, label, ...base });
+      };
+      add('graphic', week.classGraphicUrl, 'Class graphic');
+      add('photo', week.teacherPhotoUrl, week.teacherName || 'Teacher');
+      add('photo', week.teenTeacherPhotoUrl, week.teenTeacherName || 'Teen teacher');
+    }
+    return { images };
+  },
+};
+
 export const earlierClassDocumentsApi = {
   async getAll(excludeCohortId?: string): Promise<{ documents: import('../types').EarlierClassDocument[] }> {
     const { data, error } = await supabase.rpc('list_earlier_class_documents', { p_exclude_cohort_id: excludeCohortId ?? null });
