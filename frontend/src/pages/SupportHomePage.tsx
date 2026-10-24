@@ -293,12 +293,15 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
   useEffect(() => {
     if (!user || activeWeekId === null) { setChecklist([]); return; }
     let cancelled = false;
-    supportChecklistApi.getForSchedule(user.id, activeWeekId, activeCohort?.id ?? null)
+    // Anything not finished in an earlier week comes along into this one.
+    const active = selectedWeek || weeks[0] || null;
+    const earlierIds = weeks.filter((week) => !!active && week.weekNumber < active.weekNumber).map((week) => week.id);
+    supportChecklistApi.getForSchedule(user.id, activeWeekId, activeCohort?.id ?? null, earlierIds)
       .then(({ items }) => {
         if (cancelled) return;
         const today = lagosTodayIso(new Date());
-        const { span, pastLastWeek } = scheduleWindow(activeCohort?.startDate, weeks, selectedWeek || weeks[0] || null, today);
-        setChecklist(tasksForHome(items, activeWeekId, span, pastLastWeek, today));
+        const { span, pastLastWeek } = scheduleWindow(activeCohort?.startDate, weeks, active, today);
+        setChecklist(tasksForHome(items, activeWeekId, span, pastLastWeek, today, new Set(earlierIds)));
       })
       .catch(() => { if (!cancelled) setChecklist([]); });
     return () => { cancelled = true; };
@@ -642,7 +645,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className={`block text-sm ${item.done ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{item.label}</span>
-                        <ChecklistTaskMeta item={item} />
+                        <ChecklistTaskMeta item={item} fromWeek={item.weekId !== null && item.weekId !== activeWeekId ? weeks.find((week) => week.id === item.weekId)?.weekNumber : undefined} />
                       </span>
                       {autoHide.countdowns[item.id] !== undefined && <CountdownRing seconds={autoHide.countdowns[item.id]} />}
                     </button>

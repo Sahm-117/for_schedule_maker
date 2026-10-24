@@ -8399,9 +8399,11 @@ export const supportChecklistApi = {
    * A support's whole list for the Schedule: the tasks of this class week, plus every task that has only a date
    * (the rest weeks between cohorts) in this cohort. The page sorts them onto days.
    */
-  async getForSchedule(userId: string, weekId: number | null, cohortId: string | null): Promise<{ items: import('../types').SupportChecklistItem[] }> {
+  async getForSchedule(userId: string, weekId: number | null, cohortId: string | null, earlierWeekIds: number[] = []): Promise<{ items: import('../types').SupportChecklistItem[] }> {
     const parts: string[] = [];
     if (weekId !== null) parts.push(`weekId.eq.${weekId}`);
+    // Tasks still open from earlier weeks, carried into this one.
+    if (earlierWeekIds.length > 0) parts.push(`and(weekId.in.(${earlierWeekIds.join(',')}),done.eq.false)`);
     if (cohortId) parts.push(`and(weekId.is.null,cohortId.eq.${cohortId})`);
     if (parts.length === 0) return { items: [] };
     const { data, error } = await supabase.from('SupportChecklistItem').select('*')

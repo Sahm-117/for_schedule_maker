@@ -30,3 +30,7 @@ Review found and these were fixed before pushing: the bell alert for a rest-week
 - Old per-week checklist items still show on their week as before; there is no "Past weeks" list.
 - A bell alert for a task due soon does not exist (no reminders for tasks).
 - A support who has tasks only in a rest week sees them only through the "Rest weeks" picker entry (or Home).
+
+## Addendum: unfinished tasks carry over
+A task not finished in an earlier week now shows in the week that is happening now, under "Carried over" ("Carried over from Week N" tag), on the Schedule (All and Tasks, Today and Full week) and on Home's Today card. In the Rest weeks view the open class-week tasks show at the top. A dated task whose date has passed also carries into the current week. Ticking it ticks the original row, so admins still see it done against its own week. It works for admin tasks and a support's own, and nothing moves in the database: `getForSchedule` just also asks for the still-open tasks of earlier weeks (`weekId.in(...)` and `done = false`). "The week happening now" is the week the app opens on (a class week turns over on Sunday at 10 am), not the calendar week. No way yet to carry a task into a later week that is not the current one, or to move a task to a chosen week (admin tasks are locked from moving anyway).
+Tested in a mocked browser (support login); not with a real login.

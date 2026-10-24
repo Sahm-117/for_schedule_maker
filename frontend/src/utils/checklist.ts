@@ -91,8 +91,9 @@ export const taskDayName = (item: Pick<SupportChecklistItem, 'dueDate' | 'dueDay
 };
 
 /**
- * What Home lists: this class week's tasks, plus tasks that have only a date when it falls in this week, or, once the last
- * class week is over (the rest weeks), every date task that is still open or still to come.
+ * What Home lists: this class week's tasks, tasks that have only a date when it falls in this week, tasks still open from
+ * earlier weeks (carried over), and, once the last class week is over (the rest weeks), every date task that is still open
+ * or still to come.
  */
 export const tasksForHome = (
   items: SupportChecklistItem[],
@@ -100,12 +101,28 @@ export const tasksForHome = (
   span: { start: string; end: string } | null,
   pastLastWeek: boolean,
   today: string,
+  earlierWeekIds: ReadonlySet<number> = new Set(),
 ): SupportChecklistItem[] => items.filter((item) => {
-  if (item.weekId !== null) return item.weekId === weekId;
+  if (item.weekId !== null) return item.weekId === weekId || (!item.done && earlierWeekIds.has(item.weekId));
   if (!item.dueDate) return false;
   if (span && item.dueDate >= span.start && item.dueDate <= span.end) return true;
+  if (span && !item.done && item.dueDate < span.start) return true; // a date task left open before this week
   return pastLastWeek && (!item.done || item.dueDate >= today);
 });
+
+/** A task still open from before the week on screen: from an earlier class week, or a date before this week began. */
+export const isCarriedOver = (
+  item: SupportChecklistItem,
+  selectedWeekId: number | null,
+  earlierWeekIds: ReadonlySet<number>,
+  span: { start: string; end: string } | null,
+  /** A task ticked a moment ago stays in its group until its countdown ends. */
+  keepDone = false,
+): boolean => {
+  if (item.done && !keepDone) return false;
+  if (item.weekId !== null) return item.weekId !== selectedWeekId && earlierWeekIds.has(item.weekId);
+  return !!item.dueDate && !!span && item.dueDate < span.start;
+};
 
 /** The class week on screen as dates, and whether the last class week is already over (the rest weeks have begun). */
 export const scheduleWindow = (
