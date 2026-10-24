@@ -29,13 +29,17 @@ const STATUS_BUTTONS: Array<{ status: AttendanceStatus; label: string; activeCls
 const allowedWhenLocked = (current: AttendanceStatus | undefined, next: AttendanceStatus) =>
   current === 'ABSENT' && (next === 'LATE' || next === 'LEFT_EARLY');
 
+// "24 min", "1 h 5 min"; only the last minute counts seconds.
 const countdownLabel = (closesAt: string, now: number) => {
   const ms = new Date(closesAt).getTime() - now;
   if (ms <= 0) return 'Closing…';
   const totalSeconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+  if (totalSeconds < 60) return `${totalSeconds} sec`;
+  const totalMinutes = Math.floor(totalSeconds / 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours === 0) return `${minutes} min`;
+  return minutes === 0 ? `${hours} h` : `${hours} h ${minutes} min`;
 };
 
 const DEFAULT_SESSION: AttendanceSession = { weekId: 0, autoFinalizeAtNoon: true, finalizedAt: null };
@@ -260,9 +264,21 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
     return ps;
   }, [participants, selectedGroupId, search]);
 
-  const mark = async (participant: Participant, status: AttendanceStatus) => {
-    if (typeof selectedWeekId !== 'number' || saving.has(participant.id)) return;
-    if (locked && !allowedWhenLocked(records.get(participant.id)?.status, status)) return;
+  const [confirmAllPresent, setConfirmAllPresent] = useState(false);
+  const markAllPresent = async () => {
+    setConfirmAllPresent(false);
+    const todo = visibleParticipants.filter((participant) => !records.get(participant.id)?.status);
+    // One at a time, and stop at the first failure so there is a single error, not a pile.
+    for (const participant of todo) {
+      if (!(await mark(participant, 'PRESENT'))) break;
+    }
+  };
+  // The confirm belongs to the people on screen when it was opened.
+  useEffect(() => { setConfirmAllPresent(false); }, [selectedWeekId, selectedGroupId, search, scope]);
+
+  const mark = async (participant: Participant, status: AttendanceStatus): Promise<boolean> => {
+    if (typeof selectedWeekId !== 'number' || saving.has(participant.id)) return false;
+    if (locked && !allowedWhenLocked(records.get(participant.id)?.status, status)) return false;
     const previous = records.get(participant.id);
     writesInFlight.current += 1;
     setSaving((current) => new Map(current).set(participant.id, status));
@@ -277,6 +293,7 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
     try {
       const { record } = await attendanceApi.mark(participant.id, selectedWeekId, status);
       setRecords((current) => new Map(current).set(participant.id, record));
+      return true;
     } catch (error) {
       setRecords((current) => {
         const next = new Map(current);
@@ -285,6 +302,7 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
         return next;
       });
       toast({ tone: 'error', message: error instanceof Error ? error.message : `Couldn’t save ${participant.fullName}.` });
+      return false;
     } finally {
       writesInFlight.current -= 1;
       lastWriteAt.current = Date.now();
@@ -338,6 +356,17 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
           {!loading && <div className="mb-4 grid grid-cols-5 gap-2">{[
             ['Present', summary.present, 'bg-emerald-100 text-emerald-700'], ['Absent', summary.absent, 'bg-red-100 text-red-700'], ['Late', summary.late, 'bg-amber-100 text-amber-700'], ['Left early', summary.leftEarly, 'bg-orange-100 text-orange-700'], ['Excused', summary.excused, 'bg-sky-100 text-sky-700'],
           ].map(([label, value, cls]) => <div key={String(label)} className={`rounded-xl px-2 py-2 text-center ${cls}`}><p className="text-[11px] font-semibold">{label}</p><p className="text-lg font-bold">{value}</p></div>)}</div>}
+          {!loading && windowOpen && !locked && visibleParticipants.some((participant) => !records.get(participant.id)?.status) && (
+            confirmAllPresent ? (
+              <div className="mb-3 flex flex-wrap items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                <p className="basis-full text-[13.5px] font-semibold text-emerald-900">Mark the {visibleParticipants.filter((participant) => !records.get(participant.id)?.status).length} not yet marked as Present?</p>
+                <button type="button" onClick={() => setConfirmAllPresent(false)} className="min-h-[44px] rounded-xl border border-emerald-200 bg-white px-3.5 text-[13px] font-semibold text-emerald-800">Cancel</button>
+                <button type="button" onClick={() => { void markAllPresent(); }} className="min-h-[44px] rounded-xl bg-emerald-700 px-4 text-[13px] font-bold text-white">Yes, mark them</button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => setConfirmAllPresent(true)} className="mb-3 min-h-[44px] w-full rounded-2xl border border-emerald-200 bg-emerald-50 px-4 text-[14px] font-bold text-emerald-800 sm:w-auto">Mark everyone not yet marked as Present</button>
+            )
+          )}
           {loading ? <PageLoader /> : participants.length === 0 ? <p className="rounded-2xl border border-dashed border-orange-200 py-12 text-center text-sm text-gray-500">No active participants in this cohort.</p> : visibleParticipants.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-orange-200 py-12 text-center"><p className="text-sm text-gray-500">No one matches.</p><button type="button" onClick={() => { setSearch(''); setSelectedGroupId(''); }} className="mt-2 rounded-full px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-100">Clear</button></div>
           ) : (
@@ -350,7 +379,7 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
                 <div className="col-span-2 grid w-full grid-cols-5 gap-1 sm:col-span-1 sm:w-auto sm:flex sm:flex-wrap sm:gap-1.5">{STATUS_BUTTONS.map(({ status, label, activeCls }) => {
                   const pending = saving.get(participant.id) === status;
                   const disallowed = locked && !allowedWhenLocked(current, status);
-                  return <button key={status} type="button" disabled={disallowed || busy} aria-busy={pending} onClick={() => void mark(participant, status)} className={`flex min-h-9 items-center justify-center gap-1 rounded-lg px-0.5 text-center text-[10.5px] font-semibold leading-tight transition disabled:cursor-wait disabled:opacity-40 sm:inline-flex sm:rounded-full sm:px-2.5 sm:text-xs ${pending || current === status ? activeCls : 'bg-[#f4f5f7] text-gray-500 hover:bg-gray-200/70'} ${busy && !pending ? 'opacity-50' : ''}`}>
+                  return <button key={status} type="button" disabled={disallowed || busy} aria-busy={pending} onClick={() => void mark(participant, status)} className={`flex min-h-11 items-center justify-center gap-1 rounded-lg px-0.5 text-center text-[10.5px] font-semibold leading-tight transition disabled:cursor-wait disabled:opacity-40 sm:inline-flex sm:min-h-9 sm:rounded-full sm:px-2.5 sm:text-xs ${pending || current === status ? activeCls : 'bg-[#f4f5f7] text-gray-500 hover:bg-gray-200/70'} ${busy && !pending ? 'opacity-50' : ''}`}>
                     {pending && <span className="h-3 w-3 flex-none animate-spin rounded-full border-[1.5px] border-current border-t-transparent" aria-hidden="true" />}<span className="truncate">{label}</span>
                   </button>;
                 })}</div>

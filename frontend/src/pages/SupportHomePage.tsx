@@ -404,6 +404,19 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
           )}
           <ProfileCompletionStrip user={user} variant="home" />
 
+          {/* The next thing to run: the group meeting, with the way in. Hub-only supports use the rows below. */}
+          {!isHubOnlySupport && nextGroupPrayerDisplay && !groupMeetingLive && !myGroup?.isTeenGroup && (
+            <section data-wt="home-next-meeting" aria-labelledby="next-meeting-h" className="rounded-[22px] border border-[#ffdeca] bg-white p-[18px] shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
+              <p className="text-xs font-extrabold uppercase tracking-[0.06em] text-primary-dark">Your group meets every week</p>
+              <h2 id="next-meeting-h" className="mt-1.5 text-[24px] font-extrabold leading-tight tracking-[-0.02em] text-gray-900">{nextGroupPrayerDisplay.label}</h2>
+              <p className="mt-1.5 text-[14px] leading-relaxed text-gray-600">Recording opens 10 minutes before and stays open until midnight.</p>
+              <div className="mt-3.5 flex flex-col gap-2.5 sm:flex-row">
+                <NavLink to="/support/participants" className="flex min-h-[48px] flex-1 items-center justify-center rounded-2xl bg-primary px-4 text-[15px] font-bold text-white">Open my group</NavLink>
+                <NavLink to="/support/participants?tab=prayers" className="flex min-h-[48px] flex-1 items-center justify-center rounded-2xl border border-gray-200 bg-white px-4 text-[15px] font-bold text-gray-900">Meeting steps</NavLink>
+              </div>
+            </section>
+          )}
+
           <SupportNextClassCard week={nextWeek} dateLabel={nextClassDate} hasWeeks={cohortWeeks.length > 0} />
           {isTeenSupport && <TeenQuestionsCard userId={user.id} />}
 
@@ -422,7 +435,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
               </>
             ) : (
               <>
-                <HomeRow to="/support/participants" label="Next group meeting" value={nextGroupPrayerDisplay?.label ?? 'Not set'} />
+                {(!nextGroupPrayerDisplay || groupMeetingLive || myGroup?.isTeenGroup) && <HomeRow to="/support/participants" label="Next group meeting" value={nextGroupPrayerDisplay?.label ?? 'Not set'} />}
                 <HomeRow to="/support/participants" label="Faith projects" value={participants.length > 0 ? `${draftedProjectCount} of ${participants.length} written` : 'No participants yet'} />
                 {myHub?.hub && <HomeRow to="/support/my-hub" label="My Hub" sub={roleLine} value={myHub.hub.name} />}
               </>

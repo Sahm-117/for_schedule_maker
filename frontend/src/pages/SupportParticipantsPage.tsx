@@ -21,6 +21,7 @@ import type { FaithHelpRequest, FaithProject, FaithProjectCategory, Group, Group
 import { getIdealWeekForCohort } from '../utils/weekFocus';
 import { sortByText } from '../utils/sort';
 import Spinner from '../components/Spinner';
+import { participantIsReady } from '../utils/supportOnboarding';
 
 type GroupTab = 'faith' | 'discussion' | 'prayers';
 
@@ -340,6 +341,23 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
     [onboarding]
   );
   const onboardingGroup = onboarding?.groups.find((entry) => entry.groupId === selectedGroupId) ?? null;
+  // People tab: how many are ready, and a filter to the ones who still need something.
+  const [peopleFilter, setPeopleFilter] = useState<'all' | 'notReady' | 'noProject'>('all');
+  const isReadyPerson = (id: string) => {
+    const entry = onboardingByPerson.get(id);
+    return !!entry && participantIsReady(entry);
+  };
+  const readyCount = selectedParticipants.filter((participant) => isReadyPerson(participant.id)).length;
+  const writtenProjectIds = useMemo(() => new Set(faithProjects.filter((entry) => entry.status === 'SAVED').map((entry) => entry.participantId)), [faithProjects]);
+  const projectWritten = (id: string) => writtenProjectIds.has(id);
+  const peopleBarShown = showOnboarding && !!onboarding && selectedParticipants.length > 0;
+  useEffect(() => { setPeopleFilter('all'); }, [selectedGroupId]);
+  const activeFilter = peopleBarShown ? peopleFilter : 'all';
+  const peopleShown = selectedParticipants.filter((participant) => (
+    activeFilter === 'notReady' ? !isReadyPerson(participant.id)
+      : activeFilter === 'noProject' ? !projectWritten(participant.id)
+        : true
+  ));
   // Keeps the tab in the address, so a refresh or a shared link comes back to the same tab.
   const selectTab = (tab: GroupTab) => {
     setActiveTab(tab);
@@ -529,7 +547,35 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
               <div className="rounded-[18px] lg:col-span-2 border border-dashed border-orange-200 bg-white py-12 text-center text-sm text-gray-500">
                 No participants are in this group yet.
               </div>
-            ) : selectedParticipants.map((participant) => (
+            ) : (<>
+              {showOnboarding && onboarding && (
+                <section className="rounded-[18px] border border-[#eef0f4] bg-white p-4 lg:col-span-2" aria-label="Who is ready for class">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[15px] font-bold text-gray-900">{readyCount} of {selectedParticipants.length} ready for class</p>
+                    <button type="button" onClick={() => selectTab('discussion')} className="min-h-[44px] flex-none rounded-xl border border-[#ffdeca] bg-[#fff4ec] px-3.5 text-[13px] font-bold text-[#c2410c]">Open Discussion</button>
+                  </div>
+                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#f4f5f7]" role="progressbar" aria-label="Ready for class" aria-valuenow={readyCount} aria-valuemin={0} aria-valuemax={selectedParticipants.length}>
+                    <span className="block h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${selectedParticipants.length ? Math.round((readyCount / selectedParticipants.length) * 100) : 0}%` }} />
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="Filter people">
+                    {([['all', 'Everyone'], ['notReady', 'Not ready'], ['noProject', 'Faith project to write']] as const).map(([key, label]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        aria-pressed={peopleFilter === key}
+                        onClick={() => setPeopleFilter(key)}
+                        className={`min-h-[44px] rounded-full border px-4 text-[13.5px] font-bold ${peopleFilter === key ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 bg-white text-gray-700'}`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
+              {peopleShown.length === 0 && (
+                <p className="rounded-[18px] border border-dashed border-orange-200 bg-white py-8 text-center text-sm text-gray-500 lg:col-span-2">No one matches. Choose Everyone to see the whole group.</p>
+              )}
+              {peopleShown.map((participant) => (
               <ParticipantCard
                 key={participant.id}
                 participant={participant}
@@ -573,6 +619,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
                 onFlagCleared={(flagId) => setFlags((prev) => prev.filter((entry) => entry.id !== flagId))}
               />
             ))}
+            </>)}
             </div>
           ) : (
             <div className="space-y-3">
