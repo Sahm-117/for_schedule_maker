@@ -97,7 +97,6 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
   // Marking done first asks "Any notes?" (optional); the activity waiting on it.
   const [noteActivity, setNoteActivity] = useState<{ id: number; label: string } | null>(null);
   // null = not touched: the box is open whenever there is something on the list.
-  const [checklistToggled, setChecklistToggled] = useState<boolean | null>(null);
   const [checklist, setChecklist] = useState<SupportChecklistItem[]>([]);
   const [homeAnnouncement, setHomeAnnouncement] = useState<Announcement | null>(null);
   const [newQuestionCount, setNewQuestionCount] = useState(0);
@@ -377,8 +376,8 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
     : null;
 
   const checkedCount = checklist.filter((item) => item.done).length;
-  // The box is open by default when there is anything on the list; Home shows the first 3.
-  const checklistOpen = checklistToggled ?? checklist.length > 0;
+  // Home shows the first 3 tasks inside the Today card; the rest are one tap away on the Schedule.
+  const openTaskCount = checklist.filter((item) => !item.done).length;
   const homeChecklist = sortChecklistForHome(checklist.filter((item) => autoHide.isVisible(item)), new Set(Object.keys(autoHide.countdowns)));
   const checklistPct = checklist.length > 0 ? Math.round((checkedCount / checklist.length) * 100) : 0;
   const todayEmptyText = !schedulePublished
@@ -579,11 +578,12 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
                 <h2 className="text-lg font-bold text-gray-900">Today</h2>
                 <p className="mt-0.5 text-[13px] text-gray-500">{activeWeek ? `${todayName} · Week ${activeWeek.weekNumber}` : todayName}</p>
               </div>
-              <span className="ml-auto flex-none rounded-full bg-primary px-[11px] py-1 text-xs font-bold text-white">{todayActivities.length}</span>
+              <span className="ml-auto flex-none rounded-full bg-primary px-[11px] py-1 text-xs font-bold text-white" aria-label={`${todayActivities.length + openTaskCount} to do`}>{todayActivities.length + openTaskCount}</span>
             </div>
 
             {todayActivities.length === 0 ? (
-              <p className="px-5 pb-2 pt-2 text-sm leading-relaxed text-gray-500">{todayEmptyText}</p>
+              // With tasks below, the empty line is only said once (and quietly), so it never looks like there is nothing at all.
+              <p className="px-5 pb-2 pt-1 text-sm leading-relaxed text-gray-500">{todayEmptyText}</p>
             ) : (
               <div className="flex flex-col gap-2.5 px-5 pb-1">
                 {todayActivities.map((activity) => {
@@ -615,66 +615,50 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
               </div>
             )}
 
-            <NavLink to="/support/schedule" className="mt-3.5 block w-full border-t border-[#f4f5f7] p-3.5 text-center text-[13.5px] font-semibold text-[#c2410c]">
-              See the full week →
-            </NavLink>
-          </section>
-
-          <section data-wt="home-checklist" className="overflow-hidden rounded-[22px] border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
-            <div className="flex items-center gap-2 pr-5">
-            <button
-              type="button"
-              onClick={() => setChecklistToggled(!checklistOpen)}
-              aria-expanded={checklistOpen}
-              className="flex min-w-0 flex-1 items-center gap-3 pb-3 pl-5 pt-[18px] text-left"
-            >
-              <div className="min-w-0">
-                <h2 className="text-[17px] font-bold text-gray-900">Your tasks</h2>
-                <p className="mt-0.5 text-[13px] text-gray-500">{checkedCount} of {checklist.length} done</p>
-              </div>
-              <svg className={`ml-auto h-4 w-4 flex-none text-gray-400 transition-transform ${checklistOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m9 5 7 7-7 7" /></svg>
-            </button>            </div>
-            <div className="px-5 pb-4">
-              <div className="h-[7px] overflow-hidden rounded-full bg-[#f4f5f7]">
-                <span className="block h-full rounded-full bg-primary transition-all" style={{ width: `${checklistPct}%` }} />
-              </div>
-            </div>
-            {checklistOpen && (
-              <div className="flex flex-col gap-0.5 px-5 pb-5">
-                {homeChecklist.slice(0, 3).map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => { void tick.toggle(item); }}
-                    className="flex w-full items-center gap-[11px] py-2 text-left"
-                  >
-                    <span className={`grid h-[19px] w-[19px] flex-none place-items-center rounded-md border-[1.5px] text-[11px] text-white ${item.done ? 'border-primary bg-primary' : 'border-gray-300 bg-white'}`}>
-                      {item.done ? '✓' : ''}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className={`block text-sm ${item.done ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{item.label}</span>
-                      <ChecklistTaskMeta item={item} />
-                    </span>
-                    {autoHide.countdowns[item.id] !== undefined && <CountdownRing seconds={autoHide.countdowns[item.id]} />}
-                  </button>
-                ))}
-                {checklist.length > 0 && (
-                  <NavLink to="/support/schedule?tab=checklist" className="mt-1.5 self-start text-[13px] font-semibold text-[#c2410c]">
-                    View all{homeChecklist.length > 3 ? ` (${homeChecklist.length})` : ''} →
+            {checklist.length > 0 && (
+              <div data-wt="home-checklist" className={`px-5 pb-1 ${todayActivities.length > 0 ? 'mt-4 border-t border-[#f4f5f7] pt-4' : 'mt-2'}`}>
+                <div className="flex items-baseline gap-2">
+                  <h3 className="text-[15px] font-bold text-gray-900">Tasks</h3>
+                  <p className="text-[13px] text-gray-500">{checkedCount} of {checklist.length} done</p>
+                  {checkedCount > 0 && (
+                    <button type="button" onClick={() => autoHide.setShowCompleted((value) => !value)} aria-pressed={autoHide.showCompleted} className="ml-auto text-xs font-semibold text-primary">
+                      {autoHide.showCompleted ? 'Hide completed' : `Show completed (${checkedCount})`}
+                    </button>
+                  )}
+                </div>
+                <div className="mt-2 h-[6px] overflow-hidden rounded-full bg-[#f4f5f7]">
+                  <span className="block h-full rounded-full bg-primary transition-all" style={{ width: `${checklistPct}%` }} />
+                </div>
+                <div className="mt-1.5 flex flex-col gap-0.5">
+                  {homeChecklist.slice(0, 3).map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => { void tick.toggle(item); }}
+                      className="flex w-full items-center gap-[11px] py-2 text-left"
+                    >
+                      <span className={`grid h-[19px] w-[19px] flex-none place-items-center rounded-md border-[1.5px] text-[11px] text-white ${item.done ? 'border-primary bg-primary' : 'border-gray-300 bg-white'}`}>
+                        {item.done ? '✓' : ''}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className={`block text-sm ${item.done ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{item.label}</span>
+                        <ChecklistTaskMeta item={item} />
+                      </span>
+                      {autoHide.countdowns[item.id] !== undefined && <CountdownRing seconds={autoHide.countdowns[item.id]} />}
+                    </button>
+                  ))}
+                </div>
+                {homeChecklist.length > 3 && (
+                  <NavLink to="/support/schedule?tab=checklist" className="mb-1 mt-1 inline-block text-[13px] font-semibold text-[#c2410c]">
+                    {homeChecklist.length - 3} more {homeChecklist.length - 3 === 1 ? 'task' : 'tasks'} →
                   </NavLink>
-                )}
-                {checkedCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => autoHide.setShowCompleted((value) => !value)}
-                    aria-pressed={autoHide.showCompleted}
-                    className="mt-1.5 self-start text-xs font-semibold text-primary"
-                  >
-                    {autoHide.showCompleted ? 'Hide completed' : `Show completed (${checkedCount})`}
-                  </button>
                 )}
               </div>
             )}
+
+            <NavLink to="/support/schedule" className="mt-3.5 block w-full border-t border-[#f4f5f7] p-3.5 text-center text-[13.5px] font-semibold text-[#c2410c]">
+              See the full week{checklist.length > 0 ? ' and all tasks' : ''} →
+            </NavLink>
           </section>
         </div>
 
