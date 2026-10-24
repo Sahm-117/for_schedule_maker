@@ -29,7 +29,7 @@ const ClassGraphicThumb: React.FC<{ url?: string | null; title: string; classNam
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} aria-label={`View the ${title} graphic`} className={`flex-none overflow-hidden rounded-2xl bg-gray-100 ${className}`}>
-        <img src={url} alt="" className="h-full w-full object-cover" />
+        <img src={url} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
       </button>
       {open && <Viewer url={url} title={title} onClose={() => setOpen(false)} />}
     </>

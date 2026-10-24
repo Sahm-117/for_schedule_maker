@@ -4,7 +4,7 @@ import { gradientFor, initialsOf } from '../../utils/prayerText';
 // A person's photo, or a coloured gradient circle with their initials when they have none.
 const PersonCircle: React.FC<{ name: string; avatarUrl: string | null; size: number; className?: string }> = ({ name, avatarUrl, size, className = '' }) => {
   if (avatarUrl) {
-    return <img src={avatarUrl} alt="" className={`flex-none rounded-full object-cover ${className}`} style={{ width: size, height: size }} />;
+    return <img src={avatarUrl} alt="" loading="lazy" decoding="async" className={`flex-none rounded-full object-cover ${className}`} style={{ width: size, height: size }} />;
   }
   const [from, to] = gradientFor(name);
   return (

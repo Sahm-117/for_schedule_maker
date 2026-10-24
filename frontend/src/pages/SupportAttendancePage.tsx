@@ -14,6 +14,7 @@ import type { AttendanceRecord, AttendanceSession, AttendanceStatus, Participant
 import { getIdealWeekForCohort } from '../utils/weekFocus';
 import { classDateIso } from '../utils/participantApp';
 import { sortByText } from '../utils/sort';
+import { countdownLabel, useDeadlineClock } from '../hooks/useDeadlineClock';
 import Spinner from '../components/Spinner';
 
 const STATUS_BUTTONS: Array<{ status: AttendanceStatus; label: string; activeCls: string }> = [
@@ -28,19 +29,6 @@ const STATUS_BUTTONS: Array<{ status: AttendanceStatus; label: string; activeCls
 // an Absent mark to Late or Left early -- everything else needs an admin.
 const allowedWhenLocked = (current: AttendanceStatus | undefined, next: AttendanceStatus) =>
   current === 'ABSENT' && (next === 'LATE' || next === 'LEFT_EARLY');
-
-// "24 min", "1 h 5 min"; only the last minute counts seconds.
-const countdownLabel = (closesAt: string, now: number) => {
-  const ms = new Date(closesAt).getTime() - now;
-  if (ms <= 0) return 'Closing…';
-  const totalSeconds = Math.floor(ms / 1000);
-  if (totalSeconds < 60) return `${totalSeconds} sec`;
-  const totalMinutes = Math.floor(totalSeconds / 60);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  if (hours === 0) return `${minutes} min`;
-  return minutes === 0 ? `${hours} h` : `${hours} h ${minutes} min`;
-};
 
 const DEFAULT_SESSION: AttendanceSession = { weekId: 0, autoFinalizeAtNoon: true, finalizedAt: null };
 const initialsOf = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('');
@@ -117,7 +105,6 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
   const [search, setSearch] = useState('');
   const [selectedGroupId, setSelectedGroupId] = useState('');
   const [starting, setStarting] = useState(false);
-  const [now, setNow] = useState(() => Date.now());
   const participants = useMemo(
     () => {
       if (!teenGroupId) return allParticipants;
@@ -146,11 +133,6 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
       .catch(() => { if (!cancelled) { setTeenGroupIds(new Set()); toast({ tone: 'error', message: 'Couldn’t load all teens. Try again.' }); } });
     return () => { cancelled = true; };
   }, [activeCohort, teenGroupId, toast]);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     if (cohortWeeks.length === 0) return;
@@ -211,14 +193,15 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
   const activeSession = session ?? { ...DEFAULT_SESSION, weekId: typeof selectedWeekId === 'number' ? selectedWeekId : 0 };
   const finalised = !!activeSession.finalizedAt;
   const windowClosesAt = activeSession.closesAt ?? null;
-  const windowClosed = !!windowClosesAt && new Date(windowClosesAt).getTime() <= now;
-  const windowOpen = !!activeSession.startedAt && !finalised && !windowClosed;
-  const locked = finalised || windowClosed;
   // A week's register opens on its class day; before that there's nothing to
   // mark, so no list and no Start button.
   const classDay = selectedWeek && activeCohort?.startDate
     ? new Date(`${classDateIso(activeCohort.startDate, selectedWeek)}T00:00:00`)
     : null;
+  const now = useDeadlineClock(windowClosesAt, classDay?.getTime());
+  const windowClosed = !!windowClosesAt && new Date(windowClosesAt).getTime() <= now;
+  const windowOpen = !!activeSession.startedAt && !finalised && !windowClosed;
+  const locked = finalised || windowClosed;
   const beforeClassDay = !allWeeks && !!classDay && !activeSession.startedAt && !finalised && now < classDay.getTime();
   const classDayLabel = classDay ? classDay.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) : '';
   const markedCount = participants.filter((participant) => records.has(participant.id)).length;

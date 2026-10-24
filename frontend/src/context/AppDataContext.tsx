@@ -286,14 +286,20 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const initialize = async () => {
       setLoading(true);
       try {
+        // These three don't depend on the cohort, so they start now instead of waiting for the
+        // cohort and week lists (they used to queue behind them).
+        const independent = Promise.all([refreshResourceCount(), refreshNotifications(), refreshHubActivity()]);
+        independent.catch(() => undefined); // a failure is reported once, where it is awaited below
         const resolvedCohort = await loadCohorts();
+        // The hub needs only the cohort id, so it runs beside the weeks instead of after them.
+        const hub = loadMyHub(resolvedCohort?.id ?? null);
         const loadedWeeks = await loadWeeksForCohort(resolvedCohort?.id, resolvedCohort);
 
         if (isAdmin) {
           await loadGlobalPendingChanges(loadedWeeks.map((week) => week.id));
         }
 
-        await Promise.all([refreshResourceCount(), refreshNotifications(), refreshHubActivity(), loadMyHub(resolvedCohort?.id ?? null)]);
+        await Promise.all([independent, hub]);
       } catch (error) {
         console.error('Failed to initialize app data:', error);
       } finally {

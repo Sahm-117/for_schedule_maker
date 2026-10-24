@@ -68,26 +68,54 @@ const timeoutSignalFor = (ms: number): AbortSignal => {
 // The same read is often asked for by several parts of a screen at once (a dozen duplicate
 // requests on one load). Identical reads that overlap in time share one network request.
 // Only plain reads are shared: GET selects, and a short list of read-only functions.
-const SHAREABLE_RPCS = ['my_help_contact', 'get_my_hubs', 'get_my_hub', 'support_recaps', 'my_notifications', 'participant_home', 'participant_notifications'];
+// Every name here only reads (checked against its definition): sharing a write would drop one.
+// corporate_prayer_signal is left out on purpose: it can create the day's prayer session.
+const READ_ONLY_RPCS = [
+  'my_help_contact', 'get_my_hubs', 'get_my_hub', 'support_recaps', 'my_notifications',
+  'my_followup_check', 'announcement_popups_pending', 'survey_pending',
+  'current_programme_cohort_id', 'group_onboarding_progress', 'scripture_my_likes', 'reflection_activity',
+  'participants_signed_in', 'participants_app_details', 'participants_without_push', 'participants_without_app',
+  'participant_retake_matches',
+];
+const SHAREABLE_RPCS = [...READ_ONLY_RPCS, 'participant_home', 'participant_notifications'];
 // A participant's home data is asked for at start-up (prefetch.ts) before the screen is ready
 // to use it. These answers are kept for about three seconds so the screen picks them up instead of
 // asking again. Any change the person makes (a write) throws them away, so nothing stale is shown.
-const KEPT_RPCS = ['participant_home', 'participant_notifications'];
+const KEPT_RPCS = [
+  'participant_home', 'participant_notifications',
+  // Read-only questions several parts of a staff screen ask one after another.
+  'my_help_contact', 'my_followup_check', 'get_my_hubs', 'get_my_hub', 'scripture_my_likes', 'survey_pending',
+  'announcement_popups_pending', 'support_recaps', 'participants_signed_in', 'participants_app_details',
+  'participants_without_push', 'participants_without_app', 'reflection_activity', 'participant_retake_matches',
+];
 const KEEP_MS = 3000;
-const HARMLESS_POSTS = /\/rest\/v1\/rpc\/(get_session_user|get_tour_progress|record_participant_app_state|record_participant_setup_sheet|record_user_app_state|record_user_setup_sheet|my_help_contact|get_my_hubs|get_my_hub|support_recaps|my_notifications|participant_home|participant_notifications)$/;
+// Small lists that hardly ever change (settings, scripture images, project categories) are asked
+// for again by every screen the person opens. Keep each answer for 20 seconds; a change this person
+// makes throws all of them away, and a change someone else makes shows within 20 seconds. Who is
+// in which cohort, group or tag is never kept here: those follow an admin's change at once.
+const REFERENCE_READS = /\/rest\/v1\/(AppSetting|Scripture|FaithProjectCategory)\?/;
+const REFERENCE_KEEP_MS = 20000;
+const HARMLESS_POSTS = new RegExp(`/rest/v1/rpc/(get_session_user|get_tour_progress|record_participant_app_state|record_participant_setup_sheet|record_user_app_state|record_user_setup_sheet|my_app_nudge|practice_pulse|mark_tour_seen|${SHAREABLE_RPCS.join('|')})$`);
 const inFlight = new Map<string, Promise<Response>>();
 const keptKeys = new Set<string>();
-const dropKept = () => { keptKeys.forEach((k) => inFlight.delete(k)); keptKeys.clear(); };
+// A change throws away everything kept AND everything still on its way, so a read made after the
+// change never joins an older request, and an older answer arriving late is not kept.
+let epoch = 0;
+const dropKept = () => { inFlight.clear(); keptKeys.clear(); epoch += 1; };
+// Answers are kept per signed-in person: another person's session never reuses them.
+const sessionTag = (): string => {
+  try { return (localStorage.getItem(SESSION_TOKEN_KEY) || '').slice(-12); } catch { return ''; }
+};
 const shareKey = (url: string, init: RequestInit | undefined): string | null => {
   if (init?.signal) return null; // a caller that can cancel gets its own request
   const method = (init?.method || 'GET').toUpperCase();
   if (method === 'GET' && url.includes('/rest/v1/')) {
     const h = new Headers(init?.headers);
-    return `GET ${url} ${h.get('accept') || ''} ${h.get('prefer') || ''} ${h.get('range') || ''} ${h.get('accept-profile') || ''}`;
+    return `GET ${sessionTag()} ${url} ${h.get('accept') || ''} ${h.get('prefer') || ''} ${h.get('range') || ''} ${h.get('accept-profile') || ''}`;
   }
   if (method === 'POST' && typeof init?.body === 'string') {
     const name = url.split('/rest/v1/rpc/')[1]?.split('?')[0];
-    if (name && SHAREABLE_RPCS.includes(name)) return `RPC ${name} ${init.body}`;
+    if (name && SHAREABLE_RPCS.includes(name)) return `RPC ${name} ${sessionTag()} ${init.body}`;
   }
   return null;
 };
@@ -101,7 +129,7 @@ const fetchWithTimeout: typeof fetch = (input, init) => {
   const send = () => fetch(routeLocally(input), { ...withSessionToken(init), signal });
   const key = shareKey(url, init);
   if (!key) {
-    // A real change drops the saved answers. Start-up bookkeeping and plain reads sent as POSTs don't.
+    // A real change drops the saved answers. Start-up bookkeeping (writes that no kept answer depends on) and plain reads sent as POSTs don't.
     if ((init?.method || 'GET').toUpperCase() !== 'GET' && !HARMLESS_POSTS.test(url.split('?')[0])) dropKept();
     return send();
   }
@@ -110,14 +138,18 @@ const fetchWithTimeout: typeof fetch = (input, init) => {
     pending = send();
     inFlight.set(key, pending);
     const made = pending;
-    const keep = KEPT_RPCS.some((name) => key.startsWith(`RPC ${name} `));
+    const keepMs = KEPT_RPCS.some((name) => key.startsWith(`RPC ${name} `)) ? KEEP_MS
+      : key.startsWith('GET ') && REFERENCE_READS.test(url) ? REFERENCE_KEEP_MS : 0;
+    const startedAtEpoch = epoch;
+    const forget = () => { if (inFlight.get(key) === made) inFlight.delete(key); };
     made.then(
-      () => {
-        if (!keep) { inFlight.delete(key); return; }
+      (response) => {
+        // Only a good answer is kept; an error, or an answer to a question asked before a change, is not.
+        if (!keepMs || !response.ok || epoch !== startedAtEpoch) { forget(); return; }
         keptKeys.add(key);
-        setTimeout(() => { if (inFlight.get(key) === made) inFlight.delete(key); keptKeys.delete(key); }, KEEP_MS);
+        setTimeout(() => { if (inFlight.get(key) === made) { inFlight.delete(key); keptKeys.delete(key); } }, keepMs);
       },
-      () => { inFlight.delete(key); },
+      forget,
     );
   }
   // Everyone gets their own copy, so one reader can't use up another's body.

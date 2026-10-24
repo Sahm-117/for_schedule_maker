@@ -78,6 +78,8 @@ const Avatar: React.FC<AvatarProps> = ({ name, avatarUrl, size = 'md', className
         <img
           src={avatarUrl}
           alt={name}
+          loading="lazy"
+          decoding="async"
           className={`${sizeMap[size]} flex-shrink-0 rounded-full object-cover ${canEnlarge ? 'cursor-pointer' : ''} ${className}`}
           onError={() => setErrored(true)}
           onClick={canEnlarge ? (e) => {

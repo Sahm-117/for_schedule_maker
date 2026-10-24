@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
+import { countdownLabel, useDeadlineClock } from '../hooks/useDeadlineClock';
 import Spinner from '../components/Spinner';
 import FilterBar, { NO_CHOICES, type FilterGroup, type FilterValues } from '../components/filters/FilterBar';
 import AppOverflowMenu from '../components/AppOverflowMenu';
@@ -39,15 +40,6 @@ const STATUS_LABEL: Record<AttendanceStatus, string> = {
   LEFT_EARLY: 'Left early',
   ABSENT: 'Absent',
   EXCUSED: 'Excused',
-};
-
-const countdownLabel = (closesAt: string, now: number) => {
-  const ms = new Date(closesAt).getTime() - now;
-  if (ms <= 0) return 'Closing…';
-  const totalSeconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${String(seconds).padStart(2, '0')}`;
 };
 
 const AdminAttendancePage: React.FC = () => {
@@ -93,18 +85,12 @@ const AdminAttendanceContent: React.FC = () => {
   const [saving, setSaving] = useState<Set<string>>(new Set());
   const [sessionSaving, setSessionSaving] = useState(false);
   const [startingWindow, setStartingWindow] = useState(false);
-  const [now, setNow] = useState(() => Date.now());
   const [excuseTarget, setExcuseTarget] = useState<{ recordId: string; participantName: string } | null>(null);
   const [excuseNote, setExcuseNote] = useState('');
   const [excuseSaving, setExcuseSaving] = useState(false);
   const [excuseError, setExcuseError] = useState('');
   const [followUpOpen, setFollowUpOpen] = useState(false);
   const [markersOpen, setMarkersOpen] = useState(false);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
 
   // Groups change per cohort, not per week — load once per cohort.
   useEffect(() => {
@@ -254,6 +240,7 @@ const AdminAttendanceContent: React.FC = () => {
   const absenceCount = [...records.values()].filter((record) => record.status === 'ABSENT').length;
   const unassignedAbsences = Math.max(0, absenceCount - followUpTasks.length);
   const windowClosesAt = session?.closesAt ?? null;
+  const now = useDeadlineClock(windowClosesAt);
   const windowOpen = !!session?.startedAt && !finalised && !!windowClosesAt && new Date(windowClosesAt).getTime() > now;
 
   const setAutoFinalize = async (enabled: boolean) => {

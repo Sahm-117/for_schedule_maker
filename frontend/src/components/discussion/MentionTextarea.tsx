@@ -189,7 +189,7 @@ const MentionTextarea: React.FC<MentionTextareaProps> = ({ value, onChange, ment
                 onClick={() => pickSlash(item)}
                 className={`flex min-h-[48px] w-full items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-left hover:bg-gray-50 ${index === active ? 'bg-gray-50' : ''}`}
               >
-                {item.imageUrl && <img src={item.imageUrl} alt="" className="h-10 w-8 flex-none rounded-md object-cover" />}
+                {item.imageUrl && <img src={item.imageUrl} alt="" loading="lazy" decoding="async" className="h-10 w-8 flex-none rounded-md object-cover" />}
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[14px] font-semibold text-gray-900">{item.label}</span>
                   <span className="block truncate text-[12.5px] text-gray-500">{item.imageUrl ? 'Share the picture and ask what stood out' : item.text}</span>
