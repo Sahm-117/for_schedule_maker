@@ -328,6 +328,7 @@ const ParticipantWeekPage: React.FC = () => {
                 {canOpenManual && <button type="button" onClick={openManual} className={PRIMARY}>Open the manual</button>}
                 {canReadRecap && <button type="button" onClick={() => setDocOpen(true)} className={canOpenManual ? SECONDARY : PRIMARY}>Read the recap</button>}
               </div>
+              {/* Hidden: people tapped this instead of the illustrated manual. The PDF is still reachable from inside the illustrated manual.
               {canOpenManual && manualComic && (
                 <button
                   type="button"
@@ -337,6 +338,7 @@ const ParticipantWeekPage: React.FC = () => {
                   Prefer the plain PDF? Open the PDF instead
                 </button>
               )}
+              */}
             </div>
           )}
         </section>
