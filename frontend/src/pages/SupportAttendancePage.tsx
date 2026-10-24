@@ -12,7 +12,7 @@ import { attendanceApi, groupsApi, participantsApi, settingsApi } from '../servi
 import TrainingAttendancePanel from '../components/TrainingAttendancePanel';
 import type { AttendanceRecord, AttendanceSession, AttendanceStatus, Participant, User, Week } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
-import { classDateIso, nextClassWeek } from '../utils/participantApp';
+import { classDateIso, lagosTodayIso, nextClassWeek } from '../utils/participantApp';
 import { sortByText } from '../utils/sort';
 import { countdownLabel, useDeadlineClock } from '../hooks/useDeadlineClock';
 import Spinner from '../components/Spinner';
@@ -199,6 +199,14 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
   const classDay = selectedWeek && activeCohort?.startDate
     ? new Date(`${classDateIso(activeCohort.startDate, selectedWeek)}T00:00:00`)
     : null;
+  // The last class already held, one tap away while the page is on the class still to come.
+  const heldWeek = useMemo(() => {
+    const start = activeCohort?.startDate;
+    if (!start) return null;
+    const today = lagosTodayIso(new Date());
+    return cohortWeeks.filter((week) => classDateIso(start, week) < today)
+      .sort((a, b) => classDateIso(start, b).localeCompare(classDateIso(start, a)))[0] ?? null;
+  }, [activeCohort?.startDate, cohortWeeks]);
   const now = useDeadlineClock(windowClosesAt, classDay?.getTime());
   const windowClosed = !!windowClosesAt && new Date(windowClosesAt).getTime() <= now;
   const windowOpen = !!activeSession.startedAt && !finalised && !windowClosed;
@@ -335,7 +343,14 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
             const reportSent = !!result.session?.finalizedAt;
             return <div key={result.week.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-[#f1f2f5] px-4 py-3 last:border-b-0"><div className="min-w-20"><p className="text-sm font-bold text-gray-900">Week {result.week.weekNumber}</p><p className="text-xs text-gray-500">{result.marked} of {result.total} marked</p></div><div className="flex flex-wrap gap-1.5 text-xs font-semibold"><span className="rounded-full bg-emerald-100 px-2 py-1 text-emerald-700">{result.present} present</span><span className="rounded-full bg-amber-100 px-2 py-1 text-amber-700">{result.late} late</span><span className="rounded-full bg-red-100 px-2 py-1 text-red-700">{result.absent} absent</span></div><span className={`ml-auto text-xs font-semibold ${reportSent ? 'text-emerald-700' : result.marked === result.total && result.total > 0 ? 'text-sky-700' : 'text-gray-500'}`}>{reportSent ? 'Report sent' : result.marked === result.total && result.total > 0 ? 'Taken' : 'In progress'}</span></div>;
           })}</section>) : beforeClassDay ? (
-            <p className="rounded-2xl border border-dashed border-orange-200 py-12 text-center text-sm text-gray-500">Week {selectedWeek?.weekNumber} attendance opens on {classDayLabel}.</p>
+            <div className="rounded-2xl border border-dashed border-orange-200 py-12 text-center text-sm text-gray-500">
+              <p>Week {selectedWeek?.weekNumber} attendance opens on {classDayLabel}.</p>
+              {heldWeek && heldWeek.id !== selectedWeek?.id && (
+                <button type="button" onClick={() => setSelectedWeekId(heldWeek.id)} className="mt-3 rounded-full border border-gray-300 bg-white px-4 py-2 text-[13px] font-semibold text-gray-700">
+                  See Week {heldWeek.weekNumber}, the last class
+                </button>
+              )}
+            </div>
           ) : <>
           {!loading && <div className="mb-4 grid grid-cols-5 gap-2">{[
             ['Present', summary.present, 'bg-emerald-100 text-emerald-700'], ['Absent', summary.absent, 'bg-red-100 text-red-700'], ['Late', summary.late, 'bg-amber-100 text-amber-700'], ['Left early', summary.leftEarly, 'bg-orange-100 text-orange-700'], ['Excused', summary.excused, 'bg-sky-100 text-sky-700'],

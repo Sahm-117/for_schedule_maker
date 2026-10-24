@@ -177,8 +177,9 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
   const hiddenTasks = useMemo(() => {
     if (!showTasks || viewMode === 'week') return 0;
     const shown = new Set([...dayGroups.flatMap((day) => day.tasks.map((item) => item.id)), ...anytimeVisible.map((item) => item.id)]);
-    return weekTasks.filter((item) => !item.done && !shown.has(item.id)).length;
-  }, [anytimeVisible, dayGroups, showTasks, viewMode, weekTasks]);
+    // Only tasks that are due on a day other than the one on screen (a task with no day is the "Anytime" group, not "another day").
+    return weekTasks.filter((item) => !item.done && autoHide.isVisible(item) && taskDayName(item, span) !== null && !shown.has(item.id)).length;
+  }, [anytimeVisible, autoHide, dayGroups, showTasks, span, viewMode, weekTasks]);
 
   // Things per weekday for the day strip: this person's activities and the tasks due that day.
   const countByDay = useMemo(() => {

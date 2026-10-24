@@ -14,7 +14,6 @@ import { useAppData } from '../context/AppDataContext';
 import { attendanceApi, attendanceFollowUpTasksApi, groupsApi, participantsApi } from '../services/api';
 import type { AttendanceFollowUpTask, AttendanceRecord, AttendanceSession, AttendanceStatus, Group, Participant, Week } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
-import { nextClassWeek } from '../utils/participantApp';
 import { sortByText } from '../utils/sort';
 import { sundayMarkAttended } from '../utils/programmeRules';
 
@@ -107,8 +106,7 @@ const AdminAttendanceContent: React.FC = () => {
     if (cohortWeeks.length === 0) return;
     const selectedStillExists = selectedWeekId !== null && cohortWeeks.some((week) => week.id === selectedWeekId);
     if (!selectedStillExists) {
-      // The register opens on the class still to come (today's, on a Sunday), not the one already taken; after the last class, the last one.
-      setSelectedWeekId((nextClassWeek(activeCohort?.startDate, cohortWeeks, new Date()) ?? getIdealWeekForCohort(activeCohort, cohortWeeks))?.id ?? cohortWeeks[0].id);
+      setSelectedWeekId(getIdealWeekForCohort(activeCohort, cohortWeeks)?.id ?? cohortWeeks[0].id);
     }
   }, [activeCohort, cohortWeeks, selectedWeekId]);
 
