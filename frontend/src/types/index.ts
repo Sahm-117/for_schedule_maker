@@ -347,6 +347,8 @@ export interface SupportActivityCompletion {
   activityId: number;
   userId: string;
   completedAt: string;
+  /** Optional context the support added when they marked it done. */
+  note?: string | null;
 }
 
 export interface PendingChange {

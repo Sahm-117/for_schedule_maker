@@ -42,6 +42,8 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
   const [completions, setCompletions] = useState<SupportActivityCompletion[]>([]);
   const [completionSavingIds, setCompletionSavingIds] = useState<number[]>([]);
   const [completionError, setCompletionError] = useState('');
+  // Marking done first asks "Any notes?" (optional); the activity waiting on it.
+  const [noteActivity, setNoteActivity] = useState<{ id: number; label: string } | null>(null);
   const [openDays, setOpenDays] = useState<Record<string, boolean>>(() => ({ [getCurrentProgramDayName()]: true }));
   const [downloading, setDownloading] = useState(false);
 
@@ -154,13 +156,13 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
 
   const completedActivityIds = useMemo(() => new Set(completions.map((completion) => completion.activityId)), [completions]);
 
-  const handleToggleCompleted = async (activityId: number, nextValue: boolean) => {
-    if (!user) return;
+  const handleToggleCompleted = async (activityId: number, nextValue: boolean, note?: string) => {
+    if (!user || completionSavingIds.includes(activityId)) return;
     setCompletionSavingIds((prev) => [...prev, activityId]);
     setCompletionError('');
     try {
       if (nextValue) {
-        const response = await supportActivityCompletionsApi.markDone(activityId, user.id);
+        const response = await supportActivityCompletionsApi.markDone(activityId, user.id, note);
         setCompletions((prev) => {
           const others = prev.filter((completion) => completion.activityId !== activityId);
           return [...others, response.completion];
@@ -339,7 +341,7 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
               <button
                 type="button"
                 disabled={completionSavingIds.includes(upNext.id)}
-                onClick={() => { void handleToggleCompleted(upNext.id, true); }}
+                onClick={() => setNoteActivity({ id: upNext.id, label: upNext.description })}
                 className="mt-3.5 flex h-[50px] w-full items-center justify-center rounded-2xl bg-primary text-[15.5px] font-extrabold text-white disabled:opacity-60"
               >
                 Mark done
@@ -406,7 +408,7 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
                                     type="button"
                                     data-wt="activity-mark-done"
                                     disabled={saving}
-                                    onClick={() => { void handleToggleCompleted(activity.id, !done); }}
+                                    onClick={() => { if (done) void handleToggleCompleted(activity.id, false); else setNoteActivity({ id: activity.id, label: activity.description }); }}
                                     className={`ml-auto flex items-center gap-1.5 rounded-[10px] border px-3 py-[7px] text-xs font-bold transition disabled:opacity-60 ${done ? 'border-[#15803d] bg-[#15803d] text-white' : 'border-gray-200 bg-white text-gray-700'}`}
                                   >
                                     {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : done ? '✓ Done' : 'Mark done'}
@@ -500,6 +502,13 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
         </section>
       )}
 
+      {noteActivity && (
+        <TaskNoteSheet
+          taskLabel={noteActivity.label}
+          onCancel={() => setNoteActivity(null)}
+          onSave={(note) => { const { id } = noteActivity; setNoteActivity(null); void handleToggleCompleted(id, true, note); }}
+        />
+      )}
       {tick.noteTask && <TaskNoteSheet taskLabel={tick.noteTask.label} onCancel={tick.cancelNote} onSave={tick.saveNote} />}
     </div>
   );

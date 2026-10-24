@@ -42,11 +42,17 @@ const AdminCompletionOverviewDrawer: React.FC<AdminCompletionOverviewDrawerProps
       const assignedSupports = users.filter((member) =>
         hasSupportRole(member) && member.labels?.some((label) => activityLabelIds.has(label.id))
       ).filter((member) => !selectedUserId || member.id === selectedUserId);
-      const completedUserIds = new Set((completionsByActivity.get(activity.id) || []).map((item) => item.userId));
+      const activityCompletions = completionsByActivity.get(activity.id) || [];
+      const completedUserIds = new Set(activityCompletions.map((item) => item.userId));
+      // From everyone who left one, even a support no longer tagged to this activity.
+      const notes = activityCompletions
+        .filter((item) => item.note?.trim() && (!selectedUserId || item.userId === selectedUserId))
+        .map((item) => ({ name: users.find((member) => member.id === item.userId)?.name ?? 'Support', note: item.note!.trim() }));
 
       return {
         activity,
         assignedSupports,
+        notes,
         doneSupports: assignedSupports.filter((member) => completedUserIds.has(member.id)),
         pendingSupports: assignedSupports.filter((member) => !completedUserIds.has(member.id)),
       };
@@ -94,7 +100,7 @@ const AdminCompletionOverviewDrawer: React.FC<AdminCompletionOverviewDrawerProps
             <div className="rounded-3xl border border-dashed border-orange-200 bg-white px-5 py-12 text-center text-sm text-gray-500">
               No activities are scheduled in this overview.
             </div>
-          ) : summary.activitySummaries.map(({ activity, assignedSupports, doneSupports, pendingSupports }) => (
+          ) : summary.activitySummaries.map(({ activity, assignedSupports, notes, doneSupports, pendingSupports }) => (
             <div key={activity.id} className="rounded-3xl border border-orange-100 bg-white px-4 py-4 shadow-sm">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -122,6 +128,15 @@ const AdminCompletionOverviewDrawer: React.FC<AdminCompletionOverviewDrawerProps
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <StatusCluster title="Done" tone="done" names={doneSupports.map((member) => member.name)} />
                   <StatusCluster title="Pending" tone="pending" names={pendingSupports.map((member) => member.name)} />
+                </div>
+              )}
+
+              {notes.length > 0 && (
+                <div className="mt-3 space-y-1.5 rounded-2xl border border-sky-100 bg-sky-50/60 px-3 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-sky-700">Notes</p>
+                  {notes.map((entry) => (
+                    <p key={`${entry.name}-${entry.note}`} className="text-sm leading-snug text-gray-800"><span className="font-semibold">{entry.name}:</span> {entry.note}</p>
+                  ))}
                 </div>
               )}
             </div>

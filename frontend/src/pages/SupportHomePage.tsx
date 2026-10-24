@@ -94,6 +94,8 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
   const [tickNow, setTickNow] = useState(() => new Date());
   const [completions, setCompletions] = useState<SupportActivityCompletion[]>([]);
   const [completionSavingIds, setCompletionSavingIds] = useState<number[]>([]);
+  // Marking done first asks "Any notes?" (optional); the activity waiting on it.
+  const [noteActivity, setNoteActivity] = useState<{ id: number; label: string } | null>(null);
   // null = not touched: the box is open whenever there is something on the list.
   const [checklistToggled, setChecklistToggled] = useState<boolean | null>(null);
   const [checklist, setChecklist] = useState<SupportChecklistItem[]>([]);
@@ -322,7 +324,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
   const todayActivities: HomeActivity[] = myActivities.filter((activity) => activity.dayName === todayName);
   const completedActivityIds = new Set(completions.map((completion) => completion.activityId));
 
-  const toggleActivityDone = async (activityId: number) => {
+  const toggleActivityDone = async (activityId: number, note?: string) => {
     if (completionSavingIds.includes(activityId)) return;
     setCompletionSavingIds((prev) => [...prev, activityId]);
     try {
@@ -330,7 +332,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
         await supportActivityCompletionsApi.markUndone(activityId, user.id);
         setCompletions((prev) => prev.filter((completion) => completion.activityId !== activityId));
       } else {
-        const response = await supportActivityCompletionsApi.markDone(activityId, user.id);
+        const response = await supportActivityCompletionsApi.markDone(activityId, user.id, note);
         setCompletions((prev) => [...prev.filter((completion) => completion.activityId !== activityId), response.completion]);
       }
     } catch (error) {
@@ -582,7 +584,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
                         ))}
                         <button
                           type="button"
-                          onClick={() => { void toggleActivityDone(activity.id); }}
+                          onClick={() => { if (done) void toggleActivityDone(activity.id); else setNoteActivity({ id: activity.id, label: activity.description }); }}
                           disabled={saving}
                           className={`ml-auto min-h-[40px] flex-none rounded-[10px] border px-3.5 py-2 text-[12.5px] font-semibold transition disabled:opacity-60 ${done ? 'border-[#15803d] bg-[#15803d] text-white' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'}`}
                         >
@@ -680,6 +682,13 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
         </aside>
       </div>
 
+      {noteActivity && (
+        <TaskNoteSheet
+          taskLabel={noteActivity.label}
+          onCancel={() => setNoteActivity(null)}
+          onSave={(note) => { const { id } = noteActivity; setNoteActivity(null); void toggleActivityDone(id, note); }}
+        />
+      )}
       {tick.noteTask && <TaskNoteSheet taskLabel={tick.noteTask.label} onCancel={tick.cancelNote} onSave={tick.saveNote} />}
     </div>
   );

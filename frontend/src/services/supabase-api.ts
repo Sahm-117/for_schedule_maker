@@ -2500,6 +2500,7 @@ export const supportActivityCompletionsApi = {
         activityId: row.activityId,
         userId: row.userId,
         completedAt: row.completedAt,
+        note: row.note ?? null,
       }) as SupportActivityCompletion),
     };
   },
@@ -2548,11 +2549,12 @@ export const supportActivityCompletionsApi = {
         activityId: row.activityId,
         userId: row.userId,
         completedAt: row.completedAt,
+        note: row.note ?? null,
       }) as SupportActivityCompletion),
     };
   },
 
-  async markDone(activityId: number, userId: string): Promise<{ completion: SupportActivityCompletion }> {
+  async markDone(activityId: number, userId: string, note?: string): Promise<{ completion: SupportActivityCompletion }> {
     const { data, error } = await supabase
       .from('SupportActivityCompletion')
       .upsert(
@@ -2560,6 +2562,8 @@ export const supportActivityCompletionsApi = {
           activityId,
           userId,
           completedAt: new Date().toISOString(),
+          // Only sent when there is one, so marking done again without a note keeps the earlier note.
+          ...(note?.trim() ? { note: note.trim() } : {}),
         }],
         { onConflict: 'activityId,userId' }
       )
@@ -2576,6 +2580,7 @@ export const supportActivityCompletionsApi = {
         activityId: (data as any).activityId,
         userId: (data as any).userId,
         completedAt: (data as any).completedAt,
+        note: (data as any).note ?? null,
       },
     };
   },

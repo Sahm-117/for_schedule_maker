@@ -20,6 +20,25 @@ export const detectDevice = (): DeviceKind => {
   return /android/i.test(ua) ? 'android' : 'desktop';
 };
 
+export type AndroidBrowser = 'chrome' | 'samsung' | 'edge' | 'firefox' | 'opera' | 'inapp' | 'other';
+
+/**
+ * Which browser an Android phone is using. Only Chrome, Edge and Samsung Internet
+ * can offer the one-tap install; the browser inside WhatsApp, Facebook or Instagram
+ * and Firefox can't, so those get "open this in Chrome" instead.
+ */
+export const detectAndroidBrowser = (): AndroidBrowser => {
+  const ua = navigator.userAgent;
+  if (/FBAN|FBAV|Instagram|WhatsApp|\bLine\/|MicroMessenger|Twitter|TikTok|musical_ly|Snapchat|; wv\)/.test(ua)) return 'inapp';
+  if (/SamsungBrowser/i.test(ua)) return 'samsung';
+  if (/EdgA\//i.test(ua)) return 'edge';
+  if (/OPR\/|OPT\//i.test(ua)) return 'opera';
+  if (/Firefox|FxiOS/i.test(ua)) return 'firefox';
+  if (/DuckDuckGo|UCBrowser|MiuiBrowser|HuaweiBrowser|YaBrowser/i.test(ua)) return 'other';
+  if (/Chrome\//i.test(ua)) return 'chrome';
+  return 'other';
+};
+
 const readNotificationState = (): NotificationState =>
   typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'unsupported';
 
@@ -89,6 +108,7 @@ export const useAppSetup = () => {
 
   return {
     device,
+    androidBrowser: device === 'android' ? detectAndroidBrowser() : null,
     installed: isInstalled,
     // Already opened from the Home Screen at some point, but this is a browser tab.
     installedElsewhere: !isInstalled && device !== 'desktop' && !!server?.installedBefore && androidSure,

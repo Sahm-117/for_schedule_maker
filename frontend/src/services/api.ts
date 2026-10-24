@@ -533,7 +533,7 @@ export const supportActivityCompletionsApi = USE_SUPABASE ? supabaseSupportActiv
   async getByWeek(_weekId: number): Promise<{ completions: SupportActivityCompletion[] }> {
     return { completions: [] };
   },
-  async markDone(_activityId: number, _userId: string): Promise<{ completion: SupportActivityCompletion }> {
+  async markDone(_activityId: number, _userId: string, _note?: string): Promise<{ completion: SupportActivityCompletion }> {
     throw new Error('Support activity completion is only available in Supabase mode.');
   },
   async markUndone(_activityId: number, _userId: string): Promise<{ message: string }> {

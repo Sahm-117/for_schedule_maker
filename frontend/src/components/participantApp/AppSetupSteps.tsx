@@ -71,6 +71,10 @@ const AppSetupSteps: React.FC<Props> = ({ setup, audience = 'participant', enabl
   // person believes a browser tab is the app.
   const needInstallFirst = shown === 'android' && !installed;
 
+  // Chrome can be opened straight from another app with an Android intent link.
+  const needsChrome = shown === 'android' && ['inapp', 'firefox', 'opera', 'other'].includes(setup.androidBrowser ?? '');
+  const chromeIntent = `intent://${window.location.host}${window.location.pathname}${window.location.search}#Intent;scheme=${window.location.protocol.replace(':', '')};package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(window.location.href)};end`;
+
   const copyLink = async () => {
     try {
       await navigator.clipboard.writeText(`${window.location.origin}${audience === 'staff' ? '/' : '/me'}`);
@@ -168,11 +172,31 @@ const AppSetupSteps: React.FC<Props> = ({ setup, audience = 'participant', enabl
                   )}
                 </>
               ) : (
-                <ol className="space-y-2.5">
-                  <Line n={1}>Open this page in <b>Chrome</b>, then tap the menu <DotsIcon /> at the top right.</Line>
-                  <Line n={2}>Tap <b>Install app</b> or <b>Add to Home screen</b>.</Line>
-                  <Line n={3}>Tap <b>Install</b>, then open <b>{APP}</b> from your Home Screen.</Line>
-                </ol>
+                <>
+                  {needsChrome && (
+                    <div className="mb-3 rounded-xl bg-amber-50 px-3 py-2.5 text-[13px] leading-snug text-amber-900">
+                      <p className="font-semibold">{setup.androidBrowser === 'inapp' ? 'You are inside another app.' : 'This browser can\u2019t install the app with one tap.'}</p>
+                      <p className="mt-0.5">Open this page in <b>Chrome</b>. The Install button usually shows up here once you do.</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <a href={chromeIntent} className="inline-flex min-h-[40px] items-center rounded-lg bg-amber-600 px-3.5 text-[13px] font-semibold text-white">Open in Chrome</a>
+                        <button type="button" onClick={() => { void copyLink(); }} className="min-h-[40px] rounded-lg border border-amber-300 bg-white px-3.5 text-[13px] font-semibold text-amber-900">
+                          {copied ? 'Link copied' : 'Copy link'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  <p className="mb-2 text-[13px] leading-snug text-gray-600">
+                    {needsChrome ? 'Or add it yourself from the browser menu:' : 'The Install button isn\u2019t showing yet. You can still add it from the menu:'}
+                  </p>
+                  <ol className="space-y-2.5">
+                    <Line n={1}>Tap the menu <DotsIcon /> at the top right of {setup.androidBrowser === 'samsung' ? 'Samsung Internet (bottom right)' : 'your browser'}.</Line>
+                    <Line n={2}>Tap <b>Install app</b> or <b>Add to Home screen</b>.</Line>
+                    <Line n={3}>Tap <b>Install</b>, then open <b>{APP}</b> from your Home Screen.</Line>
+                  </ol>
+                  {!needsChrome && (
+                    <p className="mt-2.5 text-[12.5px] leading-snug text-gray-500">No <b>Install app</b> in the menu? You may already have {APP} on this phone. Look for its icon on your Home Screen or in your app list.</p>
+                  )}
+                </>
               )
             ) : (
               <p className="text-[14px] leading-snug text-gray-700">
