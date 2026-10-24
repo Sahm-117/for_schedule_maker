@@ -312,6 +312,15 @@ interface ParticipantCardProps {
   retakeMatches?: RetakeMatch[];
 }
 
+// What a one-tap WhatsApp reminder says for each step (opens in their chat; the support presses send).
+const REMIND_TEXT: Record<'introPosted' | 'venueMapAcknowledged' | 'introGuideRead' | 'profileComplete' | 'readyConfirmed', string> = {
+  introPosted: 'a quick reminder to say hello in our group Discussion on the app once you see my hello. It only takes a minute.',
+  venueMapAcknowledged: 'a quick reminder to open the venue map on your Home in the app, so you know where to come.',
+  introGuideRead: 'a quick reminder to read the Intro Class guide on your Home in the app before class.',
+  profileComplete: 'a quick reminder to finish your profile in the app. Your photo helps us recognise you.',
+  readyConfirmed: 'a quick reminder to tick that you are ready for class at the end of Get ready on your Home.',
+};
+
 // The Get ready steps in the participant's own words, with how a support can help with each.
 const readySteps = (o: OnboardingState) => [
   { key: 'introPosted' as const, label: 'Introduce yourself', help: 'They post a short hello in your group Discussion. They can only do it after you have posted yours. If they introduced themselves on the call, they can tick it in their app.' },
@@ -553,15 +562,19 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
     }
   };
 
+  const [clearingFlag, setClearingFlag] = useState(false);
   const clearFlag = async () => {
-    if (!flag) return;
-    setMenu('closed');
+    if (!flag || clearingFlag) return;
+    setClearingFlag(true);
     try {
       await participantFlagsApi.clear(flag.id, userId);
       onFlagCleared(flag.id);
       setConcernOpen(false);
     } catch {
       /* flag stays visible if clearing fails */
+    } finally {
+      setClearingFlag(false);
+      setMenu('closed');
     }
   };
 
@@ -863,8 +876,8 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
                 <button key={reason} type="button" className={menuItemCls} onClick={() => openConcern(reason)}>{reason}</button>
               ))}
               {flag && (
-                <button type="button" className="w-full rounded-[10px] px-3 py-2.5 text-left text-[13px] font-semibold text-red-700 hover:bg-red-50" onClick={() => { void clearFlag(); }}>
-                  Clear flag
+                <button type="button" className="w-full rounded-[10px] px-3 py-2.5 text-left text-[13px] font-semibold text-red-700 hover:bg-red-50" disabled={clearingFlag} onClick={() => { void clearFlag(); }}>
+                  {clearingFlag ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Clearing…</span>) : 'Clear flag'}
                 </button>
               )}
             </>
@@ -958,6 +971,14 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
                   <p className={`text-[13.5px] font-semibold ${step.done ? 'text-gray-500' : 'text-gray-900'}`}>{step.label}<span className="sr-only">{step.done ? ' (done)' : ' (to do)'}</span></p>
                   {!step.done && <p className="mt-0.5 text-[12.5px] leading-relaxed text-gray-600">{step.help}</p>}
                 </div>
+                {!step.done && accessConfirmed !== false && (() => {
+                  const remindLink = buildWhatsAppLink(participant.phone, `Hi ${firstNameOf(participant.fullName)}, ${REMIND_TEXT[step.key]}`);
+                  return remindLink ? (
+                    <a href={remindLink} target="_blank" rel="noreferrer" aria-label={`Remind ${firstNameOf(participant.fullName)}: ${step.label}`} className="inline-flex min-h-[44px] flex-none items-center gap-1.5 self-center rounded-xl border border-[#ffdeca] bg-[#fff4ec] px-3 text-[13px] font-bold text-[#c2410c]">
+                      <WhatsAppIcon />Remind
+                    </a>
+                  ) : null;
+                })()}
               </div>
             ))}
             {onboarding.hasAttended && (

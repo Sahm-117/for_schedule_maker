@@ -19,7 +19,8 @@ import { CountdownRing, useChecklistAutoHide } from '../components/ChecklistAuto
 import Spinner from '../components/Spinner';
 
 type WeeklyTab = 'schedule' | 'checklist';
-type ViewMode = 'today' | 'tomorrow' | 'week';
+// 'today' / 'tomorrow' / 'week', or one weekday's name from the day strip.
+type ViewMode = 'today' | 'tomorrow' | 'week' | (typeof PROGRAM_DAY_ORDER)[number];
 
 const PERIOD_LABEL: Record<string, string> = { MORNING: 'Morning', AFTERNOON: 'Afternoon', EVENING: 'Evening' };
 
@@ -124,7 +125,7 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
   const dayGroups = useMemo(() => {
     if (!selectedWeek) return [];
     return selectedWeek.days
-      .filter((day) => viewMode === 'week' || day.dayName === (viewMode === 'today' ? currentDayName : tomorrowName))
+      .filter((day) => viewMode === 'week' || day.dayName === (viewMode === 'today' ? currentDayName : viewMode === 'tomorrow' ? tomorrowName : viewMode))
       .map((day) => ({
         dayName: day.dayName,
         activities: day.activities.filter((activity) => activity.labels?.some((label) => userLabelIds.includes(label.id))),
@@ -132,6 +133,15 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
       .filter((day) => day.activities.length > 0)
       .sort((a, b) => getProgramDayIndex(a.dayName) - getProgramDayIndex(b.dayName));
   }, [currentDayName, selectedWeek, tomorrowName, userLabelIds, viewMode]);
+
+  // Activities per weekday for the day strip (only the ones with this person's tags).
+  const activityCountByDay = useMemo(() => {
+    const counts: Record<string, number> = {};
+    selectedWeek?.days.forEach((day) => {
+      counts[day.dayName] = day.activities.filter((activity) => activity.labels?.some((label) => userLabelIds.includes(label.id))).length;
+    });
+    return counts;
+  }, [selectedWeek, userLabelIds]);
 
   // Ticks each minute so "Up next" moves on while the page stays open.
   const [clock, setClock] = useState(() => new Date());
@@ -328,6 +338,29 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
         </div>
       )}
 
+      {tab === 'schedule' && selectedWeek && (
+        <div data-wt="schedule-day-strip" role="group" aria-label="Pick a day" className="grid grid-cols-7 gap-1.5">
+          {PROGRAM_DAY_ORDER.map((dayName) => {
+            const count = activityCountByDay[dayName] ?? 0;
+            const picked = viewMode === dayName || (viewMode === 'today' && dayName === currentDayName) || (viewMode === 'tomorrow' && dayName === tomorrowName);
+            const isToday = dayName === currentDayName;
+            return (
+              <button
+                key={dayName}
+                type="button"
+                aria-pressed={picked}
+                aria-label={`${dayName}, ${count} ${count === 1 ? 'activity' : 'activities'}${isToday ? ', today' : ''}`}
+                onClick={() => { setViewMode(isToday ? 'today' : dayName === tomorrowName ? 'tomorrow' : dayName); setOpenDays((prev) => ({ ...prev, [dayName]: true })); }}
+                className={`flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-2xl border text-[12px] font-bold ${picked ? 'border-gray-900 bg-gray-900 text-white' : isToday ? 'border-[#ffdeca] bg-[#fff4ec] text-[#c2410c]' : 'border-gray-200 bg-white text-gray-700'}`}
+              >
+                <span>{dayName.slice(0, 3)}</span>
+                <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${count > 0 ? (picked ? 'bg-white' : 'bg-primary') : 'bg-transparent'}`} />
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {tab === 'schedule' && (
         <div className="flex min-w-0 flex-col gap-3.5">
           {completionError && (
@@ -361,12 +394,12 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
           ) : dayGroups.length === 0 ? (
             <div className={`${CARD} px-5 py-12 text-center`}>
               <p className="text-base font-semibold text-gray-700">
-                {viewMode === 'today' ? 'Nothing assigned for today' : viewMode === 'tomorrow' ? 'Nothing assigned for tomorrow' : 'No activities for you this week'}
+                {viewMode === 'today' ? 'Nothing assigned for today' : viewMode === 'tomorrow' ? 'Nothing assigned for tomorrow' : viewMode === 'week' ? 'No activities for you this week' : `Nothing assigned for ${viewMode}`}
               </p>
               <p className="mt-1 text-sm text-gray-500">
                 {viewMode === 'week'
                   ? `No activities with your activity tags were found for Week ${selectedWeek.weekNumber}.`
-                  : 'Switch to the full week to see everything else.'}
+                  : viewMode === 'today' || viewMode === 'tomorrow' ? 'Switch to the full week to see everything else.' : 'Pick another day above, or open the full week.'}
               </p>
             </div>
           ) : (

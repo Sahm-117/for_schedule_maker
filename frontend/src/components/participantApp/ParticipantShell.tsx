@@ -27,6 +27,7 @@ import AnnouncementPopupHost from '../AnnouncementPopupHost';
 import { POPUP_PRIORITY, usePopupSlot, useSettled } from '../../utils/popupQueue';
 import { applyTheme } from '../../utils/theme';
 import PageLoader from '../PageLoader';
+import Spinner from '../Spinner';
 import FamilyPicker, { useFamilyChoice, useSwitchPerson } from './FamilyPicker';
 
 // Layout for the participant app: sidebar on desktop, floating bar on mobile, the
@@ -143,6 +144,14 @@ const ShellLayout: React.FC = () => {
     });
   }, [location.pathname, location.search, location.hash, myParticipantId, navigate, switchTo, toast]);
   const [moreOpen, setMoreOpen] = useState(false);
+  // Switching to another person on this number reloads the app; say so while it does.
+  const [switchingAccount, setSwitchingAccount] = useState(false);
+  // Never leave the overlay up for good (a reload to the same address does not clear it).
+  useEffect(() => {
+    if (!switchingAccount) return undefined;
+    const timer = window.setTimeout(() => setSwitchingAccount(false), 10000);
+    return () => window.clearTimeout(timer);
+  }, [switchingAccount]);
   const [helpOpen, setHelpOpen] = useState(false);
   const { enable } = useParticipantPush();
   const appSetup = useAppSetup();
@@ -200,6 +209,12 @@ const ShellLayout: React.FC = () => {
   return (
     <div className="app-shell-bg min-h-screen text-gray-900">
       {/* The update prompt is mounted once, app-wide, in App.tsx. */}
+      {switchingAccount && (
+        <div role="status" aria-live="polite" className="fixed inset-0 z-[200] flex flex-col items-center justify-center gap-3 bg-white/85 backdrop-blur-sm">
+          <Spinner className="h-8 w-8 text-primary" />
+          <p className="text-[15px] font-semibold text-gray-900">Switching profile…</p>
+        </div>
+      )}
 
       <aside className="surface-card fixed inset-y-4 left-4 z-30 hidden w-72 flex-col overflow-hidden lg:flex">
         <div className="border-b border-orange-100 px-6 py-6">
@@ -251,7 +266,7 @@ const ShellLayout: React.FC = () => {
               onLogout={logout}
               onHelp={() => setHelpOpen(true)}
               accounts={members}
-              onSwitchAccount={(id) => { void switchTo(id).catch((err) => toast({ message: err instanceof Error ? err.message : 'Could not open that profile. Please try again.', tone: 'error' })); }}
+              onSwitchAccount={(id) => { setSwitchingAccount(true); void switchTo(id).catch((err) => { setSwitchingAccount(false); toast({ message: err instanceof Error ? err.message : 'Could not open that profile. Please try again.', tone: 'error' }); }); }}
             />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-gray-900">{user.name}</p>

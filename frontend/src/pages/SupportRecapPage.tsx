@@ -205,10 +205,11 @@ const WeekBody: React.FC<{
   questions: ManualQuestion[];
   onReadRecap: () => void;
   onOpenManual: () => void;
+  manualLoading?: boolean;
   onQuestionsChanged: () => void;
   teen?: boolean;
   onReadTeenDocument?: (url: string, name: string | null) => void;
-}> = ({ week, questions, onReadRecap, onOpenManual, onQuestionsChanged, teen = false, onReadTeenDocument }) => {
+}> = ({ week, questions, onReadRecap, onOpenManual, manualLoading = false, onQuestionsChanged, teen = false, onReadTeenDocument }) => {
   const [questionsOpen, setQuestionsOpen] = useState(false);
   // Before the recap is out, the class manual is what there is to read.
   const summary = (week.released ? week.recapSummary : week.manual?.summary)?.trim();
@@ -227,7 +228,11 @@ const WeekBody: React.FC<{
       )}
       {(canReadRecap || canOpenManual) && (
         <div className="mt-5 flex flex-col gap-2.5 sm:flex-row">
-          {canOpenManual && <button type="button" onClick={onOpenManual} className={PRIMARY}>Open the manual</button>}
+          {canOpenManual && (
+            <button type="button" onClick={onOpenManual} disabled={manualLoading} aria-busy={manualLoading} className={`${PRIMARY} disabled:opacity-70`}>
+              {manualLoading ? (<span className="inline-flex items-center justify-center gap-2"><Spinner className="h-4 w-4" />Opening…</span>) : 'Open the manual'}
+            </button>
+          )}
           {canReadRecap && <button type="button" onClick={onReadRecap} className={canOpenManual ? SECONDARY : PRIMARY}>Read the recap</button>}
         </div>
       )}
@@ -310,14 +315,19 @@ const SupportRecapPage: React.FC = () => {
   const readRecap = (week: SupportRecap) => {
     if (week.recapDocumentUrl) setDoc({ url: week.recapDocumentUrl, title: `Week ${week.weekNumber} recap`, fileName: week.recapDocumentName });
   };
+  // The week whose manual is being fetched, so the button can show it is working.
+  const [manualLoadingId, setManualLoadingId] = useState<number | null>(null);
   const openManual = (week: SupportRecap) => {
+    if (manualLoadingId !== null) return;
     const pdf = week.manual?.documentUrl
       ? { url: week.manual.documentUrl, title: `Week ${week.weekNumber} class manual`, fileName: week.manual.documentName }
       : null;
     if (!pdf && !hasIntroGuide(week)) return;
+    setManualLoadingId(week.weekId);
     loadManualForWeek(week.title)
       .then((content) => { if (content) setReader({ content, pdf }); else if (pdf) setDoc(pdf); })
-      .catch(() => { if (pdf) setDoc(pdf); });
+      .catch(() => { if (pdf) setDoc(pdf); })
+      .finally(() => setManualLoadingId(null));
   };
   const bodyFor = (week: SupportRecap) => (
     <WeekBody
@@ -325,6 +335,7 @@ const SupportRecapPage: React.FC = () => {
       questions={questions.filter((q) => q.weekId === week.weekId)}
       onReadRecap={() => readRecap(week)}
       onOpenManual={() => openManual(week)}
+      manualLoading={manualLoadingId === week.weekId}
       onQuestionsChanged={load}
       teen={isTeenSupport}
       onReadTeenDocument={(url, name) => setDoc({ url, title: `Week ${week.weekNumber} teen recap`, fileName: name })}
@@ -358,7 +369,7 @@ const SupportRecapPage: React.FC = () => {
           const available = isWeekOpen(week, isTeenSupport);
           const open = available && openWeekId === week.weekId;
           return (
-            <li key={week.weekId}>
+            <li key={week.weekId} className="relative">
               <button type="button" onClick={() => setOpenWeekId(open ? null : week.weekId)} disabled={!available} aria-expanded={available ? open : undefined} className={`flex w-full items-center gap-4 px-5 py-4 text-left transition ${available ? 'hover:bg-[#fafafa]' : 'cursor-default'}`}>
                 <span className="flex h-10 w-10 flex-none items-center justify-center rounded-[14px] bg-[#f2f2f4] text-[15px] font-bold tabular-nums text-gray-900">{week.weekNumber}</span>
                 <span className="min-w-0 flex-1">
@@ -368,9 +379,10 @@ const SupportRecapPage: React.FC = () => {
                 {week.unreadQuestionCount > 0 && (
                   <span className="flex-none whitespace-nowrap rounded-full bg-orange-100/80 px-2 py-0.5 text-[12px] font-bold text-orange-700">{week.unreadQuestionCount} new</span>
                 )}
-                {available && <Chevron open={open} />}
+                {graphicOf(week) && <span aria-hidden="true" className="h-14 w-14 flex-none" />}
+                {available ? <Chevron open={open} /> : <span aria-hidden="true" className="h-4 w-4 flex-none" />}
               </button>
-              {graphicOf(week) && <div className="-mt-1 pb-3.5 pl-[76px] pr-5"><ClassGraphicThumb url={graphicOf(week)} title={week.title || `Week ${week.weekNumber}`} className="h-14 w-14" /></div>}
+              {graphicOf(week) && <div className="absolute right-[52px] top-4"><ClassGraphicThumb url={graphicOf(week)} title={week.title || `Week ${week.weekNumber}`} className="h-14 w-14" /></div>}
               {teacherByWeek.has(week.weekNumber) && (
                 <div className="-mt-2 pb-3.5 pl-[76px] pr-5"><TeacherChip teacher={teacherByWeek.get(week.weekNumber)!} onOpen={() => openTeacher(week)} /></div>
               )}

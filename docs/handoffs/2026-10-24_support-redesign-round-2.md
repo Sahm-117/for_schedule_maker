@@ -14,3 +14,12 @@ Remind buttons on the person sheet, the Schedule day strip, hub duty cards by ro
 
 ## Tested
 Type check (7 known errors), eslint on changed files, vite build, and a mocked browser (no real support login): Home card, People ready count and Not ready filter, Attendance countdown, confirm and three Present marks, no console errors.
+
+## Addendum (same day, later)
+- **Person's "what is left" sheet:** each undone step has a one-tap **Remind** that opens their WhatsApp with a short message for that step (frontend only; nothing is sent until the support presses send in WhatsApp).
+- **Schedule day strip:** Sun..Sat pills above the day list, a dot on days with activities, today tinted; tapping a day shows just that day (Today and Tomorrow stay as before; Up next only on Today).
+- **My Hub duty cards:** a Recap Lead and/or Prayer Lead gets a card at the top of My Hub ("You lead Review & Recap / Prayer", with the meeting time) and **Open your step** jumps to the Hub meeting tab.
+- **Classes:** past-class graphic moved to the right of the row so it lines up with the Next class card.
+- **Loaders:** "Open the manual" shows a spinner while the manual downloads (it did nothing on the first tap); "Switching profile…" overlay; "Clearing…" on Clear flag.
+- **Resources:** supports' and admin lists newest first (FLOW_MAP rule 102). Participants' list is still A to Z, from `participant_home`; changing it is a migration (not done).
+- Tested in a mocked browser: day strip, Remind link, duty cards, Classes layout. The manual spinner was type-checked only (needs a real first-time download).

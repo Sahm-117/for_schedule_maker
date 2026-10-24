@@ -516,6 +516,15 @@ const SupportMyHubPage: React.FC = () => {
             return (
             <div className="flex flex-col gap-6">
               {isLead && activeCohort?.id && <LeadsMeetingCard cohortId={activeCohort.id} />}
+              {/* Your own part of the hub meeting, first, for the two jobs that own a step. */}
+              {([['RECAP_LEAD', isRecapLead, 'Review & Recap'], ['PRAYER_LEAD', isPrayerLead, 'Prayer']] as const).filter(([, mine]) => mine).map(([job, , step]) => (
+                <section key={job} data-wt="hub-duty-card" aria-label={`Your duty: ${HUB_JOB_INFO[job].label}`} className={`${SURFACE} px-6 py-5`}>
+                  <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${HUB_JOB_INFO[job].pill}`}>{HUB_JOB_INFO[job].label}</span>
+                  <h2 className="mt-2 text-[20px] font-bold leading-tight tracking-[-0.02em] text-gray-900">You lead {step}{slot ? ` · ${slot}` : ''}</h2>
+                  <p className="mt-1.5 text-[14.5px] leading-relaxed text-gray-600">{HUB_JOB_INFO[job].description}</p>
+                  <button type="button" onClick={() => setTab('meeting')} className="mt-3.5 min-h-[48px] w-full rounded-2xl bg-primary px-4 text-[15px] font-bold text-white sm:w-auto">Open your step</button>
+                </section>
+              ))}
               {/* One card for the hub: who leads it, when it meets, and the one or two things to tap. */}
               <section className={`${SURFACE} px-6 pb-6 pt-7 sm:px-8 sm:pb-8 sm:pt-9`}>
                 <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-gray-500">

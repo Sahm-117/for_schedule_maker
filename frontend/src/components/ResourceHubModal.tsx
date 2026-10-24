@@ -7,7 +7,6 @@ import type { Resource, SupportHub } from '../types';
 import { downloadFile } from '../utils/download';
 import DocumentViewerSheet from './DocumentViewerSheet';
 import ResourceArtwork from './resources/ResourceArtwork';
-import { sortByText } from '../utils/sort';
 import AppOverflowMenu from './AppOverflowMenu';
 import ResourceEditorModal from './resources/ResourceEditorModal';
 import ResourceHistorySheet from './resources/ResourceHistorySheet';
@@ -29,6 +28,9 @@ function formatBytes(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+// The most recently uploaded resource comes first.
+const newestFirst = (list: Resource[]) => [...list].sort((a, b) => (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0));
+
 const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, onViewed, embedded = false, layout = 'list' }) => {
   const { isAdmin } = useAuth();
   const { can } = usePermissions();
@@ -49,7 +51,7 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
   const load = () => {
     if (!loadedOnce.current) setLoading(true);
     resourcesApi.getAll()
-      .then((res) => setResources(sortByText(res.resources, (resource) => resource.title)))
+      .then((res) => setResources(newestFirst(res.resources)))
       .catch(() => {})
       .finally(() => { loadedOnce.current = true; setLoading(false); });
   };
@@ -89,7 +91,7 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
         mode={editor?.mode ?? 'add'}
         resource={editor?.resource ?? null}
         hubs={hubs}
-        onSaved={(saved) => setResources((prev) => sortByText([...prev.filter((item) => item.id !== saved.id), saved], (resource) => resource.title))}
+        onSaved={(saved) => setResources((prev) => newestFirst([...prev.filter((item) => item.id !== saved.id), saved]))}
       />
       <ResourceHistorySheet resource={historyFor} onClose={() => setHistoryFor(null)} />
     </>

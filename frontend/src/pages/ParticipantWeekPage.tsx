@@ -279,7 +279,10 @@ const ParticipantWeekPage: React.FC = () => {
     || week.manual?.discussionPrompt?.trim();
   const canReadRecap = week.released && !!week.recapDocumentUrl;
   const canOpenManual = !!week.manual?.documentUrl;
+  // The illustrated manual is still downloading: say so, and open it the moment it arrives (same path as "Open manual" from Home).
+  const manualWaiting = wantsManual && canOpenManual && hasComic && !manualComic && !comicGaveUp;
   const openManual = () => {
+    if (hasComic && !manualComic && !comicGaveUp) { setSearchParams({ manual: '1' }, { replace: true }); return; }
     if (manualComic) { setManualReaderOpen(true); Clarity.event('manual_reader_opened'); }
     else { setManualDocOpen(true); Clarity.event('manual_pdf_opened'); }
   };
@@ -325,7 +328,11 @@ const ParticipantWeekPage: React.FC = () => {
           {(canReadRecap || canOpenManual) && (
             <div data-wt="pw-manual" className="mt-6">
               <div className="flex flex-col gap-2.5 sm:flex-row">
-                {canOpenManual && <button type="button" onClick={openManual} className={PRIMARY}>Open the manual</button>}
+                {canOpenManual && (
+                  <button type="button" onClick={openManual} disabled={manualWaiting} aria-busy={manualWaiting} className={`${PRIMARY} disabled:opacity-70`}>
+                    {manualWaiting ? (<span className="inline-flex items-center justify-center gap-2"><Spinner className="h-4 w-4" />Opening…</span>) : 'Open the manual'}
+                  </button>
+                )}
                 {canReadRecap && <button type="button" onClick={() => setDocOpen(true)} className={canOpenManual ? SECONDARY : PRIMARY}>Read the recap</button>}
               </div>
               {/* Hidden: people tapped this instead of the illustrated manual. The PDF is still reachable from inside the illustrated manual.
