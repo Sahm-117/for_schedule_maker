@@ -251,7 +251,7 @@ const AdminSchedulePage: React.FC = () => {
       />
 
       {isAdmin && (
-        <AdminSupportTaskModal isOpen={showSupportTask} onClose={() => setShowSupportTask(false)} weeks={weeks} selectedWeek={selectedWeek} />
+        <AdminSupportTaskModal isOpen={showSupportTask} onClose={() => setShowSupportTask(false)} weeks={weeks} selectedWeek={selectedWeek} cohort={activeCohort} />
       )}
 
       {isAdmin && (

@@ -916,7 +916,12 @@ export interface ParticipantStageChange {
 export interface SupportChecklistItem {
   id: string;
   userId: string;
-  weekId: number;
+  /** The class week it belongs to; empty for a task that only has a date (the rest weeks between cohorts). */
+  weekId: number | null;
+  /** Set on tasks that have only a date (no class week). */
+  cohortId?: string | null;
+  /** The deadline as a Lagos calendar day, YYYY-MM-DD. */
+  dueDate?: string | null;
   label: string;
   done: boolean;
   position: number;
@@ -936,6 +941,8 @@ export interface AdminChecklistTask {
   taskGroupId: string;
   label: string;
   dueDay: string | null;
+  /** For a task with a date instead of a class week. */
+  dueDate?: string | null;
   total: number;
   done: number;
   people: Array<{ userId: string; name: string; done: boolean; note: string | null; at: string | null }>;
@@ -944,7 +951,9 @@ export interface AdminChecklistTask {
 export type AdminChecklistTarget =
   | { kind: 'ALL' }
   | { kind: 'TAG'; tagId: string }
-  | { kind: 'USERS'; userIds: string[] };
+  | { kind: 'USERS'; userIds: string[] }
+  /** Supports who lead a group in the cohort. */
+  | { kind: 'LEADERS' };
 
 // ── Faith Projects ────────────────────────────────────────────────────────────
 

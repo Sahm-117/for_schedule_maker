@@ -11,12 +11,12 @@ import { announcementsApi, faithProjectsApi, groupsApi, meetingAttendanceApi, my
 import type { Announcement, FaithProject, Group, HubJob, MyHubPayload, Participant, ParticipantCheckIn, SupportActivityCompletion, SupportChecklistItem, SupportKind, User } from '../types';
 import { getCurrentProgramDayName, getProgramDayIndex } from '../utils/schedule';
 import { sortByText } from '../utils/sort';
-import { nextClassWeek, weekDayDate } from '../utils/participantApp';
+import { lagosTodayIso, nextClassWeek, weekDayDate } from '../utils/participantApp';
 import { normalizeLink } from '../utils/links';
 import SupportOnboardingSteps from '../components/groups/SupportOnboardingSteps';
 import ChecklistTaskMeta from '../components/schedule/ChecklistTaskMeta';
 import TaskNoteSheet from '../components/schedule/TaskNoteSheet';
-import { sortChecklistForHome } from '../utils/checklist';
+import { sortChecklistForHome, tasksForHome, weekSpan } from '../utils/checklist';
 import { useChecklistTick } from '../hooks/useChecklistTick';
 import { CountdownRing, useChecklistAutoHide } from '../components/ChecklistAutoHide';
 import { useGroupMeetingLive } from '../hooks/useGroupMeetingLive';
@@ -294,11 +294,19 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
   useEffect(() => {
     if (!user || activeWeekId === null) { setChecklist([]); return; }
     let cancelled = false;
-    supportChecklistApi.getForWeek(user.id, activeWeekId)
-      .then(({ items }) => { if (!cancelled) setChecklist(items); })
+    supportChecklistApi.getForSchedule(user.id, activeWeekId, activeCohort?.id ?? null)
+      .then(({ items }) => {
+        if (cancelled) return;
+        const start = activeCohort?.startDate?.slice(0, 10) ?? null;
+        const active = selectedWeek || weeks[0] || null;
+        const span = start && active ? weekSpan(start, active) : null;
+        const lastEnd = start ? weeks.map((w) => weekSpan(start, w).end).sort().pop() ?? null : null;
+        const today = lagosTodayIso(new Date());
+        setChecklist(tasksForHome(items, activeWeekId, span, !!lastEnd && today > lastEnd, today));
+      })
       .catch(() => { if (!cancelled) setChecklist([]); });
     return () => { cancelled = true; };
-  }, [activeWeekId, user, liveRevision]);
+  }, [activeWeekId, activeCohort?.id, activeCohort?.startDate, selectedWeek, weeks, user, liveRevision]);
 
   const activeWeek = selectedWeek || weeks[0] || null;
   const todayName = getCurrentProgramDayName();
@@ -624,8 +632,8 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
               className="flex min-w-0 flex-1 items-center gap-3 pb-3 pl-5 pt-[18px] text-left"
             >
               <div className="min-w-0">
-                <h2 className="text-[17px] font-bold text-gray-900">Weekly checklist</h2>
-                <p className="mt-0.5 text-[13px] text-gray-500">{checkedCount} of {checklist.length} done this week</p>
+                <h2 className="text-[17px] font-bold text-gray-900">Your tasks</h2>
+                <p className="mt-0.5 text-[13px] text-gray-500">{checkedCount} of {checklist.length} done</p>
               </div>
               <svg className={`ml-auto h-4 w-4 flex-none text-gray-400 transition-transform ${checklistOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m9 5 7 7-7 7" /></svg>
             </button>            </div>

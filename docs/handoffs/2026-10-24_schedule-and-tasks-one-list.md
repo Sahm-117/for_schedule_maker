@@ -1,0 +1,29 @@
+# Schedule and checklist as one list; tasks with deadlines and rest weeks
+
+Date: 2026-10-24. One live migration; no edge function. FLOW_MAP rule 104 (and a pointer in rule 21).
+
+## Summary
+- **Support Schedule is one list.** Activities (set by admin, with a time) and tasks (with a deadline) sit on the same day cards. Filter chips All / Activities / Tasks replace the two tabs; Today / Tomorrow / Full week and the day strip are unchanged and now count open tasks too. Tasks with no day appear under "Anytime this week". Tasks from admin carry the quiet "From admin" tag; a support's own tasks carry nothing. A deadline shows "Due today" (orange) or "Was due ..." (red).
+- **Add task** (header button on the support Schedule): a task and an optional deadline (Today, Tomorrow, a date, none). "Edit my tasks" removes the support's own tasks only. Home's box is now "Your tasks" and lists the same items.
+- **Rest weeks.** The 3 weeks after a cohort have no class week, so tasks there carry only a date. The week picker gets a "Rest weeks" entry (shown when there are such tasks, or once the last class week is over), and the page opens on it automatically after the last class when tasks wait there. Three groups, Rest week 1 to 3, plus "Other dates".
+- **Admin: Schedule > ⋮ > Add task for supports.** The old pop-up gained **Rest weeks** (pick Rest 1 to 3; due on each week's last day) and a new audience **Group leaders** (supports who lead an unarchived group in that cohort), next to Everyone, a tag and Choose people. "Already added" lists the rest-week tasks with who has done them.
+
+## Live changes (applied through the Management API)
+- `20261024140000_support_tasks_deadlines.sql`: `SupportChecklistItem."weekId"` now optional, new `"dueDate"` and `"cohortId"` (a week-less task needs both), unique and lookup indexes for week-less rows, the admin-task guard also locks `dueDate`/`cohortId`, new `admin_add_support_task` (class weeks and/or dates, targets ALL/TAG/USERS/LEADERS, one bell alert per support) and `admin_rest_tasks`. The old `admin_add_checklist_task` is left in place, unused by the app. Rollback lines are at the top of the file.
+- No edge function was deployed or changed.
+
+## Decisions and why
+- Activities stay separate from tasks: they carry time, labels, the admin completion overview and the "Any notes?" popup. Only the tasks were merged into the Schedule.
+- Rest-week dates are computed from the cohort (end date, else a spare week after the last class) exactly as the Planner does, and fixed on the tasks when added. If the Planner later moves the cohort's end, tasks already added keep their dates.
+- Left out of the mock-up on purpose: the "Remind me the day before" push (needs a `push-reminders` change) and a free-text note on a new task. A floating Add task button became a header button.
+
+## How it was tested
+- Live database, inside a block that rolled back: a rest-week task for two dates went to one chosen support (2 rows), a repeat was skipped, a class-week task was added with a due day, `admin_rest_tasks` listed both dates with the person, and a call with no week and no date was refused. Nothing remained afterwards (0 rows, 0 bells).
+- Browser (local app, mocked backend), as a support: merged day cards, Anytime group, From admin tag, Due today, Add task for tomorrow (saved onto the next class week), ticking, the Rest weeks entry and view. As an admin: the pop-up on Rest weeks, picking Rest 1 and 2 sent dates 27 Dec and 3 Jan with no week ids. No console errors.
+- `npm run build`, eslint on the changed files, type check (7 known errors only).
+- NOT tested: with a real support or admin login, the "Group leaders" audience end to end (its rule was only run as a read-only query: it matches the supports who lead an unarchived group in the current cohort; the add function itself was not run with it, to avoid real bell and Telegram alerts), the bell alert wording in the app, and phone browsers.
+
+## Open items
+- Old per-week checklist items still show on their week as before; there is no "Past weeks" list.
+- A bell alert for a task due soon does not exist (no reminders for tasks).
+- A support who has tasks only in a rest week sees them only through the "Rest weeks" picker entry (or Home).

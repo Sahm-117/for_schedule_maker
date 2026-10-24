@@ -8365,7 +8365,9 @@ export const participantFlagsApi = {
 const mapChecklistItem = (row: any): import('../types').SupportChecklistItem => ({
   id: row.id,
   userId: row.userId,
-  weekId: row.weekId,
+  weekId: row.weekId ?? null,
+  cohortId: row.cohortId ?? null,
+  dueDate: row.dueDate ?? null,
   label: row.label,
   done: !!row.done,
   position: row.position ?? 0,
@@ -8388,9 +8390,28 @@ export const supportChecklistApi = {
     return { items: await load() };
   },
 
-  async add(userId: string, weekId: number, label: string, position: number): Promise<{ item: import('../types').SupportChecklistItem }> {
+  /**
+   * A support's whole list for the Schedule: the tasks of this class week, plus every task that has only a date
+   * (the rest weeks between cohorts) in this cohort. The page sorts them onto days.
+   */
+  async getForSchedule(userId: string, weekId: number | null, cohortId: string | null): Promise<{ items: import('../types').SupportChecklistItem[] }> {
+    const parts: string[] = [];
+    if (weekId !== null) parts.push(`weekId.eq.${weekId}`);
+    if (cohortId) parts.push(`and(weekId.is.null,cohortId.eq.${cohortId})`);
+    if (parts.length === 0) return { items: [] };
+    const { data, error } = await supabase.from('SupportChecklistItem').select('*')
+      .eq('userId', userId).or(parts.join(',')).order('position').order('createdAt');
+    if (error) throw new Error(error.message);
+    return { items: ((data as any[]) || []).map(mapChecklistItem) };
+  },
+
+  /** Put a task of the support's own on their list. A task with no class week needs a cohort and a date. */
+  async add(
+    userId: string, weekId: number | null, label: string, position: number,
+    extra: { cohortId?: string | null; dueDate?: string | null } = {},
+  ): Promise<{ item: import('../types').SupportChecklistItem }> {
     const { data, error } = await supabase.from('SupportChecklistItem')
-      .insert([{ userId, weekId, label: label.trim(), position }]).select('*').single();
+      .insert([{ userId, weekId, label: label.trim(), position, cohortId: extra.cohortId ?? null, dueDate: extra.dueDate ?? null }]).select('*').single();
     if (error || !data) throw new Error(error?.code === '23505' ? 'That duty is already on your list.' : (error?.message || 'Failed to add duty'));
     return { item: mapChecklistItem(data) };
   },
@@ -8427,6 +8448,26 @@ export const adminChecklistApi = {
     if (error) throw checklistAdminError(error.message || '');
     const row = (data ?? {}) as any;
     return { supports: row.supports ?? 0, rows: row.rows ?? 0, skipped: row.skipped ?? 0 };
+  },
+
+  /** One task for chosen class weeks and/or dates, in any cohort the admin names. */
+  async addSupportTask(input: { label: string; weekIds: number[]; cohortId: string | null; dueDay?: string | null; dueDates: string[]; target: import('../types').AdminChecklistTarget }): Promise<{ supports: number; rows: number; skipped: number }> {
+    const { data, error } = await supabase.rpc('admin_add_support_task', {
+      p_token: getSessionToken(), p_label: input.label, p_week_ids: input.weekIds, p_cohort_id: input.cohortId,
+      p_due_day: input.dueDay ?? null, p_due_dates: input.dueDates, p_target: input.target,
+    });
+    if (error) throw checklistAdminError(error.message || '');
+    const row = (data ?? {}) as any;
+    return { supports: row.supports ?? 0, rows: row.rows ?? 0, skipped: row.skipped ?? 0 };
+  },
+
+  /** The admin's tasks that have a date instead of a class week (the rest weeks), with who has done them. */
+  async listRestTasks(cohortId: string): Promise<import('../types').AdminChecklistTask[]> {
+    const { data, error } = await supabase.rpc('admin_rest_tasks', { p_token: getSessionToken(), p_cohort_id: cohortId });
+    if (error) throw checklistAdminError(error.message || '');
+    return ((data ?? []) as any[]).map((t) => ({
+      taskGroupId: t.taskGroupId, label: t.label, dueDay: null, dueDate: t.dueDate ?? null, total: t.total ?? 0, done: t.done ?? 0, people: t.people ?? [],
+    }));
   },
 
   async listTasks(weekId: number): Promise<import('../types').AdminChecklistTask[]> {

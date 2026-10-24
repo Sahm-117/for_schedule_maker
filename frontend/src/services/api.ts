@@ -982,13 +982,16 @@ export const participantFlagsApi = USE_SUPABASE ? supabaseParticipantFlagsApi : 
 
 export const supportChecklistApi = USE_SUPABASE ? supabaseSupportChecklistApi : {
   async getForWeek(_userId: string, _weekId: number): Promise<{ items: import('../types').SupportChecklistItem[] }> { return { items: [] }; },
-  async add(_userId: string, _weekId: number, _label: string, _position: number): Promise<never> { return peopleUnavailable(); },
+  async getForSchedule(_userId: string, _weekId: number | null, _cohortId: string | null): Promise<{ items: import('../types').SupportChecklistItem[] }> { return { items: [] }; },
+  async add(_userId: string, _weekId: number | null, _label: string, _position: number, _extra?: { cohortId?: string | null; dueDate?: string | null }): Promise<never> { return peopleUnavailable(); },
   async setDone(_itemId: string, _done: boolean, _note?: string | null): Promise<never> { return peopleUnavailable(); },
   async remove(_itemId: string): Promise<never> { return peopleUnavailable(); },
 };
 
 export const adminChecklistApi = USE_SUPABASE ? supabaseAdminChecklistApi : {
   async addTask(_input: any): Promise<never> { return peopleUnavailable(); },
+  async addSupportTask(_input: any): Promise<never> { return peopleUnavailable(); },
+  async listRestTasks(_cohortId: string): Promise<import('../types').AdminChecklistTask[]> { return []; },
   async listTasks(_weekId: number): Promise<import('../types').AdminChecklistTask[]> { return []; },
   async deleteTask(_taskGroupId: string, _weekId: number | null): Promise<never> { return peopleUnavailable(); },
 };

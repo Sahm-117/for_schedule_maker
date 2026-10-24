@@ -103,7 +103,7 @@ export const PAGE_TOURS: Record<string, TourStep[]> = {
     { target: wt('home-attendance'), title: 'Mark attendance', body: 'One tap opens the shared Sunday attendance register.' },
     { target: wt('home-quick-links'), title: 'Your group', body: 'Your next group meeting, faith projects, My Hub, your group call, tasks and resources, each one tap away.' },
     { target: wt('home-schedule'), title: 'Today’s activities', body: 'Your activities for today. Tap "Mark done" as you finish each one, or open the full week.' },
-    { target: wt('home-checklist'), title: 'Weekly checklist', body: 'Tick off this week’s tasks as you go.', optional: true },
+    { target: wt('home-checklist'), title: 'Your tasks', body: 'Tick off your tasks as you go. Ones from an admin say From admin.', optional: true },
     { target: wt('app-nav'), title: 'Find your way around', body: 'Use the menu to move between pages. On your phone, the rest sits under More.' },
     HELP_STEP,
   ],
@@ -114,7 +114,7 @@ export const PAGE_TOURS: Record<string, TourStep[]> = {
     { target: wt('mob-more'), title: 'More options', body: 'Report an issue with a contact, or export your contacts.' },
   ],
   'support:schedule': [
-    { target: wt('schedule-tabs'), title: 'Schedule and checklist', body: 'Schedule shows your activities and Checklist holds the tasks you want to remember this week.' },
+    { target: wt('schedule-tabs'), title: 'Activities and tasks', body: 'Everything for the week is in one list. Switch between All, Activities and Tasks, and use Add task for your own reminders with a deadline.' },
     { target: wt('schedule-week'), title: 'Pick a week', body: 'Look back at a past week or ahead to the next one.', optional: true },
     { target: wt('schedule-view-modes'), title: 'Today, tomorrow or the full week', body: 'Choose how much of the schedule to see at once.', optional: true },
     { target: wt('activity-mark-done'), title: 'Mark activities done', body: 'Tap "Mark done" when you finish an activity. It saves straight away. Tap again to undo.', optional: true },
