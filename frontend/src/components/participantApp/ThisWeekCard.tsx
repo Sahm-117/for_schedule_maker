@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import type { ParticipantHome, ParticipantHomeWeek } from '../../types';
 import { TeacherChip, TeacherSheet } from '../TeacherSheet';
+import InfoTip from '../InfoTip';
 import { ClassGraphicSheet, ManualButton, gradientCss } from './ClassGraphic';
 import { formatTime, reflectionFor } from '../../utils/participantApp';
 
@@ -17,6 +18,9 @@ const classLine = (week: ParticipantHomeWeek) => {
   return `Class on ${day}${time ? `, ${time}` : ''}`;
 };
 
+// The reflection nudge: Monday is the best day for it; on Tuesday it is still open. Shown only while the reflection is unwritten.
+const lagosWeekday = () => new Intl.DateTimeFormat('en-GB', { weekday: 'long', timeZone: 'Africa/Lagos' }).format(new Date());
+
 /** `canReflect` is false while a practice participant has not finished getting ready: the reflection waits for them. */
 const ThisWeekCard: React.FC<{ home: ParticipantHome; week: ParticipantHomeWeek; label?: string; canReflect?: boolean }> = ({ home, week, label, canReflect = true }) => {
   const [graphicOpen, setGraphicOpen] = useState(false);
@@ -30,6 +34,14 @@ const ThisWeekCard: React.FC<{ home: ParticipantHome; week: ParticipantHomeWeek;
   const done = [attended || week.released || !!reflection, attended || week.released || !!reflection, week.released || !!reflection, !!reflection];
   const current = done.findIndex((d) => !d);
   const line = classLine(week);
+  const weekday = lagosWeekday();
+  const nudge = week.released && !reflection && canReflect
+    ? weekday === 'Monday'
+      ? { label: 'Do this first', tip: 'Monday is the best day for this, while the class is fresh.' }
+      : weekday === 'Tuesday'
+        ? { label: 'Still open', tip: "Still open. Please write it before the group meeting." }
+        : null
+    : null;
 
   // The one button.
   let cta: React.ReactNode;
@@ -45,8 +57,14 @@ const ThisWeekCard: React.FC<{ home: ParticipantHome; week: ParticipantHomeWeek;
 
   return (
     <section data-wt="ph-hero" className="rounded-3xl border border-primary/25 bg-white px-[18px] pb-[18px] pt-5 shadow-[0_8px_24px_-14px_rgb(var(--color-primary-rgb)/0.55)]">
-      <div className="flex items-center gap-2">
-        <span className="rounded-full bg-primary/10 px-2.5 py-[3px] text-[12px] font-extrabold uppercase tracking-[0.02em] text-primary">{label ?? `Week ${week.weekNumber} of ${home.weeks.length}`}</span>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+        <span className="whitespace-nowrap rounded-full bg-primary/10 px-2.5 py-[3px] text-[12px] font-extrabold uppercase tracking-[0.02em] text-primary">{label ?? `Week ${week.weekNumber} of ${home.weeks.length}`}</span>
+        {nudge && (
+          <span className="inline-flex items-center gap-1 whitespace-nowrap text-[12px] font-bold text-[#c2410c]">
+            {nudge.label}
+            <InfoTip label={`About "${nudge.label}"`}>{nudge.tip}</InfoTip>
+          </span>
+        )}
         {line && <span className="ml-auto text-[13px] font-bold text-[#c2410c]">{line}</span>}
       </div>
 

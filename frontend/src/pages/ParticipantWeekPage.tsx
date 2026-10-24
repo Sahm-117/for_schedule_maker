@@ -292,10 +292,10 @@ const ParticipantWeekPage: React.FC = () => {
   const stateTone = week.released || canOpenManual ? 'bg-emerald-500' : week.shared || manualArrives ? 'bg-amber-400' : 'bg-gray-300';
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-2xl lg:max-w-5xl">
       <PageHeader title={`Week ${week.weekNumber}`} tourId="participant:week" back={{ label: 'Journey', fallbackTo: '/me/journey' }} />
 
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6 desktop-cols">
         {/* One card for the week: what it's about, one thing to think about,
             and the one or two things to open. */}
         <section data-wt="pw-recap" className={`${SURFACE} px-6 pb-6 pt-7 sm:px-8 sm:pb-8 sm:pt-9`}>

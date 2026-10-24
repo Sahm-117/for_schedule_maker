@@ -29,9 +29,9 @@ const ParticipantResourcesPage: React.FC = () => {
   const classMaterials = home.weeks.filter((week) => week.released && week.recapDocumentUrl);
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-2xl lg:max-w-5xl">
       <PageHeader title="Resources" tourId="participant:resources" />
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 desktop-cols">
         <section data-wt="pr-guides" className={CARD}>
           <h2 className="text-base font-bold text-gray-900">General guides</h2>
           {home.resources.length === 0 ? (

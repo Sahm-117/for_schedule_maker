@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import PrayerNowBanner from '../components/corporatePrayers/PrayerNowBanner';
+import { StreakChip } from '../components/corporatePrayers/PrayerStreakParts';
+import { usePrayerStreak } from '../hooks/usePrayerStreak';
 import { NavLink, useNavigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import InspirationCarousel from '../components/participantApp/InspirationCarousel';
@@ -40,7 +42,6 @@ import {
 
 const CARD = 'rounded-[22px] border border-[#eef0f4] bg-white p-5 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]';
 
-
 // Icons for the Home quick-action tiles (always exactly four, none repeating
 // the mobile bottom bar's Home/My Group/Journey/Faith Project).
 const ICON_CALL = 'M15 10.5 21 7v10l-6-3.5ZM3 6h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z';
@@ -59,6 +60,7 @@ const ParticipantHomePage: React.FC = () => {
   const push = useParticipantPush();
   const navigate = useNavigate();
   const [goalSaving, setGoalSaving] = useState(false);
+  const { streak } = usePrayerStreak();
   const [introOpen, setIntroOpen] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   // Above the early returns below, so every render calls the same hooks.
@@ -260,7 +262,6 @@ const ParticipantHomePage: React.FC = () => {
 
   const expectations = (week?.expectations || '').split('\n').map((line) => line.trim()).filter(Boolean);
 
-
   return (
     <div>
       <PageHeader
@@ -268,7 +269,7 @@ const ParticipantHomePage: React.FC = () => {
         tourId="participant:home"
       />
 
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 desktop-cols">
         <AppSetupBanner enable={push.enable} />
         <PrayerNowBanner to="/me/pray" />
         {home.groupMeetingLive && (
@@ -433,6 +434,29 @@ const ParticipantHomePage: React.FC = () => {
           </NavLink>
         )}
 
+        {week && reflection?.goal ? (
+          <section className="rounded-[22px] border border-[#ffdeca] bg-[#fff8f3] p-5 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#9a6a4b]">Your goal this week</span>
+              <NavLink to={`/me/week/${week.weekNumber}`} className="ml-auto text-[12.5px] font-bold text-[#c2410c]">Edit</NavLink>
+            </div>
+            <p className="mt-2 text-base font-semibold leading-[1.45] text-gray-900">{reflection.goal}</p>
+            {reflection.goalCheck && (
+              <p className="mt-1.5 text-[13px] leading-normal text-gray-500">You will know when: {reflection.goalCheck}</p>
+            )}
+            <button
+              type="button"
+              onClick={() => { void toggleGoalDone(); }}
+              disabled={goalSaving}
+              className={`mt-3.5 min-h-[46px] w-full rounded-xl p-3 text-sm font-semibold disabled:opacity-60 ${reflection.goalDoneAt ? 'border border-[#bbf7d0] bg-[#f2fbf5] text-[#15803d]' : 'border border-[#ffdeca] bg-white text-[#c2410c]'}`}
+            >
+              {reflection.goalDoneAt ? 'Done ✓' : 'I did it'}
+            </button>
+          </section>
+        ) : null}
+
+        <InspirationCarousel scriptures={home.scriptures} startDay={home.scriptureStartDay} cohortStartDate={home.cohort?.startDate} />
+
         <section data-wt="ph-call" className="overflow-hidden rounded-[20px] border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
           <div className="flex min-h-[68px] items-center gap-3 px-[18px] py-2">
             <div className="min-w-0 flex-1">
@@ -445,6 +469,7 @@ const ParticipantHomePage: React.FC = () => {
             <div className="min-w-0 flex-1">
               <p className="text-[13px] text-gray-500">Faith Project</p>
               <p className="text-[16px] font-extrabold text-gray-900">{FAITH_PROJECT_STATUS_LABEL[home.faithProjectStatus ?? 'NOT_DRAFTED']}</p>
+              {streak?.available && (streak.current ?? 0) > 0 && <div className="mt-1.5"><StreakChip current={streak.current ?? 0} /></div>}
             </div>
             <span className="rounded-full bg-primary px-4 py-2 text-sm font-bold text-white">{faithStarted ? 'Open' : 'Write it'}</span>
           </NavLink>
@@ -514,28 +539,6 @@ const ParticipantHomePage: React.FC = () => {
           </button>
         )}
 
-        {week && reflection?.goal ? (
-          <section className="rounded-[22px] border border-[#ffdeca] bg-[#fff8f3] p-5 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#9a6a4b]">Your goal this week</span>
-              <NavLink to={`/me/week/${week.weekNumber}`} className="ml-auto text-[12.5px] font-bold text-[#c2410c]">Edit</NavLink>
-            </div>
-            <p className="mt-2 text-base font-semibold leading-[1.45] text-gray-900">{reflection.goal}</p>
-            {reflection.goalCheck && (
-              <p className="mt-1.5 text-[13px] leading-normal text-gray-500">You will know when: {reflection.goalCheck}</p>
-            )}
-            <button
-              type="button"
-              onClick={() => { void toggleGoalDone(); }}
-              disabled={goalSaving}
-              className={`mt-3.5 min-h-[46px] w-full rounded-xl p-3 text-sm font-semibold disabled:opacity-60 ${reflection.goalDoneAt ? 'border border-[#bbf7d0] bg-[#f2fbf5] text-[#15803d]' : 'border border-[#ffdeca] bg-white text-[#c2410c]'}`}
-            >
-              {reflection.goalDoneAt ? 'Done ✓' : 'I did it'}
-            </button>
-          </section>
-        ) : null}
-
-        <InspirationCarousel scriptures={home.scriptures} startDay={home.scriptureStartDay} cohortStartDate={home.cohort?.startDate} />
 
         {week && started && !finished && (
           <section data-wt="ph-week" className={CARD}>

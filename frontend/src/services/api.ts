@@ -204,7 +204,7 @@ export const authApi = USE_SUPABASE ? supabaseAuthApi : {
 };
 
 // Weeks API
-export { uploadClassImage, removeClassImage, teenMoveApi, corporatePrayersApi, prayerSlotApi } from './supabase-api';
+export { uploadClassImage, removeClassImage, teenMoveApi, corporatePrayersApi, prayerSlotApi, prayerStreakApi } from './supabase-api';
 export type { TeenMoveTarget } from './supabase-api';
 
 export const weeksApi = USE_SUPABASE ? supabaseWeeksApi : {
@@ -1116,6 +1116,8 @@ export const participantAppApi = USE_SUPABASE ? supabaseParticipantAppApi : {
   async saveFaithProject(_body: string, _participantName: string): Promise<never> { return peopleUnavailable(); },
   async submitFaithHelpRequest(_input: { reason: import('../types').FaithHelpReason; note: string; wantsContact: boolean }, _participantName: string): Promise<never> { return peopleUnavailable(); },
   async setPrayerConsent(_consent: boolean): Promise<never> { return peopleUnavailable(); },
+  async classSignalMine(_weekId: number): Promise<{ status: 'HERE' | 'CANT' | null; reason?: string | null }> { return { status: null }; },
+  async sendClassSignal(_status: 'HERE' | 'CANT', _reason?: string): Promise<never> { return peopleUnavailable(); },
   async getTestimonies(): Promise<{ mine: import('../types').ParticipantTestimony[]; feed: import('../types').TestimonyFeedItem[] }> { return { mine: [], feed: [] }; },
   async submitTestimony(_input: { title: string; body: string; visibility: import('../types').TestimonyVisibility }, _participantName: string): Promise<never> { return peopleUnavailable(); },
   async updateTestimony(_id: string, _input: { title: string; body: string; visibility: import('../types').TestimonyVisibility }, _participantName: string): Promise<never> { return peopleUnavailable(); },

@@ -295,11 +295,11 @@ const ParticipantProfilePage: React.FC = () => {
   ].join(' · ');
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-2xl lg:max-w-5xl">
       <PageHeader title="Profile" subtitle="Your details, photo and reminders." tourId="participant:profile" />
       <input ref={photoInput} type="file" accept="image/*" className="hidden" onChange={(e) => { void uploadPhoto(e.target.files?.[0]); e.target.value = ''; }} />
 
-      <div className="flex flex-col gap-3.5">
+      <div className="flex flex-col gap-3.5 desktop-cols">
         {welcome && completion.percent < 100 && (
           <p className="rounded-[14px] bg-[#fff8f3] px-4 py-3 text-[13.5px] leading-relaxed text-gray-700">
             Welcome to FOF! Take a minute to complete your profile so your support can get to know you.

@@ -383,7 +383,7 @@ const SupportRecapPage: React.FC = () => {
   );
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-2xl lg:max-w-6xl">
       <PageHeader title="Classes" subtitle="The manual before each class, the recap after." back={{ label: 'Home', fallbackTo: '/support' }} />
 
       {loading ? (
@@ -396,7 +396,8 @@ const SupportRecapPage: React.FC = () => {
           <p className="mx-auto mt-2 max-w-[34ch] text-[15px] leading-[1.55] text-gray-500">When a class is added, it will be here.</p>
         </section>
       ) : (
-        <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,1fr)_26rem] lg:items-start lg:gap-x-8">
+          <div className="flex min-w-0 flex-col gap-8">
           {isTeenSupport && user && <TeenQuestionsCard userId={user.id} onChanged={load} />}
           {weekList('Past classes', pastWeeks)}
           <section data-wt="support-recap-week" className={`${SURFACE} px-6 pb-6 pt-7 sm:px-8 sm:pb-8 sm:pt-9`}>
@@ -413,8 +414,10 @@ const SupportRecapPage: React.FC = () => {
             <div className={isWeekOpen(featured, isTeenSupport) ? 'mb-5 mt-3' : 'mt-3'}><WeekState week={featured} teen={isTeenSupport} /></div>
             {isWeekOpen(featured, isTeenSupport) && bodyFor(featured)}
           </section>
+          </div>
 
-          {weekList('Coming up', upcomingWeeks)}
+          {/* On a desktop the upcoming classes sit beside the next class instead of leaving the right side empty. */}
+          <div className="min-w-0 lg:sticky lg:top-24">{weekList('Coming up', upcomingWeeks)}</div>
         </div>
       )}
 

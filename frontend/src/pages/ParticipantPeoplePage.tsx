@@ -43,10 +43,10 @@ const ParticipantPeoplePage: React.FC = () => {
   const otherSupports = people.supports.filter((support) => !support.isMySupport);
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-2xl lg:max-w-5xl">
       <PageHeader title="People" subtitle="Everyone supporting your FOF journey." tourId="participant:people" />
 
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6 desktop-cols">
         {/* One card for the person who matters most here: their own support. */}
         {mySupport && (
           <section className={`${SURFACE} px-6 pb-6 pt-7 sm:px-8 sm:pb-8 sm:pt-9`}>

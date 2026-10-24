@@ -9,6 +9,9 @@ import FaithProjectHistory from '../components/faithProjects/FaithProjectHistory
 import SegmentedTabs from '../components/SegmentedTabs';
 import TestimoniesTab from '../components/participantApp/TestimoniesTab';
 import PrayerChoiceSheet from '../components/participantApp/PrayerChoiceSheet';
+import MilestoneCelebration from '../components/corporatePrayers/MilestoneCelebration';
+import { GroupPrayerTotal, StreakCard, TodayPrayers } from '../components/corporatePrayers/PrayerStreakParts';
+import { usePrayerStreak } from '../hooks/usePrayerStreak';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../hooks/useAuth';
 import { useParticipantApp } from '../context/ParticipantAppContext';
@@ -154,6 +157,14 @@ const ParticipantFaithPage: React.FC = () => {
   const [prayerSaving, setPrayerSaving] = useState(false);
   const prayerSavingRef = useRef(false);
   const [prayerSheetOpen, setPrayerSheetOpen] = useState(false);
+  // The prayer streak (days in a row, today's prayers, the group's total) and the badge being shown, if any.
+  const { streak, reload: reloadStreak } = usePrayerStreak();
+  const [badgeOpen, setBadgeOpen] = useState<{ n: number; replay: boolean } | null>(null);
+  const [pendingShown, setPendingShown] = useState(false);
+  const pendingN = streak?.pending?.milestone ?? null;
+  useEffect(() => {
+    if (pendingN !== null && !pendingShown) { setBadgeOpen({ n: pendingN, replay: false }); setPendingShown(true); }
+  }, [pendingN, pendingShown]);
 
   useEffect(() => {
     let cancelled = false;
@@ -234,7 +245,7 @@ const ParticipantFaithPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-2xl lg:max-w-5xl">
       <PageHeader
         title="Faith Project"
         tourId="participant:faith"
@@ -242,16 +253,16 @@ const ParticipantFaithPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setPrayerSheetOpen(true)}
-            aria-label={`Corporate prayers: ${chipConsent === 'OUT' ? 'off' : 'on'}. Change`}
-            className="inline-flex min-h-[32px] items-center gap-1.5 whitespace-nowrap rounded-full bg-black/[0.05] px-3 text-[12px] font-semibold text-gray-600 transition active:scale-95"
+            aria-label={`Corporate prayer settings. Prayer is ${chipConsent === 'OUT' ? 'off' : 'on'}`}
+            className="relative grid h-10 w-10 place-items-center rounded-full bg-black/[0.05] text-gray-600 transition active:scale-95"
           >
-            <span className={`h-[7px] w-[7px] rounded-full ${chipConsent === 'OUT' ? 'bg-gray-400' : 'bg-emerald-500'}`} aria-hidden="true" />
-            {chipConsent === 'OUT' ? 'Prayer off' : 'Prayer on'}
+            <svg className="h-[19px] w-[19px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" /></svg>
+            <span className={`absolute right-1.5 top-1.5 h-[9px] w-[9px] rounded-full border-2 border-white ${chipConsent === 'OUT' ? 'bg-gray-400' : 'bg-emerald-500'}`} aria-hidden="true" />
           </button>
         ) : undefined}
       />
 
-      <div className="mb-3.5">
+      <div className="mb-3.5 lg:max-w-md">
         <SegmentedTabs
           accent
           tabs={[
@@ -266,7 +277,14 @@ const ParticipantFaithPage: React.FC = () => {
       {tab === 'testimonies' ? (
         <TestimoniesTab />
       ) : (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6 desktop-cols">
+        {streak?.available && (
+          <>
+            <StreakCard streak={streak} onOpenBadge={(n) => setBadgeOpen({ n, replay: true })} />
+            <TodayPrayers slots={streak.slots ?? []} prayPath="/me/pray" serverNow={streak.serverNow} />
+            <GroupPrayerTotal groupName={streak.groupName} total={streak.groupWeekTotal ?? 0} />
+          </>
+        )}
         <section data-wt="pf-project" className={`${SURFACE} px-6 pb-6 pt-7 sm:px-8 sm:pb-8 sm:pt-9`}>
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-gray-500">
@@ -354,6 +372,18 @@ const ParticipantFaithPage: React.FC = () => {
 
       {prayerSheetOpen && chipConsent && (
         <PrayerChoiceSheet consent={chipConsent} startsText={startsText} saving={prayerSaving} onChoose={(include) => { void choosePrayer(include); }} onClose={() => setPrayerSheetOpen(false)} />
+      )}
+
+      {badgeOpen && streak?.available && (
+        <MilestoneCelebration
+          milestone={badgeOpen.n}
+          name={streak.name || user?.name || 'You'}
+          photoUrl={streak.avatarUrl}
+          cohortName={streak.cohortName}
+          canTellGroup={streak.role === 'PARTICIPANT' && !!streak.groupName}
+          replay={badgeOpen.replay}
+          onClose={() => { setBadgeOpen(null); void reloadStreak(); }}
+        />
       )}
 
       <NotGoingWellSheet

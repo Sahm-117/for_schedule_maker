@@ -2243,6 +2243,43 @@ export interface PrayerSignal {
   next?: PrayerNext | null;
 }
 
+/** The prayer streak card data (prayer_streak): days in a row, the total, today's prayers and any milestone not celebrated yet. */
+export type PrayerMilestoneNumber = 5 | 10 | 21 | 30 | 70;
+
+export interface PrayerStreakSlot {
+  slotId: string;
+  name: string | null;
+  slotType: PrayerSlotType;
+  opensAt: string;
+  closesAt: string;
+  sessionId: string | null;
+  amen: boolean;
+  joined: boolean;
+}
+
+export interface PrayerStreak {
+  available: boolean;
+  role?: 'PARTICIPANT' | 'SUPPORT';
+  name?: string;
+  avatarUrl?: string | null;
+  cohortName?: string | null;
+  serverNow?: string;
+  today?: string;
+  current?: number;
+  best?: number;
+  total?: number;
+  restUsed?: boolean;
+  prayedToday?: boolean;
+  days?: Array<{ date: string; prayed: boolean }>;
+  milestones?: Array<{ milestone: PrayerMilestoneNumber; earnedOn: string }>;
+  pending?: { milestone: PrayerMilestoneNumber; earnedOn: string } | null;
+  groupName?: string | null;
+  groupWeekTotal?: number;
+  /** Prayer days from the first prayer day to the cohort's end date. */
+  programmeDays?: number;
+  slots?: PrayerStreakSlot[];
+}
+
 export interface PrayerCoveragePerson { id: string; name: string; skipped?: boolean; lastOn: string | null }
 
 export interface PrayerCoverage {

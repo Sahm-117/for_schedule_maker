@@ -8,6 +8,8 @@ import EndSummaryCard from '../components/participantApp/EndSummaryCard';
 import ThisWeekCard from '../components/participantApp/ThisWeekCard';
 import { TeacherChip, TeacherSheet, type ClassTeacher } from '../components/TeacherSheet';
 import { useParticipantApp } from '../context/ParticipantAppContext';
+import { StreakRow } from '../components/corporatePrayers/PrayerStreakParts';
+import { usePrayerStreak } from '../hooks/usePrayerStreak';
 import { currentWeekNumber, pickCallback, reflectionFor } from '../utils/participantApp';
 
 // My Journey: what the participant wrote each week and whether they kept their
@@ -50,6 +52,7 @@ const ParticipantJourneyPage: React.FC = () => {
     searchParams.get('tab') === 'attendance' ? 'attendance' : 'journey'
   );
   const now = new Date();
+  const { streak } = usePrayerStreak();
 
   // Testimonies moved to the Faith Project page; old links (including the
   // ones review_testimony writes into notifications) still point here, so
@@ -70,18 +73,18 @@ const ParticipantJourneyPage: React.FC = () => {
   const thisWeek = totalWeeks > 0 && weekNumber > totalWeeks ? null : home.weeks.find((w) => w.weekNumber === Math.max(weekNumber, 1)) ?? null;
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-2xl lg:max-w-5xl">
       <PageHeader title="My Journey" tourId="participant:journey" />
 
-      <div className="flex flex-col gap-4">
-        <AttendanceCountdownCard openWindow={home.openWindow} />
+      <div className="flex flex-col gap-4 desktop-cols">
+        <div className="span-all"><AttendanceCountdownCard openWindow={home.openWindow} /></div>
 
-        <SegmentedTabs
+        <div className="span-all lg:max-w-md"><SegmentedTabs
           accent
           tabs={[{ key: 'journey', label: 'Journey' }, { key: 'attendance', label: 'Attendance' }]}
           active={tab}
           onChange={(k) => setTab(k as typeof tab)}
-        />
+        /></div>
 
         {tab === 'journey' ? (
           <>
@@ -94,6 +97,8 @@ const ParticipantJourneyPage: React.FC = () => {
               </div>
               <p className="mt-2 text-[13px] text-gray-500">{home.reflections.length} {home.reflections.length === 1 ? 'reflection' : 'reflections'} · {goalsKept} {goalsKept === 1 ? 'goal' : 'goals'} kept</p>
             </section>
+
+            {streak?.available && <StreakRow streak={streak} to="/me/faith" />}
 
             {callback && (
               <section className="rounded-[20px] border border-[#ffdeca] bg-[#fff8f3] p-5 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">

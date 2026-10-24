@@ -3797,6 +3797,17 @@ export const participantAppApi = {
     return (data as { prayerConsent: 'IN' | 'OUT' }).prayerConsent;
   },
 
+  // "I'm here" / "I can't come today" while the Sunday attendance is open: tells the support, never marks attendance.
+  async classSignalMine(weekId: number): Promise<{ status: 'HERE' | 'CANT' | null; reason?: string | null }> {
+    const { data, error } = await supabase.rpc('participant_class_signal_mine', { p_token: getSessionToken(), p_week: weekId });
+    if (error) throw participantAppError(error.message, 'Could not load that.');
+    return (data ?? { status: null }) as { status: 'HERE' | 'CANT' | null; reason?: string | null };
+  },
+  async sendClassSignal(status: 'HERE' | 'CANT', reason?: string): Promise<void> {
+    const { error } = await supabase.rpc('participant_class_signal', { p_token: getSessionToken(), p_status: status, p_reason: reason ?? null });
+    if (error) throw participantAppError(error.message, 'Could not send that. Please try again.');
+  },
+
   async getTestimonies(): Promise<{ mine: import('../types').ParticipantTestimony[]; feed: import('../types').TestimonyFeedItem[] }> {
     const { data, error } = await supabase.rpc('participant_testimonies', { p_token: getSessionToken() });
     if (error) throw participantAppError(error.message, 'Could not load testimonies.');
@@ -9444,6 +9455,18 @@ export const prayerSlotApi = {
     const { data, error } = await supabase.rpc('corporate_prayer_counts', { p_token: getSessionToken(), p_session: sessionId });
     if (error) throw prayerError(error.message, 'Could not refresh the counts.');
     return data as { counts: import('../types').PrayerCounts; state: 'upcoming' | 'open' | 'closed'; serverNow: string };
+  },
+};
+
+export const prayerStreakApi = {
+  async get(): Promise<import('../types').PrayerStreak> {
+    const { data, error } = await supabase.rpc('prayer_streak', { p_token: getSessionToken() });
+    if (error) throw prayerError(error.message, 'Could not load your prayer streak.');
+    return (data ?? { available: false }) as import('../types').PrayerStreak;
+  },
+  async milestoneSeen(milestone: number, tellGroup: boolean): Promise<void> {
+    const { error } = await supabase.rpc('prayer_milestone_seen', { p_token: getSessionToken(), p_milestone: milestone, p_tell_group: tellGroup });
+    if (error) throw prayerError(error.message, 'Could not save that. Please try again.');
   },
 };
 

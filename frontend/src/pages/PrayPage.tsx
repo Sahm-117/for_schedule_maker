@@ -1,13 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { prayerSlotApi } from '../services/api';
-import type { PrayerNow } from '../types';
+import { prayerSlotApi, prayerStreakApi } from '../services/api';
+import type { PrayerNow, PrayerStreak } from '../types';
 import { usePrayerSignal } from '../hooks/usePrayerSignal';
 import { usePolling } from '../hooks/usePolling';
 import PageLoader from '../components/PageLoader';
 import PrayerSlotScreen from '../components/corporatePrayers/PrayerSlotScreen';
 import LivePrayerCard from '../components/corporatePrayers/LivePrayerCard';
+import MilestoneCelebration from '../components/corporatePrayers/MilestoneCelebration';
 import { clockLabel, lagosClock } from '../utils/prayerText';
 
 // The prayer screen for participants (/me/pray) and supports (/support/pray). Opening it checks you in; Amen checks you out;
@@ -28,6 +29,8 @@ const PrayPage: React.FC<{ homePath: string }> = ({ homePath }) => {
   const [actionError, setActionError] = useState('');
   const [joinError, setJoinError] = useState('');
   const offsetRef = useRef(0);
+  // A streak badge this prayer just earned: shown once, after Done, before they go back.
+  const [celebrate, setCelebrate] = useState<PrayerStreak | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -62,7 +65,26 @@ const PrayPage: React.FC<{ homePath: string }> = ({ homePath }) => {
     setData((prev) => (prev ? { ...prev, counts: next.counts, state: next.state } : prev));
   }, sessionId ? 10000 : null, { catchUp: true });
 
-  const leave = useCallback(() => { void refresh(); navigate(homePath); }, [navigate, homePath, refresh]);
+  const prayed = !!data?.me?.amenAt;
+  const leave = useCallback(() => {
+    void refresh();
+    if (!prayed) { navigate(homePath); return; }
+    // They said Amen: if that finished a streak badge, show it before going back. A failed check never blocks leaving.
+    prayerStreakApi.get()
+      .then((st) => { if (st.available && st.pending) setCelebrate(st); else navigate(homePath); })
+      .catch(() => navigate(homePath));
+  }, [navigate, homePath, refresh, prayed]);
+
+  const celebration = celebrate?.pending ? (
+    <MilestoneCelebration
+      milestone={celebrate.pending.milestone}
+      name={celebrate.name || 'You'}
+      photoUrl={celebrate.avatarUrl}
+      cohortName={celebrate.cohortName}
+      canTellGroup={celebrate.role === 'PARTICIPANT' && !!celebrate.groupName}
+      onClose={() => navigate(homePath)}
+    />
+  ) : null;
 
   const amen = useCallback(async (withoutLink = false) => {
     if (!sessionId) return;
@@ -100,7 +122,7 @@ const PrayPage: React.FC<{ homePath: string }> = ({ homePath }) => {
       || (joinError ? joinError
         : next ? `The next one is at ${clockLabel(lagosClock(next.opensAt))}.`
         : 'There is nothing scheduled for the rest of today.');
-    return (
+    return (<>
       <div className="page-content">
         <div className="mx-auto mt-10 max-w-md rounded-[24px] bg-white p-6 text-center shadow-sm">
           <h1 className="text-xl font-bold text-gray-900">{title}</h1>
@@ -111,14 +133,15 @@ const PrayPage: React.FC<{ homePath: string }> = ({ homePath }) => {
           </div>
         </div>
       </div>
-    );
+      {celebration}
+    </>);
   }
 
   const session = data.session;
   const counts = data.counts ?? { joined: 0, praying: 0, amen: 0 };
 
   if (session.slotType === 'LIVE') {
-    return createPortal(
+    return (<>{createPortal(
       <div className="fixed inset-0 z-[150] flex items-end justify-center overflow-y-auto bg-[#0b1020]/95 sm:items-center sm:p-4">
         <div className="w-full max-w-md rounded-t-[28px] bg-white px-6 pb-6 pt-7 shadow-xl sm:rounded-[28px]">
           {data.live?.telegramLink && data.me ? (
@@ -150,10 +173,10 @@ const PrayPage: React.FC<{ homePath: string }> = ({ homePath }) => {
         </div>
       </div>,
       document.body,
-    );
+    )}{celebration}</>);
   }
 
-  return createPortal(
+  return (<>{createPortal(
     <PrayerSlotScreen
       model={{
         slotLabel: session.name || clockLabel(lagosClock(session.opensAt)),
@@ -171,7 +194,7 @@ const PrayPage: React.FC<{ homePath: string }> = ({ homePath }) => {
       error={actionError}
     />,
     document.body,
-  );
+  )}{celebration}</>);
 };
 
 export default PrayPage;

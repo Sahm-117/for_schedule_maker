@@ -451,7 +451,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
       />
 
       {isTeenSupport && (
-        <div className="mb-3 max-w-[760px]">
+        <div className="mb-3 max-w-[760px] lg:max-w-6xl">
           <TeenMeetingCard userId={user.id} userName={user.name} />
           <div className="mt-3"><TeenQuestionsCard userId={user.id} /></div>
         </div>
@@ -475,7 +475,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
           </NavLink>
         </section>
       ) : (
-        <div className="max-w-[760px] space-y-3">
+        <div className="max-w-[760px] space-y-3 lg:max-w-6xl">
           {/* What is still to do to get the group ready, at the top whichever tab is open. */}
           {showOnboarding && selectedGroupData && (
             <SupportOnboardingSteps
@@ -524,9 +524,9 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
           {activeTab === 'discussion' ? (
             <StaffDiscussionPanel key={selectedGroupId} groupId={selectedGroupId} viewerName={user.name} viewerAvatarUrl={user.avatarUrl} />
           ) : activeTab === 'faith' ? (
-            <div className="space-y-3">
+            <div className="space-y-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-3 lg:space-y-0">
             {selectedParticipants.length === 0 ? (
-              <div className="rounded-[18px] border border-dashed border-orange-200 bg-white py-12 text-center text-sm text-gray-500">
+              <div className="rounded-[18px] lg:col-span-2 border border-dashed border-orange-200 bg-white py-12 text-center text-sm text-gray-500">
                 No participants are in this group yet.
               </div>
             ) : selectedParticipants.map((participant) => (

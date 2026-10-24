@@ -201,3 +201,11 @@ body {
 @media (prefers-reduced-motion: no-preference) and (max-width: 1023px) and (hover: hover) {
   .nav-pill:not(.cursor-not-allowed):hover { animation: fof-wiggle 0.5s ease-in-out; }
 }
+
+/* Desktop: a stack of cards on a narrow page flows into two columns instead of leaving the right side blank.
+   Banners and tabs that must stay full width carry .span-all. Cards are never split across columns. */
+@media (min-width: 1024px) {
+  .desktop-cols { display: block; column-count: 2; column-gap: 1.5rem; }
+  .desktop-cols > * { break-inside: avoid; margin-bottom: 1rem; }
+  .desktop-cols > .span-all { column-span: all; }
+}

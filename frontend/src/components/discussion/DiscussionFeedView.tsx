@@ -531,7 +531,7 @@ const DiscussionFeedView: React.FC<DiscussionFeedViewProps> = ({ feed, actions, 
 
       {/* Pinned under the messages: the page scrolls, this stays in view above the bottom bar on a phone. */}
       {canPost && (
-        <div className={`sticky ${practiceOn ? 'bottom-[calc(env(safe-area-inset-bottom,0px)+140px)]' : 'bottom-[calc(env(safe-area-inset-bottom,0px)+84px)]'} z-30 -mx-4 mt-auto border-t border-black/5 bg-white/85 px-3 pb-2.5 pt-2 backdrop-blur-xl sm:-mx-6 lg:bottom-0 lg:mx-0 lg:rounded-2xl lg:border`}>
+        <div className={`sticky ${practiceOn ? 'bottom-[calc(env(safe-area-inset-bottom,0px)+140px)]' : 'bottom-[calc(env(safe-area-inset-bottom,0px)+84px)]'} z-30 -mx-4 mt-auto border-t border-black/5 bg-white/85 px-3 pb-2.5 pt-2 backdrop-blur-xl sm:-mx-6 lg:bottom-0 lg:mx-0 lg:rounded-2xl lg:border ${practiceOn ? '' : '-mb-7 lg:-mb-8'}`}>
           {!atBottom && (
             <button
               type="button"
@@ -654,7 +654,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ msg, showHeader, feed, ca
       )}
       <div
         style={swipe.dx ? { transform: `translateX(${swipe.dx}px)` } : undefined}
-        className={`min-w-0 ${pinned ? 'w-full' : 'max-w-[86%]'} rounded-[18px] px-3 py-1.5 shadow-[0_1px_1px_rgba(17,24,39,0.06)] ${bubbleTone} ${swipe.dx ? '' : 'transition-transform'}`}
+        className={`min-w-0 ${pinned ? 'w-full' : 'max-w-[86%] lg:max-w-[560px]'} rounded-[18px] px-3 py-1.5 shadow-[0_1px_1px_rgba(17,24,39,0.06)] ${bubbleTone} ${swipe.dx ? '' : 'transition-transform'}`}
       >
         {pinned && (
           <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.04em] text-amber-700"><Glyph name="pin" className="mr-1 inline h-3 w-3 align-text-bottom" />Pinned by {post.pinnedByName || feed.supportName || 'your support'}</p>

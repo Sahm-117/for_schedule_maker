@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-24 | [Prayer streak, badges, I'm here](2026-10-24_prayer-streak-and-redesign.md) | Corporate prayer streak (days in a row, total, group total), badges 5/10/21/30/70 with celebration and share picture, "I'm here / Can't come today" on the attendance card, Faith gear icon, scripture above the call rows, compact My Group. Two live migrations (`20261024100000`, `20261024110000`); no function deploys. |
 | 2026-10-23 | [Scripture opens on tap](2026-10-23_scripture-tap.md) | Inspirational Scripture picture opens full size on tap on the support and participant Home; swipes still change the post. Frontend only. |
 | 2026-10-23 | [Not ready shows what is left](2026-10-23_not-ready-sheet.md) | Participant card "Not ready ›" opens the participant's remaining Get ready steps with what to do for each. Frontend only. |
 | 2026-10-23 | [Supports share or reset logins](2026-10-23_support-share-reset-login.md) | Participant card ⋮ menu on My Group: Share login details before a password is set, Reset password after. Frontend only. |

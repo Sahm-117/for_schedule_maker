@@ -5,6 +5,7 @@ import PageHeader from '../components/PageHeader';
 import LinkText from '../components/LinkText';
 import PageLoader from '../components/PageLoader';
 import Avatar from '../components/Avatar';
+import WhatsAppIcon from '../components/WhatsAppIcon';
 import DocumentViewerSheet from '../components/DocumentViewerSheet';
 import SegmentedTabs from '../components/SegmentedTabs';
 import ParticipantDiscussionTab from '../components/participantApp/ParticipantDiscussionTab';
@@ -58,15 +59,15 @@ const ParticipantGroupPage: React.FC = () => {
   const supportLink = buildWhatsAppLink(group?.supportPhone, `Hi ${supportName.split(' ')[0]}, it's ${home.participant.name.split(' ')[0]} from FOF.`);
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-2xl lg:max-w-5xl">
       <PageHeader title="My group" subtitle={group ? `${group.name}${group.supportName ? ` · Support: ${group.supportName}` : ''}` : undefined} tourId="participant:group" />
       {!group ? (
         <section className={`${CARD} text-center`}>
           <p className="text-[15px] font-bold text-gray-900">You are not in a group yet</p>
         </section>
       ) : (
-        <div className="flex flex-col gap-4">
-          <SegmentedTabs
+        <div className={`flex flex-col gap-4 ${tab === 'meeting' ? 'desktop-cols' : ''}`}>
+          <div className="span-all lg:max-w-md"><SegmentedTabs
             accent
             tabs={[
               { key: 'discussion', label: 'Discussion', dot: unseen > 0 },
@@ -74,7 +75,7 @@ const ParticipantGroupPage: React.FC = () => {
             ]}
             active={tab}
             onChange={(key) => setTabChoice(key as 'discussion' | 'meeting')}
-          />
+          /></div>
           {tab === 'discussion' ? (
             <ParticipantDiscussionTab viewerName={home.participant.name} viewerAvatarUrl={home.profile?.avatarUrl} viewerGender={home.profile?.gender} />
           ) : (
@@ -204,28 +205,29 @@ const ParticipantGroupPage: React.FC = () => {
             <h2 className="text-base font-bold text-gray-900">Your group · {home.members.length + (group.supportName ? 1 : 0)} {home.members.length + (group.supportName ? 1 : 0) === 1 ? 'person' : 'people'}</h2>
             <div className="mt-3.5 flex flex-col gap-2.5">
               {group.supportName && (
-                <div className="flex flex-wrap items-center gap-3 rounded-[14px] border border-[#ffdeca] bg-[#fffaf5] px-3.5 py-3">
+                <div className="flex items-center gap-3 rounded-[14px] border border-[#ffdeca] bg-[#fffaf5] px-3.5 py-2.5">
                   <Avatar name={group.supportName} avatarUrl={group.supportAvatarUrl} size="md" enlargeable />
-                  <div className="min-w-0">
-                    <p className="text-[15px] font-bold text-gray-900">{group.supportName}</p>
-                    <p className="mt-0.5 text-xs text-gray-500">Your support</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[15px] font-bold text-gray-900">{group.supportName}</p>
+                    <p className="text-xs text-gray-500">{supportLink ? 'Your support' : 'Your support · number not available yet'}</p>
                   </div>
-                  {supportLink ? (
-                    <a href={supportLink} target="_blank" rel="noreferrer" className="ml-auto inline-flex min-h-[40px] items-center rounded-[10px] bg-[#25d366] px-3.5 text-xs font-semibold text-white">Contact</a>
-                  ) : (
-                    <p className="ml-auto text-xs text-gray-500">Number not available yet</p>
+                  {supportLink && (
+                    <a href={supportLink} target="_blank" rel="noreferrer" aria-label={`Message ${supportName} on WhatsApp`} className="grid h-11 w-11 flex-none place-items-center rounded-full bg-[#25d366] text-white">
+                      <WhatsAppIcon className="h-[22px] w-[22px] flex-none text-white" />
+                    </a>
                   )}
                 </div>
               )}
-              {home.members.map((member) => (
-                <div key={member.name} className="flex items-center gap-3 rounded-[14px] border border-[#f1f2f5] px-3.5 py-3">
-                  <Avatar name={member.name} avatarUrl={member.avatarUrl} size="md" enlargeable />
-                  <div className="min-w-0">
-                    <p className="text-[15px] font-bold text-gray-900">{member.name}</p>
-                    <p className="mt-0.5 text-xs text-gray-500">{group.name}</p>
-                  </div>
+              {home.members.length > 0 && (
+                <div role="group" aria-label="People in your group, scroll sideways" className="-mx-1 flex snap-x gap-2.5 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  {home.members.map((member) => (
+                    <div key={member.name} className="flex w-[104px] flex-none snap-start flex-col items-center gap-1.5 rounded-[14px] border border-[#f1f2f5] px-2 py-3 text-center">
+                      <Avatar name={member.name} avatarUrl={member.avatarUrl} size="md" enlargeable />
+                      <p className="line-clamp-2 text-[13px] font-bold leading-tight text-gray-900">{member.name}</p>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
               {home.members.length === 0 && <p className="text-[13px] text-gray-500">You are the first in your group so far.</p>}
             </div>
           </section>
