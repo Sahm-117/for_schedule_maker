@@ -78,16 +78,32 @@ const ThisWeekCard: React.FC<{ home: ParticipantHome; week: ParticipantHomeWeek;
         </div>
       </div>
 
+      {/* Each step opens what it names: the manual, the class picture, the recap, the reflection. */}
       <ol className="mt-4 grid grid-cols-4 gap-1.5 text-center" aria-label="This week's steps">
         {STEPS.map((step, index) => {
           const isDone = done[index];
           const isCurrent = index === current;
-          return (
-            <li key={step}>
+          const week_ = `/me/week/${week.weekNumber}`;
+          const target = index === 0 ? (manualReady ? `${week_}?manual=1` : week_)
+            : index === 3 ? (week.released && canReflect ? `${week_}?reflect=1` : week_)
+              : week_;
+          const label = ['Open the manual', 'See the class', 'Open the recap', 'Write your reflection'][index];
+          const inner = (
+            <>
               <span className={`inline-grid h-[30px] w-[30px] place-items-center rounded-full text-[13px] font-extrabold ${isDone ? 'bg-emerald-500 text-white' : isCurrent ? 'bg-primary text-white' : 'bg-[#f1f2f5] text-gray-500'}`}>
                 {isDone ? <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="m5 12 5 5L20 7" /></svg> : index + 1}
               </span>
               <p className={`mt-1.5 text-[12px] ${isCurrent ? 'font-bold text-gray-900' : 'font-semibold text-gray-500'}`}>{step}</p>
+            </>
+          );
+          const cls = 'block w-full rounded-xl py-1 transition active:scale-95 active:bg-black/[0.04]';
+          return (
+            <li key={step}>
+              {index === 1 ? (
+                <button type="button" onClick={() => setGraphicOpen(true)} aria-label={label} className={cls}>{inner}</button>
+              ) : (
+                <NavLink to={target} aria-label={label} className={cls}>{inner}</NavLink>
+              )}
             </li>
           );
         })}
