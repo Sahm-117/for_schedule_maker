@@ -128,7 +128,7 @@ const AdminSupportTaskModal: React.FC<AdminSupportTaskModalProps> = ({ isOpen, o
       });
       setLabel('');
       setDueDay('');
-      setWeekMode('this');
+      if (!restMode) setWeekMode('this');
       setPickedWeeks([]);
       setPickedRest([]);
       await reloadTasks();
@@ -255,16 +255,19 @@ const AdminSupportTaskModal: React.FC<AdminSupportTaskModalProps> = ({ isOpen, o
             <p className="mt-2 text-sm text-gray-500">{restMode ? 'Nothing added for the rest weeks yet.' : 'Nothing added for this week yet.'}</p>
           ) : (
             <ul className="mt-2 flex flex-col gap-2">
-              {tasks.map((task) => (
-                <li key={task.taskGroupId} className="rounded-2xl bg-[#f6f7f9] px-3.5 py-3">
-                  <button type="button" onClick={() => setOpenTask(openTask === task.taskGroupId ? null : task.taskGroupId)} aria-expanded={openTask === task.taskGroupId} className="flex w-full items-start gap-2 text-left">
+              {tasks.map((task) => {
+                // A task added for several rest weeks comes back once per date, so a date joins the key.
+                const rowKey = `${task.taskGroupId}|${task.dueDate ?? ''}`;
+                return (
+                <li key={rowKey} className="rounded-2xl bg-[#f6f7f9] px-3.5 py-3">
+                  <button type="button" onClick={() => setOpenTask(openTask === rowKey ? null : rowKey)} aria-expanded={openTask === rowKey} className="flex w-full items-start gap-2 text-left">
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-semibold text-gray-900">{task.label}</span>
                       <span className="block text-xs text-gray-500">{task.done} of {task.total} done{task.dueDate ? ` · due ${formatTaskDate(task.dueDate)}` : task.dueDay ? ` · due ${task.dueDay}` : ''}</span>
                     </span>
-                    <svg className={`mt-1 h-4 w-4 flex-none text-gray-400 transition-transform ${openTask === task.taskGroupId ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m9 5 7 7-7 7" /></svg>
+                    <svg className={`mt-1 h-4 w-4 flex-none text-gray-400 transition-transform ${openTask === rowKey ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m9 5 7 7-7 7" /></svg>
                   </button>
-                  {openTask === task.taskGroupId && (
+                  {openTask === rowKey && (
                     <div className="mt-2.5 border-t border-gray-200 pt-2.5">
                       <ul className="flex flex-col gap-1.5">
                         {task.people.map((p) => (
@@ -275,21 +278,22 @@ const AdminSupportTaskModal: React.FC<AdminSupportTaskModalProps> = ({ isOpen, o
                         ))}
                       </ul>
                       <div className="mt-3">
-                        {confirmRemove === task.taskGroupId ? (
+                        {confirmRemove === rowKey ? (
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-xs text-gray-600">{restMode ? 'Remove this task:' : 'Remove from:'}</span>
+                            <span className="text-xs text-gray-600">{restMode ? 'Remove from every rest week:' : 'Remove from:'}</span>
                             {!restMode && <button type="button" onClick={() => { void remove(task, false); }} className="rounded-full bg-red-100/80 px-3 py-1 text-[12px] font-semibold text-red-700">This week</button>}
                             <button type="button" onClick={() => { void remove(task, true); }} className="rounded-full bg-red-100/80 px-3 py-1 text-[12px] font-semibold text-red-700">{restMode ? 'Remove' : 'Every week'}</button>
                             <button type="button" onClick={() => setConfirmRemove(null)} className="rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-gray-600">Keep</button>
                           </div>
                         ) : (
-                          <button type="button" onClick={() => setConfirmRemove(task.taskGroupId)} className="rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-red-600 shadow-[0_1px_2px_rgba(17,24,39,0.10)]">Remove</button>
+                          <button type="button" onClick={() => setConfirmRemove(rowKey)} className="rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-red-600 shadow-[0_1px_2px_rgba(17,24,39,0.10)]">Remove</button>
                         )}
                       </div>
                     </div>
                   )}
                 </li>
-              ))}
+                );
+              })}
             </ul>
           )}
         </div>

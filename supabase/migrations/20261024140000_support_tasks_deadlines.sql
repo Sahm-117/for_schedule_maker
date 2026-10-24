@@ -160,13 +160,16 @@ BEGIN
     END LOOP;
   END LOOP;
 
+  -- A task with dates (the rest weeks) opens the Schedule on its Rest weeks view; one with several dates says so.
   INSERT INTO "Notification" ("userId", title, body, path, type)
   SELECT i."userId", 'New task from the admin',
          v_label || CASE
+           WHEN COUNT(DISTINCT i."dueDate") > 1 THEN ' (' || COUNT(DISTINCT i."dueDate") || ' dates, first due ' || to_char(MIN(i."dueDate"), 'FMDay FMDD Mon') || ')'
            WHEN MIN(i."dueDate") IS NOT NULL THEN ' (due ' || to_char(MIN(i."dueDate"), 'FMDay FMDD Mon') || ')'
            WHEN v_due IS NOT NULL THEN ' (due ' || v_due || ')'
            ELSE '' END,
-         '/support/schedule?tab=checklist', 'GENERAL'
+         CASE WHEN BOOL_OR(i."weekId" IS NULL) THEN '/support/schedule?tab=checklist&rest=1' ELSE '/support/schedule?tab=checklist' END,
+         'GENERAL'
   FROM "SupportChecklistItem" i WHERE i."taskGroupId" = v_group
   GROUP BY i."userId";
 
@@ -182,6 +185,7 @@ REVOKE ALL ON FUNCTION public.admin_add_support_task(text, text, integer[], uuid
 GRANT EXECUTE ON FUNCTION public.admin_add_support_task(text, text, integer[], uuid, text, date[], jsonb) TO anon, authenticated;
 
 -- ── The admin's week-less (rest-week) tasks for a cohort, with who has done them ──
+-- One entry per task and date: a task added for several rest weeks comes back once for each date (same taskGroupId).
 CREATE OR REPLACE FUNCTION public.admin_rest_tasks(p_token text, p_cohort_id uuid)
 RETURNS jsonb
 LANGUAGE plpgsql

@@ -16,7 +16,7 @@ import { normalizeLink } from '../utils/links';
 import SupportOnboardingSteps from '../components/groups/SupportOnboardingSteps';
 import ChecklistTaskMeta from '../components/schedule/ChecklistTaskMeta';
 import TaskNoteSheet from '../components/schedule/TaskNoteSheet';
-import { sortChecklistForHome, tasksForHome, weekSpan } from '../utils/checklist';
+import { scheduleWindow, sortChecklistForHome, tasksForHome } from '../utils/checklist';
 import { useChecklistTick } from '../hooks/useChecklistTick';
 import { CountdownRing, useChecklistAutoHide } from '../components/ChecklistAutoHide';
 import { useGroupMeetingLive } from '../hooks/useGroupMeetingLive';
@@ -297,12 +297,9 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
     supportChecklistApi.getForSchedule(user.id, activeWeekId, activeCohort?.id ?? null)
       .then(({ items }) => {
         if (cancelled) return;
-        const start = activeCohort?.startDate?.slice(0, 10) ?? null;
-        const active = selectedWeek || weeks[0] || null;
-        const span = start && active ? weekSpan(start, active) : null;
-        const lastEnd = start ? weeks.map((w) => weekSpan(start, w).end).sort().pop() ?? null : null;
         const today = lagosTodayIso(new Date());
-        setChecklist(tasksForHome(items, activeWeekId, span, !!lastEnd && today > lastEnd, today));
+        const { span, pastLastWeek } = scheduleWindow(activeCohort?.startDate, weeks, selectedWeek || weeks[0] || null, today);
+        setChecklist(tasksForHome(items, activeWeekId, span, pastLastWeek, today));
       })
       .catch(() => { if (!cancelled) setChecklist([]); });
     return () => { cancelled = true; };

@@ -106,3 +106,16 @@ export const tasksForHome = (
   if (span && item.dueDate >= span.start && item.dueDate <= span.end) return true;
   return pastLastWeek && (!item.done || item.dueDate >= today);
 });
+
+/** The class week on screen as dates, and whether the last class week is already over (the rest weeks have begun). */
+export const scheduleWindow = (
+  cohortStartDate: string | null | undefined,
+  weeks: Week[],
+  active: Week | null,
+  today: string,
+): { start: string | null; span: { start: string; end: string } | null; pastLastWeek: boolean } => {
+  const start = cohortStartDate?.slice(0, 10) ?? null;
+  if (!start) return { start: null, span: null, pastLastWeek: false };
+  const lastEnd = weeks.map((w) => weekSpan(start, w).end).sort().pop() ?? null;
+  return { start, span: active ? weekSpan(start, active) : null, pastLastWeek: !!lastEnd && today > lastEnd };
+};

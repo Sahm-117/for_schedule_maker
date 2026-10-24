@@ -16,14 +16,20 @@ export const useScriptureLikes = () => {
   likedRef.current = liked;
   const pending = useRef<Set<number>>(new Set());
   const lastBump = useRef<Map<string, number>>(new Map());
-  useEffect(() => {
-    let cancelled = false;
-    scriptureEngagementApi.myLikes().then((days) => { if (!cancelled) setLiked(new Set(days)); }).catch(() => { /* hearts start empty */ });
+  const alive = useRef(true);
+  // Everyone's totals from the server. Also used after a tap: the number moves at once, then this puts the true figure
+  // back (the server leaves practice and test accounts out, so the guess can be one too high).
+  const loadCounts = useCallback(() => {
     scriptureEngagementApi.publicCounts()
-      .then((rows) => { if (!cancelled) setCounts(new Map(rows.map((r) => [r.dayNumber, { likes: r.likes, downloads: r.downloads, shares: r.shares }]))); })
-      .catch(() => { /* no numbers shown */ });
-    return () => { cancelled = true; };
+      .then((rows) => { if (alive.current) setCounts(new Map(rows.map((r) => [r.dayNumber, { likes: r.likes, downloads: r.downloads, shares: r.shares }]))); })
+      .catch(() => { /* keep what is shown */ });
   }, []);
+  useEffect(() => {
+    alive.current = true;
+    scriptureEngagementApi.myLikes().then((days) => { if (alive.current) setLiked(new Set(days)); }).catch(() => { /* hearts start empty */ });
+    loadCounts();
+    return () => { alive.current = false; };
+  }, [loadCounts]);
   const bump = useCallback((day: number, key: keyof PostCounts, by: number) => {
     setCounts((prev) => {
       const next = new Map(prev);
@@ -44,8 +50,9 @@ export const useScriptureLikes = () => {
     try {
       const r = await scriptureEngagementApi.react(day, 'LIKE');
       if (typeof r.liked === 'boolean' && r.liked !== !wasLiked) flip(r.liked);
+      loadCounts();
     } catch { flip(wasLiked); } finally { pending.current.delete(day); }
-  }, [bump]);
+  }, [bump, loadCounts]);
   /** A download or share was saved on the server: add it to the number shown. The server counts a repeat within 10 seconds once, so do the same here. */
   const counted = useCallback((day: number, action: 'DOWNLOAD' | 'SHARE') => {
     const key = `${day}:${action}`;
@@ -53,7 +60,8 @@ export const useScriptureLikes = () => {
     if (now - (lastBump.current.get(key) ?? 0) < 10000) return;
     lastBump.current.set(key, now);
     bump(day, action === 'DOWNLOAD' ? 'downloads' : 'shares', 1);
-  }, [bump]);
+    loadCounts();
+  }, [bump, loadCounts]);
   return { liked, toggle, counts, counted };
 };
 

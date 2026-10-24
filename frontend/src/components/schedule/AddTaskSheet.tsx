@@ -9,6 +9,10 @@ interface AddTaskSheetProps {
   today: string;
   /** The date picked when it opens (a rest week's last day, say). */
   defaultDate?: string | null;
+  /** The earliest date that can be picked; defaults to today. */
+  minDate?: string;
+  /** Hide the Today and Tomorrow chips (a rest-week task can only fall in a rest week). */
+  hideToday?: boolean;
   /** A task with no deadline is allowed (not for a rest-week task, which needs a date). */
   allowNoDeadline: boolean;
   /** Extra one-tap dates (the last day of each rest week). */
@@ -20,9 +24,9 @@ interface AddTaskSheetProps {
 const chip = (on: boolean) => `min-h-[40px] rounded-full border px-3.5 text-[13px] font-semibold ${on ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 bg-white text-gray-700'}`;
 
 /** A support's own task: what to do, and by when. Only they see it. */
-const AddTaskSheet: React.FC<AddTaskSheetProps> = ({ today, defaultDate = null, allowNoDeadline, quickPicks = [], onAdd, onClose }) => {
+const AddTaskSheet: React.FC<AddTaskSheetProps> = ({ today, defaultDate = null, minDate, hideToday = false, allowNoDeadline, quickPicks = [], onAdd, onClose }) => {
   const [label, setLabel] = useState('');
-  const [date, setDate] = useState<string | null>(defaultDate ?? (allowNoDeadline ? null : today));
+  const [date, setDate] = useState<string | null>(defaultDate);
   const [picking, setPicking] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -36,7 +40,7 @@ const AddTaskSheet: React.FC<AddTaskSheetProps> = ({ today, defaultDate = null, 
   }, []);
 
   const tomorrow = addDays(today, 1);
-  const quick = [{ label: 'Today', date: today }, { label: 'Tomorrow', date: tomorrow }, ...quickPicks];
+  const quick = [...(hideToday ? [] : [{ label: 'Today', date: today }, { label: 'Tomorrow', date: tomorrow }]), ...quickPicks];
   const isQuick = date !== null && quick.some((q) => q.date === date);
   const canSave = label.trim().length >= 2 && (allowNoDeadline || !!date) && !saving;
 
@@ -89,7 +93,7 @@ const AddTaskSheet: React.FC<AddTaskSheetProps> = ({ today, defaultDate = null, 
             type="date"
             aria-label="Deadline date"
             value={date ?? ''}
-            min={today}
+            min={minDate ?? today}
             onChange={(e) => { if (e.target.value) setDate(e.target.value); }}
             className="mt-3 min-h-[48px] w-full rounded-2xl border border-gray-200 px-3.5 py-3 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           />

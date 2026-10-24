@@ -8412,7 +8412,7 @@ export const supportChecklistApi = {
   ): Promise<{ item: import('../types').SupportChecklistItem }> {
     const { data, error } = await supabase.from('SupportChecklistItem')
       .insert([{ userId, weekId, label: label.trim(), position, cohortId: extra.cohortId ?? null, dueDate: extra.dueDate ?? null }]).select('*').single();
-    if (error || !data) throw new Error(error?.code === '23505' ? 'That duty is already on your list.' : (error?.message || 'Failed to add duty'));
+    if (error || !data) throw new Error(error?.code === '23505' ? 'You already have a task with that name in this week.' : (error?.message || 'Failed to add duty'));
     return { item: mapChecklistItem(data) };
   },
 

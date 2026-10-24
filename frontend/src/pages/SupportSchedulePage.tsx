@@ -13,7 +13,7 @@ import { exportWeekToPDF } from '../utils/pdfExport';
 import type { AttendanceFollowUpTask, SupportActivityCompletion, SupportChecklistItem, User } from '../types';
 import TaskNoteSheet from '../components/schedule/TaskNoteSheet';
 import ChecklistTaskMeta from '../components/schedule/ChecklistTaskMeta';
-import { formatTaskRange, isAdminChecklistTask, restWeeksAfter, taskDayName, weekIdForDate, weekSpan } from '../utils/checklist';
+import { formatTaskDate, formatTaskRange, isAdminChecklistTask, restWeeksAfter, scheduleWindow, taskDayName, weekIdForDate } from '../utils/checklist';
 import AddTaskSheet from '../components/schedule/AddTaskSheet';
 import { useChecklistTick } from '../hooks/useChecklistTick';
 import { CountdownRing, useChecklistAutoHide } from '../components/ChecklistAutoHide';
@@ -41,11 +41,15 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
   const schedulePublished = activeCohort?.schedulePublished !== false;
   const initialTab = searchParams.get('tab');
   const fromChecklistLink = initialTab === 'checklist';
+  // A bell alert for a rest-week task opens straight on the rest weeks.
+  const wantsRest = searchParams.get('rest') === '1';
   const [filter, setFilter] = useState<ListFilter>(fromChecklistLink ? 'tasks' : 'all');
   const [viewMode, setViewMode] = useState<ViewMode>(fromChecklistLink ? 'week' : 'today');
   // The 3 rest weeks after the cohort, which have no class week: only tasks live there.
   const [restMode, setRestMode] = useState(false);
   const [addingTask, setAddingTask] = useState(false);
+  // Said after a task was added somewhere other than the view on screen (its date is in another week).
+  const [notice, setNotice] = useState('');
   const [completions, setCompletions] = useState<SupportActivityCompletion[]>([]);
   const [completionSavingIds, setCompletionSavingIds] = useState<number[]>([]);
   const [completionError, setCompletionError] = useState('');
@@ -135,8 +139,7 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
     return () => window.clearInterval(id);
   }, []);
   const today = lagosTodayIso(clock);
-  const cohortStart = activeCohort?.startDate?.slice(0, 10) ?? null;
-  const span = useMemo(() => (selectedWeek && cohortStart ? weekSpan(cohortStart, selectedWeek) : null), [selectedWeek, cohortStart]);
+  const { start: cohortStart, span, pastLastWeek } = useMemo(() => scheduleWindow(activeCohort?.startDate, weeks, selectedWeek, today), [activeCohort?.startDate, weeks, selectedWeek, today]);
   const restWeeks = useMemo(() => (activeCohort ? restWeeksAfter(activeCohort, weeks) : []), [activeCohort, weeks]);
 
   // The tasks that belong to the week on screen: its own, plus dated ones that fall inside it.
@@ -284,22 +287,27 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
     const cohortId = activeCohort?.id ?? selectedWeek?.cohortId ?? null;
     if (!user || !cohortId) throw new Error('Your cohort could not be found. Please try again.');
     const weekId = dueDate ? (cohortStart ? weekIdForDate(cohortStart, weeks, dueDate) : null) : (restMode ? null : selectedWeek?.id ?? null);
+    if (weekId === null && !dueDate) throw new Error('Pick a deadline for this task.');
     const position = checklist.reduce((max, entry) => Math.max(max, entry.position), -1) + 1;
     const { item } = await supportChecklistApi.add(user.id, weekId, label, position, { cohortId, dueDate });
     setChecklist((prev) => [...prev, item]);
     setChecklistError('');
     setAddingTask(false);
+    // A date in another week files the task there, so say where it went.
+    const onScreen = restMode ? item.weekId === null : item.weekId === selectedWeek?.id;
+    if (!onScreen && dueDate) {
+      const week = weeks.find((w) => w.id === item.weekId);
+      setNotice(`Added for ${formatTaskDate(dueDate)}. You will find it in ${week ? `Week ${week.weekNumber}` : 'Rest weeks'}.`);
+    } else setNotice('');
   };
 
-  const lastWeekEnd = useMemo(() => (cohortStart ? weeks.map((week) => weekSpan(cohortStart, week).end).sort().pop() ?? null : null), [cohortStart, weeks]);
-  const pastLastWeek = !!lastWeekEnd && today > lastWeekEnd;
   const showRestOption = restWeeks.length > 0 && (datedTasks.length > 0 || pastLastWeek);
   // After the last class, open on the rest weeks when there are tasks waiting there.
   const autoRest = useRef(false);
   useEffect(() => {
-    if (autoRest.current || checklistLoading || fromChecklistLink) return;
-    if (pastLastWeek && datedTasks.length > 0) { autoRest.current = true; setRestMode(true); }
-  }, [checklistLoading, datedTasks.length, fromChecklistLink, pastLastWeek]);
+    if (autoRest.current || checklistLoading || datedTasks.length === 0) return;
+    if (wantsRest || pastLastWeek) { autoRest.current = true; setRestMode(true); }
+  }, [checklistLoading, datedTasks.length, pastLastWeek, wantsRest]);
 
   const weekOptions = [
     ...weeks.map((week) => ({ value: String(week.id), label: `Week ${week.weekNumber}` })),
@@ -355,8 +363,9 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
         <button
           type="button"
           data-wt="schedule-add-task"
-          onClick={() => setAddingTask(true)}
-          className="flex h-11 flex-none items-center gap-1.5 whitespace-nowrap rounded-xl bg-primary px-3.5 text-[13.5px] font-bold text-white"
+          onClick={() => { setNotice(''); setAddingTask(true); }}
+          disabled={!restMode && !selectedWeek}
+          className="flex h-11 flex-none items-center gap-1.5 whitespace-nowrap rounded-xl bg-primary px-3.5 text-[13.5px] font-bold text-white disabled:opacity-50"
         >
           <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeWidth="2.6" d="M12 5v14M5 12h14" /></svg>
           Add task
@@ -449,6 +458,7 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
           <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{completionError}</div>
         )}
         {checklistError && <p className="rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">{checklistError}</p>}
+        {notice && <p role="status" className="rounded-xl border border-[#d9f2e2] bg-[#f2fbf5] px-3.5 py-2.5 text-sm font-medium text-[#15803d]">{notice}</p>}
 
         {!restMode && schedulePublished && selectedWeek && upNext && (
           <section className="rounded-[24px] border border-primary-100 bg-white p-[18px] shadow-[0_8px_24px_-14px_rgba(17,24,39,0.35)]">
@@ -609,8 +619,10 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
         <AddTaskSheet
           today={today}
           allowNoDeadline={!restMode}
-          defaultDate={restMode ? (restWeeks.find((rw) => today <= rw.end) ?? restWeeks[0])?.end ?? null : null}
-          quickPicks={restMode ? restWeeks.map((rw) => ({ label: `End of rest ${rw.number}`, date: rw.end })).filter((q) => q.date >= today) : []}
+          defaultDate={restMode ? restWeeks.find((rw) => today <= rw.end)?.end ?? null : null}
+          hideToday={restMode}
+          minDate={restMode ? (() => { const next = restWeeks.find((rw) => today <= rw.end); return next ? (next.start > today ? next.start : today) : undefined; })() : undefined}
+          quickPicks={restMode ? restWeeks.filter((rw) => rw.end >= today).map((rw) => ({ label: `End of rest ${rw.number}`, date: rw.end })) : []}
           onAdd={addTask}
           onClose={() => setAddingTask(false)}
         />
