@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-25 | [Guides for the new schedule and tasks UI](2026-10-25_guides-new-schedule-ui.md) | In-app support guide entries and pictures updated (tasks, Add task, From admin, Carried over, Rest weeks, attendance default); Support guide PDF v2 and Teen Support guide PDF v7 rebuilt. Guide text only. |
 | 2026-10-24 | [Tasks on Today, Attendance default week](2026-10-24_tasks-today-view-attendance-default.md) | Schedule: tasks with no day (or on other days) were hidden on Today; now shown with a hint. Attendance (support and admin) opens on the class still to come, not the one already held. Frontend only; FLOW_MAP rule 106. |
 | 2026-10-24 | [Reuse an earlier class picture](2026-10-24_reuse-earlier-class-pictures.md) | Week editor: "Use an earlier one" for the class graphic and teacher photos (only that kind, nothing re-uploaded); replaced pictures still used by another class are no longer deleted. Frontend only; FLOW_MAP rule 105. |
 | 2026-10-24 | [Schedule and tasks as one list](2026-10-24_schedule-and-tasks-one-list.md) | Support Schedule shows activities and tasks together (All / Activities / Tasks); supports add their own tasks with a deadline; tasks may have a date instead of a class week, so the 3 rest weeks carry follow-up tasks; admin pop-up gains Rest weeks and Group leaders. 1 live migration; FLOW_MAP rule 104. |

@@ -2400,7 +2400,7 @@ window.GUIDE_CONTENT = {
      "id": "home",
      "title": "Home",
      "where": "Bottom bar → Home",
-     "summary": "Your day at a glance: this week, what's due today, your checklist, your group or hub, and the latest news.",
+     "summary": "Your day at a glance: this week, what's due today (activities and tasks together), your group or hub, and the latest news.",
      "shot": "support-home-with-group.jpg",
      "tasks": [
       {
@@ -2417,7 +2417,7 @@ window.GUIDE_CONTENT = {
         "**Programme progress** shows which week the cohort is on. Tap **Open schedule** to see the whole week.",
         "The small tiles show today's activities, your next group meeting, how many faith projects your group has drafted, and next week's class topic.",
         "Below that are quick buttons such as **Mark attendance**, **My Hub**, **My Tasks**, **Resources** and **Classes**.",
-        "Scroll down for **Today**, your **Weekly checklist** and **Recent announcements**."
+        "Scroll down for the **Today** card, which holds today's activities and your **Tasks** together, then **Recent announcements**."
        ],
        "result": "You can see what needs doing without opening any other page."
       },
@@ -2446,21 +2446,26 @@ window.GUIDE_CONTENT = {
       },
       {
        "id": "s-weekly-checklist",
-       "q": "How do I tick off my weekly checklist?",
+       "q": "How do I tick off my tasks?",
        "keywords": [
         "checklist",
         "duties",
         "tasks",
         "tick",
         "done",
-        "my tasks"
+        "my tasks",
+        "to do"
        ],
        "steps": [
-        "Scroll down Home to **Weekly checklist**, or open **Schedule** and tap the **Checklist** tab.",
-        "Tap an item to tick it off. Tap it again to untick it.",
-        "Tap **Show completed** to see the items you've already done."
+        "On **Home**, find the **Today** card. Your **Tasks** are under today's activities, with a progress bar.",
+        "Tap the box beside a task to tick it off. Tap it again to untick it. Three tasks show; tap **N more tasks** to see the rest.",
+        "For everything, open **Schedule**. Tasks sit on the day they are due, with your activities. Tap **Tasks** at the top to see only tasks.",
+        "Tap **Show completed** to see the ones you have already done."
        ],
-       "result": "The count (for example \"2 of 4 done this week\") goes up as you tick things off. It starts fresh every week.",
+       "result": "The count (for example \"2 of 4 done\") goes up as you tick things off. A task from your admin may ask for an optional note when you tick it.",
+       "tips": [
+        "**Due today** shows in orange and **Was due** in red when a deadline has passed."
+       ],
        "shot": "support-home-checklist.jpg"
       },
       {
@@ -2667,9 +2672,9 @@ window.GUIDE_CONTENT = {
        "steps": [
         "Tap **Schedule** in the bottom bar.",
         "Use the week box to pick a week.",
-        "Use the next box to choose **Today**, **Tomorrow** or the **Full week**."
+        "Choose **All**, **Activities** or **Tasks**, then **Today**, **Tomorrow** or the **Full week**. You can also tap a day in the strip."
        ],
-       "result": "You see every activity with its time. If it says \"Schedule not published yet\", the coordinator hasn't finished that week's plan.",
+       "result": "You see your activities with their times, and your tasks on the day they are due, in one list. If it says \"Schedule not published yet\", the coordinator hasn't finished that week's plan (your tasks still show).",
        "tips": [
         "When an activity is finished, tap **Mark done** on it. You can only do this on the day."
        ]
@@ -2715,21 +2720,79 @@ window.GUIDE_CONTENT = {
       },
       {
        "id": "s-edit-duties",
-       "q": "Can I change my list of weekly duties?",
+       "q": "How do I add my own task, with a deadline?",
        "keywords": [
+        "add task",
+        "new task",
+        "deadline",
+        "remind me",
+        "remove task",
         "edit list",
         "duties",
-        "add duty",
-        "remove duty",
         "checklist"
        ],
        "steps": [
-        "Open **Schedule** and tap the **Checklist** tab.",
-        "Tap **Edit list**.",
-        "Tap **Remove** next to a duty to take it off, or type a new one and tap **Add**."
+        "Open **Schedule** and tap **Add task** at the top right.",
+        "Write what needs doing.",
+        "Choose a deadline: **Today**, **Tomorrow**, **Pick a date…** or **No deadline**.",
+        "Tap **Add task**."
        ],
-       "result": "Your checklist now has the duties you need.",
+       "result": "The task appears on the day it is due. Only you can see it.",
+       "tips": [
+        "To remove one of your own tasks, tap **Edit my tasks**, then **Remove** beside it. Tasks from your admin cannot be removed.",
+        "A task with a date in another week is filed in that week, and a note tells you where."
+       ],
        "shot": "support-schedule-checklist.jpg"
+      },
+      {
+       "id": "s-admin-task",
+       "q": "What does \"From admin\" mean on a task?",
+       "keywords": [
+        "from admin",
+        "admin task",
+        "assigned task",
+        "note"
+       ],
+       "steps": [
+        "A task with the grey **From admin** tag was given to you by an admin.",
+        "Tap the circle to tick it when it is done. You can add an optional note.",
+        "You cannot rename, move or delete it."
+       ],
+       "result": "Your admin sees that it is done, and your note, in their report."
+      },
+      {
+       "id": "s-carried-over",
+       "q": "What does \"Carried over\" mean?",
+       "keywords": [
+        "carried over",
+        "unfinished",
+        "last week",
+        "missed task",
+        "not done"
+       ],
+       "steps": [
+        "Open **Schedule** or look at **Home**.",
+        "A task you did not finish in an earlier week shows under **Carried over**, tagged **Carried over from Week N**.",
+        "Tick it when you have done it."
+       ],
+       "result": "Nothing is lost: unfinished tasks come along into the week that is happening now until you tick them off."
+      },
+      {
+       "id": "s-rest-weeks",
+       "q": "What are the Rest weeks on my Schedule?",
+       "keywords": [
+        "rest weeks",
+        "break",
+        "after the cohort",
+        "follow up",
+        "between cohorts"
+       ],
+       "steps": [
+        "After the last class there are three rest weeks before the next cohort. The week box on **Schedule** then offers **Rest weeks** (the page opens on it once classes are over).",
+        "Your tasks are grouped as **Rest week 1**, **2** and **3**, with the dates.",
+        "Admins can give group leaders follow-up tasks for these weeks. Tick them as you do them, or tap **Add task** for your own."
+       ],
+       "result": "You keep following up on your people, with a deadline, during the break."
       }
      ]
     },
@@ -3343,7 +3406,7 @@ window.GUIDE_CONTENT = {
        ],
        "steps": [
         "Open **More** → **Attendance**, or tap **Mark attendance** on Home.",
-        "Check the week at the top is right.",
+        "Check the week at the top is right. It opens on the class still to come; for the class just held, tap **See Week N, the last class** or use the week box.",
         "Tap **Start attendance** if the register hasn't opened yet.",
         "For each person, tap **Present**, **Absent**, **Late**, **Left early** or **Excused**.",
         "Type in the search box to find someone quickly."
