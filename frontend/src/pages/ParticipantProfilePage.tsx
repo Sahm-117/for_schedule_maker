@@ -244,7 +244,7 @@ const ParticipantProfilePage: React.FC = () => {
   if (home.wrapUp.department) programmeRows.push(['Wants to join', home.wrapUp.department]);
   // Blank values stay blank: that is what is left to complete.
   const detailRows: Array<[string, string]> = [
-    ['Email', home.profile.email || ''],
+    ['Email (optional)', home.profile.email || ''],
     ['Gender', home.profile.gender || ''],
     ['Age range', home.profile.ageRange || ''],
     ['Date of birth', formatBirthday(home.profile.dateOfBirth)],
@@ -254,7 +254,6 @@ const ParticipantProfilePage: React.FC = () => {
   // What is blank, as chips under the progress bar; the photo chip opens the photo picker, the rest open the editor.
   const missingChips = [
     !home.profile.avatarUrl && { label: 'Photo', photo: true },
-    !home.profile.email && { label: 'Email', photo: false },
     !home.profile.gender && { label: 'Gender', photo: false },
     !home.profile.ageRange && !home.profile.dateOfBirth && { label: 'Age range', photo: false },
     !home.profile.dateOfBirth && { label: 'Date of birth', photo: false },
@@ -391,7 +390,7 @@ const ParticipantProfilePage: React.FC = () => {
           {editing ? (
             <div className="flex flex-col gap-3.5 pb-3">
               <label className="block">
-                <span className="mb-1 block text-[13px] font-semibold text-gray-900">Email</span>
+                <span className="mb-1 block text-[13px] font-semibold text-gray-900">Email <span className="font-normal text-gray-500">(optional)</span></span>
                 <input type="email" value={details.email} onChange={(e) => setDetails((prev) => ({ ...prev, email: e.target.value }))} placeholder="name@example.com" className={FIELD} />
               </label>
               <div className="grid grid-cols-2 gap-3">

@@ -22,8 +22,10 @@ import FilterBar, { describeFilters, type FilterGroup, type FilterValues } from 
 import AppMultiSelect from '../components/AppMultiSelect';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { useToast } from '../components/Toast';
-import { REGISTRATION_STATUS_META, TEEN_STATUSES } from '../utils/followUps';
+import { REGISTRATION_STATUS_META } from '../utils/followUps';
 import { isTeenAgeRange, normaliseAgeRange, normaliseGender } from '../utils/groupingRules';
+import ProfileCompletionCard from '../components/dashboard/ProfileCompletionCard';
+import { isTeenParticipant } from '../utils/profileCompletionSummary';
 import ParticipantsExportPopup from '../components/participants/ParticipantsExportPopup';
 import {
   parseBulkPaste,
@@ -781,6 +783,8 @@ const AdminParticipantsContent: React.FC = () => {
   const [participants, setParticipants] = useState<Participant[]>([]);
   // Test participants (e.g. a demo login) are listed but left out of every count.
   const counted = useMemo(() => participants.filter((p) => !p.isTest), [participants]);
+  // The profile card counts people still in the cohort only.
+  const activeCounted = useMemo(() => counted.filter((p) => p.status === 'ACTIVE'), [counted]);
   // Records in other cohorts on the same number, for the Retaking chip.
   const [retakeMatches, setRetakeMatches] = useState<Map<string, RetakeMatch[]>>(new Map());
   const [retakeMarking, setRetakeMarking] = useState<Participant | null>(null);
@@ -843,6 +847,8 @@ const AdminParticipantsContent: React.FC = () => {
     if (!activeCohort) { setLoading(false); return; }
     if (!silent) setLoading(true);
     try {
+      // A cohort switch must not show the old cohort's scores (the card waits for the new ones).
+      if (!silent) setCompletionById(new Map());
       profileFieldsApi.getCohortCompletion(activeCohort.id).then(setCompletionById).catch(() => { /* column stays empty */ });
       participantPushApi.getSignedInIds(activeCohort.id).then((ids) => setSignedInIds(new Set(ids))).catch(() => { /* the Logged in filter is simply not offered */ });
       participantsApi.getRetakeMatches(activeCohort.id).then(setRetakeMatches).catch(() => { /* no chips */ });
@@ -934,10 +940,7 @@ const AdminParticipantsContent: React.FC = () => {
   }, [counted, wrapUpDeptById]);
   // A teen by age range, by being on the teen path, or by being in a teen group. Teens get no login.
   const teenGroupIds = useMemo(() => new Set(groups.filter((g) => g.isTeenGroup).map((g) => g.id)), [groups]);
-  const isTeen = useCallback((p: Participant) =>
-    isTeenAgeRange(p.ageRange)
-    || (!!p.followUpStatus && (TEEN_STATUSES as string[]).includes(p.followUpStatus))
-    || (!!p.groupId && teenGroupIds.has(p.groupId)), [teenGroupIds]);
+  const isTeen = useCallback((p: Participant) => isTeenParticipant(p, teenGroupIds), [teenGroupIds]);
 
   const supportGroups = useMemo(() => {
     const map = new Map<string, { name: string; groupIds: Set<string> }>();
@@ -1247,6 +1250,20 @@ const AdminParticipantsContent: React.FC = () => {
         <p className="text-sm text-gray-500">Select or create a cohort first.</p>
       ) : (
         <>
+          {completionById.size > 0 && (
+            <div data-wt="participants-completion" className="mb-4">
+              <ProfileCompletionCard
+                participants={activeCounted}
+                completionById={completionById}
+                teenGroupIds={teenGroupIds}
+                onShowIncomplete={(scope) => {
+                  // The card counts active people, so land on the active list with the same adults / teens choice.
+                  setShowArchived(false);
+                  setFilters((prev) => ({ ...prev, profile: ['incomplete'], ...(scope === 'all' ? {} : { people: [scope === 'teens' ? 'teen' : 'adult'] }) }));
+                }}
+              />
+            </div>
+          )}
           <div data-wt="participants-filters" className="mb-4">
             <FilterBar
               groups={filterGroups}

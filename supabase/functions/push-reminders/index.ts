@@ -1563,7 +1563,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Birthdays: tell every admin two days and one day before someone's birthday
+    // Birthdays: tell every admin two days before, one day before and on the day of someone's birthday
     // (supports, and participants in a running cohort). Sent from 8am Lagos time;
     // the log in the database stops any alert repeating. Skipped in the test modes.
     if (!dryRun && !onlyUserIds && !onlyParticipantIds && !onlyCohortId) {
@@ -1583,10 +1583,10 @@ Deno.serve(async (req) => {
               if (v >= 11 && v <= 13) return `${n}th`
               return `${n}${({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[n % 10] ?? 'th'}`
             }
-            for (const daysBefore of [2, 1]) {
+            for (const daysBefore of [2, 1, 0]) {
               const group = alerts.filter((a) => a.days_before === daysBefore)
               if (group.length === 0 || adminIds.length === 0) continue
-              const when = daysBefore === 1 ? 'tomorrow' : 'in 2 days'
+              const when = daysBefore === 0 ? 'today' : daysBefore === 1 ? 'tomorrow' : 'in 2 days'
               const title = group.length === 1 ? `Birthday ${when}` : `${group.length} birthdays ${when}`
               const describe = (a: typeof group[number]) =>
                 `${a.person_name} (${a.kind === 'SUPPORT' ? 'support' : 'participant'}), the ${ordinal(Number(a.birthday_date.slice(8, 10)))}`

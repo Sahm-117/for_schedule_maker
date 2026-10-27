@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-27 | [Profile completion roll-up, email optional, birthdays](2026-10-27_profile-completion-birthdays.md) | Participants page gets a Profile completion accordion (In a group / Not in a group); email no longer counts towards completion; admin Dashboard gets a Birthdays card; admins are also alerted on the day. 1 live migration, push-reminders v59; FLOW_MAP rules 107, 108. |
 | 2026-10-25 | [Guides for the new schedule and tasks UI](2026-10-25_guides-new-schedule-ui.md) | In-app support guide entries and pictures updated (tasks, Add task, From admin, Carried over, Rest weeks, attendance default); Support guide PDF v2 and Teen Support guide PDF v7 rebuilt. Guide text only. |
 | 2026-10-24 | [Tasks on Today, Attendance default week](2026-10-24_tasks-today-view-attendance-default.md) | Schedule: tasks with no day (or on other days) were hidden on Today; now shown with a hint. Attendance (support and admin) opens on the class still to come, not the one already held. Frontend only; FLOW_MAP rule 106. |
 | 2026-10-24 | [Reuse an earlier class picture](2026-10-24_reuse-earlier-class-pictures.md) | Week editor: "Use an earlier one" for the class graphic and teacher photos (only that kind, nothing re-uploaded); replaced pictures still used by another class are no longer deleted. Frontend only; FLOW_MAP rule 105. |

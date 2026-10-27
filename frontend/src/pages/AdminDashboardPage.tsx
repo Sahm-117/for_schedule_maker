@@ -7,6 +7,7 @@ import CohortTrendChart from '../components/dashboard/CohortTrendChart';
 import PlannerNowLine from '../components/dashboard/PlannerNowLine';
 import DiscussionNowLine from '../components/dashboard/DiscussionNowLine';
 import HubReportsNowLine from '../components/dashboard/HubReportsNowLine';
+import BirthdaysCard from '../components/dashboard/BirthdaysCard';
 import {
   AttentionList,
   ChecklistRow,
@@ -270,6 +271,8 @@ const AdminDashboardPage: React.FC = () => {
               <VitalSigns health={health} model={model} />
             )}
           </div>
+
+          {isAdmin && can('birthdays', 'view') && <div data-wt="dash-birthdays"><BirthdaysCard cohortId={activeCohort.id} /></div>}
 
           {teenOverview && teenOverview.total > 0 && <TeenOverviewCard overview={teenOverview} meetings={teenMeetingSummary} />}
 
