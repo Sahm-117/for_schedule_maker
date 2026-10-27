@@ -10,3 +10,6 @@ Date: 2026-10-25. Guide text and pictures only: no migration, no function, no ap
 ## Not done
 - No admin guide entry exists for "Add task for supports" (now with Rest weeks and Group leaders). Add one if admins need it.
 - Screenshots are from a mocked browser with made-up data and the sandbox's fonts, not the live app.
+
+## Addendum (27 Oct)
+After tasks were made independent of the week picker (see 2026-10-24_schedule-and-tasks-one-list.md), the in-app entries (`s-weekly-checklist`, `s-see-schedule`, `s-edit-duties`, `s-carried-over`), the two pictures, the Support guide PDF (v2) and the Teen guide PDF (v7) were redone to match: tasks are one block (Overdue, Today, Coming up, No deadline) and stay the same whichever week is picked.

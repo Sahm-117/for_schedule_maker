@@ -2459,10 +2459,10 @@ window.GUIDE_CONTENT = {
        "steps": [
         "On **Home**, find the **Today** card. Your **Tasks** are under today's activities, with a progress bar.",
         "Tap the box beside a task to tick it off. Tap it again to untick it. Three tasks show; tap **N more tasks** to see the rest.",
-        "For everything, open **Schedule**. Tasks sit on the day they are due, with your activities. Tap **Tasks** at the top to see only tasks.",
+        "For the full list, open **Schedule**. **Your tasks** are grouped as Overdue, Today, Coming up and No deadline. Tap **Tasks** at the top to see only tasks.",
         "Tap **Show completed** to see the ones you have already done."
        ],
-       "result": "The count (for example \"2 of 4 done\") goes up as you tick things off. A task from your admin may ask for an optional note when you tick it.",
+       "result": "The count (for example \"2 of 4 done\") goes up as you tick things off. Your tasks stay the same whichever week you look at. A task from your admin may ask for an optional note when you tick it.",
        "tips": [
         "**Due today** shows in orange and **Was due** in red when a deadline has passed."
        ],
@@ -2671,10 +2671,10 @@ window.GUIDE_CONTENT = {
        ],
        "steps": [
         "Tap **Schedule** in the bottom bar.",
-        "Use the week box to pick a week.",
+        "Use the week box to pick a week. It changes the activities, not your tasks.",
         "Choose **All**, **Activities** or **Tasks**, then **Today**, **Tomorrow** or the **Full week**. You can also tap a day in the strip."
        ],
-       "result": "You see your activities with their times, and your tasks on the day they are due, in one list. If it says \"Schedule not published yet\", the coordinator hasn't finished that week's plan (your tasks still show).",
+       "result": "You see your activities with their times, and your tasks (Overdue, Today, Coming up, No deadline) in one block. If it says \"Schedule not published yet\", the coordinator hasn't finished that week's plan (your tasks still show).",
        "tips": [
         "When an activity is finished, tap **Mark done** on it. You can only do this on the day."
        ]
@@ -2737,10 +2737,10 @@ window.GUIDE_CONTENT = {
         "Choose a deadline: **Today**, **Tomorrow**, **Pick a date…** or **No deadline**.",
         "Tap **Add task**."
        ],
-       "result": "The task appears on the day it is due. Only you can see it.",
+       "result": "The task appears at once in **Your tasks**. Only you can see it.",
        "tips": [
         "To remove one of your own tasks, tap **Edit my tasks**, then **Remove** beside it. Tasks from your admin cannot be removed.",
-        "A task with a date in another week is filed in that week, and a note tells you where."
+        "Your tasks do not change with the week box, so a new task always shows up in the list straight away."
        ],
        "shot": "support-schedule-checklist.jpg"
       },
@@ -2772,10 +2772,10 @@ window.GUIDE_CONTENT = {
        ],
        "steps": [
         "Open **Schedule** or look at **Home**.",
-        "A task you did not finish in an earlier week shows under **Carried over**, tagged **Carried over from Week N**.",
+        "A task you did not finish in an earlier week stays on your list, tagged **Carried over from Week N**. It shows **Was due** in red once its day has passed.",
         "Tick it when you have done it."
        ],
-       "result": "Nothing is lost: unfinished tasks come along into the week that is happening now until you tick them off."
+       "result": "Nothing is lost: unfinished tasks stay on your list, whichever week you look at, until you tick them off."
       },
       {
        "id": "s-rest-weeks",
