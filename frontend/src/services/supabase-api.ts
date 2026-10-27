@@ -8396,15 +8396,13 @@ export const supportChecklistApi = {
   },
 
   /**
-   * A support's whole list for the Schedule: the tasks of this class week, plus every task that has only a date
-   * (the rest weeks between cohorts) in this cohort. The page sorts them onto days.
+   * Every task a support has in this cohort, whatever week it was made in: those on the cohort's class weeks and those
+   * that only carry a date. The week picker on the Schedule never changes this list.
    */
-  async getForSchedule(userId: string, weekId: number | null, cohortId: string | null, earlierWeekIds: number[] = []): Promise<{ items: import('../types').SupportChecklistItem[] }> {
+  async getForCohort(userId: string, cohortId: string | null, weekIds: number[]): Promise<{ items: import('../types').SupportChecklistItem[] }> {
     const parts: string[] = [];
-    if (weekId !== null) parts.push(`weekId.eq.${weekId}`);
-    // Tasks still open from earlier weeks, carried into this one.
-    if (earlierWeekIds.length > 0) parts.push(`and(weekId.in.(${earlierWeekIds.join(',')}),done.eq.false)`);
-    if (cohortId) parts.push(`and(weekId.is.null,cohortId.eq.${cohortId})`);
+    if (weekIds.length > 0) parts.push(`weekId.in.(${weekIds.join(',')})`);
+    if (cohortId) parts.push(`cohortId.eq.${cohortId}`);
     if (parts.length === 0) return { items: [] };
     const { data, error } = await supabase.from('SupportChecklistItem').select('*')
       .eq('userId', userId).or(parts.join(',')).order('position').order('createdAt');

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import ActivityText from '../components/ActivityText';
 import AppSelect from '../components/AppSelect';
@@ -14,13 +14,13 @@ import { exportWeekToPDF } from '../utils/pdfExport';
 import type { AttendanceFollowUpTask, SupportActivityCompletion, SupportChecklistItem, User } from '../types';
 import TaskNoteSheet from '../components/schedule/TaskNoteSheet';
 import ChecklistTaskMeta from '../components/schedule/ChecklistTaskMeta';
-import { formatTaskDate, formatTaskRange, isAdminChecklistTask, isCarriedOver, restWeeksAfter, scheduleWindow, taskDayName, weekIdForDate } from '../utils/checklist';
+import { effectiveDue, formatTaskRange, groupTasksByDue, isAdminChecklistTask, restWeeksAfter, scheduleWindow, weekIdForDate, weekStartMap } from '../utils/checklist';
 import AddTaskSheet from '../components/schedule/AddTaskSheet';
 import { useChecklistTick } from '../hooks/useChecklistTick';
 import { CountdownRing, useChecklistAutoHide } from '../components/ChecklistAutoHide';
 import Spinner from '../components/Spinner';
 
-// What the list shows: everything, only the programme's activities, or only tasks (the checklist).
+// What the page shows: everything, only the programme's activities, or only tasks. Tasks never depend on the week picker.
 type ListFilter = 'all' | 'activities' | 'tasks';
 // 'today' / 'tomorrow' / 'week', or one weekday's name from the day strip.
 type ViewMode = 'today' | 'tomorrow' | 'week' | (typeof PROGRAM_DAY_ORDER)[number];
@@ -49,8 +49,6 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
   // The 3 rest weeks after the cohort, which have no class week: only tasks live there.
   const [restMode, setRestMode] = useState(false);
   const [addingTask, setAddingTask] = useState(false);
-  // Said after a task was added somewhere other than the view on screen (its date is in another week).
-  const [notice, setNotice] = useState('');
   const [completions, setCompletions] = useState<SupportActivityCompletion[]>([]);
   const [completionSavingIds, setCompletionSavingIds] = useState<number[]>([]);
   const [completionError, setCompletionError] = useState('');
@@ -115,31 +113,23 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
     return () => { cancelled = true; };
   }, [selectedWeek, user]);
 
-  // Tasks not finished in an earlier week come along into the week that is happening now (and into the rest weeks).
-  const carryIds = useMemo(() => {
-    if (!selectedWeek || !activeCohort?.startDate) return [] as number[];
-    // "The week happening now" is the one the app opens on (a class week turns over on Sunday at 10 am), as on Home.
-    const isCurrent = getIdealWeekForCohort(activeCohort, weeks)?.id === selectedWeek.id;
-    if (!isCurrent && !restMode) return [] as number[];
-    return weeks.filter((week) => restMode || week.weekNumber < selectedWeek.weekNumber).map((week) => week.id);
-  }, [selectedWeek, activeCohort, weeks, restMode]);
-  const carryKey = carryIds.join(',');
-
+  // Every task of this cohort, whatever week it was made in: the week picker only changes the activities.
+  const cohortId = activeCohort?.id ?? null;
+  const weekIdsKey = weeks.map((week) => week.id).join(',');
   useEffect(() => {
-    if (!selectedWeek || !user) return;
+    if (!user || !cohortId) return;
     let cancelled = false;
     setChecklistLoading(true);
-    supportChecklistApi.getForSchedule(user.id, selectedWeek.id, activeCohort?.id ?? selectedWeek.cohortId ?? null, carryIds)
+    supportChecklistApi.getForCohort(user.id, cohortId, weekIdsKey ? weekIdsKey.split(',').map(Number) : [])
       .then(({ items }) => {
         if (!cancelled) { setChecklist(items); setChecklistError(''); }
       })
       .catch((error) => {
-        if (!cancelled) setChecklistError(error instanceof Error ? error.message : 'Your checklist could not be loaded right now.');
+        if (!cancelled) setChecklistError(error instanceof Error ? error.message : 'Your tasks could not be loaded right now.');
       })
       .finally(() => { if (!cancelled) setChecklistLoading(false); });
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedWeek, user, activeCohort?.id, carryKey]);
+  }, [user, cohortId, weekIdsKey]);
 
   const currentDayName = getCurrentProgramDayName();
   const tomorrowName = PROGRAM_DAY_ORDER[(getProgramDayIndex(currentDayName) + 1) % PROGRAM_DAY_ORDER.length];
@@ -151,32 +141,24 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
     return () => window.clearInterval(id);
   }, []);
   const today = lagosTodayIso(clock);
-  const { start: cohortStart, span, pastLastWeek } = useMemo(() => scheduleWindow(activeCohort?.startDate, weeks, selectedWeek, today), [activeCohort?.startDate, weeks, selectedWeek, today]);
+  const { start: cohortStart, pastLastWeek } = useMemo(() => scheduleWindow(activeCohort?.startDate, weeks, selectedWeek, today), [activeCohort?.startDate, weeks, selectedWeek, today]);
   const restWeeks = useMemo(() => (activeCohort ? restWeeksAfter(activeCohort, weeks) : []), [activeCohort, weeks]);
 
-  // The tasks that belong to the week on screen: its own, plus dated ones that fall inside it.
-  const weekTasks = useMemo(() => checklist.filter((item) => (item.weekId !== null
-    ? item.weekId === selectedWeek?.id
-    : !!item.dueDate && !!span && item.dueDate >= span.start && item.dueDate <= span.end)), [checklist, selectedWeek, span]);
-  // Tasks with only a date (no class week): the rest weeks, and any date outside the class weeks.
-  const datedTasks = useMemo(() => checklist.filter((item) => item.weekId === null), [checklist]);
-  // Open tasks from before this view, shown at the top as "Carried over".
-  const carriedAll = useMemo(() => {
-    const earlier = new Set(carryIds);
-    if (restMode) return checklist.filter((item) => item.weekId !== null && earlier.has(item.weekId) && (!item.done || autoHide.countdowns[item.id] !== undefined));
-    return checklist.filter((item) => isCarriedOver(item, selectedWeek?.id ?? null, earlier, span, autoHide.countdowns[item.id] !== undefined));
-  }, [autoHide.countdowns, carryIds, checklist, restMode, selectedWeek?.id, span]);
-  const shownTasks = restMode ? [...datedTasks.filter((item) => !carriedAll.includes(item)), ...carriedAll] : [...weekTasks, ...carriedAll];
-  const anytimeTasks = useMemo(() => weekTasks.filter((item) => taskDayName(item, span) === null), [weekTasks, span]);
+  // When each task is due: its own date, else its weekday in the class week it was made for.
+  const weekStarts = useMemo(() => weekStartMap(cohortStart, weeks), [cohortStart, weeks]);
+  const dueOf = useCallback((item: SupportChecklistItem) => effectiveDue(item, weekStarts), [weekStarts]);
+  // The week the app treats as "now" (it turns over on Sunday at 10 am): an open task from before it is tagged "Carried over".
+  const nowWeekNumber = useMemo(() => getIdealWeekForCohort(activeCohort, weeks)?.weekNumber ?? null, [activeCohort, weeks]);
+  const weekNumberOf = (weekId: number | null) => (weekId === null ? undefined : weeks.find((week) => week.id === weekId)?.weekNumber);
 
   const showActivities = filter !== 'tasks';
   const showTasks = filter !== 'activities';
-  // Tasks with no day go under "Anytime this week", on Today and Full week.
-  const anytimeVisible = useMemo(
-    () => (showTasks && (viewMode === 'week' || viewMode === 'today') ? anytimeTasks.filter((item) => autoHide.isVisible(item)) : []),
-    [anytimeTasks, autoHide, showTasks, viewMode],
-  );
+  const shownTasks = checklist;
+  const datedTasks = useMemo(() => checklist.filter((item) => item.weekId === null), [checklist]);
+  const visibleTasks = useMemo(() => checklist.filter((item) => autoHide.isVisible(item)), [autoHide, checklist]);
+  const taskGroups = useMemo(() => groupTasksByDue(visibleTasks, dueOf, today), [visibleTasks, dueOf, today]);
 
+  // Activities only: the week picker and the day views decide these, never the tasks.
   const dayGroups = useMemo(() => {
     if (!selectedWeek) return [];
     const wanted = viewMode === 'week' ? null : viewMode === 'today' ? currentDayName : viewMode === 'tomorrow' ? tomorrowName : viewMode;
@@ -185,34 +167,19 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
       .map((dayName) => ({
         dayName,
         activities: showActivities ? (selectedWeek.days.find((day) => day.dayName === dayName)?.activities ?? []).filter((activity) => activity.labels?.some((label) => userLabelIds.includes(label.id))) : [],
-        tasks: showTasks ? weekTasks.filter((item) => taskDayName(item, span) === dayName && autoHide.isVisible(item)) : [],
       }))
-      .filter((day) => day.activities.length + day.tasks.length > 0)
+      .filter((day) => day.activities.length > 0)
       .sort((a, b) => getProgramDayIndex(a.dayName) - getProgramDayIndex(b.dayName));
-  }, [autoHide, currentDayName, selectedWeek, showActivities, showTasks, span, tomorrowName, userLabelIds, viewMode, weekTasks]);
+  }, [currentDayName, selectedWeek, showActivities, tomorrowName, userLabelIds, viewMode]);
 
-  const carriedVisible = useMemo(
-    () => (showTasks && (restMode || viewMode === 'today' || viewMode === 'week') ? carriedAll.filter((item) => autoHide.isVisible(item)) : []),
-    [autoHide, carriedAll, restMode, showTasks, viewMode],
-  );
-
-  // Open tasks this week that the day on screen does not show (due another day): said out loud so they are never missed.
-  const hiddenTasks = useMemo(() => {
-    if (!showTasks || viewMode === 'week') return 0;
-    const shown = new Set([...dayGroups.flatMap((day) => day.tasks.map((item) => item.id)), ...anytimeVisible.map((item) => item.id)]);
-    // Only tasks that are due on a day other than the one on screen (a task with no day is the "Anytime" group, not "another day").
-    return weekTasks.filter((item) => !item.done && autoHide.isVisible(item) && taskDayName(item, span) !== null && !shown.has(item.id)).length;
-  }, [anytimeVisible, autoHide, dayGroups, showTasks, span, viewMode, weekTasks]);
-
-  // Things per weekday for the day strip: this person's activities and the tasks due that day.
+  // Activities per weekday for the day strip.
   const countByDay = useMemo(() => {
     const counts: Record<string, number> = {};
     PROGRAM_DAY_ORDER.forEach((dayName) => {
-      const acts = showActivities ? (selectedWeek?.days.find((day) => day.dayName === dayName)?.activities ?? []).filter((activity) => activity.labels?.some((label) => userLabelIds.includes(label.id))).length : 0;
-      counts[dayName] = acts + (showTasks ? weekTasks.filter((item) => !item.done && taskDayName(item, span) === dayName).length : 0);
+      counts[dayName] = showActivities ? (selectedWeek?.days.find((day) => day.dayName === dayName)?.activities ?? []).filter((activity) => activity.labels?.some((label) => userLabelIds.includes(label.id))).length : 0;
     });
     return counts;
-  }, [selectedWeek, showActivities, showTasks, span, userLabelIds, weekTasks]);
+  }, [selectedWeek, showActivities, userLabelIds]);
 
   // The next thing still to do today: the first not-done activity that has not started more than an hour ago (Lagos time).
   const upNext = useMemo(() => {
@@ -318,7 +285,7 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
     }
   };
 
-  // A task of their own. It sits on the class week its date falls in; a date outside every class week (the rest weeks) has no week.
+  // A task of their own. It is kept with the class week its date falls in (or the one on screen); where it shows never depends on that.
   const addTask = async (label: string, dueDate: string | null) => {
     const cohortId = activeCohort?.id ?? selectedWeek?.cohortId ?? null;
     if (!user || !cohortId) throw new Error('Your cohort could not be found. Please try again.');
@@ -329,12 +296,6 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
     setChecklist((prev) => [...prev, item]);
     setChecklistError('');
     setAddingTask(false);
-    // A date in another week files the task there, so say where it went.
-    const onScreen = restMode ? item.weekId === null : item.weekId === selectedWeek?.id;
-    if (!onScreen && dueDate) {
-      const week = weeks.find((w) => w.id === item.weekId);
-      setNotice(`Added for ${formatTaskDate(dueDate)}. You will find it in ${week ? `Week ${week.weekNumber}` : 'Rest weeks'}.`);
-    } else setNotice('');
   };
 
   const showRestOption = restWeeks.length > 0 && (datedTasks.length > 0 || pastLastWeek);
@@ -350,8 +311,10 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
     ...(showRestOption ? [{ value: 'rest', label: 'Rest weeks' }] : []),
   ];
 
-  const weekNumberOf = (weekId: number | null) => (weekId === null ? undefined : weeks.find((week) => week.id === weekId)?.weekNumber);
-  const taskRow = (item: SupportChecklistItem, fromWeek?: number) => (
+  const taskRow = (item: SupportChecklistItem) => {
+    const taskWeek = weekNumberOf(item.weekId);
+    const fromWeek = !item.done && nowWeekNumber !== null && taskWeek !== undefined && taskWeek < nowWeekNumber ? taskWeek : undefined;
+    return (
     <div key={item.id} className="flex items-center gap-3 rounded-[14px] border border-[#f1f2f5] bg-white p-[13px]">
       <button
         type="button"
@@ -363,7 +326,7 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
       </button>
       <span className="min-w-0 flex-1">
         <span className={`block text-sm font-semibold ${item.done ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{item.label}</span>
-        <ChecklistTaskMeta item={item} fromWeek={fromWeek} />
+        <ChecklistTaskMeta item={item} fromWeek={fromWeek} dueIso={dueOf(item)} />
       </span>
       {!editingChecklist && autoHide.countdowns[item.id] !== undefined && <CountdownRing seconds={autoHide.countdowns[item.id]} />}
       {editingChecklist && !isAdminChecklistTask(item) && (
@@ -372,18 +335,19 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
         </button>
       )}
     </div>
-  );
+    );
+  };
 
   const hasOwnTasks = shownTasks.some((item) => !isAdminChecklistTask(item));
-  const visibleDated = datedTasks.filter((item) => autoHide.isVisible(item));
-  // Rest weeks as tabs of tasks; anything dated outside them goes under "Other dates".
+  // Rest weeks as groups of tasks; any open task that falls outside them (an earlier week's, or no date) goes under "Earlier".
+  const inRest = (item: SupportChecklistItem, rw: { start: string; end: string }) => { const date = dueOf(item); return !!date && date >= rw.start && date <= rw.end; };
   const restGroups = restWeeks.map((rw) => ({
     key: String(rw.number),
     title: `Rest week ${rw.number}`,
     range: formatTaskRange(rw.start, rw.end),
-    items: visibleDated.filter((item) => !!item.dueDate && item.dueDate >= rw.start && item.dueDate <= rw.end),
+    items: visibleTasks.filter((item) => inRest(item, rw)),
   }));
-  const otherDated = visibleDated.filter((item) => !item.dueDate || !restWeeks.some((rw) => item.dueDate! >= rw.start && item.dueDate! <= rw.end));
+  const otherTasks = visibleTasks.filter((item) => !restWeeks.some((rw) => inRest(item, rw)));
 
   return (
     <div className="flex flex-col gap-4">
@@ -400,7 +364,7 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
         <button
           type="button"
           data-wt="schedule-add-task"
-          onClick={() => { setNotice(''); setAddingTask(true); }}
+          onClick={() => setAddingTask(true)}
           disabled={!restMode && !selectedWeek}
           className="flex h-11 flex-none items-center gap-1.5 whitespace-nowrap rounded-xl bg-primary px-3.5 text-[13.5px] font-bold text-white disabled:opacity-50"
         >
@@ -495,7 +459,6 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
           <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{completionError}</div>
         )}
         {checklistError && <p className="rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">{checklistError}</p>}
-        {notice && <p role="status" className="rounded-xl border border-[#d9f2e2] bg-[#f2fbf5] px-3.5 py-2.5 text-sm font-medium text-[#15803d]">{notice}</p>}
 
         {!restMode && schedulePublished && selectedWeek && upNext && (
           <section className="rounded-[24px] border border-primary-100 bg-white p-[18px] shadow-[0_8px_24px_-14px_rgba(17,24,39,0.35)]">
@@ -536,12 +499,6 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
               <p className="flex items-center gap-1.5 text-sm text-gray-500"><Spinner className="h-3.5 w-3.5" />Loading your tasks…</p>
             ) : (
               <>
-                {carriedVisible.length > 0 && (
-                  <section>
-                    <h3 className="mb-2 flex items-baseline gap-2 text-[15px] font-extrabold text-gray-900">Carried over<span className="text-xs font-medium text-gray-500">Not finished in a class week</span></h3>
-                    <div className="flex flex-col gap-2">{carriedVisible.map((item) => taskRow(item, weekNumberOf(item.weekId)))}</div>
-                  </section>
-                )}
                 {restGroups.map((group) => (
                   <section key={group.key}>
                     <h3 className="mb-2 flex items-baseline gap-2 text-[15px] font-extrabold text-gray-900">{group.title}<span className="text-xs font-medium text-gray-500">{group.range}</span></h3>
@@ -550,10 +507,10 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
                       : <p className={`${CARD} px-4 py-3.5 text-[13px] text-gray-500`}>No tasks yet. You can add your own.</p>}
                   </section>
                 ))}
-                {otherDated.length > 0 && (
+                {otherTasks.length > 0 && (
                   <section>
-                    <h3 className="mb-2 text-[15px] font-extrabold text-gray-900">Other dates</h3>
-                    <div className="flex flex-col gap-2">{otherDated.map((item) => taskRow(item))}</div>
+                    <h3 className="mb-2 text-[15px] font-extrabold text-gray-900">Earlier</h3>
+                    <div className="flex flex-col gap-2">{otherTasks.map((item) => taskRow(item))}</div>
                   </section>
                 )}
               </>
@@ -574,26 +531,40 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
                 <p className="mt-1 text-[13px] text-gray-500">Your coordinator is still finalising this week’s plan. Your tasks are below.</p>
               </div>
             )}
-            {carriedVisible.length > 0 && (
-              <section className={`${CARD} p-[18px]`}>
-                <h3 className="text-base font-bold text-gray-900">Carried over</h3>
-                <p className="mt-0.5 text-[13px] text-gray-500">Not finished in an earlier week, so it came along.</p>
-                <div className="mt-2.5 flex flex-col gap-2">{carriedVisible.map((item) => taskRow(item, weekNumberOf(item.weekId)))}</div>
+            {showTasks && (
+              <section data-wt="schedule-tasks" className={`${CARD} p-[18px]`}>
+                {checklistLoading && checklist.length === 0 ? (
+                  <p className="flex items-center gap-1.5 text-sm text-gray-500"><Spinner className="h-3.5 w-3.5" />Loading your tasks…</p>
+                ) : visibleTasks.length === 0 ? (
+                  <>
+                    <h3 className="text-base font-bold text-gray-900">Your tasks</h3>
+                    <p className="mt-1 text-[13px] text-gray-500">{shownTasks.length > 0 ? 'All done. Nice work.' : 'Nothing yet. Tap Add task to make one with a deadline.'}</p>
+                  </>
+                ) : (
+                  <div className="flex flex-col gap-4">
+                    {([
+                      ['overdue', 'Overdue', taskGroups.overdue, 'text-red-700'],
+                      ['today', 'Today', taskGroups.today, 'text-[#c2410c]'],
+                      ['upcoming', 'Coming up', taskGroups.upcoming, 'text-gray-900'],
+                      ['anytime', 'No deadline', taskGroups.anytime, 'text-gray-900'],
+                    ] as const).filter(([, , list]) => list.length > 0).map(([key, title, list, tone]) => (
+                      <div key={key}>
+                        <h3 className={`mb-2 text-[13px] font-extrabold uppercase tracking-[0.04em] ${tone}`}>{title}<span className="ml-1.5 font-semibold text-gray-400">{list.length}</span></h3>
+                        <div className="flex flex-col gap-2">{list.map((item) => taskRow(item))}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </section>
             )}
-            {hiddenTasks > 0 && (
-              <button type="button" onClick={() => setViewMode('week')} className="rounded-2xl border border-[#ffdeca] bg-[#fff4ec] px-4 py-3 text-left text-[13.5px] font-semibold text-[#c2410c]">
-                {hiddenTasks === 1 ? '1 task is' : `${hiddenTasks} tasks are`} due on other days this week. Show the full week →
-              </button>
-            )}
-            {dayGroups.length === 0 && anytimeVisible.length === 0 && carriedVisible.length === 0 ? (
+            {showActivities && dayGroups.length === 0 ? (
               <div className={`${CARD} px-5 py-12 text-center`}>
                 <p className="text-base font-semibold text-gray-700">
                   {viewMode === 'today' ? 'Nothing for today' : viewMode === 'tomorrow' ? 'Nothing for tomorrow' : viewMode === 'week' ? 'Nothing for you this week' : `Nothing for ${viewMode}`}
                 </p>
                 <p className="mt-1 text-sm text-gray-500">
                   {viewMode === 'week'
-                    ? `No ${filter === 'tasks' ? 'tasks' : filter === 'activities' ? 'activities' : 'activities or tasks'} were found for Week ${selectedWeek.weekNumber}.`
+                    ? `No activities with your tags were found for Week ${selectedWeek.weekNumber}.`
                     : viewMode === 'today' || viewMode === 'tomorrow' ? 'Switch to the full week to see everything else.' : 'Pick another day above, or open the full week.'}
                 </p>
               </div>
@@ -601,7 +572,7 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
               <div className="flex flex-col gap-3">
                 {dayGroups.map((day) => {
                   const open = !!openDays[day.dayName];
-                  const total = day.activities.length + day.tasks.length;
+                  const total = day.activities.length;
                   return (
                     <section key={day.dayName} className={`${CARD} overflow-hidden`}>
                       <button
@@ -613,7 +584,7 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
                         <svg className={`h-4 w-4 flex-none text-gray-400 transition-transform ${open ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="m9 5 7 7-7 7" /></svg>
                         <span className="text-base font-bold text-gray-900">{day.dayName}</span>
                         <span className="text-[13px] text-gray-500">
-                          ({[day.activities.length > 0 ? `${day.activities.length} ${day.activities.length === 1 ? 'activity' : 'activities'}` : '', day.tasks.length > 0 ? `${day.tasks.length} ${day.tasks.length === 1 ? 'task' : 'tasks'}` : ''].filter(Boolean).join(' · ')})
+                          ({day.activities.length} {day.activities.length === 1 ? 'activity' : 'activities'})
                         </span>
                         <span className="ml-auto grid h-[22px] min-w-[22px] place-items-center rounded-full bg-primary px-1.5 text-xs font-bold text-white">{total}</span>
                       </button>
@@ -649,19 +620,12 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
                               </div>
                             );
                           })}
-                          {day.tasks.map((item) => taskRow(item))}
                         </div>
                       )}
                     </section>
                   );
                 })}
               </div>
-            )}
-            {anytimeVisible.length > 0 && (
-              <section className={`${CARD} p-[18px]`}>
-                <h3 className="text-base font-bold text-gray-900">Anytime this week</h3>
-                <div className="mt-2.5 flex flex-col gap-2">{anytimeVisible.map((item) => taskRow(item))}</div>
-              </section>
             )}
           </>
         )}

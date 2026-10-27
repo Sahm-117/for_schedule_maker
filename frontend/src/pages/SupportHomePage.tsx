@@ -11,12 +11,12 @@ import { announcementsApi, faithProjectsApi, groupsApi, meetingAttendanceApi, my
 import type { Announcement, FaithProject, Group, HubJob, MyHubPayload, Participant, ParticipantCheckIn, SupportActivityCompletion, SupportChecklistItem, SupportKind, User } from '../types';
 import { getCurrentProgramDayName, getProgramDayIndex } from '../utils/schedule';
 import { sortByText } from '../utils/sort';
-import { lagosTodayIso, nextClassWeek, weekDayDate } from '../utils/participantApp';
+import { nextClassWeek, weekDayDate } from '../utils/participantApp';
 import { normalizeLink } from '../utils/links';
 import SupportOnboardingSteps from '../components/groups/SupportOnboardingSteps';
 import ChecklistTaskMeta from '../components/schedule/ChecklistTaskMeta';
 import TaskNoteSheet from '../components/schedule/TaskNoteSheet';
-import { scheduleWindow, sortChecklistForHome, tasksForHome } from '../utils/checklist';
+import { effectiveDue, sortChecklistForHome, weekStartMap } from '../utils/checklist';
 import { useChecklistTick } from '../hooks/useChecklistTick';
 import { CountdownRing, useChecklistAutoHide } from '../components/ChecklistAutoHide';
 import { useGroupMeetingLive } from '../hooks/useGroupMeetingLive';
@@ -293,19 +293,12 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
   useEffect(() => {
     if (!user || activeWeekId === null) { setChecklist([]); return; }
     let cancelled = false;
-    // Anything not finished in an earlier week comes along into this one.
-    const active = selectedWeek || weeks[0] || null;
-    const earlierIds = weeks.filter((week) => !!active && week.weekNumber < active.weekNumber).map((week) => week.id);
-    supportChecklistApi.getForSchedule(user.id, activeWeekId, activeCohort?.id ?? null, earlierIds)
-      .then(({ items }) => {
-        if (cancelled) return;
-        const today = lagosTodayIso(new Date());
-        const { span, pastLastWeek } = scheduleWindow(activeCohort?.startDate, weeks, active, today);
-        setChecklist(tasksForHome(items, activeWeekId, span, pastLastWeek, today, new Set(earlierIds)));
-      })
+    // All of the support's tasks in this cohort, whatever week they were made in: the week never hides one.
+    supportChecklistApi.getForCohort(user.id, activeCohort?.id ?? null, weeks.map((week) => week.id))
+      .then(({ items }) => { if (!cancelled) setChecklist(items); })
       .catch(() => { if (!cancelled) setChecklist([]); });
     return () => { cancelled = true; };
-  }, [activeWeekId, activeCohort?.id, activeCohort?.startDate, selectedWeek, weeks, user, liveRevision]);
+  }, [activeWeekId, activeCohort?.id, weeks, user, liveRevision]);
 
   const activeWeek = selectedWeek || weeks[0] || null;
   const todayName = getCurrentProgramDayName();
@@ -381,7 +374,9 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
   const checkedCount = checklist.filter((item) => item.done).length;
   // Home shows the first 3 tasks inside the Today card; the rest are one tap away on the Schedule.
   const openTaskCount = checklist.filter((item) => !item.done).length;
-  const homeChecklist = sortChecklistForHome(checklist.filter((item) => autoHide.isVisible(item)), new Set(Object.keys(autoHide.countdowns)));
+  const homeWeekStarts = weekStartMap(activeCohort?.startDate?.slice(0, 10) ?? null, weeks);
+  const homeDueOf = (item: SupportChecklistItem) => effectiveDue(item, homeWeekStarts);
+  const homeChecklist = sortChecklistForHome(checklist.filter((item) => autoHide.isVisible(item)), new Set(Object.keys(autoHide.countdowns)), homeDueOf);
   const checklistPct = checklist.length > 0 ? Math.round((checkedCount / checklist.length) * 100) : 0;
   const todayEmptyText = !schedulePublished
     ? 'Schedule not published yet. Check back once your coordinator publishes it.'
@@ -645,7 +640,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className={`block text-sm ${item.done ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{item.label}</span>
-                        <ChecklistTaskMeta item={item} fromWeek={item.weekId !== null && item.weekId !== activeWeekId ? weeks.find((week) => week.id === item.weekId)?.weekNumber : undefined} />
+                        <ChecklistTaskMeta item={item} dueIso={homeDueOf(item)} fromWeek={(() => { const taskWeek = item.weekId !== null ? weeks.find((week) => week.id === item.weekId)?.weekNumber : undefined; return !item.done && activeWeek && taskWeek !== undefined && taskWeek < activeWeek.weekNumber ? taskWeek : undefined; })()} />
                       </span>
                       {autoHide.countdowns[item.id] !== undefined && <CountdownRing seconds={autoHide.countdowns[item.id]} />}
                     </button>

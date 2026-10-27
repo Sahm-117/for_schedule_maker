@@ -10,20 +10,20 @@ export const DUE_DAYS = PROGRAM_DAY_ORDER;
 export const isAdminChecklistTask = (item: Pick<SupportChecklistItem, 'taskGroupId'>): boolean => !!item.taskGroupId;
 
 /**
- * What Home shows first: open before done, admin tasks first, the soonest due day, then the list order.
+ * What Home shows first: open before done, the soonest due (overdue first), admin tasks before your own, then the list order.
  * An item just ticked (still in its countdown) keeps its place, so it doesn't jump away under the finger.
  */
-export const sortChecklistForHome = <T extends SupportChecklistItem>(items: T[], keepInPlace: ReadonlySet<string> = new Set()): T[] =>
+export const sortChecklistForHome = <T extends SupportChecklistItem>(items: T[], keepInPlace: ReadonlySet<string> = new Set(), dueOf?: (item: T) => string | null): T[] =>
   [...items].sort((a, b) => {
     const doneA = a.done && !keepInPlace.has(a.id);
     const doneB = b.done && !keepInPlace.has(b.id);
     if (doneA !== doneB) return doneA ? 1 : -1;
+    const dateA = (dueOf ? dueOf(a) : a.dueDate) ?? '9999-99-99';
+    const dateB = (dueOf ? dueOf(b) : b.dueDate) ?? '9999-99-99';
+    if (dateA !== dateB) return dateA < dateB ? -1 : 1;
     const adminA = isAdminChecklistTask(a) ? 0 : 1;
     const adminB = isAdminChecklistTask(b) ? 0 : 1;
     if (adminA !== adminB) return adminA - adminB;
-    const dateA = a.dueDate ?? '9999-99-99';
-    const dateB = b.dueDate ?? '9999-99-99';
-    if (dateA !== dateB) return dateA < dateB ? -1 : 1;
     const dueA = a.dueDay ? (DUE_DAYS as readonly string[]).indexOf(a.dueDay) : 99;
     const dueB = b.dueDay ? (DUE_DAYS as readonly string[]).indexOf(b.dueDay) : 99;
     if (dueA !== dueB) return dueA - dueB;
@@ -73,55 +73,49 @@ export const formatTaskRange = (start: string, end: string): string => {
 
 export type DueTone = 'overdue' | 'today' | 'soon';
 
-/** What to say next to a task about its deadline, and how loud: a date task by its date, a class-week task by its weekday. */
-export const taskDueText = (item: Pick<SupportChecklistItem, 'dueDate' | 'dueDay' | 'done'>, today: string): { text: string; tone: DueTone } | null => {
-  if (item.dueDate) {
-    if (!item.done && item.dueDate < today) return { text: `Was due ${formatTaskDate(item.dueDate)}`, tone: 'overdue' };
-    if (item.dueDate === today) return { text: 'Due today', tone: 'today' };
-    return { text: `Due ${formatTaskDate(item.dueDate)}`, tone: 'soon' };
+/** What to say next to a task about its deadline, and how loud. `dueIso` is the date worked out for a task that only names a weekday. */
+export const taskDueText = (item: Pick<SupportChecklistItem, 'dueDate' | 'dueDay' | 'done'>, today: string, dueIso?: string | null): { text: string; tone: DueTone } | null => {
+  const date = item.dueDate ?? dueIso ?? null;
+  if (date) {
+    if (!item.done && date < today) return { text: `Was due ${formatTaskDate(date)}`, tone: 'overdue' };
+    if (date === today) return { text: 'Due today', tone: 'today' };
+    return { text: `Due ${formatTaskDate(date)}`, tone: 'soon' };
   }
   if (item.dueDay) return { text: `Due ${item.dueDay}`, tone: 'soon' };
   return null;
 };
 
-/** Which weekday of the class week a task sits on: its date's weekday when that falls inside the week, else its due day, else none. */
-export const taskDayName = (item: Pick<SupportChecklistItem, 'dueDate' | 'dueDay'>, span: { start: string; end: string } | null): string | null => {
-  if (item.dueDate) return span && item.dueDate >= span.start && item.dueDate <= span.end ? dayNameOfIso(item.dueDate) : null;
-  return item.dueDay ?? null;
+/** Each class week's Sunday, by week id, so a task that only names a weekday can be given a date. */
+export const weekStartMap = (cohortStart: string | null, weeks: Week[]): Map<number, string> =>
+  new Map(cohortStart ? weeks.map((week) => [week.id, weekSpan(cohortStart, week).start] as [number, string]) : []);
+
+/** The day a task is due: its own date, else its weekday within its class week, else none. */
+export const effectiveDue = (item: Pick<SupportChecklistItem, 'dueDate' | 'dueDay' | 'weekId'>, weekStarts: ReadonlyMap<number, string>): string | null => {
+  if (item.dueDate) return item.dueDate;
+  if (item.dueDay && item.weekId !== null) {
+    const start = weekStarts.get(item.weekId);
+    const index = (DUE_DAYS as readonly string[]).indexOf(item.dueDay);
+    if (start && index >= 0) return addDays(start, index);
+  }
+  return null;
 };
 
-/**
- * What Home lists: this class week's tasks, tasks that have only a date when it falls in this week, tasks still open from
- * earlier weeks (carried over), and, once the last class week is over (the rest weeks), every date task that is still open
- * or still to come.
- */
-export const tasksForHome = (
-  items: SupportChecklistItem[],
-  weekId: number | null,
-  span: { start: string; end: string } | null,
-  pastLastWeek: boolean,
-  today: string,
-  earlierWeekIds: ReadonlySet<number> = new Set(),
-): SupportChecklistItem[] => items.filter((item) => {
-  if (item.weekId !== null) return item.weekId === weekId || (!item.done && earlierWeekIds.has(item.weekId));
-  if (!item.dueDate) return false;
-  if (span && item.dueDate >= span.start && item.dueDate <= span.end) return true;
-  if (span && !item.done && item.dueDate < span.start) return true; // a date task left open before this week
-  return pastLastWeek && (!item.done || item.dueDate >= today);
-});
+export interface TaskGroups<T> { overdue: T[]; today: T[]; upcoming: T[]; anytime: T[] }
 
-/** A task still open from before the week on screen: from an earlier class week, or a date before this week began. */
-export const isCarriedOver = (
-  item: SupportChecklistItem,
-  selectedWeekId: number | null,
-  earlierWeekIds: ReadonlySet<number>,
-  span: { start: string; end: string } | null,
-  /** A task ticked a moment ago stays in its group until its countdown ends. */
-  keepDone = false,
-): boolean => {
-  if (item.done && !keepDone) return false;
-  if (item.weekId !== null) return item.weekId !== selectedWeekId && earlierWeekIds.has(item.weekId);
-  return !!item.dueDate && !!span && item.dueDate < span.start;
+/** Every task by when it is due, whatever week it was made in: overdue, today, upcoming (soonest first), and no deadline. */
+export const groupTasksByDue = <T extends SupportChecklistItem>(items: T[], due: (item: T) => string | null, today: string): TaskGroups<T> => {
+  const groups: TaskGroups<T> = { overdue: [], today: [], upcoming: [], anytime: [] };
+  const byDate = (a: T, b: T) => (due(a) ?? '').localeCompare(due(b) ?? '') || a.position - b.position;
+  items.forEach((item) => {
+    const date = due(item);
+    if (!date) groups.anytime.push(item);
+    else if (date < today) groups.overdue.push(item);
+    else if (date === today) groups.today.push(item);
+    else groups.upcoming.push(item);
+  });
+  groups.overdue.sort(byDate); groups.today.sort(byDate); groups.upcoming.sort(byDate);
+  groups.anytime.sort((a, b) => a.position - b.position);
+  return groups;
 };
 
 /** The class week on screen as dates, and whether the last class week is already over (the rest weeks have begun). */

@@ -7,9 +7,9 @@ const TONE = { overdue: 'font-semibold text-red-700', today: 'font-semibold text
 
 // Under a checklist item's label: a quiet "From admin" pill, the deadline, and the
 // note the support wrote when they ticked it. Renders nothing for their own tasks with no deadline.
-const ChecklistTaskMeta: React.FC<{ item: SupportChecklistItem; /** Set on a task carried over from an earlier week. */ fromWeek?: number }> = ({ item, fromWeek }) => {
+const ChecklistTaskMeta: React.FC<{ item: SupportChecklistItem; /** Set on a task carried over from an earlier week. */ fromWeek?: number; /** The date worked out for a task that only names a weekday. */ dueIso?: string | null }> = ({ item, fromWeek, dueIso }) => {
   const fromAdmin = isAdminChecklistTask(item);
-  const due = taskDueText(item, lagosTodayIso(new Date()));
+  const due = taskDueText(item, lagosTodayIso(new Date()), dueIso);
   if (!fromAdmin && !due && !item.completionNote && fromWeek === undefined) return null;
   return (
     <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11.5px] text-gray-500">

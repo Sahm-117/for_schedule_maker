@@ -17,3 +17,6 @@ Browser (local app, mocked backend), support login: with no activities and tasks
 
 ## Addendum: Home's Today and tasks are one card
 The support Home had a "Today" card and a separate "Your tasks" card. They are now one card: today's activities (Mark done as before), then a "Tasks" block with a progress bar, the first 3 tasks (tick, From admin tag, deadline), "N more tasks" and Show completed. The count badge is today's activities plus open tasks, and the footer reads "See the full week and all tasks". The old open/close toggle on the tasks card is gone. The tour step `home-checklist` now points at the Tasks block. Tested in a mocked browser (support login); not with a real login.
+
+## Addendum (27 Oct)
+The Today-view fix described above (the "Anytime this week" card and the "tasks on other days" line) was replaced: tasks are no longer shown by day or week at all (see the addendum in 2026-10-24_schedule-and-tasks-one-list.md and FLOW_MAP rule 104). The Attendance default is unchanged.
