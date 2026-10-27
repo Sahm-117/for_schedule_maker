@@ -200,13 +200,13 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
     ? new Date(`${classDateIso(activeCohort.startDate, selectedWeek)}T00:00:00`)
     : null;
   // The last class already held, one tap away while the page is on the class still to come.
+  const todayIso = lagosTodayIso(new Date());
   const heldWeek = useMemo(() => {
     const start = activeCohort?.startDate;
     if (!start) return null;
-    const today = lagosTodayIso(new Date());
-    return cohortWeeks.filter((week) => classDateIso(start, week) < today)
+    return cohortWeeks.filter((week) => classDateIso(start, week) < todayIso)
       .sort((a, b) => classDateIso(start, b).localeCompare(classDateIso(start, a)))[0] ?? null;
-  }, [activeCohort?.startDate, cohortWeeks]);
+  }, [activeCohort?.startDate, cohortWeeks, todayIso]);
   const now = useDeadlineClock(windowClosesAt, classDay?.getTime());
   const windowClosed = !!windowClosesAt && new Date(windowClosesAt).getTime() <= now;
   const windowOpen = !!activeSession.startedAt && !finalised && !windowClosed;

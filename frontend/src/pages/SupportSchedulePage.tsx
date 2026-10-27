@@ -65,7 +65,7 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
   const [absenceTasksLoading, setAbsenceTasksLoading] = useState(false);
   const [absenceTaskSavingIds, setAbsenceTaskSavingIds] = useState<string[]>([]);
   const [absenceTaskError, setAbsenceTaskError] = useState('');
-  const [checklistLoading, setChecklistLoading] = useState(false);
+  const [checklistLoading, setChecklistLoading] = useState(true);
   const [checklistError, setChecklistError] = useState('');
   const [editingChecklist, setEditingChecklist] = useState(false);
   const autoHide = useChecklistAutoHide();
@@ -117,7 +117,7 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
   const cohortId = activeCohort?.id ?? null;
   const weekIdsKey = weeks.map((week) => week.id).join(',');
   useEffect(() => {
-    if (!user || !cohortId) return;
+    if (!user || !cohortId) { setChecklistLoading(false); return; }
     let cancelled = false;
     setChecklistLoading(true);
     supportChecklistApi.getForCohort(user.id, cohortId, weekIdsKey ? weekIdsKey.split(',').map(Number) : [])
@@ -339,7 +339,7 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
   };
 
   const hasOwnTasks = shownTasks.some((item) => !isAdminChecklistTask(item));
-  // Rest weeks as groups of tasks; any open task that falls outside them (an earlier week's, or no date) goes under "Earlier".
+  // Rest weeks as groups of tasks; any task that falls outside them (an earlier week's, or no date) goes under "Other tasks".
   const inRest = (item: SupportChecklistItem, rw: { start: string; end: string }) => { const date = dueOf(item); return !!date && date >= rw.start && date <= rw.end; };
   const restGroups = restWeeks.map((rw) => ({
     key: String(rw.number),
@@ -509,7 +509,7 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
                 ))}
                 {otherTasks.length > 0 && (
                   <section>
-                    <h3 className="mb-2 text-[15px] font-extrabold text-gray-900">Earlier</h3>
+                    <h3 className="mb-2 text-[15px] font-extrabold text-gray-900">Other tasks</h3>
                     <div className="flex flex-col gap-2">{otherTasks.map((item) => taskRow(item))}</div>
                   </section>
                 )}
@@ -547,6 +547,7 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
                       ['today', 'Today', taskGroups.today, 'text-[#c2410c]'],
                       ['upcoming', 'Coming up', taskGroups.upcoming, 'text-gray-900'],
                       ['anytime', 'No deadline', taskGroups.anytime, 'text-gray-900'],
+                      ['done', 'Done', taskGroups.done, 'text-gray-400'],
                     ] as const).filter(([, , list]) => list.length > 0).map(([key, title, list, tone]) => (
                       <div key={key}>
                         <h3 className={`mb-2 text-[13px] font-extrabold uppercase tracking-[0.04em] ${tone}`}>{title}<span className="ml-1.5 font-semibold text-gray-400">{list.length}</span></h3>
@@ -628,9 +629,6 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
               </div>
             )}
           </>
-        )}
-        {checklistLoading && checklist.length === 0 && !restMode && (
-          <p className="flex items-center gap-1.5 text-sm text-gray-500"><Spinner className="h-3.5 w-3.5" />Loading your tasks…</p>
         )}
       </div>
 

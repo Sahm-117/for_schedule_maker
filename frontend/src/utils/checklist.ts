@@ -100,21 +100,23 @@ export const effectiveDue = (item: Pick<SupportChecklistItem, 'dueDate' | 'dueDa
   return null;
 };
 
-export interface TaskGroups<T> { overdue: T[]; today: T[]; upcoming: T[]; anytime: T[] }
+export interface TaskGroups<T> { overdue: T[]; today: T[]; upcoming: T[]; anytime: T[]; done: T[] }
 
-/** Every task by when it is due, whatever week it was made in: overdue, today, upcoming (soonest first), and no deadline. */
+/** Every task by when it is due, whatever week it was made in: overdue, today, upcoming (soonest first), no deadline, and ticked ones apart. */
 export const groupTasksByDue = <T extends SupportChecklistItem>(items: T[], due: (item: T) => string | null, today: string): TaskGroups<T> => {
-  const groups: TaskGroups<T> = { overdue: [], today: [], upcoming: [], anytime: [] };
+  const groups: TaskGroups<T> = { overdue: [], today: [], upcoming: [], anytime: [], done: [] };
   const byDate = (a: T, b: T) => (due(a) ?? '').localeCompare(due(b) ?? '') || a.position - b.position;
   items.forEach((item) => {
     const date = due(item);
-    if (!date) groups.anytime.push(item);
+    if (item.done) groups.done.push(item);
+    else if (!date) groups.anytime.push(item);
     else if (date < today) groups.overdue.push(item);
     else if (date === today) groups.today.push(item);
     else groups.upcoming.push(item);
   });
   groups.overdue.sort(byDate); groups.today.sort(byDate); groups.upcoming.sort(byDate);
   groups.anytime.sort((a, b) => a.position - b.position);
+  groups.done.sort(byDate);
   return groups;
 };
 
