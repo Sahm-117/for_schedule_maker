@@ -25,7 +25,7 @@ Date: 2026-10-27.
 - Live: completion before/after counts above; `birthday_alerts_due()` returned one participant due today after the migration (it only reads; nothing was marked).
 
 ## Open items
-- The first run of the new alert may notify admins about a birthday already due today when v59 went live (late evening Lagos time).
+- The first on-the-day alert goes out from 8 am Lagos on 28 Oct (v59 went live after midnight Lagos was near, so 27 Oct's one-participant birthday was not announced on the day). Not yet seen live: check `BirthdayAlertLog` for a `daysBefore = 0` row after that run.
 - Admin guide has no entry for either card.
 - Per-item "most missing" list would need `profile_completion_for` to return which items are missing.
 
