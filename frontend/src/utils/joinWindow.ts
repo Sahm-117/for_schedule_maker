@@ -44,8 +44,8 @@ export const joinOpensLabel = (day: string | null | undefined, time: string | nu
   return `${day.charAt(0).toUpperCase()}${day.slice(1).toLowerCase()} at ${clock}`;
 };
 
-/** How long after a meeting's start the "meeting today" banner stays (the "on now" banner covers a meeting that is live). */
-const TODAY_BANNER_GRACE_MINUTES = 15;
+/** The "meeting today" banner stays as long as the call can be joined, so someone arriving late still gets the Join button. */
+const TODAY_BANNER_GRACE_MINUTES = JOIN_OPEN_MINUTES;
 
 /** "before" until the start time, "started" for a short while after it, otherwise null (not today, or long gone). */
 export const meetingTodayState = (
