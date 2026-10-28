@@ -111,8 +111,10 @@ const SupportMyHubPage: React.FC = () => {
     if (user?.role !== 'SUPPORT' || !activeCohort?.id) { setHubs([]); return; }
     const { hubs: list } = await myHubApi.getMyHubs(activeCohort.id);
     setHubs(list);
-    setSelectedHubId((prev) => (prev && list.some((h) => h.hub?.id === prev) ? prev : list[0]?.hub?.id ?? null));
-  }, [user?.role, activeCohort?.id]);
+    // ?hub=<id> (from a named "on now" banner on Home) picks that hub the first time; after that the switcher rules.
+    const requestedHub = searchParams.get('hub');
+    setSelectedHubId((prev) => (prev && list.some((h) => h.hub?.id === prev) ? prev : list.find((h) => h.hub?.id === requestedHub)?.hub?.id ?? list[0]?.hub?.id ?? null));
+  }, [user?.role, activeCohort?.id, searchParams]);
 
   useEffect(() => {
     setLoaded(false);

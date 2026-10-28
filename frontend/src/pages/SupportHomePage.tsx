@@ -56,6 +56,8 @@ const PERIOD_LABEL: Record<string, string> = {
 const MEETING_DAY_INDEX: Record<string, number> = {
   SUNDAY: 0, MONDAY: 1, TUESDAY: 2, WEDNESDAY: 3, THURSDAY: 4, FRIDAY: 5, SATURDAY: 6,
 };
+// How long the "meeting is on now" banner stays after a hub meeting was started.
+const LIVE_BANNER_MS = 60 * 60 * 1000;
 const nextOccurrence = (day: string, time: string, from: Date): number => {
   const dayIndex = MEETING_DAY_INDEX[day];
   if (dayIndex === undefined) return Infinity;
@@ -147,7 +149,12 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
 
   // "Meeting is on now" banner — a hub lead/IT support's hub(s), or a
   // participant support's own group.
-  const hubMeetingLive = hubsList.map((h) => h.meetingLive).find((live) => !!live) ?? null;
+  // A hub meeting counts as on for an hour after it was started (attendance marked), even if nobody submitted it.
+  const liveHubs = useMemo(
+    () => hubsList.filter((h) => h.hub && h.meetingLive && tickNow.getTime() - new Date(h.meetingLive.startedAt).getTime() < LIVE_BANNER_MS),
+    [hubsList, tickNow],
+  );
+  const hubMeetingLive = liveHubs[0]?.meetingLive ?? null;
   const groupMeetingLive = useGroupMeetingLive(!isHubOnlySupport ? myGroups[0]?.id ?? null : null);
 
   // Meetings started (attendance marked) but never submitted — e.g. a test
@@ -223,7 +230,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
     const hubPool = (ownHubs.length > 0 ? ownHubs : isHubOnlySupport ? hubsList : []);
     hubPool.forEach((entry) => {
       const hub = entry.hub;
-      if (!hub?.meetingDay || !hub.meetingTime || entry.meetingLive) return;
+      if (!hub?.meetingDay || !hub.meetingTime || liveHubs.some((l) => l.hub?.id === hub.id)) return;
       const state = meetingTodayState(hub.meetingDay, hub.meetingTime, tickNow);
       if (!state) return;
       const link = normalizeLink(hub.callLink || '');
@@ -237,7 +244,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
       });
     });
     return out;
-  }, [hubsList, isHubOnlySupport, tickNow, user.id]);
+  }, [hubsList, liveHubs, isHubOnlySupport, tickNow, user.id]);
 
   // Role reminder cards — "You're a Recap Lead", one per job the support
   // holds; always shown while they hold it. One card per JOB, not per
@@ -508,10 +515,28 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
 
           <TrainingLearnedCard userId={user.id} />
 
-          {(hubMeetingLive || groupMeetingLive) && (
+          {/* One banner per hub that is on now, named: an IT support covering several hubs must see which one. */}
+          {liveHubs.map((h) => (
+            <NavLink
+              key={`live-${h.hub!.id}`}
+              to={`/support/my-hub?tab=meeting&hub=${h.hub!.id}`}
+              className="flex items-center justify-between gap-3 rounded-[16px] bg-emerald-100/80 px-4 py-3"
+            >
+              <span className="flex min-w-0 items-center gap-2 text-sm font-bold text-emerald-700">
+                <span className="relative flex h-2 w-2 flex-none">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                </span>
+                {h.hub!.name} meeting is on now
+              </span>
+              <span className="flex-none rounded-xl bg-emerald-700 px-3.5 py-1.5 text-[13px] font-semibold text-white">Join</span>
+            </NavLink>
+          ))}
+
+          {!hubMeetingLive && groupMeetingLive && (
             // The whole banner opens the meeting, not just the button.
             <NavLink
-              to={hubMeetingLive ? '/support/my-hub?tab=meeting' : `/support/participants?tab=prayers${groupMeetingLive ? `&week=${groupMeetingLive.weekId}` : ''}`}
+              to={`/support/participants?tab=prayers&week=${groupMeetingLive.weekId}`}
               className="flex items-center justify-between gap-3 rounded-[16px] bg-emerald-100/80 px-4 py-3"
             >
               <span className="flex items-center gap-2 text-sm font-bold text-emerald-700">
@@ -519,11 +544,9 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
                 </span>
-                {hubMeetingLive ? 'Hub meeting is on now' : 'Your group meeting is on now'}
+                Your group meeting is on now
               </span>
-              <span className="flex-none rounded-xl bg-emerald-700 px-3.5 py-1.5 text-[13px] font-semibold text-white">
-                {hubMeetingLive ? 'Join' : 'Open'}
-              </span>
+              <span className="flex-none rounded-xl bg-emerald-700 px-3.5 py-1.5 text-[13px] font-semibold text-white">Open</span>
             </NavLink>
           )}
 

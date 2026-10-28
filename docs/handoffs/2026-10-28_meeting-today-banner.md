@@ -17,3 +17,7 @@ Date: 2026-10-28. Frontend only: no migration, no function.
 ## Open items
 - The banner shows every week on the hub's meeting day, including rest weeks and after the cohort ends (it does not read the cohort calendar).
 - Admin Supports page and the support Schedule page show no "meeting today" cue.
+
+## Addendum: "on now" banner names the hub
+- A support reported "Hub meeting is on now" still showing an hour after their own hub's meeting. It was a different hub they cover as IT support (started, never submitted), and the banner did not say which. It now reads "<Hub> meeting is on now", one banner per live hub, and Join opens that hub (`/support/my-hub?tab=meeting&hub=<id>`; My Hub honours `hub`). Home shows it for one hour after the meeting was started (attendance marked), whether or not it was submitted; the server's `meetingLive` still counts 3 hours, so the nav dot and My Hub meeting tab are unchanged.
+- Live data finding, no change made: two hubs had a meeting started on 28 Oct and not submitted when this was reported.
