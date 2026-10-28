@@ -4,6 +4,7 @@ import Clarity from '@microsoft/clarity'
 import './index.css'
 import App from './App.tsx'
 import { prefetchLikelyScreens } from './prefetch'
+import { startAnalytics } from './lib/analytics'
 
 // Clarity's own script is heavy and runs on the main thread, so start it after the page has
 // loaded and gone quiet instead of during the first screen. Anything the app sends it in the
@@ -16,9 +17,13 @@ if (!clarityQueue.clarity) {
   clarityQueue.clarity = stub
 }
 const startClarity = () => Clarity.init('wsa5e4uym8')
+const startAfterLoad = () => {
+  startClarity()
+  void startAnalytics()
+}
 const scheduleClarity = () => {
-  if ('requestIdleCallback' in window) window.requestIdleCallback(startClarity, { timeout: 5000 })
-  else setTimeout(startClarity, 3000)
+  if ('requestIdleCallback' in window) window.requestIdleCallback(startAfterLoad, { timeout: 5000 })
+  else setTimeout(startAfterLoad, 3000)
 }
 if (document.readyState === 'complete') scheduleClarity()
 else window.addEventListener('load', scheduleClarity, { once: true })

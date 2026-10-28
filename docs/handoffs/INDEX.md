@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-28 | [PostHog analytics (manual setup)](2026-10-28_posthog-analytics.md) | `posthog-js` wired in by hand (page views only, no autocapture or replay, staff by id and role); off until `VITE_POSTHOG_KEY` is set in Vercel. Wizard not run. FLOW_MAP rule 111. |
 | 2026-10-28 | [Hub meeting-today banner on support Home](2026-10-28_meeting-today-banner.md) | On a hub meeting day the support's Home shows a green "<Hub> meeting today" banner (Join opens the call) and the hub row says Today. Frontend only; FLOW_MAP rule 110. |
 | 2026-10-28 | [Keep an eye on chip explains itself](2026-10-28_health-chip-why.md) | Tapping Keep an eye on / Needs attention on the Participants list shows the missed classes and meetings by week, the rule, and next steps. Frontend only; FLOW_MAP rule 109. |
 | 2026-10-27 | [Profile completion roll-up, email optional, birthdays](2026-10-27_profile-completion-birthdays.md) | Participants page gets a Profile completion accordion (In a group / Not in a group); email no longer counts towards completion; admin Dashboard gets a Birthdays card; admins are also alerted on the day. 1 live migration, push-reminders v59; FLOW_MAP rules 107, 108. |

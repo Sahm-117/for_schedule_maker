@@ -1,6 +1,7 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './hooks/useAuth';
+import { AuthProvider, useAuth } from './hooks/useAuth';
+import { setAnalyticsUser } from './lib/analytics';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import ScrollToTop from './components/ScrollToTop';
@@ -87,9 +88,19 @@ const RouteFallback: React.FC = () => (
   </div>
 );
 
+// Tells PostHog who is signed in (staff only; participants stay anonymous), by id and role.
+const AnalyticsIdentity: React.FC = () => {
+  const { user } = useAuth();
+  const id = user?.id ?? null;
+  const role = user?.role ?? null;
+  useEffect(() => { setAnalyticsUser(id && role ? { id, role } : null); }, [id, role]);
+  return null;
+};
+
 function App() {
   return (
     <AuthProvider>
+      <AnalyticsIdentity />
       <Router>
         <ScrollToTop />
         {/* Mounted once for the app's whole lifetime, not per-page (Login,
