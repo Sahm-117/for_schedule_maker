@@ -43,3 +43,31 @@ export const joinOpensLabel = (day: string | null | undefined, time: string | nu
   if (here.day === day.toUpperCase()) return here.minutes < opens ? `today at ${clock}` : `next ${day.charAt(0).toUpperCase()}${day.slice(1).toLowerCase()} at ${clock}`;
   return `${day.charAt(0).toUpperCase()}${day.slice(1).toLowerCase()} at ${clock}`;
 };
+
+/** How long after a meeting's start the "meeting today" banner stays (the "on now" banner covers a meeting that is live). */
+const TODAY_BANNER_GRACE_MINUTES = 15;
+
+/** "before" until the start time, "started" for a short while after it, otherwise null (not today, or long gone). */
+export const meetingTodayState = (
+  day: string | null | undefined,
+  time: string | null | undefined,
+  now: Date = new Date(),
+): 'before' | 'started' | null => {
+  const start = startMinutes(time);
+  if (!day || start === null || !DAY_NAMES.includes(day.toUpperCase())) return null;
+  const here = lagosNow(now);
+  if (here.day !== day.toUpperCase()) return null;
+  if (here.minutes < start) return 'before';
+  return here.minutes <= start + TODAY_BANNER_GRACE_MINUTES ? 'started' : null;
+};
+
+export const isMeetingTodayAhead = (day: string | null | undefined, time: string | null | undefined, now: Date = new Date()): boolean =>
+  meetingTodayState(day, time, now) !== null;
+
+/** "8:00 PM" from "20:00". */
+export const meetingClock = (time: string | null | undefined): string => {
+  const start = startMinutes(time);
+  if (start === null) return '';
+  const h = Math.floor(start / 60);
+  return `${h % 12 === 0 ? 12 : h % 12}:${String(start % 60).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+};

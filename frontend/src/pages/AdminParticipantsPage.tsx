@@ -25,6 +25,8 @@ import { useToast } from '../components/Toast';
 import { REGISTRATION_STATUS_META } from '../utils/followUps';
 import { isTeenAgeRange, normaliseAgeRange, normaliseGender } from '../utils/groupingRules';
 import ProfileCompletionCard from '../components/dashboard/ProfileCompletionCard';
+import HealthReasonModal from '../components/participants/HealthReasonModal';
+import { buildMissDetails, type MissDetail } from '../utils/participantHealthReason';
 import { isTeenParticipant } from '../utils/profileCompletionSummary';
 import ParticipantsExportPopup from '../components/participants/ParticipantsExportPopup';
 import {
@@ -814,6 +816,10 @@ const AdminParticipantsContent: React.FC = () => {
   const [flags, setFlags] = useState<ParticipantFlag[]>([]);
   // Status by the programme rules (On track / Keep an eye on / Needs attention).
   const [people, setPeople] = useState<PeopleSummary | null>(null);
+  // The weeks behind each person's status (for the "why" pop-up on their chip) and whose pop-up is open.
+  const [missById, setMissById] = useState<Map<string, MissDetail>>(new Map());
+  const [healthForId, setHealthForId] = useState<string | null>(null);
+  const healthFor = useMemo(() => participants.find((p) => p.id === healthForId) ?? null, [participants, healthForId]);
   const [searchParams, setSearchParams] = useSearchParams();
   // The dashboard links here with ?health=…; it becomes a filter chip and leaves the address.
   useEffect(() => {
@@ -877,9 +883,9 @@ const AdminParticipantsContent: React.FC = () => {
       wrapUpDepts.forEach((dept, id) => addDept(id, dept));
       referrals.filter((r) => r.status !== 'NOT_JOINED').forEach((r) => addDept(r.participantId, r.department));
       setWrapUpDeptById(deptsById);
-      setPeople(health && peopleData
-        ? buildDashboardModel(health, activeCohort, 0, peopleData, rules).people
-        : null);
+      const model = health && peopleData ? buildDashboardModel(health, activeCohort, 0, peopleData, rules) : null;
+      setPeople(model?.people ?? null);
+      setMissById(model && health && peopleData ? buildMissDetails(peopleData, health.weeks, model.judged) : new Map());
       const sortedPs = sortByText(ps, (participant) => participant.fullName);
       const sortedGs = sortByText(gs, (group) => group.name);
       if (silent) {
@@ -1152,12 +1158,15 @@ const AdminParticipantsContent: React.FC = () => {
                           const status = healthById.get(p.id);
                           if (!status || status.health === 'good') return null;
                           return (
-                            <span
-                              title={status.detail}
-                              className={`ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${status.health === 'critical' ? 'bg-red-100/80 text-red-700' : 'bg-amber-100/80 text-amber-700'}`}
+                            <button
+                              type="button"
+                              onClick={() => setHealthForId(p.id)}
+                              title={`${status.detail}. Tap to see why and what to do.`}
+                              aria-haspopup="dialog"
+                              className={`ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${status.health === 'critical' ? 'bg-red-100/80 text-red-700 hover:bg-red-100' : 'bg-amber-100/80 text-amber-700 hover:bg-amber-100'}`}
                             >
                               {PERSON_HEALTH_LABEL[status.health]}
-                            </span>
+                            </button>
                           );
                         })()}
                         {p.isTest && (
@@ -1401,6 +1410,19 @@ const AdminParticipantsContent: React.FC = () => {
         existing={editing}
       />
 
+      {healthFor && healthById.get(healthFor.id) && people && (
+        <HealthReasonModal
+          name={healthFor.fullName}
+          health={healthById.get(healthFor.id)!.health}
+          detail={missById.get(healthFor.id) ?? null}
+          rules={people.rules}
+          supportName={healthFor.groupId ? supportByGroupId.get(healthFor.groupId) ?? null : null}
+          hasGroup={!!healthFor.groupId}
+          isTeen={isTeen(healthFor)}
+          profileTo={`/participants/${healthFor.id}`}
+          onClose={() => setHealthForId(null)}
+        />
+      )}
       <ModalShell
         isOpen={!!loginFor}
         onClose={() => setLoginFor(null)}

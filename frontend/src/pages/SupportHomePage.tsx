@@ -32,7 +32,7 @@ import AppNudgeCard from '../components/supports/AppNudgeCard';
 import TeenQuestionsCard from '../components/questions/TeenQuestionsCard';
 import { useTeenSupportIds } from '../hooks/useTeenSupportIds';
 import SupportScriptures from '../components/supports/SupportScriptures';
-import { isCallJoinable } from '../utils/joinWindow';
+import { isCallJoinable, meetingClock, meetingTodayState } from '../utils/joinWindow';
 import SupportNextClassCard from '../components/supports/SupportNextClassCard';
 
 type HomeActivity = {
@@ -205,6 +205,39 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
     const live = !!hubsList.find((h) => h.hub?.id === hub.id)?.meetingLive;
     return isCallJoinable(hub.meetingDay, hub.meetingTime, tickNow, live) ? link : null;
   })();
+
+  // "Wednesday · 8:00 PM", or "Today · 8:00 PM" on the day itself.
+  const hubRowWhen = (() => {
+    const hub = nextHubMeeting?.hub;
+    if (!hub?.meetingDay || !hub.meetingTime) return '';
+    if (meetingTodayState(hub.meetingDay, hub.meetingTime, tickNow)) return `Today · ${meetingClock(hub.meetingTime)}`;
+    return formatMeetingTime(hub.meetingDay, hub.meetingTime) ?? '';
+  })();
+
+  // Today's hub meeting, for a banner above the rows: the hub meeting of a hub they belong to (a hub-only support with
+  // no hub of their own sees the ones they cover). Shown from the morning until a short while after the start;
+  // the "on now" banner takes over while the meeting is live.
+  const meetingsToday = useMemo(() => {
+    const out: Array<{ key: string; label: string; time: string; started: boolean; to: string; joinHref: string | null }> = [];
+    const ownHubs = hubsList.filter((h) => h.members.some((m) => m.userId === user.id));
+    const hubPool = (ownHubs.length > 0 ? ownHubs : isHubOnlySupport ? hubsList : []);
+    hubPool.forEach((entry) => {
+      const hub = entry.hub;
+      if (!hub?.meetingDay || !hub.meetingTime || entry.meetingLive) return;
+      const state = meetingTodayState(hub.meetingDay, hub.meetingTime, tickNow);
+      if (!state) return;
+      const link = normalizeLink(hub.callLink || '');
+      out.push({
+        key: `hub-${hub.id}`,
+        label: `${hub.name} meeting today`,
+        time: meetingClock(hub.meetingTime),
+        started: state === 'started',
+        to: '/support/my-hub?tab=meeting',
+        joinHref: link && isCallJoinable(hub.meetingDay, hub.meetingTime, tickNow, false) ? link : null,
+      });
+    });
+    return out;
+  }, [hubsList, isHubOnlySupport, tickNow, user.id]);
 
   // Role reminder cards — "You're a Recap Lead", one per job the support
   // holds; always shown while they hold it. One card per JOB, not per
@@ -424,6 +457,27 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
             </section>
           )}
 
+          {meetingsToday.map((m) => (
+            // Same look as the "on now" banner below: the text opens the meeting page, the button goes straight to the call.
+            <div key={m.key} data-testid="meeting-today" className="flex items-center justify-between gap-3 rounded-[16px] bg-emerald-100/80 px-4 py-3">
+              <NavLink to={m.to} className="flex min-w-0 items-center gap-2 text-sm font-bold text-emerald-700">
+                <span className="relative flex h-2 w-2 flex-none">
+                  {m.joinHref && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />}
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                </span>
+                <span className="min-w-0">
+                  {m.label}
+                  <span className="block text-[13px] font-semibold text-emerald-700/80">{m.joinHref ? `${m.time} · join now` : `${m.started ? 'Started' : 'Starts'} ${m.time}`}</span>
+                </span>
+              </NavLink>
+              {m.joinHref ? (
+                <a href={m.joinHref} target="_blank" rel="noopener noreferrer" className="flex-none rounded-xl bg-emerald-700 px-3.5 py-1.5 text-[13px] font-semibold text-white">Join</a>
+              ) : (
+                <NavLink to={m.to} className="flex-none rounded-xl bg-emerald-700 px-3.5 py-1.5 text-[13px] font-semibold text-white">Open</NavLink>
+              )}
+            </div>
+          ))}
+
           <SupportNextClassCard week={nextWeek} dateLabel={nextClassDate} hasWeeks={cohortWeeks.length > 0} />
           {isTeenSupport && <TeenQuestionsCard userId={user.id} />}
 
@@ -436,7 +490,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
                   to="/support/my-hub"
                   label="My Hub"
                   sub={roleLine}
-                  value={[nextHubMeeting?.hub?.name ?? 'Not assigned', nextHubMeeting?.hub?.meetingDay ? formatMeetingTime(nextHubMeeting.hub.meetingDay, nextHubMeeting.hub.meetingTime) : ''].filter(Boolean).join(' · ')}
+                  value={[nextHubMeeting?.hub?.name ?? 'Not assigned', hubRowWhen].filter(Boolean).join(' · ')}
                 />
                 {hubJoinHref && <HomeRow href={hubJoinHref} label="Join hub call" value="" />}
               </>

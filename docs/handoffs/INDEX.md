@@ -5,6 +5,8 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-28 | [Hub meeting-today banner on support Home](2026-10-28_meeting-today-banner.md) | On a hub meeting day the support's Home shows a green "<Hub> meeting today" banner (Join opens the call) and the hub row says Today. Frontend only; FLOW_MAP rule 110. |
+| 2026-10-28 | [Keep an eye on chip explains itself](2026-10-28_health-chip-why.md) | Tapping Keep an eye on / Needs attention on the Participants list shows the missed classes and meetings by week, the rule, and next steps. Frontend only; FLOW_MAP rule 109. |
 | 2026-10-27 | [Profile completion roll-up, email optional, birthdays](2026-10-27_profile-completion-birthdays.md) | Participants page gets a Profile completion accordion (In a group / Not in a group); email no longer counts towards completion; admin Dashboard gets a Birthdays card; admins are also alerted on the day. 1 live migration, push-reminders v59; FLOW_MAP rules 107, 108. |
 | 2026-10-25 | [Guides for the new schedule and tasks UI](2026-10-25_guides-new-schedule-ui.md) | In-app support guide entries and pictures updated (tasks, Add task, From admin, Carried over, Rest weeks, attendance default); Support guide PDF v2 and Teen Support guide PDF v7 rebuilt. Guide text only. |
 | 2026-10-24 | [Tasks on Today, Attendance default week](2026-10-24_tasks-today-view-attendance-default.md) | Schedule: tasks with no day (or on other days) were hidden on Today; now shown with a hint. Attendance (support and admin) opens on the class still to come, not the one already held. Frontend only; FLOW_MAP rule 106. |
