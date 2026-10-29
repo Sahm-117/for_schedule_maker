@@ -297,7 +297,7 @@ const AdminFeedbackPage: React.FC = () => {
           <p className="text-sm text-gray-700">
             <span className="font-semibold">{results.count}</span> {results.count === 1 ? 'response' : 'responses'} from {activeCohort?.name ?? 'this cohort'}
           </p>
-          <p className="mt-1 text-xs text-gray-500">For surveys, send a Google Form link in a participant announcement.</p>
+          <p className="mt-1 text-xs text-gray-500">For surveys, use the Surveys page.</p>
 
           {!results.visible ? (
             <p className="mt-4 rounded-2xl bg-gray-50 px-4 py-3 text-sm text-gray-500">

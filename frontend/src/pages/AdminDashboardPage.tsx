@@ -31,7 +31,7 @@ import NextCohortAssignModal from '../components/followups/NextCohortAssignModal
 import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
 import { useAppData } from '../context/AppDataContext';
-import { announcementsApi, cohortsApi, faithProjectsApi, followUpContactsApi, groupDiscussionApi, groupsApi, settingsApi, supportActivityCompletionsApi, teenMeetingsApi, usersApi } from '../services/api';
+import { announcementsApi, cohortsApi, corporatePrayersApi, faithProjectsApi, followUpContactsApi, groupDiscussionApi, groupsApi, scripturesApi, settingsApi, supportActivityCompletionsApi, supportHubsApi, teenMeetingsApi, usersApi } from '../services/api';
 import { buildOnboardingReadiness, type OnboardingReadiness } from '../utils/supportOnboarding';
 import { DEFAULT_PROGRAMME_RULES, type CohortPeoplePayload, type ProgrammeRules } from '../utils/programmeRules';
 import type { Announcement, FollowUpContact, SupportActivityCompletion, User } from '../types';
@@ -73,7 +73,8 @@ const AdminDashboardPage: React.FC = () => {
   const [people, setPeople] = useState<CohortPeoplePayload | null>(null);
   const [savedFaithIds, setSavedFaithIds] = useState<string[] | null>(null);
   const [rules, setRules] = useState<ProgrammeRules>(DEFAULT_PROGRAMME_RULES);
-  const [signUpTarget, setSignUpTarget] = useState<number | null>(null);
+  // undefined: the target could not be read (the setup checklist then leaves it off).
+  const [signUpTarget, setSignUpTarget] = useState<number | null | undefined>(null);
   // Sign-up numbers, worked out the same way as Follow-ups → Overview.
   const [followUpContacts, setFollowUpContacts] = useState<FollowUpContact[] | null>(null);
   const [teenOverview, setTeenOverview] = useState<TeenOverview | null>(null);
@@ -120,7 +121,7 @@ const AdminDashboardPage: React.FC = () => {
         // Person-level rules are extra; the page still works without them.
         cohortsApi.getPeople(activeCohort.id).catch(() => null),
         settingsApi.getProgrammeRules(),
-        settingsApi.getMobilisationTarget(activeCohort.id).catch(() => ({ target: null })),
+        settingsApi.getMobilisationTarget(activeCohort.id).catch(() => ({ target: undefined })),
         followUpContactsApi.getAll().catch(() => null),
         teenMeetingsApi.getForCohort(activeCohort.id).catch(() => null),
         faithProjectsApi.getSavedParticipantIds(activeCohort.id).catch(() => null),
@@ -199,6 +200,32 @@ const AdminDashboardPage: React.FC = () => {
     );
   }, [health, activeCohort, globalPendingChanges.length, people, rules, readiness, savedFaithIds]);
 
+  // Before the start: setup the health payload does not carry (hubs, corporate prayer start, daily scriptures).
+  // Loaded only then; an item that could not be read is left off the checklist. Scripture designs are shared by
+  // every cohort (the Scriptures page has no cohort), so any uploaded design counts.
+  const upcoming = model?.mode === 'upcoming';
+  const [setupExtras, setSetupExtras] = useState<SetupExtras | null>(null);
+  useEffect(() => {
+    setSetupExtras(null);
+    if (!upcoming || !activeCohort?.id || !isAdmin) return undefined;
+    let cancelled = false;
+    const cohortId = activeCohort.id;
+    Promise.allSettled([supportHubsApi.getAll(cohortId), corporatePrayersApi.overview(cohortId), scripturesApi.getAll()])
+      .then(([hubs, prayer, scriptures]) => {
+        if (cancelled) return;
+        setSetupExtras({
+          hubs: hubs.status === 'fulfilled' ? hubs.value.hubs.length : null,
+          prayerStartSet: prayer.status === 'fulfilled' ? prayer.value.startWeekNumber != null : null,
+          scriptures: scriptures.status === 'fulfilled' ? scriptures.value.scriptures.length : null,
+        });
+      });
+    return () => { cancelled = true; };
+    // Not on every live update: hubs, the prayer start and the designs change rarely, and the page reloads them when opened.
+  }, [upcoming, activeCohort?.id, isAdmin]);
+  const setupItems = upcoming && health ? readinessItems(health, setupExtras, signUpTarget) : [];
+  // Counted once the extras have answered, so the header does not jump as they arrive.
+  const setupLeft = setupExtras ? setupItems.filter((item) => !item.done).length : 0;
+
   const todaysDay = useMemo(() => {
     if (!activeWeek) return null;
     return activeWeek.days.find((day) => day.dayName === todayName) || null;
@@ -241,7 +268,9 @@ const AdminDashboardPage: React.FC = () => {
     <div>
       <PageHeader
         title="Dashboard"
-        subtitle={model && model.attention.length > 0 ? `${model.attention.length} ${model.attention.length === 1 ? 'thing needs' : 'things need'} you` : model ? 'Nothing needs you right now' : 'How the cohort is doing, and what needs you.'}
+        subtitle={model && model.attention.length > 0 ? `${model.attention.length} ${model.attention.length === 1 ? 'thing needs' : 'things need'} you`
+          : setupLeft > 0 ? `${setupLeft} setup ${setupLeft === 1 ? 'step' : 'steps'} left before ${activeCohort.name} starts`
+            : model ? 'Nothing needs you right now' : 'How the cohort is doing, and what needs you.'}
         tourId="admin:dashboard"
       />
 
@@ -264,6 +293,9 @@ const AdminDashboardPage: React.FC = () => {
           )}
           <div data-wt="dash-strip"><CohortStrip health={health} model={model} cohortName={activeCohort.name} /></div>
 
+          {/* Before the start, getting the cohort set up comes first. */}
+          {upcoming && <div data-wt="dash-setup"><ReadinessChecklist cohortName={activeCohort.name} items={setupItems} /></div>}
+
           <div data-wt="dash-vitals">
             {model.mode === 'upcoming' ? (
               followUpContacts ? <RegistrationOverviewCards cohortId={activeCohort.id} contacts={followUpContacts} target={signUpTarget} /> : null
@@ -277,12 +309,10 @@ const AdminDashboardPage: React.FC = () => {
           {teenOverview && teenOverview.total > 0 && <TeenOverviewCard overview={teenOverview} meetings={teenMeetingSummary} />}
 
           <div data-wt="dash-attention" className={openingAssign ? 'pointer-events-none opacity-70' : ''}>
-            <AttentionList items={model.attention} canAct={canAssignNextCohort} onAction={(item) => { void handleAttentionAction(item); }} />
+            <AttentionList items={model.attention} canAct={canAssignNextCohort} onAction={(item) => { void handleAttentionAction(item); }} emptyText={setupLeft > 0 ? 'Nothing else needs you. Finish getting the cohort ready above.' : undefined} />
           </div>
 
-          {model.mode === 'upcoming' ? (
-            <ReadinessChecklist health={health} />
-          ) : (
+          {!upcoming && (
             <div data-wt="dash-trend" className="grid gap-5 xl:grid-cols-2">
               <section className="surface-card min-w-0 p-5 sm:p-6">
                 <h3 className="text-base font-semibold text-gray-900">{model.mode === 'completed' ? 'How the cohort went' : 'Cohort trend'}</h3>
@@ -636,20 +666,47 @@ const TeenOverviewCard: React.FC<{ overview: TeenOverview; meetings: TeenMeeting
   );
 };
 
-const ReadinessChecklist: React.FC<{ health: CohortHealthPayload }> = ({ health }) => {
+interface SetupExtras {
+  hubs: number | null;
+  prayerStartSet: boolean | null;
+  scriptures: number | null;
+}
+
+interface SetupItem { key: string; label: string; done: boolean; detail?: string; to: string }
+
+// Everything to set up before a cohort starts, each ticked from data the app already has. Shown on the
+// Dashboard while the cohort is upcoming; the header counts what is left.
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+const readinessItems = (health: CohortHealthPayload, extras: SetupExtras | null, signUpTarget: number | null | undefined): SetupItem[] => {
   const active = Number(health.participants.active);
   const unplaced = Math.max(0, active - Number(health.participants.inGroups));
   const noSupport = health.groups.filter((g) => !g.supportId).length;
+  const items: Array<SetupItem | null> = [
+    { key: 'weeks', done: health.weeks.length > 0, label: 'Weeks set up', detail: health.weeks.length ? plural(health.weeks.length, 'week', 'weeks') : undefined, to: '/cohorts' },
+    { key: 'schedule', done: !!health.cohort?.schedulePublished, label: 'Schedule published to supports', to: '/schedule' },
+    signUpTarget === undefined ? null : { key: 'target', done: signUpTarget != null && signUpTarget > 0, label: 'Mobilisation target set', detail: signUpTarget ? `${signUpTarget} to register` : undefined, to: '/follow-ups' },
+    { key: 'participants', done: active > 0, label: 'Participants added', detail: active ? plural(active, 'participant', 'participants') : undefined, to: '/participants' },
+    { key: 'groups', done: health.groups.length > 0, label: 'Groups created', detail: health.groups.length ? plural(health.groups.length, 'group', 'groups') : undefined, to: '/groups' },
+    { key: 'supports', done: health.groups.length > 0 && noSupport === 0, label: 'Every group has a support', detail: noSupport ? `${noSupport} without one` : undefined, to: '/groups' },
+    { key: 'placed', done: active > 0 && unplaced === 0, label: 'Everyone placed in a group', detail: unplaced ? `${unplaced} not placed` : undefined, to: '/allocation' },
+    extras?.hubs == null ? null : { key: 'hubs', done: extras.hubs > 0, label: 'Hubs set up', detail: extras.hubs ? plural(extras.hubs, 'hub', 'hubs') : undefined, to: '/hubs' },
+    extras?.prayerStartSet == null ? null : { key: 'prayer', done: extras.prayerStartSet, label: 'Corporate prayer start week set', to: '/corporate-prayers' },
+    extras?.scriptures == null ? null : { key: 'scriptures', done: extras.scriptures > 0, label: 'Daily scriptures uploaded', detail: extras.scriptures ? plural(extras.scriptures, 'design', 'designs') : undefined, to: '/scriptures' },
+  ];
+  return items.filter((item): item is SetupItem => !!item);
+};
+
+const ReadinessChecklist: React.FC<{ cohortName: string; items: SetupItem[] }> = ({ cohortName, items }) => {
+  const done = items.filter((item) => item.done).length;
   return (
     <section className="surface-card p-5 sm:p-6">
-      <h3 className="text-base font-semibold text-gray-900">Ready to start?</h3>
+      <div className="flex items-baseline gap-2">
+        <h3 className="text-base font-semibold text-gray-900">Get {cohortName} ready</h3>
+        <span className="ml-auto text-xs font-semibold text-gray-500">{done} of {items.length} done</span>
+      </div>
       <ul className="mt-2 divide-y divide-gray-100">
-        <ChecklistRow done={health.weeks.length > 0} label="Weeks set up" detail={health.weeks.length ? `${health.weeks.length} weeks` : undefined} to="/cohorts" />
-        <ChecklistRow done={!!health.cohort?.schedulePublished} label="Schedule published to supports" to="/schedule" />
-        <ChecklistRow done={active > 0} label="Participants added" detail={active ? `${active} participants` : undefined} to="/participants" />
-        <ChecklistRow done={health.groups.length > 0} label="Groups created" detail={health.groups.length ? `${health.groups.length} groups` : undefined} to="/groups" />
-        <ChecklistRow done={health.groups.length > 0 && noSupport === 0} label="Every group has a support" detail={noSupport ? `${noSupport} without one` : undefined} to="/groups" />
-        <ChecklistRow done={active > 0 && unplaced === 0} label="Everyone placed in a group" detail={unplaced ? `${unplaced} not placed` : undefined} to="/allocation" />
+        {items.map((item) => <ChecklistRow key={item.key} done={item.done} label={item.label} detail={item.detail} to={item.to} />)}
       </ul>
     </section>
   );

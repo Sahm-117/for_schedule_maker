@@ -72,6 +72,8 @@ const AdminAttendanceContent: React.FC = () => {
     return () => { cancelled = true; };
   }, [allWeeks, cohortWeeks]);
   const [participants, setParticipants] = useState<Participant[]>([]);
+  // A failed load leaves participants empty; only a successful one may say the cohort has nobody.
+  const [participantsLoaded, setParticipantsLoaded] = useState(false);
   const [records, setRecords] = useState<Map<string, AttendanceRecord>>(new Map());
   const [followUpTasks, setFollowUpTasks] = useState<AttendanceFollowUpTask[]>([]);
   const [session, setSession] = useState<AttendanceSession | null>(null);
@@ -121,6 +123,7 @@ const AdminAttendanceContent: React.FC = () => {
         attendanceFollowUpTasksApi.getForWeek(selectedWeekId),
       ]);
       setParticipants(sortByText(ps.filter((p) => p.status === 'ACTIVE'), (participant) => participant.fullName));
+      setParticipantsLoaded(true);
       const map = new Map<string, AttendanceRecord>();
       rs.forEach((r) => map.set(r.participantId, r));
       setRecords(map);
@@ -361,7 +364,7 @@ const AdminAttendanceContent: React.FC = () => {
           <section className="mb-4 flex flex-wrap items-center gap-3 surface-card px-4 py-3">
             <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${finalised ? 'bg-emerald-100 text-emerald-700' : allMarked ? 'bg-sky-100 text-sky-700' : 'bg-neutral-100 text-neutral-600'}`}>{finalised ? 'Report sent' : allMarked ? 'Attendance taken' : `${participants.length - records.size} still unmarked`}</span>
             {!session?.startedAt && !finalised ? (
-              canEdit && <button type="button" onClick={() => void startAttendance()} disabled={startingWindow} className="rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">{startingWindow ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Starting…</span>) : 'Start attendance'}</button>
+              canEdit && <button type="button" onClick={() => void startAttendance()} disabled={startingWindow || (participantsLoaded && participants.length === 0)} title={participantsLoaded && participants.length === 0 ? 'Nobody to mark yet' : undefined} className="rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">{startingWindow ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Starting…</span>) : 'Start attendance'}</button>
             ) : windowOpen && windowClosesAt ? (
               <span className="rounded-full bg-sky-100/80 px-2.5 py-1 text-xs font-bold text-sky-700">Closes in {countdownLabel(windowClosesAt, now)}</span>
             ) : session?.startedAt && !finalised ? (

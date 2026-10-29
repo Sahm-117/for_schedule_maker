@@ -228,7 +228,7 @@ export const describeMoment = (moment: PlannerMoment, today: string) => {
     const held = cohort.classDates.filter((d) => d <= today).length;
     const next = cohort.classDates.find((d) => d >= today) ?? null;
     return {
-      title: held === 0 ? `${cohort.name} · Class 1 of ${cohort.classDates.length}` : `${cohort.name} · Class ${held} of ${cohort.classDates.length}`,
+      title: held === 0 ? `${cohort.name} · Getting ready` : `${cohort.name} · Class ${held} of ${cohort.classDates.length}`,
       detail: next
         ? next === today ? 'Class today' : `${held === 0 ? 'First' : 'Next'} class ${formatPlannerDate(next, true, today)}`
         : 'Last class done',

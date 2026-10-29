@@ -65,13 +65,13 @@ export const WELCOME: Record<TourAudience, WelcomeContent> = {
     homeTour: 'support:home',
   },
   admin: {
-    title: 'Welcome to V2',
-    subtitle: 'See how the cohort is really doing, and what needs you today.',
+    title: 'Welcome to FOF Ops',
+    subtitle: 'See how the cohort is doing, and what needs you today.',
     tiles: [
       { icon: ICON.pulse, title: 'Cohort Health', body: 'Vital signs, trends and a list of what needs your attention.' },
       { icon: ICON.shield, title: 'Supports', body: 'Every support’s weekly records and onboarding in one view.' },
       { icon: ICON.sliders, title: 'Programme Rules', body: 'Set the agreed rules once in Settings. The app judges by them.' },
-      { icon: ICON.phone, title: 'Participant App', body: 'Participants now sign in to follow their journey and reflect.' },
+      { icon: ICON.phone, title: 'Participant App', body: 'Participants sign in to follow their journey and reflect.' },
     ],
     homePath: '/dashboard',
     homeTour: 'admin:dashboard',
@@ -154,10 +154,9 @@ export const PAGE_TOURS: Record<string, TourStep[]> = {
   // ── Admin ─────────────────────────────────────────────────────────────────
   'admin:dashboard': [
     { target: wt('dash-strip'), title: 'Your cohort at a glance', body: 'Which cohort you’re looking at and where it is in the programme.' },
+    { target: wt('dash-setup'), title: 'Start here', body: 'Before a cohort starts, this lists what is left to set up. Each item ticks itself; Open takes you to the page.', optional: true },
     { target: wt('dash-vitals'), title: 'Vital signs', body: 'The key numbers for the cohort. Before it starts, this shows registrations instead.' },
-    { target: wt('dash-attention'), title: 'What needs you', body: 'People, groups and supports that need action, most urgent first. Act on them from here.' },
-    { target: wt('dash-trend'), title: 'Trends', body: 'How groups are doing week by week, so you can spot who is slipping.', optional: true },
-    { target: wt('dash-ops'), title: 'Today’s operations', body: 'Today’s activities, pending approvals and the latest announcement.' },
+    { target: wt('dash-attention'), title: 'What needs you', body: 'People, groups and supports that need action, most urgent first. Trends and today’s operations sit below.' },
     { target: wt('app-nav'), title: 'The back office', body: 'Everything else is grouped in the menu.' },
     HELP_STEP,
   ],

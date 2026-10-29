@@ -238,6 +238,8 @@ const AdminFaithProjectsContent: React.FC = () => {
   const [searchParams] = useSearchParams();
 
   const [participants, setParticipants] = useState<Participant[]>([]);
+  // A failed load leaves participants empty; only a successful one may say the cohort has nobody.
+  const [participantsLoaded, setParticipantsLoaded] = useState(false);
   const [projects, setProjects] = useState<FaithProject[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
@@ -268,6 +270,7 @@ const AdminFaithProjectsContent: React.FC = () => {
         faithProjectSettingsApi.get(activeCohort.id),
       ]);
       setParticipants(sortByText(ps.filter((p) => p.status === 'ACTIVE'), (participant) => participant.fullName));
+      setParticipantsLoaded(true);
       const ids = ps.filter((p) => p.status === 'ACTIVE').map((p) => p.id);
       const [testimoniesRes, helpRequestsRes] = await Promise.all([
         testimoniesApi.getAll({ cohortId: activeCohort.id }).catch(() => ({ testimonies: [] as Testimony[] })),
@@ -438,7 +441,7 @@ const AdminFaithProjectsContent: React.FC = () => {
             <PageLoader />
           ) : displayed.length === 0 ? (
             <div className="rounded-2xl bg-gray-50/80 py-12 text-center">
-              <p className="text-sm text-gray-500">No participants match your filter.</p>
+              <p className="text-sm text-gray-500">{participantsLoaded && participants.length === 0 ? 'No participants in this cohort yet.' : 'No participants match your filter.'}</p>
             </div>
           ) : (
             <>

@@ -58,7 +58,7 @@ const AdminAnnouncementsPage: React.FC = () => {
       <PageHeader
         title="Announcements"
         tourId="admin:announcements"
-        subtitle="Send updates and urgent messages to support users."
+        subtitle="Send updates to supports, participants or everyone."
         action={canAdd ? (
           <button
             type="button"

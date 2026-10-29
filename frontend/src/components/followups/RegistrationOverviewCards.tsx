@@ -8,6 +8,8 @@ import { VitalTile } from '../dashboard/DashboardParts';
 // Shown on the admin Dashboard and on Follow-ups → Overview.
 
 const pct = (rate: number) => Math.round(rate * 100);
+// Zero of something is only good news once someone has registered: until then the tiles stay grey.
+const EMPTY = { status: 'neutral' as const, statusLabel: 'Nothing yet' };
 
 const REASON_LABEL: Record<PendingReason, string> = {
   loginSent: 'Login sent, not signed in yet',
@@ -39,10 +41,9 @@ const Block: React.FC<{ title: string; block: PeopleBlock; reasons: PendingReaso
       <div className="col-span-2 xl:col-span-1">
         <VitalTile
           title="Still to log in"
-          status={block.pending > 0 ? 'warning' : 'good'}
-          statusLabel={block.pending > 0 ? 'Registered, not in the app' : 'Everyone is in'}
+          {...(block.registered === 0 ? EMPTY : { status: block.pending > 0 ? 'warning' : 'good', statusLabel: block.pending > 0 ? 'Registered, not in the app' : 'Everyone is in' })}
           value={block.pending}
-          detail={block.pending > 0 ? 'Registered, but not signed in yet:' : 'Nobody is waiting to sign in'}
+          detail={block.registered === 0 ? 'Nobody registered yet' : block.pending > 0 ? 'Registered, but not signed in yet:' : 'Nobody is waiting to sign in'}
         >
           {block.pending > 0 && (
             <ul className="space-y-0.5 text-[12px] text-gray-600">
@@ -58,10 +59,9 @@ const Block: React.FC<{ title: string; block: PeopleBlock; reasons: PendingReaso
       </div>
       <VitalTile
         title="Not registered yet"
-        status={block.notRegistered > 0 ? 'warning' : 'good'}
-        statusLabel={block.notRegistered > 0 ? 'Needs work' : 'All handled'}
+        {...(block.notRegistered === 0 && block.registered === 0 ? EMPTY : { status: block.notRegistered > 0 ? 'warning' : 'good', statusLabel: block.notRegistered > 0 ? 'Needs work' : 'All handled' })}
         value={block.notRegistered}
-        detail={block.notRegistered > 0 ? 'On the follow-up list, still to register' : 'Everyone on the list has registered or stopped'}
+        detail={block.notRegistered > 0 ? 'On the follow-up list, still to register' : block.registered === 0 ? 'Nobody on the follow-up list yet' : 'Everyone on the list has registered or stopped'}
         to={block.notRegistered > 0 ? notRegisteredLink : undefined}
       />
     </div>
@@ -83,17 +83,15 @@ const TeenCards: React.FC<{ block: TeenBlock; notRegisteredLink?: string }> = ({
       />
       <VitalTile
         title="No response"
-        status={block.noResponse > 0 ? 'warning' : 'good'}
-        statusLabel={block.noResponse > 0 ? 'Not reachable' : 'None'}
+        {...(block.registered === 0 ? EMPTY : { status: block.noResponse > 0 ? 'warning' : 'good', statusLabel: block.noResponse > 0 ? 'Not reachable' : 'None' })}
         value={block.noResponse}
-        detail={block.noResponse > 0 ? 'Marked No response, or stopped' : 'Nobody is unreachable'}
+        detail={block.registered === 0 ? 'Nobody registered yet' : block.noResponse > 0 ? 'Marked No response, or stopped' : 'Nobody is unreachable'}
       />
       <VitalTile
         title="Not onboarded yet"
-        status={block.notOnboarded > 0 ? 'warning' : 'good'}
-        statusLabel={block.notOnboarded > 0 ? 'Still being followed up' : 'All done'}
+        {...(block.registered === 0 ? EMPTY : { status: block.notOnboarded > 0 ? 'warning' : 'good', statusLabel: block.notOnboarded > 0 ? 'Still being followed up' : 'All done' })}
         value={block.notOnboarded}
-        detail={block.notOnboarded > 0
+        detail={block.registered === 0 ? 'Nobody registered yet' : block.notOnboarded > 0
           ? (block.waitingForSupport > 0 ? `${block.notOnboarded - block.waitingForSupport} with their Teen Support, ${block.waitingForSupport} waiting for one` : 'With their Teen Support')
           : 'Every registered teen is onboarded or marked No response'}
       />

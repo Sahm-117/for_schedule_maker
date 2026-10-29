@@ -107,7 +107,7 @@ export const SegmentBar: React.FC<{ segments: Array<{ label: string; value: numb
   );
 };
 
-export const AttentionList: React.FC<{ items: AttentionItem[]; onAction: (item: AttentionItem) => void; canAct?: boolean }> = ({ items, onAction, canAct = true }) => {
+export const AttentionList: React.FC<{ items: AttentionItem[]; onAction: (item: AttentionItem) => void; canAct?: boolean; emptyText?: string }> = ({ items, onAction, canAct = true, emptyText = 'Nothing needs attention right now.' }) => {
   const [showAll, setShowAll] = useState(false);
   const preview = items.slice(0, 4);
   const renderItems = (entries: AttentionItem[], closeAfterAction = false) => (
@@ -137,7 +137,7 @@ export const AttentionList: React.FC<{ items: AttentionItem[]; onAction: (item: 
       {items.length === 0 ? (
         <div className="flex items-center gap-3 rounded-2xl bg-emerald-50/70 px-4 py-4 text-sm text-emerald-800">
           <span className="grid h-7 w-7 flex-none place-items-center rounded-full bg-emerald-100 text-emerald-700"><StatusIcon status="good" /></span>
-          Nothing needs attention right now.
+          {emptyText}
         </div>
       ) : <>
         {renderItems(preview)}
