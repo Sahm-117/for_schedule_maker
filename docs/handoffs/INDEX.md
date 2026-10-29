@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-29 | [Participant onboarding gaps closed](2026-10-29_participant-onboarding-gaps.md) | Not-in-a-group states on My Group, Home, People and Profile, with a Get help tile; why "I have all I need" is locked; "Welcome" before class 1; manuals under Resources; empty Journey; Welcome guide opens at the tour after Get the app, refreshed and versioned; People tour. Frontend only; FLOW_MAP rule 113. |
 | 2026-10-29 | [PostHog: participants by pseudonym](2026-10-28_posthog-analytics.md#addendum-29-oct-participants-identified-by-pseudonym) | Participants identified in PostHog by the `analytics.pid()` pseudonym instead of their record id; reset uses PostHog's stored identity so sign-out and person switches never merge people. PostHog dashboards built over MCP. Frontend only; FLOW_MAP rules 111 and 112 reworded. |
 | 2026-10-28 | [PostHog warehouse reader](2026-10-28_posthog-warehouse-reader.md) | Read-only `posthog_reader` role over an `analytics` schema of anonymised views (Cohort 10 onwards); `public` stays unreachable. 1 live migration, password set live; FLOW_MAP rule 112. |
 | 2026-10-28 | [PostHog analytics (manual setup)](2026-10-28_posthog-analytics.md) | `posthog-js` wired in by hand (page views and a named click on every button and link, text and ids stripped, staff by id and role, participants by pseudonym from 29 Oct); off until `POSTHOG_KEY` is set in Vercel. Wizard not run. FLOW_MAP rule 111. |

@@ -23,6 +23,7 @@ import { participantAppApi, practiceApi } from '../services/api';
 import type { OnboardingState } from '../types';
 import { useToast } from '../components/Toast';
 import AppSetupBanner from '../components/participantApp/AppSetupBanner';
+import { useParticipantHelp } from '../components/participantApp/participantHelp';
 import { useParticipantPush } from '../hooks/useParticipantPush';
 import { buildWhatsAppLink } from '../utils/phone';
 import PendingSurveyCards from '../components/surveys/PendingSurveyCards';
@@ -59,6 +60,7 @@ const ParticipantHomePage: React.FC = () => {
   const toast = useToast();
   const push = useParticipantPush();
   const navigate = useNavigate();
+  const openHelp = useParticipantHelp();
   const [goalSaving, setGoalSaving] = useState(false);
   const { streak } = usePrayerStreak();
   const [introOpen, setIntroOpen] = useState(false);
@@ -163,12 +165,15 @@ const ParticipantHomePage: React.FC = () => {
   const groupCallLink = normalizeLink(group?.callLink?.trim() || '') || null;
   const supportWaLink = buildWhatsAppLink(group?.supportPhone, `Hi ${(group?.supportName || 'there').split(' ')[0]}, it's ${home.participant.name.split(' ')[0]} from FOF.`);
 
-  const quickTiles: Array<{ key: string; label: string; icon: string; to?: string; href?: string; disabled?: boolean; hint?: string; avatarName?: string; avatarUrl?: string | null }> = [
+  const quickTiles: Array<{ key: string; label: string; icon: string; to?: string; href?: string; onClick?: () => void; disabled?: boolean; hint?: string; avatarName?: string; avatarUrl?: string | null }> = [
     // Nothing to join until the support shares the group's call link.
     groupCallLink && (!callSet || isCallJoinable(group?.meetingDay, group?.meetingTime, now, !!home.groupMeetingLive))
       ? { key: 'call', label: 'Join call', icon: ICON_CALL, href: groupCallLink }
       : { key: 'call', label: 'Join call', icon: ICON_CALL, disabled: true, hint: groupCallLink ? `Opens ${JOIN_LEAD_MINUTES} min before` : undefined },
-    supportWaLink
+    // No support to message yet (not placed, or no number for them): the tile opens Help instead.
+    !supportWaLink && openHelp
+      ? { key: 'message-support', label: 'Get help', icon: ICON_MESSAGE, onClick: openHelp }
+      : supportWaLink
       ? { key: 'message-support', label: 'Message support', icon: ICON_MESSAGE, href: supportWaLink, avatarName: group?.supportName ?? 'Support', avatarUrl: group?.supportAvatarUrl }
       : { key: 'message-support', label: 'Message support', icon: ICON_MESSAGE, to: '/me/group', avatarName: group?.supportName ?? 'Support', avatarUrl: group?.supportAvatarUrl },
     { key: 'resources', label: 'Resources', icon: ICON_RESOURCES, to: '/me/resources' },
@@ -184,11 +189,13 @@ const ParticipantHomePage: React.FC = () => {
     if (onboarding && !onboarding.introGuideRead) setOnboarding({ ...onboarding, introGuideRead: true });
     void Promise.resolve(participantAppApi.markIntroGuideRead()).catch(() => { /* ignore */ });
   };
+  // The intro opens once the support has introduced themselves, so until then say what it waits on.
+  const introWaitingSub = group ? 'Waiting for your support to start introductions' : 'Opens once you’re in a group';
   const readyItems: Array<{ key: string; label: string; sub?: string; to?: string; onClick?: () => void; done: boolean }> = onboarding ? [
     {
       key: 'introduce',
       label: 'Introduce yourself',
-      sub: !onboarding.introPosted && !onboarding.supportIntroPosted ? 'Waiting for your support to start introductions' : undefined,
+      sub: onboarding.introPosted || onboarding.supportIntroPosted ? undefined : introWaitingSub,
       to: onboarding.supportIntroPosted || onboarding.introPosted ? '/me/group?tab=discussion&intro=1' : undefined,
       done: onboarding.introPosted,
     },
@@ -204,6 +211,16 @@ const ParticipantHomePage: React.FC = () => {
   ] : [];
   const readyDone = readyItems.filter((item) => item.done).length;
   const allDone = readyItems.length > 0 && readyDone === readyItems.length;
+  // Why "I have all I need" is still locked: say what is left, and when a step cannot be done yet, what it waits on.
+  const readyLeft = readyItems.filter((item) => !item.done);
+  const readyLockedNote = allDone ? null
+    : readyLeft.length === 1 && readyLeft[0].key === 'introduce' && !onboarding?.supportIntroPosted
+      ? group
+        ? 'Almost there. This unlocks once you’ve introduced yourself, after your support says hello in My Group.'
+        : 'Almost there. This unlocks once you’re in a group and have introduced yourself.'
+      : readyLeft.some((item) => !item.onClick && !item.to)
+        ? 'Some steps above open later. This unlocks once every step is ticked.'
+        : 'Tick the steps above first.';
   // The readiness badge is earned when every step is ticked and readiness is confirmed; it stays after the Get ready card is gone.
   const badgeName = `${cohortLabel(home.cohort?.name)} Readiness Badge`;
   const badgeEarned = !!onboarding && allDone && (onboarding.readyConfirmed || onboarding.completed);
@@ -265,7 +282,7 @@ const ParticipantHomePage: React.FC = () => {
   return (
     <div>
       <PageHeader
-        title={`Welcome back, ${firstName}`}
+        title={`${started ? 'Welcome back' : 'Welcome'}, ${firstName}`}
         tourId="participant:home"
       />
 
@@ -345,6 +362,7 @@ const ParticipantHomePage: React.FC = () => {
                 {confirming ? <Spinner className="h-4 w-4" /> : <span className="grid h-6 w-6 flex-none place-items-center rounded-full border-2 border-current" aria-hidden="true" />}
                 <span>I have all I need to be ready for class{firstClassDate ? ` on ${formatDateLabel(firstClassDate)}` : ''}</span>
               </button>
+              {readyLockedNote && <p data-wt="ph-ready-locked" className="-mt-0.5 px-1 text-xs text-gray-500">{readyLockedNote}</p>}
               <div className="mt-1 flex min-h-[56px] items-center gap-3 rounded-[16px] border border-dashed border-[#ecd6c6] bg-[#fffaf6] px-3.5 py-3" aria-label="The readiness badge unlocks when every step is ticked">
                 <span className="grid h-10 w-10 flex-none place-items-center rounded-full bg-[#f3e6dc] text-[#b79a85]"><svg viewBox="0 0 24 24" className="h-[22px] w-[22px]" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.3 6.8 19.1l1-5.8L3.5 9.2l5.9-.9L12 3Z" /></svg></span>
                 <span className="min-w-0">
@@ -365,7 +383,7 @@ const ParticipantHomePage: React.FC = () => {
             !onboarding.introPosted && {
               key: 'intro',
               label: 'Introduce yourself',
-              sub: onboarding.supportIntroPosted ? 'Say hello to your group' : 'Waiting for your support to start introductions',
+              sub: onboarding.supportIntroPosted ? 'Say hello to your group' : introWaitingSub,
               to: onboarding.supportIntroPosted ? '/me/group?tab=discussion&intro=1' : null,
               icon: 'M8 10h8M8 14h5m-9 6 3-3h10a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14Z',
             },
@@ -461,8 +479,9 @@ const ParticipantHomePage: React.FC = () => {
           <div className="flex min-h-[68px] items-center gap-3 px-[18px] py-2">
             <div className="min-w-0 flex-1">
               <p className="text-[13px] text-gray-500">Group call</p>
-              <p className="text-[16px] font-extrabold text-gray-900">{callSet ? `${titleCaseDay(group!.meetingDay)}, ${formatTime(group!.meetingTime)}` : 'Not set yet'}</p>
-              {preStart && !groupCallLink && <p className="text-xs text-gray-500">Your support will share the link</p>}
+              <p className="text-[16px] font-extrabold text-gray-900">{callSet ? `${titleCaseDay(group!.meetingDay)}, ${formatTime(group!.meetingTime)}` : group ? 'Not set yet' : 'After you’re placed in a group'}</p>
+              {!group ? <p className="text-xs text-gray-500">Your support will share the day, time and link</p>
+                : preStart && !groupCallLink && <p className="text-xs text-gray-500">Your support will share the link</p>}
             </div>
           </div>
           <NavLink to="/me/faith" className="flex min-h-[68px] items-center gap-3 border-t border-[#f1f2f5] px-[18px] py-2">
@@ -514,6 +533,13 @@ const ParticipantHomePage: React.FC = () => {
                 <div key={tile.key} aria-disabled="true" className="relative flex min-h-[44px] flex-col items-center gap-2.5 rounded-2xl border border-[#eef0f4] bg-white px-2 py-4 opacity-50">
                   {content}
                 </div>
+              );
+            }
+            if (tile.onClick) {
+              return (
+                <button key={tile.key} type="button" onClick={tile.onClick} className="relative flex min-h-[44px] flex-col items-center gap-2.5 rounded-2xl border border-[#eef0f4] bg-white px-2 py-4 hover:border-[#ffdeca]">
+                  {content}
+                </button>
               );
             }
             return tile.href ? (

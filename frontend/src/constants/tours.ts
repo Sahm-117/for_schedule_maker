@@ -237,16 +237,22 @@ export const PAGE_TOURS: Record<string, TourStep[]> = {
     { target: wt('pj-weeks'), title: 'Read it back', body: 'Tap any week you have reached to read it again.', optional: true },
   ],
   'participant:group': [
+    { target: wt('pg-no-group'), title: 'Your group is coming', body: 'Once you’re placed, your support, your group’s chat and your call time show here.', optional: true },
     { target: wt('pg-meeting'), title: 'Next meeting', body: 'When your group meets, the call link and a button to add it to your calendar.', optional: true },
     { target: wt('pg-members'), title: 'Group members', body: 'Your support and the people in your group. Tap Contact to message your support if you have a question or can’t make it.', optional: true },
   ],
   'participant:faith': [
     { target: wt('pf-project'), title: 'Your faith project', body: 'One thing you are trusting God for across the programme. Be specific.' },
-    { target: wt('pf-thread'), title: 'Feedback from your support', body: 'Your support can reply here to encourage you along the way.', optional: true },
+    { target: wt('pf-history'), title: 'Every version is kept', body: 'Each time you save, the earlier version stays in your edit history. Once it’s written, tap “Is it going well?” if you’d like your support’s help.', optional: true },
   ],
   'participant:resources': [
     { target: wt('pr-guides'), title: 'General guides', body: 'Guides from the FOF team.' },
-    { target: wt('pr-materials'), title: 'Class materials', body: 'Materials for each class.' },
+    { target: wt('pr-materials'), title: 'Class materials', body: 'Each class manual and recap, once it’s out. Tap one to open it.' },
+  ],
+  'participant:people': [
+    { target: wt('pp-my-support'), title: 'Your support', body: 'The person walking with you through FOF. Reach out to them if you have a question or can’t make it.', optional: true },
+    { target: wt('pp-group'), title: 'Your group', body: 'The people in your small group.', optional: true },
+    { target: wt('pp-cohort'), title: 'Your cohort', body: 'Everyone else doing FOF with you this time.', optional: true },
   ],
   'participant:profile': [
     { target: wt('pp-card'), title: 'Your details', body: 'Change your photo and edit your details. Filling in what the team asked for completes your profile.' },

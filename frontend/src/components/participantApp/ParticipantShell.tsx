@@ -29,6 +29,7 @@ import { applyTheme } from '../../utils/theme';
 import PageLoader from '../PageLoader';
 import Spinner from '../Spinner';
 import FamilyPicker, { useFamilyChoice, useSwitchPerson } from './FamilyPicker';
+import type { ParticipantOutletContext } from './participantHelp';
 
 // Layout for the participant app: sidebar on desktop, floating bar on mobile, the
 // same look as the support app. Also asks "are you okay?" when their attendance
@@ -153,6 +154,7 @@ const ShellLayout: React.FC = () => {
     return () => window.clearTimeout(timer);
   }, [switchingAccount]);
   const [helpOpen, setHelpOpen] = useState(false);
+  const outletContext = useMemo<ParticipantOutletContext>(() => ({ openHelp: () => setHelpOpen(true) }), []);
   const { enable } = useParticipantPush();
   const appSetup = useAppSetup();
   const appSetupDismiss = useSessionDismiss('fof_appsetup_dismissed_session');
@@ -283,7 +285,7 @@ const ShellLayout: React.FC = () => {
         </header>
         <main className="mx-auto max-w-5xl px-4 pb-28 pt-6 sm:px-6 lg:px-8 lg:pb-8">
           <ErrorBoundary inline resetKey={location.pathname}>
-            <Outlet />
+            <Outlet context={outletContext} />
           </ErrorBoundary>
         </main>
         <PracticeDock mode="participant" />

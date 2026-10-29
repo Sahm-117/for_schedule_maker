@@ -1,15 +1,20 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 // "Welcome to FOF" is a standalone visual walkthrough (built in Claude Design)
 // served from /guides. Participants see it once, after setting their password.
-const GUIDE_URL = '/guides/welcome-to-fof.html';
+// Straight after the Get the app page it opens at the app tour, as they have just seen the install steps.
+// The service worker keeps /guides/ files for 60 days (sw.ts), so bump `v` whenever the guide changes.
+const GUIDE_URL = '/guides/welcome-to-fof.html?v=2';
 
 interface WelcomeGuideModalProps {
   onClose: () => void;
+  startAtTour?: boolean;
 }
 
-const WelcomeGuideModal: React.FC<WelcomeGuideModalProps> = ({ onClose }) => {
+const WelcomeGuideModal: React.FC<WelcomeGuideModalProps> = ({ onClose, startAtTour = false }) => {
+  // Fixed when it opens, so a later change of address never reloads the guide.
+  const [src] = useState(() => (startAtTour ? `${GUIDE_URL}&start=tour` : GUIDE_URL));
   // The guide's "Done" button (last screen) posts this message.
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
@@ -33,7 +38,7 @@ const WelcomeGuideModal: React.FC<WelcomeGuideModalProps> = ({ onClose }) => {
           Close
         </button>
       </div>
-      <iframe src={GUIDE_URL} title="Welcome to FOF" className="w-full flex-1 border-0" />
+      <iframe src={src} title="Welcome to FOF" className="w-full flex-1 border-0" />
     </div>,
     document.body
   );

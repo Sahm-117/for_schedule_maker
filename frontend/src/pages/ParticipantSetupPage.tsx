@@ -24,7 +24,8 @@ const ParticipantSetupPage: React.FC = () => {
     // Asked just now: don't open the same steps again on the next screen.
     try { sessionStorage.setItem('fof_appsetup_dismissed_session', '1'); } catch { /* private browsing etc. */ }
     if (!done) noteSheetDismissed();
-    navigate('/me/profile?welcome=1', { replace: true });
+    // fromAppSetup: the Welcome guide skips its install steps, as they have just seen them here.
+    navigate('/me/profile?welcome=1', { replace: true, state: { fromAppSetup: true } });
   };
 
   const enableNotifications = async () => {

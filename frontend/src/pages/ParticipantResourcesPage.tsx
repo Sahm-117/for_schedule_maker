@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
+import { NavLink } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import DocumentViewerSheet from '../components/DocumentViewerSheet';
 import { useParticipantApp } from '../context/ParticipantAppContext';
 
 // Resources for participants: guides the FOF team chose to share, and each week's
-// class material once it has been released to them. Matches the V2 design.
+// class material once it has been released to them: the manual (opened on its week page,
+// the same way as "Open the manual" on Home) and the recap document. Matches the V2 design.
 
 const CARD = 'rounded-[22px] border border-[#eef0f4] bg-white p-5 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]';
 
@@ -26,7 +28,17 @@ const ParticipantResourcesPage: React.FC = () => {
 
   if (loading || !home) return <PageLoader />;
 
-  const classMaterials = home.weeks.filter((week) => week.released && week.recapDocumentUrl);
+  const classMaterials = home.weeks.filter((week) => week.manual?.documentUrl || (week.released && week.recapDocumentUrl));
+  const ROW = 'flex items-center gap-3 rounded-[14px] border border-[#f1f2f5] p-3 text-left hover:border-[#ffdeca]';
+  const rowText = (title: string, sub: string) => (
+    <>
+      <Icon d={FILE} />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[14.5px] font-semibold text-gray-900">{title}</span>
+        <span className="block truncate text-xs text-gray-500">{sub}</span>
+      </span>
+    </>
+  );
 
   return (
     <div className="max-w-2xl lg:max-w-5xl">
@@ -62,23 +74,28 @@ const ParticipantResourcesPage: React.FC = () => {
         <section data-wt="pr-materials" className={CARD}>
           <h2 className="text-base font-bold text-gray-900">Class materials</h2>
           {classMaterials.length === 0 ? (
-            <p className="mt-2 text-[13px] text-gray-500">Nothing released yet.</p>
+            <p className="mt-2 text-[13px] text-gray-500">Each class manual appears here when it’s released, usually on the class Sunday.</p>
           ) : (
             <div className="mt-3.5 flex flex-col gap-2">
-              {classMaterials.map((week) => (
-                <button
-                  key={week.id}
-                  type="button"
-                  onClick={() => setViewing({ url: week.recapDocumentUrl!, title: `Week ${week.weekNumber} recap`, fileName: week.recapDocumentName })}
-                  className="flex items-center gap-3 rounded-[14px] border border-[#f1f2f5] p-3 text-left hover:border-[#ffdeca]"
-                >
-                  <Icon d={FILE} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[14.5px] font-semibold text-gray-900">{week.title || `Week ${week.weekNumber}`}</span>
-                    <span className="block truncate text-xs text-gray-500">Week {week.weekNumber} recap</span>
-                  </span>
-                </button>
-              ))}
+              {classMaterials.map((week) => {
+                const title = week.title || `Week ${week.weekNumber}`;
+                return (
+                  <React.Fragment key={week.id}>
+                    {week.manual?.documentUrl && (
+                      <NavLink to={`/me/week/${week.weekNumber}?manual=1`} className={ROW}>{rowText(title, `Week ${week.weekNumber} manual`)}</NavLink>
+                    )}
+                    {week.released && week.recapDocumentUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setViewing({ url: week.recapDocumentUrl!, title: `Week ${week.weekNumber} recap`, fileName: week.recapDocumentName })}
+                        className={ROW}
+                      >
+                        {rowText(title, `Week ${week.weekNumber} recap`)}
+                      </button>
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </div>
           )}
         </section>

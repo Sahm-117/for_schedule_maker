@@ -49,7 +49,7 @@ const ParticipantPeoplePage: React.FC = () => {
       <div className="flex flex-col gap-6 desktop-cols">
         {/* One card for the person who matters most here: their own support. */}
         {mySupport && (
-          <section className={`${SURFACE} px-6 pb-6 pt-7 sm:px-8 sm:pb-8 sm:pt-9`}>
+          <section data-wt="pp-my-support" className={`${SURFACE} px-6 pb-6 pt-7 sm:px-8 sm:pb-8 sm:pt-9`}>
             <div className="flex items-center gap-4">
               <Avatar name={mySupport.name} avatarUrl={mySupport.avatarUrl} size="lg" className="!h-20 !w-20 !text-2xl" enlargeable />
               <div className="min-w-0">
@@ -78,7 +78,9 @@ const ParticipantPeoplePage: React.FC = () => {
               ))}
             </ul>
           ) : (
-            <p className="mt-2 text-[14px] text-gray-500">You are the first in your group so far.</p>
+            <p className="mt-2 text-[14px] text-gray-500">
+              {people.groupName ? 'You are the first in your group so far.' : 'You’re not in a group yet. You’ll see the people in it here once you’re placed.'}
+            </p>
           )}
         </section>
 

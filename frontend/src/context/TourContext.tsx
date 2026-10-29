@@ -84,7 +84,10 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
       {children}
       {/* Participants get the visual guide instead of the Welcome modal + Home tour. */}
       {welcomeOpen && audience === 'participant' && (
-        <WelcomeGuideModal onClose={() => markSeen(WELCOME_KEY)} />
+        <WelcomeGuideModal
+          onClose={() => markSeen(WELCOME_KEY)}
+          startAtTour={!!(location.state as { fromAppSetup?: boolean } | null)?.fromAppSetup}
+        />
       )}
       {welcomeOpen && welcome && audience !== 'participant' && (
         <WelcomeModal

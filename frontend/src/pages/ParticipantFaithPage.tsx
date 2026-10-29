@@ -343,7 +343,7 @@ const ParticipantFaithPage: React.FC = () => {
           <FaithProjectGuide className="mt-2 flex w-full items-center justify-center gap-1.5 py-1 text-center text-[13.5px] font-medium text-gray-500 hover:text-gray-900" />
         </section>
 
-        <section className={`${SURFACE} px-6 py-1.5 sm:px-8`}>
+        <section data-wt="pf-history" className={`${SURFACE} px-6 py-1.5 sm:px-8`}>
           <FaithProjectHistory versions={faith.history} participantLabel="You" />
 
           {saved && (

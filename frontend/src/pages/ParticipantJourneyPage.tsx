@@ -91,11 +91,21 @@ const ParticipantJourneyPage: React.FC = () => {
             {thisWeek && <ThisWeekCard home={home} week={thisWeek} label={weekNumber < 1 ? 'First class' : undefined} />}
 
             <section data-wt="pj-summary" className={`${CARD} px-[18px] py-4`}>
-              <p className="text-[15px] font-extrabold text-gray-900">{weeksIn} of {totalWeeks} weeks in</p>
-              <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-[#f1f2f5]">
-                <span className="block h-full rounded-full bg-primary" style={{ width: `${totalWeeks ? Math.round((weeksIn / totalWeeks) * 100) : 0}%` }} />
-              </div>
-              <p className="mt-2 text-[13px] text-gray-500">{home.reflections.length} {home.reflections.length === 1 ? 'reflection' : 'reflections'} · {goalsKept} {goalsKept === 1 ? 'goal' : 'goals'} kept</p>
+              {totalWeeks === 0 ? (
+                // No class weeks set up for this cohort yet: nothing to count or list.
+                <>
+                  <p className="text-[15px] font-extrabold text-gray-900">Your journey starts soon</p>
+                  <p className="mt-1 text-[13px] text-gray-500">Your weeks will appear here once the programme is set up.</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-[15px] font-extrabold text-gray-900">{weeksIn} of {totalWeeks} weeks in</p>
+                  <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-[#f1f2f5]">
+                    <span className="block h-full rounded-full bg-primary" style={{ width: `${Math.round((weeksIn / totalWeeks) * 100)}%` }} />
+                  </div>
+                  <p className="mt-2 text-[13px] text-gray-500">{home.reflections.length} {home.reflections.length === 1 ? 'reflection' : 'reflections'} · {goalsKept} {goalsKept === 1 ? 'goal' : 'goals'} kept</p>
+                </>
+              )}
             </section>
 
             {streak?.available && <StreakRow streak={streak} to="/me/faith" />}
@@ -108,67 +118,69 @@ const ParticipantJourneyPage: React.FC = () => {
               </section>
             )}
 
-            <section data-wt="pj-weeks" className={`${CARD} px-5 pb-2 pt-5`}>
-              <h3 className="mb-1 text-base font-bold text-gray-900">Week by week</h3>
+            {totalWeeks > 0 && (
+              <section data-wt="pj-weeks" className={`${CARD} px-5 pb-2 pt-5`}>
+                <h3 className="mb-1 text-base font-bold text-gray-900">Week by week</h3>
 
-              {home.weeks.map((week, index) => {
-                const reflection = reflectionFor(home.reflections, week.id);
-                // Before the start, week 1 is open to read (its recap stays locked).
-                const opensSoon = weekNumber < 1 && week.weekNumber === 1 && home.cohort?.status !== 'COMPLETED';
-                const reached = week.weekNumber <= weekNumber;
-                const isNow = week.weekNumber === weekNumber;
-                const open = openWeekId === week.id && !!reflection;
-                const classOn = week.classDate ? new Date(`${week.classDate}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }) : null;
-                const chip = reflection
-                  ? reflection.goalDoneAt ? { label: 'Goal kept', cls: 'bg-[#f2fbf5] text-[#15803d]' } : { label: 'Not this time', cls: 'bg-[#fef3c7] text-[#b45309]' }
-                  : reached && week.released ? { label: 'Write reflection', cls: isNow ? 'bg-primary text-white' : 'bg-primary/10 text-primary' }
-                    : isNow ? { label: 'Open', cls: 'bg-primary text-white' }
-                      : reached ? { label: 'No reflection', cls: 'bg-[#f6f7f9] text-gray-400' }
-                        : opensSoon ? { label: 'Opens soon', cls: 'bg-[#f6f7f9] text-gray-500' }
-                          : { label: classOn ? `Class ${classOn}` : 'Locked', cls: 'bg-[#f6f7f9] text-gray-400' };
-                const tappable = !!reflection || reached || opensSoon;
-                const onRow = () => {
-                  if (reflection) setOpenWeekId(open ? null : week.id);
-                  else if (reached || opensSoon) navigate(`/me/week/${week.weekNumber}`);
-                };
-                return (
-                  <div key={week.id} className="flex items-stretch gap-3.5">
-                    <div className="flex w-[30px] flex-none flex-col items-center">
-                      <span className={`grid h-7 w-7 flex-none place-items-center rounded-full border-2 text-[11.5px] font-bold ${reflection ? 'border-primary bg-primary text-white' : isNow ? 'border-primary bg-white text-[#c2410c]' : 'border-gray-200 bg-[#f6f7f9] text-gray-400'}`}>
-                        {reflection ? '✓' : week.weekNumber}
-                      </span>
-                      {index < home.weeks.length - 1 && <span className={`min-h-[14px] w-0.5 flex-auto ${week.weekNumber < weekNumber ? 'bg-[#ffdeca]' : 'bg-[#f1f2f5]'}`} />}
-                    </div>
-                    <div className="min-w-0 flex-auto pb-3.5">
-                      <button type="button" onClick={onRow} className={`flex w-full items-center gap-2.5 pt-[3px] text-left ${tappable ? 'cursor-pointer' : 'cursor-default'}`}>
-                        <div className="min-w-0">
-                          <p className={`text-[14.5px] font-bold leading-snug ${reached ? 'text-gray-900' : 'text-gray-400'}`}>{week.title || `Week ${week.weekNumber}`}</p>
-                          <p className="mt-0.5 text-[12.5px] text-gray-400">Week {week.weekNumber}</p>
-                        </div>
-                        <span className={`ml-auto flex-none rounded-full px-[10px] py-[4px] text-[11.5px] font-bold ${chip.cls}`}>{chip.label}</span>
-                        {tappable && <svg className="h-4 w-4 flex-none text-gray-300" fill="none" stroke="currentColor" strokeWidth="2.4" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="m9 5 7 7-7 7" /></svg>}
-                      </button>
-                      {week.teacher && <TeacherChip teacher={week.teacher} onOpen={() => setTeacherSheet({ teacher: week.teacher!, title: week.title || `Week ${week.weekNumber}` })} className="mt-1.5" />}
-                      {open && reflection && (
-                        <div className="mt-[11px] rounded-[14px] bg-[#f9fafb] p-3.5">
-                          <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-gray-400">What stood out</p>
-                          <p className="mt-[5px] text-sm leading-relaxed text-gray-700">{reflection.stoodOut || '—'}</p>
-                          <div className="my-[13px] h-px bg-[#eef0f4]" />
-                          <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-[#9a6a4b]">Your goal</p>
-                          <div className="mt-1.5 flex items-start gap-[9px]">
-                            <span className={`flex-none text-sm ${reflection.goalDoneAt ? 'text-[#15803d]' : 'text-gray-400'}`}>{reflection.goalDoneAt ? '✓' : '○'}</span>
-                            <span className="min-w-0 text-sm leading-relaxed text-gray-700">{reflection.goal}</span>
+                {home.weeks.map((week, index) => {
+                  const reflection = reflectionFor(home.reflections, week.id);
+                  // Before the start, week 1 is open to read (its recap stays locked).
+                  const opensSoon = weekNumber < 1 && week.weekNumber === 1 && home.cohort?.status !== 'COMPLETED';
+                  const reached = week.weekNumber <= weekNumber;
+                  const isNow = week.weekNumber === weekNumber;
+                  const open = openWeekId === week.id && !!reflection;
+                  const classOn = week.classDate ? new Date(`${week.classDate}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }) : null;
+                  const chip = reflection
+                    ? reflection.goalDoneAt ? { label: 'Goal kept', cls: 'bg-[#f2fbf5] text-[#15803d]' } : { label: 'Not this time', cls: 'bg-[#fef3c7] text-[#b45309]' }
+                    : reached && week.released ? { label: 'Write reflection', cls: isNow ? 'bg-primary text-white' : 'bg-primary/10 text-primary' }
+                      : isNow ? { label: 'Open', cls: 'bg-primary text-white' }
+                        : reached ? { label: 'No reflection', cls: 'bg-[#f6f7f9] text-gray-400' }
+                          : opensSoon ? { label: 'Opens soon', cls: 'bg-[#f6f7f9] text-gray-500' }
+                            : { label: classOn ? `Class ${classOn}` : 'Locked', cls: 'bg-[#f6f7f9] text-gray-400' };
+                  const tappable = !!reflection || reached || opensSoon;
+                  const onRow = () => {
+                    if (reflection) setOpenWeekId(open ? null : week.id);
+                    else if (reached || opensSoon) navigate(`/me/week/${week.weekNumber}`);
+                  };
+                  return (
+                    <div key={week.id} className="flex items-stretch gap-3.5">
+                      <div className="flex w-[30px] flex-none flex-col items-center">
+                        <span className={`grid h-7 w-7 flex-none place-items-center rounded-full border-2 text-[11.5px] font-bold ${reflection ? 'border-primary bg-primary text-white' : isNow ? 'border-primary bg-white text-[#c2410c]' : 'border-gray-200 bg-[#f6f7f9] text-gray-400'}`}>
+                          {reflection ? '✓' : week.weekNumber}
+                        </span>
+                        {index < home.weeks.length - 1 && <span className={`min-h-[14px] w-0.5 flex-auto ${week.weekNumber < weekNumber ? 'bg-[#ffdeca]' : 'bg-[#f1f2f5]'}`} />}
+                      </div>
+                      <div className="min-w-0 flex-auto pb-3.5">
+                        <button type="button" onClick={onRow} className={`flex w-full items-center gap-2.5 pt-[3px] text-left ${tappable ? 'cursor-pointer' : 'cursor-default'}`}>
+                          <div className="min-w-0">
+                            <p className={`text-[14.5px] font-bold leading-snug ${reached ? 'text-gray-900' : 'text-gray-400'}`}>{week.title || `Week ${week.weekNumber}`}</p>
+                            <p className="mt-0.5 text-[12.5px] text-gray-400">Week {week.weekNumber}</p>
                           </div>
-                          <button type="button" onClick={() => navigate(`/me/week/${week.weekNumber}`)} className="mt-3 text-[13px] font-semibold text-[#c2410c]">Open week →</button>
-                        </div>
-                      )}
+                          <span className={`ml-auto flex-none rounded-full px-[10px] py-[4px] text-[11.5px] font-bold ${chip.cls}`}>{chip.label}</span>
+                          {tappable && <svg className="h-4 w-4 flex-none text-gray-300" fill="none" stroke="currentColor" strokeWidth="2.4" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="m9 5 7 7-7 7" /></svg>}
+                        </button>
+                        {week.teacher && <TeacherChip teacher={week.teacher} onOpen={() => setTeacherSheet({ teacher: week.teacher!, title: week.title || `Week ${week.weekNumber}` })} className="mt-1.5" />}
+                        {open && reflection && (
+                          <div className="mt-[11px] rounded-[14px] bg-[#f9fafb] p-3.5">
+                            <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-gray-400">What stood out</p>
+                            <p className="mt-[5px] text-sm leading-relaxed text-gray-700">{reflection.stoodOut || '—'}</p>
+                            <div className="my-[13px] h-px bg-[#eef0f4]" />
+                            <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-[#9a6a4b]">Your goal</p>
+                            <div className="mt-1.5 flex items-start gap-[9px]">
+                              <span className={`flex-none text-sm ${reflection.goalDoneAt ? 'text-[#15803d]' : 'text-gray-400'}`}>{reflection.goalDoneAt ? '✓' : '○'}</span>
+                              <span className="min-w-0 text-sm leading-relaxed text-gray-700">{reflection.goal}</span>
+                            </div>
+                            <button type="button" onClick={() => navigate(`/me/week/${week.weekNumber}`)} className="mt-3 text-[13px] font-semibold text-[#c2410c]">Open week →</button>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </section>
+                  );
+                })}
+              </section>
+            )}
 
-            <EndSummaryCard lastWeek={totalWeeks} reflectionCount={home.reflections.length} />
+            {totalWeeks > 0 && <EndSummaryCard lastWeek={totalWeeks} reflectionCount={home.reflections.length} />}
             {teacherSheet && <TeacherSheet teacher={teacherSheet.teacher} title={teacherSheet.title} onClose={() => setTeacherSheet(null)} />}
           </>
         ) : (

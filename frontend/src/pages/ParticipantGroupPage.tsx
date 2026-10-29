@@ -9,6 +9,7 @@ import WhatsAppIcon from '../components/WhatsAppIcon';
 import DocumentViewerSheet from '../components/DocumentViewerSheet';
 import SegmentedTabs from '../components/SegmentedTabs';
 import ParticipantDiscussionTab from '../components/participantApp/ParticipantDiscussionTab';
+import { useParticipantHelp } from '../components/participantApp/participantHelp';
 import { useParticipantApp } from '../context/ParticipantAppContext';
 import { buildWhatsAppLink } from '../utils/phone';
 import { normalizeLink } from '../utils/links';
@@ -24,6 +25,7 @@ const CARD = 'rounded-[22px] border border-[#eef0f4] bg-white p-5 shadow-[0_2px_
 
 const ParticipantGroupPage: React.FC = () => {
   const { home, loading } = useParticipantApp();
+  const openHelp = useParticipantHelp();
   const [docOpen, setDocOpen] = useState(false);
   const [searchParams] = useSearchParams();
   // Discussion comes first; the meeting tab opens by default while a meeting is on.
@@ -62,8 +64,20 @@ const ParticipantGroupPage: React.FC = () => {
     <div className="max-w-2xl lg:max-w-5xl">
       <PageHeader title="My group" subtitle={group ? `${group.name}${group.supportName ? ` · Support: ${group.supportName}` : ''}` : undefined} tourId="participant:group" />
       {!group ? (
-        <section className={`${CARD} text-center`}>
-          <p className="text-[15px] font-bold text-gray-900">You are not in a group yet</p>
+        <section data-wt="pg-no-group" className={CARD}>
+          <span className="grid h-11 w-11 place-items-center rounded-full bg-[#ffe8d5] text-[#c2410c]" aria-hidden="true">
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M17 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-3A3.5 3.5 0 0 0 7 18.5V20m5-9a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8 9v-1a3 3 0 0 0-2.2-2.9M16.5 5.2a3 3 0 0 1 0 5.6" /></svg>
+          </span>
+          <h2 className="mt-3 text-lg font-bold text-gray-900">You&apos;ll be placed in a group soon</h2>
+          <p className="mt-1.5 text-sm leading-relaxed text-gray-600">
+            Before your first class you&apos;ll be put in a small group with a support, someone who walks with you through FOF.
+            They&apos;ll message you, and your group&apos;s call time and link will show here.
+          </p>
+          {openHelp && (
+            <button type="button" onClick={openHelp} className="mt-4 min-h-[46px] w-full rounded-xl border border-[#ffdeca] bg-white p-3 text-sm font-semibold text-[#c2410c]">
+              Need help before then?
+            </button>
+          )}
         </section>
       ) : (
         <div className={`flex flex-col gap-4 ${tab === 'meeting' ? 'desktop-cols' : ''}`}>

@@ -236,7 +236,7 @@ const ParticipantProfilePage: React.FC = () => {
   const weekNumber = currentWeekNumber(home.cohort?.startDate, new Date(), home.weeks);
   const programmeRows: Array<[string, string]> = [
     ['Group', group?.name || 'Not in a group yet'],
-    ['Your support', group?.supportName || ''],
+    ['Your support', group ? group.supportName || '' : 'Once you’re in a group'],
     ['Group call', group?.meetingDay && group.meetingTime ? `${titleCaseDay(group.meetingDay)}, ${formatTime(group.meetingTime)}` : ''],
     ['Week', weekNumber >= 1 ? `${Math.min(weekNumber, home.weeks.length)} of ${home.weeks.length}` : 'Not started'],
     ['Username', home.participant.phone || ''],
