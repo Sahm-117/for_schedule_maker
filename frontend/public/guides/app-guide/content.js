@@ -3950,11 +3950,11 @@ window.GUIDE_CONTENT = {
         "save and continue"
        ],
        "steps": [
-        "Type a new password of at least 8 characters in **New password**.",
+        "Type a new password of at least 5 characters in **New password**.",
         "Type it again in **Confirm password**.",
         "Tap **Save and continue**."
        ],
-       "result": "Your password is now one only you know. Next, the app takes you to your profile so you can add your details, then shows you a short welcome tour."
+       "result": "Your password is now one only you know. Next, the app shows you how to add it to your Home Screen and turn on notifications (you can tap **Do this later**), then takes you to your profile and shows you a short visual guide."
       },
       {
        "id": "p-find-pages",
@@ -3972,8 +3972,7 @@ window.GUIDE_CONTENT = {
        ],
        "result": "The page opens straight away. The button for the page you're on is coloured orange.",
        "tips": [
-        "A green dot on **My Group** means your group meeting is on right now.",
-        "A red dot on **F. Project** means your support has replied to you."
+        "A green dot on **My Group** means your group meeting is on right now."
        ],
        "shot": "participant-more-menu.jpg"
       },
@@ -4030,10 +4029,54 @@ window.GUIDE_CONTENT = {
      ]
     },
     {
+     "id": "getting-ready",
+     "title": "Getting ready for your first class",
+     "where": "Home, before your first class",
+     "summary": "A short Get ready list on Home: introduce yourself, check the venue map, read the Intro Class guide and finish your profile.",
+     "shot": "participant-get-ready.jpg",
+     "tasks": [
+      {
+       "id": "getting-ready-list",
+       "q": "What is the Get ready list on Home?",
+       "keywords": [
+        "get ready",
+        "first class",
+        "checklist",
+        "ready"
+       ],
+       "steps": [
+        "Before your first class, **Get ready** sits at the top of Home with how many steps are done.",
+        "Tap a step to do it: **Introduce yourself**, **Check the venue map**, **Read the Intro Class guide** and **Finish your profile**. Each one ticks itself when it is done.",
+        "When every step is ticked, tap **I have all I need to be ready for class**."
+       ],
+       "result": "Your Readiness Badge is ready: tap it to make a picture with your photo on it and share it.",
+       "tips": [
+        "**Introduce yourself** opens once your support has introduced themselves in your group. Until then it says what it is waiting for.",
+        "If you are not in a group yet, it says so. You will be placed before your first class.",
+        "After your first class the list goes. Anything still to do (your introduction or your profile) shows as a short list on Home."
+       ]
+      },
+      {
+       "id": "getting-ready-intro-ticked",
+       "q": "I introduced myself on the call. How do I tick it?",
+       "keywords": [
+        "introduce",
+        "intro",
+        "tick"
+       ],
+       "steps": [
+        "After your first class, find **Introduce yourself** in the short list on Home.",
+        "Tap the round tick button next to it."
+       ],
+       "result": "It counts as done. This works once your support has introduced themselves."
+      }
+     ]
+    },
+    {
      "id": "home",
      "title": "Home",
      "where": "Bottom bar → Home",
-     "summary": "Your week at a glance: this week's class, your next session, your group call and your faith project.",
+     "summary": "Your week at a glance: this week's class and the one thing to do next, your group call and your faith project.",
      "shot": "participant-home.jpg",
      "tasks": [
       {
@@ -4047,11 +4090,14 @@ window.GUIDE_CONTENT = {
         "next session"
        ],
        "steps": [
-        "**Programme progress** shows which week you're on, for example \"Week 5, 5 of 10\".",
-        "The tiles show this week's class, your next Sunday session, your group call time and how your faith project is going.",
-        "Scroll down for **Next class** and the **Inspirational scripture**, then **This week** (what's expected of you)."
+        "At the top, the class card shows which week you are on (for example \"Week 2 of 10\"), the class, its teacher, the four steps **Manual**, **Class**, **Recap** and **Reflect**, and one button for what to do next.",
+        "Below it: your **Group call** time and how your **Faith Project** is going, then the tiles **Join call**, **Message support**, **Resources** and **Feedback**.",
+        "Scroll down for the **Inspirational scripture** and **This week** (what is expected of you)."
        ],
-       "shot": "participant-home-lower.jpg"
+       "shot": "participant-home-lower.jpg",
+       "tips": [
+        "Before your first class, **Get ready** sits at the top. See \"Getting ready for your first class\"."
+       ]
       },
       {
        "id": "p-next-class",
@@ -4066,12 +4112,11 @@ window.GUIDE_CONTENT = {
         "who is teaching"
        ],
        "steps": [
-        "On Home, find **Next class**: the class picture, its name and the teacher.",
-        "Tap the picture, the name or the arrow to see the full class graphic.",
-        "Tap the teacher's name to read about them. Tap their photo to enlarge it.",
-        "Tap **Open manual** in either place. The manual opens straight away."
+        "On Home, the class card shows the class picture, its name and the teacher.",
+        "Tap the picture to see the full class graphic. Tap the teacher's name to read about them.",
+        "Tap **Open the manual**. The manual opens straight away."
        ],
-       "result": "If the manual has not arrived yet, the button says when it will (for example \"Manual arrives Thu 22 Oct\").",
+       "result": "If the manual has not arrived yet, the button says when it will (for example \"Manual arrives Sun 11 Oct\"). After class, the same button becomes **Write my reflection**.",
        "shot": "participant-home.jpg"
       },
       {
@@ -4089,7 +4134,7 @@ window.GUIDE_CONTENT = {
         "Touch and hold it to keep a post on screen, swipe to move, or tap a dot to jump to one.",
         "Tap **See all** (top right of the card) for every post so far. Each one is labelled with its day."
        ],
-       "result": "A new post opens every day from 2:00 PM.",
+       "result": "A new post opens every day from midnight.",
        "shot": "participant-home-lower.jpg"
       },
       {
@@ -4110,7 +4155,7 @@ window.GUIDE_CONTENT = {
        ],
        "result": "The call opens in a new window.",
        "tips": [
-        "If **Join call** is grey, your support hasn't added the call link yet. The **Group call** tile shows the day and time once it's set."
+        "If **Join call** is grey, your support has not added the call link yet, or the call has not opened: it opens 10 minutes before the start. The **Group call** card shows the day and time once it is set."
        ],
        "shot": "participant-home.jpg"
       },
@@ -4130,7 +4175,8 @@ window.GUIDE_CONTENT = {
        ],
        "result": "WhatsApp opens with your support.",
        "tips": [
-        "You'll also find your support under **More** → **People**, and on **My Group**."
+        "Not in a group yet? The tile says **Get help** instead and opens the help options.",
+        "You will also find your support under **More** → **People**, and on **My Group**."
        ]
       },
       {
@@ -4192,7 +4238,7 @@ window.GUIDE_CONTENT = {
      "id": "this-week",
      "title": "Each week's class",
      "where": "Journey → tap a week",
-     "summary": "The class recap, the manual, your reflection, your private notes and your questions, all in one place for each week.",
+     "summary": "The class manual first, then after class the recap and your reflection, plus your private notes and your questions, all in one place for each week.",
      "shot": "participant-week.jpg",
      "tasks": [
       {
@@ -4210,7 +4256,7 @@ window.GUIDE_CONTENT = {
         "Tap the week you want.",
         "Or, on Home, tap **See more** under **This week**."
        ],
-       "result": "You see the week's topic, a short recap and a question to think about.",
+       "result": "Before class you see the class manual. After class you see the recap and a question to think about.",
        "shot": "participant-week.jpg"
       },
       {
@@ -4226,7 +4272,7 @@ window.GUIDE_CONTENT = {
         "read"
        ],
        "steps": [
-        "Open the week, or find **This week's manual** on Home.",
+        "Open the week, or tap **Open the manual** on the class card on Home.",
         "Tap **Open the manual**.",
         "Swipe through the pages, or tap the page numbers at the top.",
         "Prefer a normal document? Tap **Open the PDF instead**."
@@ -4235,7 +4281,7 @@ window.GUIDE_CONTENT = {
       },
       {
        "id": "p-recap-status",
-       "q": "Why does my week say \"Recap coming soon\"?",
+       "q": "What do the labels at the top of a week mean?",
        "keywords": [
         "recap coming soon",
         "no recap",
@@ -4245,7 +4291,7 @@ window.GUIDE_CONTENT = {
        "steps": [
         "Look at the small label at the top of the week."
        ],
-       "result": "**Recap out** means you can read it now. **Recap coming soon** means it's on its way. You'll get a notification as soon as it's out.",
+       "result": "**Manual arrives …** means the class manual is on its way. **Class manual ready** means you can read it now. **Recap out** means the class recap is out and your reflection is open. You get a notification when each arrives.",
        "shot": "participant-week-recap-soon.jpg"
       },
       {
@@ -4260,7 +4306,7 @@ window.GUIDE_CONTENT = {
         "3 questions"
        ],
        "steps": [
-        "Open the week and tap **Your reflection**.",
+        "Once the recap is out, open the week (or tap **Write my reflection** on Home) and go to **Your reflection**.",
         "Answer **What stood out to you?**",
         "Answer **What is one thing you will do this week because of it?** This becomes your goal.",
         "If you like, answer **How will you know you did it?**",
@@ -4327,10 +4373,10 @@ window.GUIDE_CONTENT = {
        ],
        "steps": [
         "Tap **Journey** in the bottom bar.",
-        "The orange card shows how far you are, and how many reflections you've written and goals you've kept.",
+        "The class card at the top shows this week. Below it you see how many weeks you are in, how many reflections you have written and how many goals you have kept.",
         "Scroll to **Week by week** to see every week."
        ],
-       "result": "Each week has a label: **This week**, **Goal kept**, **Not this time**, **No reflection** or **Locked** (not reached yet).",
+       "result": "Each week has a label: **Write reflection**, **Goal kept**, **Not this time**, **No reflection**, **Opens soon** (week 1 before it starts) or the date of its class (not reached yet).",
        "tips": [
         "Tap a week you've reflected on to read what you wrote."
        ],
@@ -4375,7 +4421,7 @@ window.GUIDE_CONTENT = {
        ],
        "result": "You get a summary of your journey built from your own reflections. It's something to help you look back, not a score.",
        "tips": [
-        "It unlocks in the final week of the programme.",
+        "It unlocks in the final week of the programme (it says \"Unlocks at week …\" until then).",
         "Your reflections are sent to an outside AI service to write it, and only if you turn it on. Nobody on the FOF team reads your reflections or your summary. You can **Turn off and delete** it at any time."
        ]
       }
@@ -4385,9 +4431,31 @@ window.GUIDE_CONTENT = {
      "id": "my-group",
      "title": "My Group",
      "where": "Bottom bar → My Group",
-     "summary": "Your small group: your support, the other members and your weekly meeting.",
+     "summary": "Your small group: a Discussion to talk together, and your weekly Meeting with your support.",
      "shot": "participant-group.jpg",
      "tasks": [
+      {
+       "id": "group-discussion",
+       "q": "How do I talk with my group?",
+       "keywords": [
+        "discussion",
+        "chat",
+        "introduce",
+        "post",
+        "message group"
+       ],
+       "steps": [
+        "Tap **My Group**. It opens on **Discussion**.",
+        "Your support introduces themselves first. Once they have, a box opens for you to do the same: tap **Write yours**. **Conversation starters** gives ideas.",
+        "After that, write a message in the box at the bottom and send it. Tap **@** to tag someone."
+       ],
+       "result": "Only you, your group and your support can see the Discussion.",
+       "tips": [
+        "A dot on the **Discussion** tab means there are new messages.",
+        "See something that should not be there? Tap **⋮** on the post and choose **Report post**."
+       ],
+       "shot": "participant-group.jpg"
+      },
       {
        "id": "p-group-overview",
        "q": "Where do I see my group and when we meet?",
@@ -4400,15 +4468,15 @@ window.GUIDE_CONTENT = {
        ],
        "steps": [
         "Tap **My Group** in the bottom bar.",
-        "**Next meeting** shows the day and time.",
-        "**Group members** shows your support and the others in your group."
+        "Tap the **Meeting** tab. **Next meeting** shows the day and time.",
+        "Your support and the others in your group are listed below it."
        ],
        "result": "Each meeting follows the same order: **Prayer**, then **Recap**, then **Questions**.",
        "tips": [
-        "If it says you're not in a group yet, the team is still putting groups together. You'll see it here once you're added.",
+        "If it says \"You'll be placed in a group soon\", the team is still putting groups together. Tap **Need help before then?** if you have a question. You will see your group here once you are added.",
         "Other members' phone numbers are never shown."
        ],
-       "shot": "participant-group.jpg"
+       "shot": "participant-group-meeting.jpg"
       },
       {
        "id": "p-live-meeting",
@@ -4434,7 +4502,7 @@ window.GUIDE_CONTENT = {
         "need help"
        ],
        "steps": [
-        "On **My Group**, tap **Contact** next to your support, or use the **Need help?** card."
+        "On **My Group**, tap the green WhatsApp button next to your support."
        ],
        "result": "WhatsApp opens with your support."
       }
@@ -4463,7 +4531,7 @@ window.GUIDE_CONTENT = {
         "Tap **Write your faith project** and write it. Be specific: who, what, and by when.",
         "Tap **Save**."
        ],
-       "result": "It is saved straight away. You can change it any time: tap the pencil next to your project, edit the text and tap **Save**.",
+       "result": "It is saved straight away. You can change it any time: tap **Edit**, change the text and tap **Save**.",
        "tips": [
         "Not sure how to start? Tap **Explore the guide** for a short illustrated guide.",
         "If a date to write it by is shown, try to save it before then. You can still save it after."
@@ -4496,7 +4564,7 @@ window.GUIDE_CONTENT = {
        ],
        "steps": [
         "A few days before corporate prayers start, a pop-up asks about it. Tap **I'm fine with this** or **Opt out**.",
-        "To change your mind later, open **F. Project** and tap the small **Prayer on** (or **Prayer off**) chip at the top right. Pick **Include my faith project** or **Opt out**."
+        "To change your mind later, open **F. Project** and tap the small settings button at the top right (a green dot means you are included). Pick **Include my faith project** or **Opt out**."
        ],
        "result": "Everyone is included unless they opt out. When you are included, your photo and project are shown to everyone in your cohort who prays together. If you opt out, they are not.",
        "tips": [
@@ -4535,7 +4603,7 @@ window.GUIDE_CONTENT = {
        ],
        "result": "Your support is told and will keep an eye out.",
        "tips": [
-        "Your project can be edited any time with the pencil next to it."
+        "Your project can be edited any time with **Edit**."
        ]
       },
       {
@@ -4654,8 +4722,8 @@ window.GUIDE_CONTENT = {
        ],
        "steps": [
         "Tap **More** → **Resources**.",
-        "**Class materials** has a recap for each week that's out. **General guides** has anything else the FOF team has shared.",
-        "Tap an item to open it."
+        "**Class materials** lists each week's manual once it is out, and the class recap where there is one. **General guides** has anything else the FOF team has shared.",
+        "Tap an item to open it. A manual opens on its week's page."
        ],
        "shot": "participant-resources.jpg"
       }
@@ -4681,8 +4749,8 @@ window.GUIDE_CONTENT = {
        ],
        "steps": [
         "Tap **More** → **Profile**.",
-        "Tap **Change photo** and choose a picture.",
-        "To change your details, tap **Edit profile info**, make your changes and tap **Save**."
+        "Tap your photo to add or change it.",
+        "To change your details, tap **Edit**, make your changes and tap **Save**."
        ],
        "result": "Your photo updates straight away.",
        "tips": [
@@ -4721,7 +4789,7 @@ window.GUIDE_CONTENT = {
        "steps": [
         "Open **Profile** and tap **Password**.",
         "Type your **Current password**.",
-        "Type your new password (at least 8 characters).",
+        "Type your new password (at least 5 characters).",
         "Tap **Change password**."
        ],
        "tips": [
@@ -4803,7 +4871,7 @@ window.GUIDE_CONTENT = {
     {
      "id": "help",
      "title": "Getting help",
-     "where": "The orange ? button on every screen",
+     "where": "Tap your photo at the top → Help",
      "summary": "Open this guide or message the FOF team on WhatsApp.",
      "shot": "participant-help-menu.jpg",
      "tasks": [
@@ -4818,12 +4886,13 @@ window.GUIDE_CONTENT = {
         "contact"
        ],
        "steps": [
-        "Tap the orange **?** button at the bottom right.",
+        "Tap your photo at the top left, then **Help**.",
         "Tap **Open the app guide** to search for an answer here.",
-        "Or tap **Message…** to open WhatsApp with a greeting already typed. It goes to the IT Support person for your support's hub, or to the FOF team if there isn't one."
+        "Or tap **Message…** to open WhatsApp with a greeting already typed. It goes to the IT Support person for your support's hub, or to the FOF team if there is not one."
        ],
        "tips": [
-        "For anything about your group, your faith project or your password, your own support is the best person to ask. Tap **Message support** on Home."
+        "For anything about your group, your faith project or your password, your own support is the best person to ask. Tap **Message support** on Home.",
+        "For a quick tour of any page, tap the small **?** next to its title."
        ],
        "shot": "participant-help-menu.jpg"
       }

@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching'
 import { registerRoute } from 'workbox-routing'
-import { CacheFirst } from 'workbox-strategies'
+import { CacheFirst, StaleWhileRevalidate } from 'workbox-strategies'
 import { ExpirationPlugin } from 'workbox-expiration'
 
 declare const self: ServiceWorkerGlobalScope
@@ -9,13 +9,25 @@ declare const self: ServiceWorkerGlobalScope
 cleanupOutdatedCaches()
 precacheAndRoute(self.__WB_MANIFEST)
 
-// Big, rarely used files (PDF tools, class manuals, the guide) are not saved on the first
-// visit. They are saved the first time they are opened and then work offline.
+// Big, rarely used files (PDF tools, class manuals) are not saved on the first visit. They are
+// saved the first time they are opened and then work offline. Their names change with every build.
 registerRoute(
-  ({ url }) => url.origin === self.location.origin && (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/guides/')),
+  ({ url }) => url.origin === self.location.origin && url.pathname.startsWith('/assets/'),
   new CacheFirst({
     cacheName: 'runtime-assets',
     plugins: [new ExpirationPlugin({ maxEntries: 80, maxAgeSeconds: 60 * 60 * 24 * 60 })],
+  }),
+)
+
+// The guides (/guides/: the app guide's page, words and screenshots, the welcome and role guides) keep
+// their names when they are edited, so they are shown from the saved copy straight away and refreshed in
+// the background: an edited guide shows on the next open, offline still works, and no version is needed.
+// Their own cache, so the app guide's many screenshots never push the class manuals out of runtime-assets.
+registerRoute(
+  ({ url }) => url.origin === self.location.origin && url.pathname.startsWith('/guides/'),
+  new StaleWhileRevalidate({
+    cacheName: 'guides',
+    plugins: [new ExpirationPlugin({ maxEntries: 300, maxAgeSeconds: 60 * 60 * 24 * 60 })],
   }),
 )
 

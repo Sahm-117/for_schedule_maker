@@ -4,7 +4,8 @@ import { createPortal } from 'react-dom';
 // "Welcome to FOF" is a standalone visual walkthrough (built in Claude Design)
 // served from /guides. Participants see it once, after setting their password.
 // Straight after the Get the app page it opens at the app tour, as they have just seen the install steps.
-// The service worker keeps /guides/ files for 60 days (sw.ts), so bump `v` whenever the guide changes.
+// The service worker shows /guides/ files from its saved copy and refreshes them in the background (sw.ts), so an
+// edited guide shows on the next open; `v` can stay as it is.
 const GUIDE_URL = '/guides/welcome-to-fof.html?v=2';
 
 interface WelcomeGuideModalProps {

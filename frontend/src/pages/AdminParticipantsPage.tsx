@@ -1163,9 +1163,11 @@ const AdminParticipantsContent: React.FC = () => {
                               onClick={() => setHealthForId(p.id)}
                               title={`${status.detail}. Tap to see why and what to do.`}
                               aria-haspopup="dialog"
-                              className={`ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${status.health === 'critical' ? 'bg-red-100/80 text-red-700 hover:bg-red-100' : 'bg-amber-100/80 text-amber-700 hover:bg-amber-100'}`}
+                              className={`ml-2 inline-flex items-center gap-0.5 rounded-full py-0.5 pl-2 pr-1.5 text-[11px] font-semibold ${status.health === 'critical' ? 'bg-red-100/80 text-red-700 hover:bg-red-100' : 'bg-amber-100/80 text-amber-700 hover:bg-amber-100'}`}
                             >
                               {PERSON_HEALTH_LABEL[status.health]}
+                              {/* The chevron says it opens something (the why-and-next-steps pop-up). */}
+                              <svg className="h-3 w-3 flex-none" fill="none" stroke="currentColor" strokeWidth="2.6" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="m9 6 6 6-6 6" /></svg>
                             </button>
                           );
                         })()}
