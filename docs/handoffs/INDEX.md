@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-29 | [PostHog replays and names](2026-10-29_posthog-replay-and-names.md) | Session replay turned on in the app (inputs masked) and signed-in people identified with their name, so PostHog shows names instead of ids; distinct ids unchanged. Frontend only; FLOW_MAP rule 111. |
 | 2026-10-29 | [Participant App guide refreshed](2026-10-29_app-guide-refresh.md) | Help → App guide participant topics checked against today's screens (new Getting ready topic and group Discussion task, many fixes, 9 screenshots retaken) and versioned past the service-worker cache; unused `SupportOnboardingPage.tsx` removed; chevron on the Keep an eye on chip. Frontend only; FLOW_MAP rules 109, 113. |
 | 2026-10-29 | [Support first run: one Start here hint](2026-10-29_support-first-run.md) | Supports skip the Welcome and auto-tour; new supports and admins get one "Start here" hint (its own key per role) that stays until Got it; the Get the app sheet waits only the launch it first appears; people already using the app never see it. Frontend only; FLOW_MAP rule 117. |
 | 2026-10-29 | [Admin first run follows flow-onboarding](2026-10-29_admin-first-run.md) | Setup checklist cut to five verb-first steps with "Next: …", a progress bar and a one-line ready state; full admins get one "Start here" hint instead of the Welcome and tour; their notifications ask waits for the cohort to start or an approval. Frontend only; FLOW_MAP rule 116. |

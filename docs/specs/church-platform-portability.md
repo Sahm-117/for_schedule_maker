@@ -53,5 +53,26 @@ Rough total on self-hosted Supabase: a few days to a couple of weeks. Frontend h
 - How is personal data protected, especially for teenagers? Who may see phone numbers and faith project details?
 - Will there be one church-wide sign-in, and when?
 
-## Outcome
-_Record the meeting's decisions here._
+## Outcome (29 Oct 2026)
+- **Short term: connect through APIs** (Option 1). Church systems look people up in FOF through a documented
+  FOF API, and people can register for FOF from the church app without retyping what the church already holds.
+- **Long term: single sign-on** with the church platform (OpenID Connect). A shared database may follow, but it is
+  not decided.
+
+## API plan (workstream 1)
+Full plan, endpoint list and questions for the church platform developer are in the editable doc and the visual
+page linked at the top. In short:
+- REST + JSON over HTTPS, versioned (`/v1/...`), documented as an **OpenAPI 3.1** file plus a readable docs page.
+- One FOF API service in front of the database; other systems never read FOF tables directly.
+- A key per connecting system (OAuth 2.0 client credentials, or API keys to start) with scopes such as
+  `people:lookup`, `people:read`, `registrations:write`; audit log, rate limits, keys stored hashed and revocable.
+- Matching: church person ID first, then phone number (one standard format), then email. A link table stores
+  church ID to FOF person once matched; single sign-on reuses it later.
+- First endpoints: `GET /v1/people/lookup`, `GET /v1/people/{id}`, `GET /v1/people/{id}/programme`,
+  `POST /v1/registrations`, `GET /v1/cohorts/current`.
+- Registration handshake: church app sends what it holds, FOF links or creates the profile and returns the
+  missing fields plus a one-time link where the person completes only the rest.
+- Never shared: passwords, reflections, notes, private messages, guardian details, or anything about teenagers
+  beyond what the church already holds.
+- Order: agree scope with the church developer, write the spec, build lookup and keys, build the handshake,
+  then FOF calling the church API, then single sign-on.

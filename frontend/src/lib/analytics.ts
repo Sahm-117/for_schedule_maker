@@ -7,12 +7,13 @@ import type { CaptureResult, PostHog } from 'posthog-js'
 // name (`data-attr`, added at build time by vite-plugins/nameClickTargets.ts from text written in the source),
 // so a click arrives as "ParticipantCard.login-details" on page "/participants/:id".
 //
-// What it never records, because many participants are young: the text on screen (a button can be a person's
-// name), other element attributes (a label can say "Message Ada"), the query string, or an id in a URL.
-// `cleanEvent` below enforces that for everything sent. No session replay (Clarity already covers that).
-// Staff are identified by their app id and role only, never a name, number or email. Participants are
-// identified by a pseudonym (`participantPseudonym`), the same one the database's `analytics.pid()` gives,
-// so their devices merge into one person and the PostHog warehouse views line up, without the record id.
+// Click and page events never carry the text on screen (a button can be a person's name), other element
+// attributes (a label can say "Message Ada"), the query string, or an id in a URL; `cleanEvent` below enforces
+// that for every event. Session replay is on so the team can watch how people use the app: everything typed
+// into a field stays masked, but text on screen, names included, is visible in a recording.
+// Everyone signed in is shown in PostHog by name (person property `name`), with their role. Staff are
+// identified by app id; participants by a pseudonym (`participantPseudonym`), the same one the database's
+// `analytics.pid()` gives, so their devices merge into one person and the warehouse views line up.
 const KEY = __POSTHOG_KEY__ || undefined
 const HOST = __POSTHOG_HOST__ || 'https://us.i.posthog.com'
 
@@ -20,7 +21,7 @@ let client: PostHog | null = null
 let starting: Promise<void> | null = null
 // What the app asked for before PostHog finished loading, replayed once it has.
 // undefined: the app has not said yet (or a participant's pseudonym is still being worked out).
-let wantedIdentity: { id: string; role: string } | null | undefined
+let wantedIdentity: AnalyticsUser | null | undefined
 const queued: Array<[string, Record<string, unknown> | undefined]> = []
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -90,7 +91,8 @@ export const startAnalytics = (): Promise<void> => {
       // Clicks only, and only on what the build named (every button and link).
       autocapture: { dom_event_allowlist: ['click'], css_selector_allowlist: ['[data-attr]'], capture_copied_text: false },
       capture_pageview: 'history_change',
-      disable_session_recording: true,
+      // Typed input (passwords, messages) is masked; the rest of the screen is recorded as seen.
+      session_recording: { maskAllInputs: true },
       before_send: cleanEvent,
     })
     client = posthog
@@ -100,7 +102,7 @@ export const startAnalytics = (): Promise<void> => {
   return starting
 }
 
-type AnalyticsUser = { id: string; role: string }
+type AnalyticsUser = { id: string; role: string; name?: string }
 
 // PostHog keeps who it identified in its own storage, so this survives the reload that switching person on a
 // shared number does. Whenever that is not the person now signed in (or nobody is), it starts a fresh profile
@@ -113,15 +115,15 @@ const applyIdentity = (posthog: PostHog, user: AnalyticsUser | null) => {
     return
   }
   if (identified && posthog.get_distinct_id() !== user.id) posthog.reset()
-  posthog.identify(user.id, { role: user.role })
+  posthog.identify(user.id, { role: user.role, ...(user.name ? { name: user.name } : {}) })
 }
 
 const PSEUDONYM = /^[0-9a-f]{64}$/
 let identityRequest = 0
 
 /**
- * Tie events to whoever is signed in, by app id and role; pass null on sign-out. A participant is never sent by
- * record id: they are identified by `participantPseudonym` instead, or left anonymous where it cannot be worked out.
+ * Tie events to whoever is signed in, by app id, role and name; pass null on sign-out. A participant is never sent
+ * by record id: they are identified by `participantPseudonym` instead, or left anonymous where it cannot be worked out.
  */
 export const setAnalyticsUser = (user: AnalyticsUser | null): void => {
   const request = ++identityRequest
@@ -135,7 +137,7 @@ export const setAnalyticsUser = (user: AnalyticsUser | null): void => {
   // identity that cannot be this participant's pseudonym now (a staff id, or a raw record id from an old build).
   if (client?._isIdentified() && !PSEUDONYM.test(client.get_distinct_id())) client.reset()
   wantedIdentity = undefined
-  void participantPseudonym(user.id).then((pseudonym) => apply(pseudonym ? { id: pseudonym, role: user.role } : null))
+  void participantPseudonym(user.id).then((pseudonym) => apply(pseudonym ? { id: pseudonym, role: user.role, name: user.name } : null))
 }
 
 /**
