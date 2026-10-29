@@ -96,6 +96,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
   // null until the support's groups have loaded, so "not in a group yet" never shows for someone who has one.
   const [loadedGroups, setMyGroups] = useState<Group[] | null>(null);
   const myGroups = useMemo(() => loadedGroups ?? [], [loadedGroups]);
+  const [groupsSettled, setGroupsSettled] = useState(false);
   const navigate = useNavigate();
   const [tickNow, setTickNow] = useState(() => new Date());
   const [completions, setCompletions] = useState<SupportActivityCompletion[]>([]);
@@ -312,10 +313,11 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
   }, [activeCohort, user, liveRevision]);
 
   useEffect(() => {
-    if (!user || !activeCohort) { setMyGroups(null); return; }
+    if (!user || !activeCohort) { setMyGroups(null); setGroupsSettled(!!user); return; }
     groupsApi.getAll({ cohortId: activeCohort.id })
       .then((res) => setMyGroups(res.groups.filter((g) => g.supportId === user.id)))
-      .catch(() => { /* keep what was loaded; a failed refresh is not "no group" */ });
+      .catch(() => { /* keep what was loaded; a failed refresh is not "no group" */ })
+      .finally(() => setGroupsSettled(true));
   }, [activeCohort, user, liveRevision]);
 
   // Ticking clock so open sessions roll over at Sunday-10am boundaries
@@ -444,8 +446,9 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
       <div className="flex flex-wrap items-start gap-5">
         <div className="flex min-w-0 flex-[1_1_480px] flex-col gap-4">
           <PrayerNowBanner to="/support/pray" />
-          {/* First visit: one hint instead of a Welcome and tour, pointing at what to do first. */}
-          {loadedGroups !== null && (
+          {/* Someone new: one hint instead of a Welcome and tour, until they tap Got it. After the groups have
+              answered (loaded or failed), so the cards below do not push it around as they arrive. */}
+          {groupsSettled && (
             <StartHereHint hintKey="hint:support-start">
               Your Home shows what to do next, from the top down. Tap ? on any page for a quick tour of it.
             </StartHereHint>

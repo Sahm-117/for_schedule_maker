@@ -1,12 +1,15 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useTourState } from '../../context/TourContext';
 
-// A one-off "Start here" hint that replaces the Welcome and auto-tour on someone's first visit: it shows only in the
-// launch that was their first visit, until "Got it" (saved per account with the tours), and stays hidden if that
-// saved progress cannot be read. People who were already using the app never see it.
+// A one-off "Start here" hint that replaces the Welcome and auto-tour for someone new: it shows until "Got it"
+// (saved per account with the tours), across launches, and stays hidden if that saved progress cannot be read.
+// People who were already using the app (they had the Welcome) never see it. The launch where it first appears
+// counts as a welcome launch, so the Get the app sheet waits for the next one.
 const StartHereHint: React.FC<{ hintKey: string; children: React.ReactNode; className?: string }> = ({ hintKey, children, className = '' }) => {
-  const { welcomedThisLaunch, hintUnseen, dismissHint } = useTourState();
-  if (!welcomedThisLaunch || !hintUnseen(hintKey)) return null;
+  const { newcomerHint, hintFirstShown, dismissHint } = useTourState();
+  const due = newcomerHint(hintKey);
+  useEffect(() => { if (due) hintFirstShown(hintKey); }, [due, hintKey, hintFirstShown]);
+  if (!due) return null;
   return (
     <div data-wt="start-here" className={`flex items-start gap-3 rounded-xl bg-orange-50 px-3.5 py-2.5 text-[13px] text-orange-900 ${className}`}>
       <span className="min-w-0 flex-1"><span className="font-semibold">Start here.</span> {children}</span>

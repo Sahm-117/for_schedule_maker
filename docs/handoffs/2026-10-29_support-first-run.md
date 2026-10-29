@@ -29,3 +29,26 @@ This was the open item from the admin first-run work: a support's first visit st
 - `WELCOME.support` in `constants/tours.ts` is now never shown. It is kept because the Welcome type needs an entry per audience.
 - `SupportOnboardingPage.tsx` is unused (`/support/onboarding` redirects to My Group). Removing it needs the owner's OK.
 - The participant Help → App guide has not been checked for out-of-date screens.
+
+## Addendum (same day, before push): per-hint newcomer, sheet waits one launch
+Two more rounds of /code-review changed the design.
+
+The first round found that tying the hint to the first launch lost it for good:
+- when that launch never reached Home (a first visit through a link, groups failing to load, closing early);
+- and admins onboarded under rule 116 would have counted as new again.
+
+The second round found three problems with the "until any hint is dismissed" fix:
+- It could block the Get the app sheet forever, for admins who never see the checklist and for supports who never tap "Got it".
+- Dismissing one role's hint ended the other role's.
+- A key marked before saved progress loaded was lost.
+
+The final design:
+- `TourContext.newcomerHint(key)` decides each hint separately. The hint stays across launches until "Got it". The Welcome is not marked as seen on load.
+- The Get the app sheet waits only in the launch where a hint first appears (recorded as `<key>:shown`).
+- Saved progress is one `{ owner, keys, failed }` state. Keys marked early are folded in when it loads, and `markSeen` never writes into the previous person's progress.
+- The support hint waits for the groups to answer, so the cards below do not push it around.
+
+Rechecked:
+- Support: new, no group, first visit through a link, reload before "Got it" (the hint stays and the sheet comes back next launch), returning, existing.
+- Admin: all scenarios.
+- No failures and no console errors.

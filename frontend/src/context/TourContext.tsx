@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { tourProgressApi } from '../services/api';
@@ -15,8 +15,12 @@ interface TourContextValue {
   audience: TourAudience | null;
   /** True while progress loads, the Welcome modal is open or a tour is running. */
   busy: boolean;
-  /** This launch was the person's first visit (the Welcome, or for those who skip it, the Start here hint): other "please do this" sheets wait for the next launch. */
+  /** This launch showed the Welcome, or a newcomer's Start here hint for the first time: other "please do this" sheets wait for the next launch. */
   welcomedThisLaunch: boolean;
+  /** A Start here hint is due: the person skips the Welcome, never had it, and has not tapped Got it on this hint. */
+  newcomerHint: (key: string) => boolean;
+  /** Called when a Start here hint renders; the first time, it makes this a welcome launch. */
+  hintFirstShown: (key: string) => void;
   /** A one-off hint (e.g. 'hint:admin-setup') the person has not dismissed yet; false while progress loads or after it failed. */
   hintUnseen: (key: string) => boolean;
   /** Dismiss a one-off hint for good (saved per account, like tours). */
@@ -35,31 +39,40 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const audience = user ? tourAudienceFor(user.role) : null;
   const ready = !!user && !user.mustChangePassword;
 
-  // null while loading. Keys look like 'welcome:v2' or 'page:support:home'.
-  const [seen, setSeen] = useState<Set<string> | null>(null);
-  // Progress could not load: one-off hints stay hidden rather than nag someone who may have dismissed them.
-  const [progressFailed, setProgressFailed] = useState(false);
-  // Whose progress `seen` holds, so a person switch never reads the previous person's.
-  const [seenFor, setSeenFor] = useState<string | null>(null);
+  // This person's saved tour progress: null while loading. Keys look like 'welcome:v2', 'page:support:home' or
+  // 'hint:admin-setup'. `owner` keeps a person switch on a shared device from ever reading the previous person's;
+  // `failed`: it could not load, so the Welcome and one-off hints stay away rather than nag.
+  const [progress, setProgress] = useState<{ owner: string | null; keys: Set<string>; failed: boolean } | null>(null);
   const [activePage, setActivePage] = useState<string | null>(null);
+  // Keys marked before this person's progress has loaded, folded in when it arrives (the server write may land after the read).
+  const pendingKeys = useRef<Set<string>>(new Set());
+  const ownerRef = useRef<string | null>(null);
+  ownerRef.current = user?.id ?? null;
 
   useEffect(() => {
-    setSeen(null);
-    setSeenFor(null);
-    setProgressFailed(false);
+    setProgress(null);
     setActivePage(null);
+    pendingKeys.current = new Set();
     if (!ready) return;
     let cancelled = false;
     const owner = user?.id ?? null;
     tourProgressApi.getSeen()
-      .then((keys) => { if (!cancelled) { setSeen(new Set(keys)); setSeenFor(owner); } })
+      .then((keys) => { if (!cancelled) setProgress({ owner, keys: new Set([...keys, ...pendingKeys.current]), failed: false }); })
       // If progress can't load, don't nag with the Welcome on every visit; "?" still works.
-      .catch(() => { if (!cancelled) { setSeen(new Set([WELCOME_KEY])); setSeenFor(owner); setProgressFailed(true); } });
+      .catch(() => { if (!cancelled) setProgress({ owner, keys: new Set([WELCOME_KEY, ...pendingKeys.current]), failed: true }); });
     return () => { cancelled = true; };
   }, [ready, user?.id]);
 
+  const seen = progress && progress.owner === (user?.id ?? null) ? progress.keys : null;
+  const progressFailed = !!progress?.failed;
+
   const markSeen = useCallback((key: string) => {
-    setSeen((prev) => new Set(prev ?? []).add(key));
+    // Only into this person's progress; before it has loaded (or while the previous person's is still held) keep it for later.
+    setProgress((prev) => {
+      if (prev && prev.owner === ownerRef.current) return { ...prev, keys: new Set(prev.keys).add(key) };
+      pendingKeys.current.add(key);
+      return prev;
+    });
     tourProgressApi.markSeen(key).catch(() => { /* seen state is a nicety; never block on it */ });
   }, []);
 
@@ -74,8 +87,7 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setActivePage(null);
   }, [activePage, markSeen]);
 
-  const progressLoaded = !!seen && seenFor === (user?.id ?? null);
-  const hintUnseen = useCallback((key: string) => progressLoaded && !progressFailed && !seen!.has(key), [progressLoaded, progressFailed, seen]);
+  const hintUnseen = useCallback((key: string) => !!seen && !progressFailed && !seen.has(key), [seen, progressFailed]);
   const dismissHint = useCallback((key: string) => markSeen(key), [markSeen]);
 
   const welcome = audience ? WELCOME[audience] : null;
@@ -83,9 +95,13 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // auto-tour: their Home carries one "Start here" hint instead (StartHereHint), and every page keeps its "?" tour.
   // Team members and other staff roles, who land on other pages, keep the Welcome.
   const skipsWelcome = (user?.role === 'ADMIN' && !user.teamMember) || user?.role === 'SUPPORT';
-  // Their first visit: the saved progress (theirs, loaded) has no Welcome yet.
-  const firstVisit = ready && progressLoaded && !seen!.has(WELCOME_KEY);
-  const welcomeOpen = firstVisit && !!welcome && !skipsWelcome && location.pathname !== '/me/setup';
+  const welcomeOpen = ready && !!seen && !seen.has(WELCOME_KEY) && !!welcome && !skipsWelcome && location.pathname !== '/me/setup';
+  // Whether a Start here hint is due: the person skips the Welcome, never had it (so people already using the app
+  // never see one), and has not tapped Got it on this hint. Each hint has its own key, so one role's does not end another's.
+  const newcomerHint = useCallback(
+    (key: string) => ready && !!seen && !progressFailed && skipsWelcome && !seen.has(WELCOME_KEY) && !seen.has(key),
+    [ready, seen, progressFailed, skipsWelcome],
+  );
 
   const startFromWelcome = useCallback(() => {
     if (!welcome) return;
@@ -94,25 +110,23 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setActivePage(welcome.homeTour);
   }, [welcome, markSeen, location.pathname, navigate]);
 
-  const busy = ready && (!progressLoaded || welcomeOpen || activePage !== null);
+  const busy = ready && (!seen || welcomeOpen || activePage !== null);
+  // A launch with the Welcome, or the launch where a newcomer's hint first appears, is a welcome launch: the Get the app
+  // sheet waits for the next one (one ask at a time). Later launches with the hint still up do not hold it back.
   const [welcomedLatch, setWelcomedLatch] = useState(false);
   useEffect(() => { if (welcomeOpen) setWelcomedLatch(true); }, [welcomeOpen]);
-  // Someone who skips the Welcome still has a first visit: it counts the same way (so the Get the app sheet waits
-  // for the next launch, and their Start here hint shows) and the Welcome is recorded as seen, so the next
-  // launch is not a first visit again. Counted in the same render, not after an effect, so nothing slips in.
-  const firstVisitNoWelcome = firstVisit && skipsWelcome;
-  useEffect(() => {
-    if (!firstVisitNoWelcome) return;
-    setWelcomedLatch(true);
-    markSeen(WELCOME_KEY);
-  }, [firstVisitNoWelcome, markSeen]);
-  // Another person signing in on this tab has not seen a Welcome yet.
+  // Another person signing in on this tab has not been welcomed yet.
   useEffect(() => { setWelcomedLatch(false); }, [user?.id]);
-  const welcomedThisLaunch = welcomedLatch || firstVisitNoWelcome;
+  const hintFirstShown = useCallback((key: string) => {
+    if (seen?.has(`${key}:shown`)) return;
+    setWelcomedLatch(true);
+    markSeen(`${key}:shown`);
+  }, [seen, markSeen]);
+  const welcomedThisLaunch = welcomedLatch;
 
   const value = useMemo<TourContextValue>(
-    () => ({ audience, busy, welcomedThisLaunch, hintUnseen, dismissHint, hasTour, hasSeen, startTour }),
-    [audience, busy, welcomedThisLaunch, hintUnseen, dismissHint, hasTour, hasSeen, startTour],
+    () => ({ audience, busy, welcomedThisLaunch, newcomerHint, hintFirstShown, hintUnseen, dismissHint, hasTour, hasSeen, startTour }),
+    [audience, busy, welcomedThisLaunch, newcomerHint, hintFirstShown, hintUnseen, dismissHint, hasTour, hasSeen, startTour],
   );
 
   return (
