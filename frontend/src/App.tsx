@@ -45,6 +45,7 @@ const AdminRolesPage = lazy(() => import('./pages/AdminRolesPage'));
 const AdminAnnouncementsPage = lazy(() => import('./pages/AdminAnnouncementsPage'));
 const AdminResourcesPage = lazy(() => import('./pages/AdminResourcesPage'));
 const AdminSettingsPage = lazy(() => import('./pages/AdminSettingsPage'));
+const AdminApiAccessPage = lazy(() => import('./pages/AdminApiAccessPage'));
 const AdminPracticePage = lazy(() => import('./pages/AdminPracticePage'));
 const AdminWebsitePage = lazy(() => import('./pages/AdminWebsitePage'));
 const AnnouncementsFeedPage = lazy(() => import('./pages/AnnouncementsFeedPage'));
@@ -162,6 +163,7 @@ function App() {
             <Route path="/scriptures" element={<Suspense fallback={<RouteFallback />}><AdminScripturesPage /></Suspense>} />
             <Route path="/practice" element={<Suspense fallback={<RouteFallback />}><AdminPracticePage /></Suspense>} />
             <Route path="/settings" element={<Suspense fallback={<RouteFallback />}><AdminSettingsPage /></Suspense>} />
+            <Route path="/settings/api-access" element={<Suspense fallback={<RouteFallback />}><AdminApiAccessPage /></Suspense>} />
             <Route path="/website" element={<Suspense fallback={<RouteFallback />}><AdminWebsitePage /></Suspense>} />
             <Route path="/activity-overview" element={<Suspense fallback={<RouteFallback />}><ActivityOverviewPage /></Suspense>} />
             <Route path="/cohorts" element={<Suspense fallback={<RouteFallback />}><CohortsPage /></Suspense>} />

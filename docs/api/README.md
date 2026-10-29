@@ -41,7 +41,10 @@ WHERE l."teenRecords" > 0 ORDER BY l."createdAt" DESC;
 
 ## Issuing and switching off a key
 
-A key is shown once. Only its SHA-256 hash is stored. Run as the database owner (Management API SQL):
+Use the app: **Settings → Church app access** (full admins only). New key, choose what the app may read, copy the key
+once; switch an app off or on, change its access, and see its recent requests from its ⋯ menu.
+
+Or in SQL as the database owner. A key is shown once. Only its SHA-256 hash is stored. Run as the database owner (Management API SQL):
 
 ```sql
 -- Add 'teens:read' only for an app approved for teenagers.

@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-29 | [Church app access admin](2026-10-29_church-app-access-admin.md) | Settings → Church app access: full admins make API keys (shown once), choose scopes (teens apart), switch apps off/on, see recent requests. One live migration. FLOW_MAP rule 118. |
 | 2026-10-29 | [Public API 1.1](2026-10-29_public-api-v1-1.md) | API serves what people see in the app (profiles, participants, attendance, faith project, team, groups, hubs, weeks, schedule, planner, scriptures, announcements, resources, birthdays and birthday PNGs); teens only with `teens:read`, teen views recorded. Migration applied, function deployed (v4). FLOW_MAP rule 118. |
 | 2026-10-29 | [Scripture engagement dashboard](2026-10-29_scripture-engagement-dashboard.md) | `scripture_engagement` PostHog event (enlarge, see all, like, download, share, copy link, with day and surface) and a pinned "Inspirational scriptures" dashboard. Frontend only. |
 | 2026-10-29 | [Public API v1](2026-10-29_public-api-v1.md) | Public API for other church apps: hashed per-app keys with scopes, request log, look up a person, profile, programme progress, current cohort; OpenAPI description; registration handshake designed. Migration applied and function deployed live, tested with temporary keys (removed); docs page via Scalar at `/api-docs.html`. FLOW_MAP rule 118. |
