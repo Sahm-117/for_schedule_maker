@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import nameClickTargets from './vite-plugins/nameClickTargets'
 
 // PostHog's project key is public (it ships to the browser by design) but Vercel flags any VITE_ variable as
 // private-looking, so it can be set as plain POSTHOG_KEY / POSTHOG_HOST (or VITE_POSTHOG_KEY / VITE_POSTHOG_HOST).
@@ -13,6 +14,7 @@ export default defineConfig(({ mode }) => {
     __POSTHOG_HOST__: JSON.stringify(env.POSTHOG_HOST || env.VITE_POSTHOG_HOST || ''),
   },
   plugins: [
+    nameClickTargets(),
     react(),
     VitePWA({
       registerType: 'prompt',
