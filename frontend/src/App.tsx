@@ -88,7 +88,7 @@ const RouteFallback: React.FC = () => (
   </div>
 );
 
-// Tells PostHog who is signed in (staff only; participants stay anonymous), by id and role.
+// Tells PostHog who is signed in: staff by app id and role, participants by their pseudonym (never the record id).
 const AnalyticsIdentity: React.FC = () => {
   const { user } = useAuth();
   const id = user?.id ?? null;

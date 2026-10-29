@@ -10,13 +10,16 @@ import type { CaptureResult, PostHog } from 'posthog-js'
 // What it never records, because many participants are young: the text on screen (a button can be a person's
 // name), other element attributes (a label can say "Message Ada"), the query string, or an id in a URL.
 // `cleanEvent` below enforces that for everything sent. No session replay (Clarity already covers that).
-// Staff are identified by their app id and role only, never a name, number or email.
+// Staff are identified by their app id and role only, never a name, number or email. Participants are
+// identified by a pseudonym (`participantPseudonym`), the same one the database's `analytics.pid()` gives,
+// so their devices merge into one person and the PostHog warehouse views line up, without the record id.
 const KEY = __POSTHOG_KEY__ || undefined
 const HOST = __POSTHOG_HOST__ || 'https://us.i.posthog.com'
 
 let client: PostHog | null = null
 let starting: Promise<void> | null = null
 // What the app asked for before PostHog finished loading, replayed once it has.
+// undefined: the app has not said yet (or a participant's pseudonym is still being worked out).
 let wantedIdentity: { id: string; role: string } | null | undefined
 const queued: Array<[string, Record<string, unknown> | undefined]> = []
 
@@ -91,18 +94,65 @@ export const startAnalytics = (): Promise<void> => {
       before_send: cleanEvent,
     })
     client = posthog
-    if (wantedIdentity) posthog.identify(wantedIdentity.id, { role: wantedIdentity.role })
+    if (wantedIdentity !== undefined) applyIdentity(posthog, wantedIdentity)
     queued.splice(0).forEach(([event, props]) => posthog.capture(event, props))
   }).catch(() => { /* analytics must never break the app */ })
   return starting
 }
 
-/** Tie events to a signed-in staff member by id and role. Pass null on sign-out. */
-export const setAnalyticsUser = (user: { id: string; role: string } | null) => {
-  wantedIdentity = user
-  if (!client) return
-  if (user) client.identify(user.id, { role: user.role })
-  else client.reset()
+type AnalyticsUser = { id: string; role: string }
+
+// PostHog keeps who it identified in its own storage, so this survives the reload that switching person on a
+// shared number does. Whenever that is not the person now signed in (or nobody is), it starts a fresh profile
+// rather than merging the two people. This also clears browsers an older build identified by a participant's
+// raw record id.
+const applyIdentity = (posthog: PostHog, user: AnalyticsUser | null) => {
+  const identified = posthog._isIdentified()
+  if (!user) {
+    if (identified) posthog.reset()
+    return
+  }
+  if (identified && posthog.get_distinct_id() !== user.id) posthog.reset()
+  posthog.identify(user.id, { role: user.role })
+}
+
+const PSEUDONYM = /^[0-9a-f]{64}$/
+let identityRequest = 0
+
+/**
+ * Tie events to whoever is signed in, by app id and role; pass null on sign-out. A participant is never sent by
+ * record id: they are identified by `participantPseudonym` instead, or left anonymous where it cannot be worked out.
+ */
+export const setAnalyticsUser = (user: AnalyticsUser | null): void => {
+  const request = ++identityRequest
+  const apply = (resolved: AnalyticsUser | null) => {
+    if (request !== identityRequest) return
+    wantedIdentity = resolved
+    if (client) applyIdentity(client, resolved)
+  }
+  if (user?.role !== 'PARTICIPANT') { apply(user); return }
+  // Hashing is async. Until it finishes, no event may land on a different person's profile, so drop any
+  // identity that cannot be this participant's pseudonym now (a staff id, or a raw record id from an old build).
+  if (client?._isIdentified() && !PSEUDONYM.test(client.get_distinct_id())) client.reset()
+  wantedIdentity = undefined
+  void participantPseudonym(user.id).then((pseudonym) => apply(pseudonym ? { id: pseudonym, role: user.role } : null))
+}
+
+/**
+ * A participant's pseudonym: SHA-256 of "<participant id>:fof-analytics-v1" in hex, exactly what
+ * `analytics.pid()` returns in the database (migration 20261028100000). The suffix ships in the bundle, so this is
+ * not a secret: anyone who already holds a record id can work out its pseudonym. What it does is keep the record id
+ * itself out of PostHog. Null where the browser cannot hash (an insecure page); the participant then stays anonymous.
+ */
+const participantPseudonym = async (participantId: string): Promise<string | null> => {
+  try {
+    if (!globalThis.crypto?.subtle) return null
+    const bytes = new TextEncoder().encode(`${participantId.toLowerCase()}:fof-analytics-v1`)
+    const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes)
+    return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('')
+  } catch {
+    return null
+  }
 }
 
 /** A named event. Properties must never carry names, phone numbers, emails or free text. */
