@@ -53,6 +53,7 @@ const ICON = {
 };
 
 export const WELCOME: Record<TourAudience, WelcomeContent> = {
+  // Not shown to supports: their Home's "Start here" hint replaces it (FLOW_MAP rule 117).
   support: {
     title: 'Welcome to FOF',
     subtitle: 'Everything for your group in one place.',

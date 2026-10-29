@@ -18,7 +18,7 @@ import {
   StatusIcon,
   VitalTile,
 } from '../components/dashboard/DashboardParts';
-import { useTourState } from '../context/TourContext';
+import StartHereHint from '../components/tour/StartHereHint';
 import {
   buildDashboardModel,
   statusForRate,
@@ -717,7 +717,6 @@ const SETUP_HINT_KEY = 'hint:admin-setup';
 
 /** `complete`: every check has been read, so "ready to start" may show (not while the extras load or after they failed). */
 const ReadinessChecklist: React.FC<{ cohortName: string; items: SetupItem[]; complete: boolean }> = ({ cohortName, items, complete }) => {
-  const { hintUnseen, dismissHint } = useTourState();
   const done = items.filter((item) => item.done).length;
   // Everything ticked: one line instead of the list.
   if (complete && items.length > 0 && done === items.length) {
@@ -729,7 +728,6 @@ const ReadinessChecklist: React.FC<{ cohortName: string; items: SetupItem[]; com
       </section>
     );
   }
-  const showHint = hintUnseen(SETUP_HINT_KEY);
   return (
     <section className="surface-card p-5 sm:p-6">
       <div className="flex items-baseline gap-2">
@@ -739,12 +737,7 @@ const ReadinessChecklist: React.FC<{ cohortName: string; items: SetupItem[]; com
       <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-gray-100" role="progressbar" aria-valuemin={0} aria-valuemax={items.length} aria-valuenow={done} aria-label="Setup progress">
         <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${items.length ? Math.round((done / items.length) * 100) : 0}%` }} />
       </div>
-      {showHint && done < items.length && (
-        <div className="mt-3 flex items-start gap-3 rounded-xl bg-orange-50 px-3.5 py-2.5 text-[13px] text-orange-900">
-          <span className="min-w-0 flex-1"><span className="font-semibold">Start here.</span> Work down the list from the top.</span>
-          <button type="button" onClick={() => dismissHint(SETUP_HINT_KEY)} className="flex-none text-xs font-semibold text-orange-700">Got it</button>
-        </div>
-      )}
+      {done < items.length && <StartHereHint hintKey={SETUP_HINT_KEY} className="mt-3">Work down the list from the top.</StartHereHint>}
       <ul className="mt-2 divide-y divide-gray-100">
         {items.map((item) => <ChecklistRow key={item.key} done={item.done} label={item.label} detail={item.detail} to={item.to} />)}
       </ul>

@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-29 | [Support first run: one Start here hint](2026-10-29_support-first-run.md) | Supports skip the Welcome and auto-tour; their first visit shows one "Start here" hint (shared with admins, first-visit launch only) and the Get the app sheet waits a launch. Frontend only; FLOW_MAP rule 117. |
 | 2026-10-29 | [Admin first run follows flow-onboarding](2026-10-29_admin-first-run.md) | Setup checklist cut to five verb-first steps with "Next: …", a progress bar and a one-line ready state; full admins get one "Start here" hint instead of the Welcome and tour; their notifications ask waits for the cohort to start or an approval. Frontend only; FLOW_MAP rule 116. |
 | 2026-10-29 | [Admin onboarding gaps closed](2026-10-29_admin-onboarding-gaps.md) | Dashboard leads with "Get <cohort> ready" (10 self-ticking setup items) and counts steps left before the start; grey registration tiles while empty; "Welcome to FOF Ops" and a tour that starts at the checklist; Planner "Getting ready"; plainer admin empty states. Frontend only; FLOW_MAP rule 115. |
 | 2026-10-29 | [Support onboarding gaps closed](2026-10-29_support-onboarding-gaps.md) | Not-placed state on My Group and Home for a support with no group or hub, with Need help; plain profile ask (no "delaying mobilisation"); "Welcome to FOF" and a 5-step Home tour; Get the app sheet waits a launch after the Welcome; empty-group step note; plainer empty states. Frontend only; FLOW_MAP rule 114. |

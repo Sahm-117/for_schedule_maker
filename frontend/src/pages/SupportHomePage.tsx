@@ -27,6 +27,7 @@ import { formatMeetingTime } from '../components/groups/GroupCallCard';
 import Spinner from '../components/Spinner';
 import TrainingLearnedCard from '../components/supports/TrainingLearnedCard';
 import ProfileCompletionStrip from '../components/supports/ProfileCompletionStrip';
+import StartHereHint from '../components/tour/StartHereHint';
 import PendingSurveyCards from '../components/surveys/PendingSurveyCards';
 import AppNudgeCard from '../components/supports/AppNudgeCard';
 import TeenQuestionsCard from '../components/questions/TeenQuestionsCard';
@@ -443,6 +444,12 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
       <div className="flex flex-wrap items-start gap-5">
         <div className="flex min-w-0 flex-[1_1_480px] flex-col gap-4">
           <PrayerNowBanner to="/support/pray" />
+          {/* First visit: one hint instead of a Welcome and tour, pointing at what to do first. */}
+          {loadedGroups !== null && (
+            <StartHereHint hintKey="hint:support-start">
+              Your Home shows what to do next, from the top down. Tap ? on any page for a quick tour of it.
+            </StartHereHint>
+          )}
           {/* Getting their group ready comes first, until every step is done. */}
           {myGroup && (
             <SupportOnboardingSteps
