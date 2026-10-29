@@ -15,8 +15,10 @@ import {
   HealthPill,
   SegmentBar,
   Sparkline,
+  StatusIcon,
   VitalTile,
 } from '../components/dashboard/DashboardParts';
+import { useTourState } from '../context/TourContext';
 import {
   buildDashboardModel,
   statusForRate,
@@ -294,7 +296,7 @@ const AdminDashboardPage: React.FC = () => {
           <div data-wt="dash-strip"><CohortStrip health={health} model={model} cohortName={activeCohort.name} /></div>
 
           {/* Before the start, getting the cohort set up comes first. */}
-          {upcoming && <div data-wt="dash-setup"><ReadinessChecklist cohortName={activeCohort.name} items={setupItems} /></div>}
+          {upcoming && <div data-wt="dash-setup"><ReadinessChecklist cohortName={activeCohort.name} items={setupItems} complete={!!setupExtras && setupExtras.hubs !== null && setupExtras.prayerStartSet !== null && setupExtras.scriptures !== null && signUpTarget !== undefined} /></div>}
 
           <div data-wt="dash-vitals">
             {model.mode === 'upcoming' ? (
@@ -673,38 +675,76 @@ interface SetupExtras {
 }
 
 interface SetupItem { key: string; label: string; done: boolean; detail?: string; to: string }
+interface SetupCheck { ok: boolean; next: string; to: string }
 
-// Everything to set up before a cohort starts, each ticked from data the app already has. Shown on the
-// Dashboard while the cohort is upcoming; the header counts what is left.
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
+// What to set up before a cohort starts, as five verb-first steps that tick themselves from data the app
+// already has. A step made of several checks names the next one still open and links to its page. A check
+// whose data could not be read is left out (a whole step when none of its checks could be read).
 const readinessItems = (health: CohortHealthPayload, extras: SetupExtras | null, signUpTarget: number | null | undefined): SetupItem[] => {
   const active = Number(health.participants.active);
   const unplaced = Math.max(0, active - Number(health.participants.inGroups));
   const noSupport = health.groups.filter((g) => !g.supportId).length;
-  const items: Array<SetupItem | null> = [
-    { key: 'weeks', done: health.weeks.length > 0, label: 'Weeks set up', detail: health.weeks.length ? plural(health.weeks.length, 'week', 'weeks') : undefined, to: '/cohorts' },
-    { key: 'schedule', done: !!health.cohort?.schedulePublished, label: 'Schedule published to supports', to: '/schedule' },
-    signUpTarget === undefined ? null : { key: 'target', done: signUpTarget != null && signUpTarget > 0, label: 'Mobilisation target set', detail: signUpTarget ? `${signUpTarget} to register` : undefined, to: '/follow-ups' },
-    { key: 'participants', done: active > 0, label: 'Participants added', detail: active ? plural(active, 'participant', 'participants') : undefined, to: '/participants' },
-    { key: 'groups', done: health.groups.length > 0, label: 'Groups created', detail: health.groups.length ? plural(health.groups.length, 'group', 'groups') : undefined, to: '/groups' },
-    { key: 'supports', done: health.groups.length > 0 && noSupport === 0, label: 'Every group has a support', detail: noSupport ? `${noSupport} without one` : undefined, to: '/groups' },
-    { key: 'placed', done: active > 0 && unplaced === 0, label: 'Everyone placed in a group', detail: unplaced ? `${unplaced} not placed` : undefined, to: '/allocation' },
-    extras?.hubs == null ? null : { key: 'hubs', done: extras.hubs > 0, label: 'Hubs set up', detail: extras.hubs ? plural(extras.hubs, 'hub', 'hubs') : undefined, to: '/hubs' },
-    extras?.prayerStartSet == null ? null : { key: 'prayer', done: extras.prayerStartSet, label: 'Corporate prayer start week set', to: '/corporate-prayers' },
-    extras?.scriptures == null ? null : { key: 'scriptures', done: extras.scriptures > 0, label: 'Daily scriptures uploaded', detail: extras.scriptures ? plural(extras.scriptures, 'design', 'designs') : undefined, to: '/scriptures' },
+  const step = (key: string, label: string, checks: Array<SetupCheck | null>, doneDetail: string | undefined, fallbackTo: string): SetupItem | null => {
+    const known = checks.filter((c): c is SetupCheck => !!c);
+    if (known.length === 0) return null;
+    const open = known.find((c) => !c.ok);
+    return { key, label, done: !open, detail: open ? `Next: ${open.next}` : doneDetail, to: open?.to ?? fallbackTo };
+  };
+  const items = [
+    step('cohort', 'Set up the cohort and its weeks', [{ ok: health.weeks.length > 0, next: 'add the class weeks', to: '/cohorts' }],
+      health.weeks.length ? plural(health.weeks.length, 'week', 'weeks') : undefined, '/cohorts'),
+    step('schedule', 'Publish the schedule', [{ ok: !!health.cohort?.schedulePublished, next: 'publish it to supports', to: '/schedule' }], undefined, '/schedule'),
+    step('people', 'Get people into groups', [
+      signUpTarget === undefined ? null : { ok: signUpTarget != null && signUpTarget > 0, next: 'set the mobilisation target', to: '/follow-ups' },
+      { ok: active > 0, next: 'add participants', to: '/participants' },
+      { ok: health.groups.length > 0, next: 'create groups', to: '/groups' },
+      { ok: health.groups.length > 0 && noSupport === 0, next: `give every group a support (${noSupport} without one)`, to: '/groups' },
+      { ok: active > 0 && unplaced === 0, next: `place everyone in a group (${unplaced} not placed)`, to: '/allocation' },
+    ], active ? `${plural(active, 'participant', 'participants')} in ${plural(health.groups.length, 'group', 'groups')}` : undefined, '/groups'),
+    step('hubs', 'Set up hubs', [extras?.hubs == null ? null : { ok: extras.hubs > 0, next: 'create a hub and add supports', to: '/hubs' }],
+      extras?.hubs ? plural(extras.hubs, 'hub', 'hubs') : undefined, '/hubs'),
+    step('prayer', 'Prepare prayers and daily scriptures', [
+      extras?.prayerStartSet == null ? null : { ok: extras.prayerStartSet, next: 'set the corporate prayer start week', to: '/corporate-prayers' },
+      extras?.scriptures == null ? null : { ok: extras.scriptures > 0, next: 'upload the daily scripture designs', to: '/scriptures' },
+    ], extras?.scriptures ? plural(extras.scriptures, 'scripture design', 'scripture designs') : undefined, '/corporate-prayers'),
   ];
   return items.filter((item): item is SetupItem => !!item);
 };
 
-const ReadinessChecklist: React.FC<{ cohortName: string; items: SetupItem[] }> = ({ cohortName, items }) => {
+const SETUP_HINT_KEY = 'hint:admin-setup';
+
+/** `complete`: every check has been read, so "ready to start" may show (not while the extras load or after they failed). */
+const ReadinessChecklist: React.FC<{ cohortName: string; items: SetupItem[]; complete: boolean }> = ({ cohortName, items, complete }) => {
+  const { hintUnseen, dismissHint } = useTourState();
   const done = items.filter((item) => item.done).length;
+  // Everything ticked: one line instead of the list.
+  if (complete && items.length > 0 && done === items.length) {
+    return (
+      <section className="surface-card flex items-center gap-3 p-4 sm:px-6">
+        <span className="grid h-7 w-7 flex-none place-items-center rounded-full bg-emerald-100 text-emerald-700"><StatusIcon status="good" /></span>
+        <p className="text-sm font-semibold text-gray-900">{cohortName} is ready to start</p>
+        <span className="ml-auto text-xs text-gray-500">All {items.length} steps done</span>
+      </section>
+    );
+  }
+  const showHint = hintUnseen(SETUP_HINT_KEY);
   return (
     <section className="surface-card p-5 sm:p-6">
       <div className="flex items-baseline gap-2">
         <h3 className="text-base font-semibold text-gray-900">Get {cohortName} ready</h3>
         <span className="ml-auto text-xs font-semibold text-gray-500">{done} of {items.length} done</span>
       </div>
+      <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-gray-100" role="progressbar" aria-valuemin={0} aria-valuemax={items.length} aria-valuenow={done} aria-label="Setup progress">
+        <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${items.length ? Math.round((done / items.length) * 100) : 0}%` }} />
+      </div>
+      {showHint && done < items.length && (
+        <div className="mt-3 flex items-start gap-3 rounded-xl bg-orange-50 px-3.5 py-2.5 text-[13px] text-orange-900">
+          <span className="min-w-0 flex-1"><span className="font-semibold">Start here.</span> Work down the list from the top.</span>
+          <button type="button" onClick={() => dismissHint(SETUP_HINT_KEY)} className="flex-none text-xs font-semibold text-orange-700">Got it</button>
+        </div>
+      )}
       <ul className="mt-2 divide-y divide-gray-100">
         {items.map((item) => <ChecklistRow key={item.key} done={item.done} label={item.label} detail={item.detail} to={item.to} />)}
       </ul>

@@ -459,7 +459,14 @@ const AppShell: React.FC = () => {
     try { return sessionStorage.getItem('fof_staff_appsetup_dismissed_session') === '1'; } catch { return false; }
   });
   // Not straight after the Welcome and its tour: the notifications banner on Home still asks, and the sheet comes next launch.
-  const showAppSetup = !!user && !tourBusy && !welcomedThisLaunch && !classFeedbackDueWeek && !pendingIntroJob && !appSetupDismissed && appSetupSheetDue(appSetup);
+  // Full admins are asked for notifications once there is something to be told about: the cohort they are on has
+  // started, or a change waits for approval. Everyone else (supports, schedule preparers, team members) is asked
+  // straight away, as before.
+  const fullAdmin = user?.role === 'ADMIN' && !user.teamMember;
+  const activeCohortStarted = !!activeCohort && !activeCohort.isPractice && !!activeCohort.startDate
+    && activeCohort.startDate.slice(0, 10) <= new Date().toISOString().slice(0, 10);
+  const notificationsAskDue = !fullAdmin || activeCohortStarted || globalPendingChanges.length > 0;
+  const showAppSetup = !!user && notificationsAskDue && !tourBusy && !welcomedThisLaunch && !classFeedbackDueWeek && !pendingIntroJob && !appSetupDismissed && appSetupSheetDue(appSetup);
   useEffect(() => {
     if (user) void recordAppState(appSetup.installed, appSetup.device, appSetup.notifications, 'staff');
   }, [user?.id, appSetup.installed, appSetup.device, appSetup.notifications]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -937,7 +944,7 @@ const AppShell: React.FC = () => {
         <main className="mx-auto max-w-7xl px-4 pb-28 pt-6 sm:px-6 lg:px-8 lg:pb-8">
           {/* Route-level boundary: a single page crash shows a contained error
               (nav/shell survive) and auto-recovers when the route changes. */}
-          <AppSetupBanner audience="staff" enable={enable} className="mb-4" />
+          {notificationsAskDue && <AppSetupBanner audience="staff" enable={enable} className="mb-4" />}
           <ErrorBoundary inline resetKey={location.pathname}>
             {!isSupport && tabsOwners === 0 && (
               <SectionTabs pathname={location.pathname} isAdmin={isAdmin} pendingApprovals={globalPendingChanges.length} />

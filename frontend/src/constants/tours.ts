@@ -64,6 +64,8 @@ export const WELCOME: Record<TourAudience, WelcomeContent> = {
     homePath: '/support',
     homeTour: 'support:home',
   },
+  // Shown to schedule preparers and team members; full admins start from the Dashboard's setup checklist and
+  // its "Start here" hint instead (FLOW_MAP rule 116).
   admin: {
     title: 'Welcome to FOF Ops',
     subtitle: 'See how the cohort is doing, and what needs you today.',
