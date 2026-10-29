@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-29 | [Scripture engagement dashboard](2026-10-29_scripture-engagement-dashboard.md) | `scripture_engagement` PostHog event (enlarge, see all, like, download, share, copy link, with day and surface) and a pinned "Inspirational scriptures" dashboard. Frontend only. |
 | 2026-10-29 | [Public API v1](2026-10-29_public-api-v1.md) | Public API for other church apps: hashed per-app keys with scopes, request log, look up a person, profile, programme progress, current cohort; OpenAPI description; registration handshake designed. Migration applied and function deployed live, tested with temporary keys (removed); docs page via Scalar at `/api-docs.html`. FLOW_MAP rule 118. |
 | 2026-10-29 | [PostHog replays and names](2026-10-29_posthog-replay-and-names.md) | Session replay turned on in the app (inputs masked) and signed-in people identified with their name, so PostHog shows names instead of ids; distinct ids unchanged. Frontend only; FLOW_MAP rule 111. |
 | 2026-10-29 | [Participant App guide refreshed](2026-10-29_app-guide-refresh.md) | Help → App guide participant topics checked against today's screens (new Getting ready topic and group Discussion task, many fixes, 9 screenshots retaken) and versioned past the service-worker cache; unused `SupportOnboardingPage.tsx` removed; chevron on the Keep an eye on chip. Frontend only; FLOW_MAP rules 109, 113. |

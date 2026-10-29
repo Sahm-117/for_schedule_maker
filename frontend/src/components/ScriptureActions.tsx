@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { scriptureEngagementApi } from '../services/api';
+import { track } from '../lib/analytics';
 
 // Like, Download and Share for one Inspirational Scripture post, as three round icon buttons.
 // Share opens the phone's own share sheet with the picture; Download saves it. Admins see the counts on the Scriptures page.
@@ -114,6 +115,7 @@ const ScriptureActions: React.FC<{ day: number; imageUrl: string; liked: boolean
     a.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 2000);
     count('DOWNLOAD');
+    track('scripture_engagement', { action: 'download', day });
     flash('Saved to your device');
   };
 
@@ -123,10 +125,10 @@ const ScriptureActions: React.FC<{ day: number; imageUrl: string; liked: boolean
     const file = blob ? fileFor(blob) : null;
     const data: ShareData = file && navigator.canShare?.({ files: [file] }) ? { files: [file], title: 'Inspirational scripture' } : { url: imageUrl, title: 'Inspirational scripture' };
     if (!navigator.share) {
-      navigator.clipboard?.writeText(imageUrl).then(() => flash('Link copied'), () => flash('Could not share this'));
+      navigator.clipboard?.writeText(imageUrl).then(() => { track('scripture_engagement', { action: 'copy_link', day }); flash('Link copied'); }, () => flash('Could not share this'));
       return;
     }
-    navigator.share(data).then(() => count('SHARE')).catch((e) => { if (!(e instanceof DOMException && e.name === 'AbortError')) flash('Could not share this'); });
+    navigator.share(data).then(() => { count('SHARE'); track('scripture_engagement', { action: 'share', day }); }).catch((e) => { if (!(e instanceof DOMException && e.name === 'AbortError')) flash('Could not share this'); });
   };
 
   // Quiet on purpose: no frame or shadow, a pale icon, and a roomy invisible tap area. The totals (everyone, all time)
@@ -137,7 +139,7 @@ const ScriptureActions: React.FC<{ day: number; imageUrl: string; liked: boolean
   return (
     <div className="flex flex-col items-center pt-1">
       <div className="flex items-center justify-center">
-        <button type="button" onClick={onToggleLike} aria-pressed={liked} aria-label={`${liked ? 'Remove like' : 'Like'}${said(counts?.likes, 'like', 'likes')}`} title="Like" className={`${btn} ${liked ? '!text-primary' : ''}`}><Icon d={HEART} filled={liked} />{total(counts?.likes)}</button>
+        <button type="button" onClick={() => { track('scripture_engagement', { action: liked ? 'unlike' : 'like', day }); onToggleLike(); }} aria-pressed={liked} aria-label={`${liked ? 'Remove like' : 'Like'}${said(counts?.likes, 'like', 'likes')}`} title="Like" className={`${btn} ${liked ? '!text-primary' : ''}`}><Icon d={HEART} filled={liked} />{total(counts?.likes)}</button>
         <button type="button" onClick={() => void download()} aria-label={`Download${said(counts?.downloads, 'download', 'downloads')}`} title="Download" className={btn}><Icon d={DOWNLOAD} />{total(counts?.downloads)}</button>
         <button type="button" onClick={share} aria-label={`Share${said(counts?.shares, 'share', 'shares')}`} title="Share" className={btn}><Icon d={SHARE} />{total(counts?.shares)}</button>
       </div>

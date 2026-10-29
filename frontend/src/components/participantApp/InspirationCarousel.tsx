@@ -3,6 +3,7 @@ import type { ParticipantHome } from '../../types';
 import { scriptureDayIndex, scripturePosition } from '../../utils/participantApp';
 import HomeSheet from './HomeSheet';
 import ScriptureActions, { useScriptureLikes } from '../ScriptureActions';
+import { track } from '../../lib/analytics';
 
 // The daily Inspirational Scripture on the participant Home: today and the last few days move by themselves,
 // five seconds each, with dots underneath. "See all" opens every earlier post, so Home stays short.
@@ -88,7 +89,9 @@ const InspirationCarousel: React.FC<{
   // A tap (the browser's own click, which a scroll or swipe never sends) opens the post full size.
   const openCurrent = () => {
     if (swiped.current) { swiped.current = false; return; }
-    if (recent[index]) setViewDay(recent[index].day);
+    if (!recent[index]) return;
+    track('scripture_engagement', { action: 'enlarge', day: recent[index].day, surface: 'home' });
+    setViewDay(recent[index].day);
   };
   const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
     const start = dragStart.current;
@@ -104,7 +107,7 @@ const InspirationCarousel: React.FC<{
     <section data-wt="ph-scripture" onFocus={() => setFocused(true)} onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setFocused(false); }} className="rounded-[22px] border border-[#ffdeca] bg-[#fff8f3] p-3.5 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
       <div className="flex items-center justify-between gap-2 pb-2">
         <h2 className="px-0.5 text-[11px] font-bold uppercase tracking-[0.06em] text-[#9a6a4b]">Inspirational scripture</h2>
-        <button type="button" onClick={() => setAllOpen(true)} className="-my-1.5 min-h-[32px] px-0.5 text-[12px] font-bold text-[#c2410c]">See all ›</button>
+        <button type="button" onClick={() => { track('scripture_engagement', { action: 'see_all', surface: 'home' }); setAllOpen(true); }} className="-my-1.5 min-h-[32px] px-0.5 text-[12px] font-bold text-[#c2410c]">See all ›</button>
       </div>
       <div
         role="button"
@@ -150,7 +153,7 @@ const InspirationCarousel: React.FC<{
           <p className="mb-3 text-[12.5px] text-gray-500">Newest first.</p>
           <div className="grid grid-cols-3 gap-2">
             {posts.map((post) => (
-              <button type="button" key={post.day} onClick={() => setViewDay(post.day)} aria-label={`Open the post for day ${post.day}`} className="relative aspect-[4/5] overflow-hidden rounded-xl bg-gray-100 text-left">
+              <button type="button" key={post.day} onClick={() => { track('scripture_engagement', { action: 'enlarge', day: post.day, surface: 'see_all' }); setViewDay(post.day); }} aria-label={`Open the post for day ${post.day}`} className="relative aspect-[4/5] overflow-hidden rounded-xl bg-gray-100 text-left">
                 <img src={post.imageUrl} alt={`Inspirational scripture, ${post.day === today ? 'today' : `day ${post.day}`}`} loading="lazy" className="h-full w-full object-cover" />
                 {/* The day, so a post is easy to find again in a long list. */}
                 <span className="absolute left-1.5 top-1.5 rounded-full border border-white/50 bg-[rgba(20,24,40,0.5)] px-2 py-0.5 text-[10.5px] font-bold leading-tight text-white backdrop-blur-md">

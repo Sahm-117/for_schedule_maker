@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { ParticipantHome } from '../types';
 import ScriptureActions, { useScriptureLikes } from './ScriptureActions';
+import { track } from '../lib/analytics';
 import { scriptureDayIndex, scriptureForDay, scripturePosition } from '../utils/participantApp';
 
 // The daily Inspirational Scripture: one image a day, swipe or tap the arrows to look back at earlier days.
@@ -124,6 +125,7 @@ const ScriptureCarousel: React.FC<ScriptureCarouselProps> = ({ scriptures, start
   };
 
   if (!scripture || !todayScriptureDay || !scriptureDay) return null;
+  const enlarge = () => { track('scripture_engagement', { action: 'enlarge', day: scriptureDay, surface: 'staff_home' }); setEnlarged(true); };
   return (
       <section data-wt="ph-scripture" className="overflow-hidden rounded-[22px] border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
         <div className="flex flex-wrap items-center gap-2.5 px-5 pb-3 pt-[18px]">
@@ -143,8 +145,8 @@ const ScriptureCarousel: React.FC<ScriptureCarouselProps> = ({ scriptures, start
             tabIndex={0}
             aria-label="Show this picture full size"
             className="aspect-[4/5] w-full cursor-pointer touch-pan-y overflow-hidden rounded-2xl bg-[#f6f7f9]"
-            onClick={() => { if (swiped.current || scriptureAnimating) { swiped.current = false; return; } setEnlarged(true); }}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setEnlarged(true); } }}
+            onClick={() => { if (swiped.current || scriptureAnimating) { swiped.current = false; return; } enlarge(); }}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); enlarge(); } }}
             onPointerDown={onScripturePointerDown}
             onPointerMove={onScripturePointerMove}
             onPointerUp={endScriptureDrag}
