@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="How other church apps read FOF Ops through the FOF API: keys, permissions, teen protection and admin controls.">
+<link rel="icon" href="logo-mark.png">
+<title>How the FOF API Works</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800;900&family=Source+Sans+3:wght@400;600;700&display=swap">
+<style>
+/* Layout: crest-led orange hero, then one band per question the meeting will ask, each answered with a picture first and words second. */
+body { margin: 0 } img { max-width: 100% } [hidden] { display: none !important }
+:root {
+  --orange: #ff914d;
+  --orange-deep: #e5822d;
+  --orange-ink: #a24a0c;
+  --orange-soft: #fff1e6;
+  --orange-wash: #ffe5d3;
+  --bg: #fffaf6;
+  --surface: #ffffff;
+  --ink: #1f2430;
+  --muted: #6a6560;
+  --line: #efe3d8;
+  --good: #1f8a4c;
+  --good-soft: #e3f4e9;
+  --warn: #b7791f;
+  --warn-soft: #fbf0d9;
+  --bad: #c2412d;
+  --bad-soft: #fbe6e2;
+  --hero-ink: #2a1407;
+  --panel: #221a14; --panel-ink: #fff3ea; --panel-muted: #e3d4c6;
+  --display: "Montserrat", "Segoe UI", system-ui, sans-serif;
+  --body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --orange: #ff9a5c; --orange-deep: #f08a3c; --orange-ink: #ffb889; --orange-soft: #2e2018; --orange-wash: #3a2618;
+  --bg: #16120f; --surface: #201a16; --ink: #f4ede7; --muted: #b0a59b; --line: #3a2f27;
+  --good: #5fd08d; --good-soft: #17301f; --warn: #f0c060; --warn-soft: #33290f; --bad: #ff8a75; --bad-soft: #3a1c16;
+  --hero-ink: #fff3ea; --panel: #2c231d; --panel-ink: #fff3ea; --panel-muted: #d9c9bb; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --orange: #ff9a5c; --orange-deep: #f08a3c; --orange-ink: #ffb889; --orange-soft: #2e2018; --orange-wash: #3a2618;
+  --bg: #16120f; --surface: #201a16; --ink: #f4ede7; --muted: #b0a59b; --line: #3a2f27;
+  --good: #5fd08d; --good-soft: #17301f; --warn: #f0c060; --warn-soft: #33290f; --bad: #ff8a75; --bad-soft: #3a1c16;
+  --hero-ink: #fff3ea; --panel: #2c231d; --panel-ink: #fff3ea; --panel-muted: #d9c9bb; color-scheme: dark }
+
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--ink); font: 400 17px/1.55 var(--body); }
+.wrap { max-width: 1080px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; letter-spacing: -0.01em }
+p { margin: 0 }
+.eyebrow { font: 700 12px/1 var(--display); letter-spacing: .14em; text-transform: uppercase; color: var(--orange-ink) }
+
+/* Hero */
+.hero { background: radial-gradient(circle at 12% 0%, var(--orange-wash), transparent 55%), linear-gradient(180deg, var(--orange-soft), var(--bg)); border-bottom: 1px solid var(--line) }
+.hero .wrap { padding-block: 40px 44px; display: grid; grid-template-columns: auto 1fr; gap: 28px; align-items: center }
+.crest { width: 120px; height: 120px; border-radius: 28px; background: var(--surface); display: grid; place-items: center; box-shadow: 0 10px 30px rgba(229,130,45,.25); border: 1px solid var(--line) }
+.crest img { width: 96px; height: 96px }
+.hero h1 { font-size: clamp(30px, 5vw, 52px); font-weight: 900; line-height: 1.05; color: var(--hero-ink); margin-top: 10px }
+.hero h1 span { color: var(--orange-deep) }
+.hero .lead { margin-top: 14px; max-width: 62ch; font-size: 19px; color: var(--muted) }
+.verdict { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 10px }
+.pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; font: 700 14px/1.2 var(--display); border: 1px solid transparent }
+.pill i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: none }
+.pill.g { background: var(--good-soft); color: var(--good) } .pill.g i { background: var(--good) }
+.pill.w { background: var(--warn-soft); color: var(--warn) } .pill.w i { background: var(--warn) }
+.pill.b { background: var(--bad-soft); color: var(--bad) } .pill.b i { background: var(--bad) }
+
+section.band { padding-block: 56px; border-bottom: 1px solid var(--line) }
+.head { display: grid; gap: 10px; margin-bottom: 28px; max-width: 70ch }
+.head h2 { font-size: clamp(24px, 3.4vw, 34px); font-weight: 800 }
+.head p { color: var(--muted) }
+
+/* Today map */
+.map { display: grid; grid-template-columns: minmax(0, 260px) 56px minmax(0, 1fr); align-items: center; gap: 0 }
+.node { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px }
+.node .k { font: 700 12px/1 var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted) }
+.node h3 { font-size: 20px; font-weight: 800; margin-top: 6px }
+.node p { color: var(--muted); font-size: 15px; margin-top: 6px }
+.phone { display: grid; gap: 12px; justify-items: center; text-align: center }
+.phone .device { width: 92px; height: 160px; border-radius: 20px; border: 3px solid var(--ink); position: relative; background: linear-gradient(180deg, var(--orange-soft), var(--surface)); display: grid; place-items: center }
+.phone .device::before { content: ""; position: absolute; top: 8px; width: 28px; height: 4px; border-radius: 4px; background: var(--ink); left: 50% ; transform: translateX(-50%) }
+.phone .device img { width: 48px; height: 48px }
+.wire { height: 3px; background: repeating-linear-gradient(90deg, var(--orange) 0 8px, transparent 8px 14px); position: relative }
+.wire::after { content: ""; position: absolute; right: -2px; top: -5px; border: 6.5px solid transparent; border-left-color: var(--orange) }
+.cloud { border: 2px dashed var(--orange); border-radius: 24px; padding: 18px; background: var(--orange-soft) }
+.cloud > .k { font: 800 13px/1 var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--orange-ink); margin-bottom: 14px; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap }
+.parts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px }
+.part { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: grid; gap: 6px; align-content: start }
+.part .n { font: 900 28px/1 var(--display); color: var(--orange-deep); font-variant-numeric: tabular-nums }
+.part .t { font: 700 15px/1.25 var(--display) }
+.part .d { font-size: 14px; color: var(--muted); line-height: 1.4 }
+.tag { justify-self: start; margin-top: 4px; font: 700 11px/1 var(--display); letter-spacing: .06em; text-transform: uppercase; padding: 5px 8px; border-radius: 6px }
+.tag.g { background: var(--good-soft); color: var(--good) }
+.tag.w { background: var(--warn-soft); color: var(--warn) }
+.legend { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 18px; font-size: 14px; color: var(--muted) }
+.legend span { display: inline-flex; align-items: center; gap: 8px }
+.legend b { width: 12px; height: 12px; border-radius: 3px; display: inline-block }
+.scorebar { margin-top: 22px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; display: grid; gap: 10px }
+.scorebar .row { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font: 700 15px/1.3 var(--display) }
+.track { height: 14px; border-radius: 999px; overflow: hidden; display: flex; background: var(--line) }
+.track .g { background: var(--good) } .track .w { background: var(--warn) }
+
+/* Fork */
+.fork { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 24px; align-items: center }
+.fork svg { width: 100%; height: auto; display: block }
+.fork .q { font: 800 22px/1.25 var(--display) }
+.fork ul { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 12px }
+.fork li { display: grid; grid-template-columns: 14px 1fr; gap: 12px; align-items: start }
+.fork li i { width: 14px; height: 14px; border-radius: 50%; margin-top: 5px }
+
+/* Options */
+.opts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px }
+.opt { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 22px; display: grid; gap: 14px; align-content: start; position: relative }
+.opt.rec { border: 2px solid var(--orange); box-shadow: 0 14px 34px rgba(229,130,45,.18) }
+.opt .badge { position: absolute; top: -13px; left: 20px; background: var(--orange); color: #2a1407; font: 800 12px/1 var(--display); letter-spacing: .08em; text-transform: uppercase; padding: 7px 10px; border-radius: 8px }
+.opt .num { font: 900 44px/1 var(--display); color: var(--orange-wash); -webkit-text-stroke: 1.5px var(--orange-deep) }
+.opt h3 { font-size: 21px; font-weight: 800; line-height: 1.2 }
+.opt p { font-size: 15.5px; color: var(--muted) }
+.opt svg.pic { width: 100%; height: 92px; display: block }
+.meter { display: grid; gap: 6px }
+.meter .lbl { display: flex; justify-content: space-between; font: 700 13px/1 var(--display); }
+.meter .lbl em { font-style: normal; color: var(--muted); font-weight: 600 }
+.dots { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px }
+.dots i { height: 8px; border-radius: 4px; background: var(--line) }
+.dots.e i.on { background: var(--orange-deep) }
+.dots.r i.on { background: var(--bad) }
+.dots.r.lo i.on { background: var(--good) }
+.dots.r.mid i.on { background: var(--warn) }
+.opt .advice { font: 800 14px/1.3 var(--display); padding-top: 12px; border-top: 1px dashed var(--line) }
+.opt .advice.g { color: var(--good) } .opt .advice.w { color: var(--warn) } .opt .advice.b { color: var(--bad) }
+.path { margin-top: 22px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font: 700 15px/1.3 var(--display) }
+.path .stop { padding: 10px 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line) }
+.path .stop.now { background: var(--orange); color: #2a1407; border-color: var(--orange) }
+.path .arr { color: var(--orange-deep); font-weight: 900 }
+
+/* Timeline */
+.steps { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0; position: relative; counter-reset: s }
+.steps::before { content: ""; position: absolute; left: 8%; right: 8%; top: 27px; height: 4px; border-radius: 4px; background: linear-gradient(90deg, var(--orange-wash), var(--orange)) }
+.step { position: relative; display: grid; justify-items: center; text-align: center; gap: 10px; padding: 0 8px; counter-increment: s }
+.step .dot { width: 58px; height: 58px; border-radius: 50%; background: var(--surface); border: 4px solid var(--orange); display: grid; place-items: center; font: 900 22px/1 var(--display); color: var(--orange-deep); position: relative; z-index: 1 }
+.step .dot::before { content: counter(s) }
+.step.sun .dot { background: var(--orange); color: #2a1407 }
+.step h3 { font-size: 15.5px; font-weight: 800; line-height: 1.25 }
+.step p { font-size: 14px; color: var(--muted); line-height: 1.4 }
+.step .when { font: 700 11px/1 var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--orange-ink); background: var(--orange-soft); padding: 5px 8px; border-radius: 6px }
+.effort { margin-top: 30px; display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px }
+.effort .big { font: 900 34px/1 var(--display); color: var(--orange-deep) }
+.effort p { color: var(--muted) }
+.effort p strong { color: var(--ink) }
+
+/* Layers */
+.layers { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; align-items: center }
+.stack { display: grid; gap: 8px }
+.layer { border-radius: 14px; padding: 16px 18px; display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; font: 700 16px/1.3 var(--display) }
+.layer small { font: 600 13px/1.3 var(--body); opacity: .85 }
+.layer.app { background: var(--ink); color: var(--bg) }
+.layer.adapt { background: var(--orange); color: #2a1407; box-shadow: 0 0 0 4px var(--orange-wash) }
+.hosts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px }
+.hosts div { border: 2px dashed var(--line); border-radius: 12px; padding: 12px 10px; text-align: center; font: 700 14px/1.25 var(--display); color: var(--muted); background: var(--surface) }
+.hosts div.cur { border-style: solid; border-color: var(--orange); color: var(--ink) }
+.word { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 22px }
+.word .w { font: 900 clamp(26px, 4vw, 38px)/1.05 var(--display); color: var(--orange-deep) }
+.word .ph { font-size: 15px; color: var(--muted); margin-top: 6px }
+.word ul { margin: 16px 0 0; padding: 0; list-style: none; display: grid; gap: 12px }
+.word li { display: grid; grid-template-columns: 26px 1fr; gap: 10px; font-size: 15.5px }
+.word li b { font-family: var(--display) }
+.tick { width: 26px; height: 26px; border-radius: 8px; background: var(--good-soft); color: var(--good); display: grid; place-items: center; font: 900 14px/1 var(--display) }
+
+/* Roadmap */
+.road { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; position: relative }
+.road::before { content: ""; position: absolute; left: 6%; right: 6%; top: 22px; height: 4px; border-radius: 4px; background: linear-gradient(90deg, var(--orange), var(--orange-wash) 40%, var(--line)) }
+.stage { position: relative; display: grid; gap: 10px; align-content: start }
+.stage .pin { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; font: 900 10px/1 var(--display); letter-spacing: .02em; background: var(--surface); border: 4px solid var(--line); color: var(--muted); position: relative; z-index: 1 }
+.stage.now .pin { background: var(--orange); border-color: var(--orange); color: #2a1407; box-shadow: 0 0 0 6px var(--orange-wash) }
+.stage.next .pin { border-color: var(--orange) ; color: var(--orange-deep) }
+.stage .card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px; display: grid; gap: 6px }
+.stage.now .card { border: 2px solid var(--orange) }
+.stage .when2 { font: 800 11px/1 var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--orange-ink) }
+.stage h3 { font-size: 17px; font-weight: 800; line-height: 1.25 }
+.stage p { font-size: 14.5px; color: var(--muted) }
+.stage .st { justify-self: start; font: 700 11px/1 var(--display); padding: 5px 8px; border-radius: 6px; background: var(--line); color: var(--muted) }
+.stage.now .st { background: var(--good-soft); color: var(--good) }
+
+/* API */
+.does { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px }
+.does .d { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; display: grid; gap: 10px; align-content: start }
+.does .d .ic2 { width: 44px; height: 44px; border-radius: 13px; background: var(--orange-soft); display: grid; place-items: center }
+.does .d .ic2 svg { width: 24px; height: 24px; stroke: var(--orange-deep); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
+.does .d h3 { font-size: 18px; font-weight: 800 }
+.does .d p { font-size: 15px; color: var(--muted) }
+.does .d code, .eps code, .std code { font: 600 12.5px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace; background: var(--orange-soft); color: var(--orange-ink); padding: 2px 6px; border-radius: 6px; overflow-wrap: anywhere }
+.hs-wrap { margin-top: 26px; background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: 20px; overflow-x: auto }
+.hs-wrap h3 { font-size: 20px; font-weight: 800; margin-bottom: 4px }
+.hs-wrap > p { color: var(--muted); font-size: 15px; margin-bottom: 14px }
+.hs-wrap svg { display: block; width: 100%; min-width: 640px; height: auto }
+.std { margin-top: 26px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px }
+.std .s { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px; display: grid; gap: 6px; align-content: start }
+.std .s .k { font: 800 11px/1 var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--orange-ink) }
+.std .s b { font: 800 16px/1.25 var(--display) }
+.std .s p { font-size: 14px; color: var(--muted) }
+.eps { margin-top: 26px; display: grid; gap: 8px }
+.ep { display: grid; grid-template-columns: 64px minmax(0, 1.2fr) minmax(0, 1fr); gap: 14px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px }
+.ep .m { font: 800 12px/1 var(--display); text-align: center; padding: 6px 0; border-radius: 8px; background: var(--good-soft); color: var(--good) }
+.ep .m.post { background: var(--orange-soft); color: var(--orange-ink) }
+.ep p { font-size: 14.5px; color: var(--muted) }
+.never { margin-top: 14px; display: flex; gap: 12px; align-items: flex-start; background: var(--bad-soft); border-radius: 14px; padding: 14px 16px; font-size: 15px }
+.never b { color: var(--bad); font-family: var(--display); white-space: nowrap }
+.phases { margin-top: 26px; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; counter-reset: ph }
+.phase { background: var(--surface); border: 1px solid var(--line); border-top: 5px solid var(--orange); border-radius: 14px; padding: 12px; display: grid; gap: 6px; align-content: start; counter-increment: ph }
+.phase:nth-child(n+5) { border-top-color: var(--line) }
+.phase .k { font: 900 22px/1 var(--display); color: var(--orange-deep) }
+.phase .k::before { content: counter(ph) }
+.phase b { font: 800 14.5px/1.25 var(--display) }
+.phase p { font-size: 13.5px; color: var(--muted) }
+.phase .t { font: 700 11px/1 var(--display); color: var(--orange-ink); text-transform: uppercase; letter-spacing: .06em }
+.sso { margin-top: 26px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: center; background: var(--panel); color: var(--panel-ink); border: 1px solid var(--line); border-radius: 22px; padding: 22px }
+.sso h3 { font-size: 22px; font-weight: 800 }
+.sso p { color: var(--panel-muted); margin-top: 8px; font-size: 15px }
+.sso .flow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font: 700 14px/1.2 var(--display) }
+.sso .flow span { background: rgba(255,255,255,.12); color: var(--panel-ink); border-radius: 12px; padding: 10px 12px }
+.sso .flow span.k { background: var(--orange); color: #2a1407 }
+.sso .flow i { font-style: normal; color: var(--orange); font-weight: 900 }
+.qgroups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px }
+.qg { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 16px 18px; display: grid; gap: 10px; align-content: start }
+.qg.key { border-color: var(--orange); background: linear-gradient(180deg, var(--orange-soft), var(--surface)) }
+.qg .top { display: flex; gap: 12px; align-items: center }
+.qg .ic { width: 40px; height: 40px; border-radius: 12px; background: var(--orange-soft); display: grid; place-items: center; flex: none }
+.qg .ic svg { width: 22px; height: 22px; stroke: var(--orange-deep); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
+.qg h3 { font-size: 17px; font-weight: 800 }
+.qg ul { margin: 0; padding-left: 18px; display: grid; gap: 7px; font-size: 14.5px; color: var(--ink) }
+.qg li::marker { color: var(--orange-deep) }
+.pill.n { background: var(--line); color: var(--muted) } .pill.n i { background: var(--muted) }
+@media (max-width: 860px) {
+  .road, .does, .std, .qgroups, .sso { grid-template-columns: 1fr }
+  .road::before { left: 22px; right: auto; top: 10px; bottom: 10px; width: 4px; height: auto; background: linear-gradient(180deg, var(--orange), var(--line)) }
+  .stage { grid-template-columns: 48px minmax(0, 1fr); gap: 14px }
+  .phases { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+  .ep { grid-template-columns: 56px minmax(0, 1fr) }
+  .ep p { grid-column: 2 }
+}
+.enough { margin-top: 26px; background: var(--surface); border: 2px solid var(--orange); border-radius: 22px; padding: 20px 22px; display: grid; gap: 14px }
+.enough h3 { font-size: 21px; font-weight: 800; margin-top: 6px }
+.enough .eh p { color: var(--muted); margin-top: 8px; font-size: 15.5px; max-width: 72ch }
+.enough ol { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; counter-reset: en }
+.enough li { background: var(--orange-soft); border-radius: 14px; padding: 14px; font-size: 15px; display: grid; gap: 6px; counter-increment: en }
+.enough li::before { content: counter(en); width: 28px; height: 28px; border-radius: 50%; background: var(--orange); color: #2a1407; display: grid; place-items: center; font: 900 13px/1 var(--display) }
+.enough li b { font-family: var(--display) }
+.enough .later { font-size: 14.5px; color: var(--muted) }
+@media (max-width: 860px) { .enough ol { grid-template-columns: 1fr } }
+.gloss { margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px }
+.gloss div { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px }
+.gloss dt { font: 800 16px/1.2 var(--display); color: var(--orange-deep) }
+.gloss dd { margin: 6px 0 0; font-size: 15px; color: var(--ink) }
+.devnote { font-size: 13px; color: var(--muted); margin-top: 4px }
+.devnote b { font-weight: 700; color: var(--muted) }
+.login { margin-top: 26px; display: grid; gap: 14px }
+.login h3 { font-size: 21px; font-weight: 800 }
+.login > p { color: var(--muted); font-size: 15.5px; max-width: 72ch }
+.lsteps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; counter-reset: ls }
+.lstep { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px; display: grid; gap: 8px; align-content: start; counter-increment: ls }
+.lstep::before { content: counter(ls); width: 30px; height: 30px; border-radius: 50%; background: var(--orange); color: #2a1407; display: grid; place-items: center; font: 900 14px/1 var(--display) }
+.lstep.later { border-style: dashed }
+.lstep.later::before { background: var(--line); color: var(--muted) }
+.lstep b { font: 800 15.5px/1.25 var(--display) }
+.lstep p { font-size: 14.5px; color: var(--muted) }
+@media (max-width: 860px) { .gloss, .lsteps { grid-template-columns: 1fr } }
+/* Questions */
+.qs { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 14px }
+.qcard { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; display: grid; grid-template-columns: 40px 1fr; gap: 14px; align-items: start }
+.qcard .ic { width: 40px; height: 40px; border-radius: 12px; background: var(--orange-soft); display: grid; place-items: center }
+.qcard .ic svg { width: 22px; height: 22px; stroke: var(--orange-deep); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
+.qcard h3 { font-size: 16.5px; font-weight: 800; line-height: 1.3 }
+.qcard p { font-size: 14.5px; color: var(--muted); margin-top: 4px }
+.qcard.key { border-color: var(--orange); background: linear-gradient(180deg, var(--orange-soft), var(--surface)) }
+
+footer .wrap { padding-block: 28px 40px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; color: var(--muted); font-size: 14px }
+footer img { width: 28px; height: 28px }
+a { color: var(--orange-ink) }
+
+@media (max-width: 860px) {
+  .map { grid-template-columns: 1fr; gap: 0 }
+  .map .wire { width: 3px; height: 40px; margin: 0 auto; background: repeating-linear-gradient(180deg, var(--orange) 0 8px, transparent 8px 14px) }
+  .map .wire::after { right: -5px; top: auto; bottom: -10px; border-left-color: transparent; border-top-color: var(--orange) }
+  .parts { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+  .opts, .fork, .layers { grid-template-columns: 1fr }
+  .opts { gap: 26px }
+  .steps { grid-template-columns: 1fr; gap: 18px }
+  .steps::before { left: 27px; right: auto; top: 10px; bottom: 10px; width: 4px; height: auto; background: linear-gradient(180deg, var(--orange-wash), var(--orange)) }
+  .step { grid-template-columns: 58px 1fr; justify-items: start; text-align: left; column-gap: 16px; row-gap: 4px; padding: 0 }
+  .step .dot { grid-row: span 3 }
+}
+@media (max-width: 520px) {
+  .hero .wrap { grid-template-columns: 1fr }
+  .crest { width: 88px; height: 88px; border-radius: 22px } .crest img { width: 70px; height: 70px }
+  .parts { grid-template-columns: 1fr }
+  .hosts { grid-template-columns: 1fr }
+  .effort { grid-template-columns: 1fr }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .wire { animation: flow 1.2s linear infinite; background-size: 14px 3px }
+  @keyframes flow { to { background-position: 14px 0 } }
+}
+/* API page additions */
+.perms { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px }
+.perm { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 16px; display: grid; gap: 8px; align-content: start }
+.perm .ic2 { width: 40px; height: 40px; border-radius: 12px; background: var(--orange-soft); display: grid; place-items: center }
+.perm .ic2 svg { width: 22px; height: 22px; stroke: var(--orange-deep); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
+.perm h3 { font-size: 15.5px; font-weight: 800; line-height: 1.25 }
+.perm p { font-size: 14px; color: var(--muted) }
+.perm .devnote { font: 600 12px/1.3 ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: var(--orange-ink) }
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 18px }
+.cside { background: var(--surface); border: 2px dashed var(--line); border-radius: 22px; padding: 18px; display: grid; gap: 12px; align-content: start }
+.cside.approved { border: 2px solid var(--bad); background: linear-gradient(180deg, var(--bad-soft), var(--surface) 60%) }
+.ctag { font: 800 12px/1 var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted) }
+.cside.approved .ctag { color: var(--bad) }
+.phone-card { border: 1px solid var(--line); border-radius: 16px; padding: 16px; background: var(--bg); display: grid; gap: 6px; justify-items: start }
+.pc-av { width: 52px; height: 52px; border-radius: 50%; background: var(--orange); color: #2a1407; display: grid; place-items: center; font: 900 20px/1 var(--display) }
+.pc-av.muted { background: var(--line); color: var(--muted) }
+.pc-name { font: 800 18px/1.2 var(--display) }
+.pc-row { font-size: 14.5px; color: var(--muted) }
+.pc-row.strong { color: var(--ink); font-weight: 600 }
+.pc-lock { font-size: 13.5px; color: var(--muted); background: var(--line); border-radius: 10px; padding: 8px 10px }
+.cnote { font-size: 14px; color: var(--muted) }
+.admin { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 24px; align-items: center }
+.mock { background: var(--bg); border: 1px solid var(--line); border-radius: 22px; padding: 16px; display: grid; gap: 10px; box-shadow: 0 16px 40px rgba(34,26,20,.08) }
+.mock-top { display: flex; justify-content: space-between; align-items: center; font: 800 18px/1.2 var(--display) }
+.mock-btn { background: var(--orange); color: #2a1407; border-radius: 12px; padding: 8px 12px; font-size: 13px }
+.mock-card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; display: grid; gap: 6px }
+.mock-card.off { opacity: .6 }
+.mock-row { display: flex; align-items: center; gap: 8px; font: 700 15px/1.2 var(--display) }
+.mock-on { background: var(--good-soft); color: var(--good); border-radius: 999px; padding: 3px 8px; font-size: 11.5px }
+.mock-offt { background: var(--line); color: var(--muted); border-radius: 999px; padding: 3px 8px; font-size: 11.5px }
+.mock-dots { margin-left: auto; color: var(--muted) }
+.mock-sub { font-size: 13px; color: var(--muted) }
+.mock-sub b { color: var(--ink) } .mock-sub b.redt { color: var(--bad) }
+.mock-chips { display: flex; flex-wrap: wrap; gap: 6px }
+.mock-chips span { background: var(--line); border-radius: 999px; padding: 4px 9px; font: 700 11.5px/1.2 var(--display); color: var(--ink) }
+.mock-chips span.red { background: var(--bad-soft); color: var(--bad) }
+.adm-steps { margin: 0; padding: 0; list-style: none; display: grid; gap: 12px; counter-reset: as }
+.adm-steps li { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; font-size: 15.5px; counter-increment: as; align-items: start }
+.adm-steps li::before { content: counter(as); width: 34px; height: 34px; border-radius: 50%; background: var(--orange); color: #2a1407; display: grid; place-items: center; font: 900 15px/1 var(--display) }
+.adm-steps b { font-family: var(--display) }
+.adm-steps code, .dev code { font: 600 12.5px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace; background: var(--orange-soft); color: var(--orange-ink); padding: 2px 6px; border-radius: 6px; overflow-wrap: anywhere }
+.bday { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 28px; align-items: center }
+.bday figure { margin: 0; display: grid; gap: 8px }
+.bday img { width: 100%; height: auto; border-radius: 18px; box-shadow: 0 18px 40px rgba(90,25,0,.25) }
+.bday figcaption { font-size: 13px; color: var(--muted) }
+.bday-side { display: grid; gap: 12px; counter-reset: ls }
+.dev { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 24px; align-items: start }
+.code { background: #1b1511; border-radius: 16px; overflow: hidden; min-width: 0 }
+.code .ch { padding: 9px 14px; font: 700 11.5px/1 var(--display); letter-spacing: .1em; text-transform: uppercase; color: #c9b6a6; border-bottom: 1px solid rgba(255,255,255,.08) }
+.code pre { margin: 0; padding: 14px; overflow-x: auto }
+.code pre code { background: none; color: #fbeee3; padding: 0; font-size: 13px; white-space: pre; overflow-wrap: normal }
+@media (max-width: 1000px) { .perms { grid-template-columns: repeat(2, minmax(0, 1fr)) } }
+@media (max-width: 760px) { .compare, .admin, .bday, .dev { grid-template-columns: 1fr } .bday figure { max-width: 360px } }
+@media (max-width: 420px) { .perms { grid-template-columns: 1fr } }
+.never span { min-width: 0 }
+@media (max-width: 600px) { .never { flex-direction: column; gap: 4px } .never b { white-space: normal } }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="crest"><img src="logo-mark.png" alt="The Covenant Nation crest"></div>
+    <div>
+      <div class="eyebrow">FOF Ops · For the church digital team · 29 Oct 2026</div>
+      <h1>How the <span>FOF API</span> works</h1>
+      <p class="lead">One secure door that lets other church apps ask FOF about people, groups, the schedule and more. Each app gets its own key, sees only what it is allowed to, and can be switched off at any time.</p>
+      <div class="verdict">
+        <span class="pill g"><i></i>Live now</span>
+        <span class="pill g"><i></i>One key per app</span>
+        <span class="pill w"><i></i>Teens protected</span>
+        <span class="pill n"><i></i>Next: register from the church app</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section class="band gl">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">Plain words</div>
+      <h2>Six words to know</h2>
+    </div>
+    <dl class="gloss">
+      <div><dt>API</dt><dd>A secure doorway that lets one app ask another a question, such as "is this person in FOF?", without seeing everything inside it.</dd></div>
+      <div><dt>Key</dt><dd>A secret password for an app, not a person. Each connected app has its own. Without it, the door stays shut.</dd></div>
+      <div><dt>Permission</dt><dd>What a key is allowed to ask, such as "look people up" or "read the planner". Developers call these scopes.</dd></div>
+      <div><dt>Request</dt><dd>One question an app asks, such as "who is in Cohort 10?". Every request is recorded.</dd></div>
+      <div><dt>Teen permission</dt><dd>A separate permission. Without it, teenagers show as name and cohort only.</dd></div>
+      <div><dt>Handshake</dt><dd>The short back-and-forth when someone registers for FOF from the church app. Coming next.</dd></div>
+    </dl>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">The big picture</div>
+      <h2>From the church app to FOF and back</h2>
+      <p>Church apps never touch FOF's database. Every question goes through one door that checks four things before it answers.</p>
+    </div>
+    <div class="hs-wrap">
+      <svg viewBox="0 0 900 330" role="img" aria-label="A church app sends a request with its key to the FOF API. The API checks the key, the permission, the rate limit and records the request, then reads the FOF database and answers.">
+        <g font-family="Montserrat, sans-serif">
+          <rect x="20" y="110" width="170" height="110" rx="20" fill="var(--ink)"/>
+          <text x="105" y="158" text-anchor="middle" font-weight="800" font-size="17" fill="var(--bg)">Church app</text>
+          <text x="105" y="182" text-anchor="middle" font-weight="600" font-size="12.5" fill="var(--bg)" opacity=".75">with its own key</text>
+          <path d="M196 150 H300" stroke="var(--orange-deep)" stroke-width="4"/><path d="M290 141 L304 150 L290 159" fill="none" stroke="var(--orange-deep)" stroke-width="4"/>
+          <text x="248" y="136" text-anchor="middle" font-weight="700" font-size="12.5" fill="var(--ink)">question</text>
+          <path d="M300 190 H196" stroke="var(--good)" stroke-width="4"/><path d="M206 181 L192 190 L206 199" fill="none" stroke="var(--good)" stroke-width="4"/>
+          <text x="248" y="214" text-anchor="middle" font-weight="700" font-size="12.5" fill="var(--good)">answer</text>
+          <rect x="310" y="30" width="300" height="270" rx="24" fill="var(--orange-soft)" stroke="var(--orange)" stroke-width="2.5"/>
+          <text x="460" y="64" text-anchor="middle" font-weight="900" font-size="19" fill="var(--orange-ink)">FOF API</text>
+          <g font-weight="700" font-size="14" fill="var(--ink)">
+            <rect x="335" y="84" width="250" height="40" rx="12" fill="var(--surface)"/><circle cx="358" cy="104" r="11" fill="var(--orange)"/><text x="358" y="109" text-anchor="middle" font-size="12" font-weight="900" fill="#2a1407">1</text><text x="378" y="109">Is the key real and on?</text>
+            <rect x="335" y="132" width="250" height="40" rx="12" fill="var(--surface)"/><circle cx="358" cy="152" r="11" fill="var(--orange)"/><text x="358" y="157" text-anchor="middle" font-size="12" font-weight="900" fill="#2a1407">2</text><text x="378" y="157">Is this question allowed?</text>
+            <rect x="335" y="180" width="250" height="40" rx="12" fill="var(--surface)"/><circle cx="358" cy="200" r="11" fill="var(--orange)"/><text x="358" y="205" text-anchor="middle" font-size="12" font-weight="900" fill="#2a1407">3</text><text x="378" y="205">Under 60 a minute?</text>
+            <rect x="335" y="228" width="250" height="40" rx="12" fill="var(--surface)"/><circle cx="358" cy="248" r="11" fill="var(--orange)"/><text x="358" y="253" text-anchor="middle" font-size="12" font-weight="900" fill="#2a1407">4</text><text x="378" y="253">Write it in the record</text>
+          </g>
+          <path d="M616 150 H714" stroke="var(--orange-deep)" stroke-width="4"/><path d="M704 141 L718 150 L704 159" fill="none" stroke="var(--orange-deep)" stroke-width="4"/>
+          <path d="M714 190 H616" stroke="var(--good)" stroke-width="4"/><path d="M626 181 L612 190 L626 199" fill="none" stroke="var(--good)" stroke-width="4"/>
+          <text x="665" y="136" text-anchor="middle" font-weight="700" font-size="12.5" fill="var(--ink)">only what's allowed</text>
+          <ellipse cx="800" cy="112" rx="72" ry="18" fill="var(--surface)" stroke="var(--orange)" stroke-width="2.5"/>
+          <path d="M728 112 V214 A72 18 0 0 0 872 214 V112" fill="var(--surface)" stroke="var(--orange)" stroke-width="2.5"/>
+          <ellipse cx="800" cy="112" rx="72" ry="18" fill="var(--surface)" stroke="var(--orange)" stroke-width="2.5"/>
+          <text x="800" y="170" text-anchor="middle" font-weight="800" font-size="15" fill="var(--ink)">FOF</text>
+          <text x="800" y="190" text-anchor="middle" font-weight="600" font-size="12.5" fill="var(--muted)">database</text>
+          <text x="460" y="322" text-anchor="middle" font-weight="700" font-size="12.5" fill="var(--bad)">Any check fails → the app gets a clear "no" and nothing else</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">What a church app can ask</div>
+      <h2>Ten permissions, each switched on one at a time</h2>
+      <p>An app gets only the permissions it needs. These cover what participants, supports and admins see in the FOF app.</p>
+    </div>
+    <div class="perms">
+      <div class="perm"><div class="ic2"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></div><h3>Check if someone is in FOF</h3><p>By phone or email: which cohorts, finished or not, and whether they serve on the FOF team.</p><span class="devnote">people:lookup</span></div>
+      <div class="perm"><div class="ic2"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a7 7 0 0 1 16 0v1"/></svg></div><h3>Profiles and progress</h3><p>Contact details, photo, date of birth, group and support, weekly attendance, a cohort's whole list.</p><span class="devnote">people:read</span></div>
+      <div class="perm"><div class="ic2"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg></div><h3>Faith projects</h3><p>What each participant is believing God for, as their support sees it.</p><span class="devnote">faith:read</span></div>
+      <div class="perm"><div class="ic2"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></svg></div><h3>The FOF team</h3><p>Supports and admins on a cohort, their roles, hubs and groups.</p><span class="devnote">team:read</span></div>
+      <div class="perm"><div class="ic2"><svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><path d="M8.6 10.5 15.4 7.5M8.6 13.5l6.8 3"/></svg></div><h3>Groups and hubs</h3><p>Meeting days and times, supports, leads and members. Never call links.</p><span class="devnote">groups:read</span></div>
+      <div class="perm"><div class="ic2"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></div><h3>Class weeks and schedule</h3><p>Class dates, titles and teachers, and the weekly programme with its teams.</p><span class="devnote">schedule:read</span></div>
+      <div class="perm"><div class="ic2"><svg viewBox="0 0 24 24"><path d="M3 12h18M3 6h12M3 18h8"/></svg></div><h3>Year planner</h3><p>Every cohort's rest, mobilisation, classes and spare week, upcoming cohorts, church events and holidays.</p><span class="devnote">planner:read</span></div>
+      <div class="perm"><div class="ic2"><svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5"/></svg></div><h3>Scriptures, announcements, resources</h3><p>Daily scriptures opened so far with likes and shares, announcements sent to everyone, shared files.</p><span class="devnote">content:read</span></div>
+      <div class="perm"><div class="ic2"><svg viewBox="0 0 24 24"><path d="M12 3v3M8 6h8l-1 4H9z"/><rect x="4" y="10" width="16" height="11" rx="2"/></svg></div><h3>Birthdays and birthday pictures</h3><p>Who has a birthday coming up, and a finished picture on FOF's template.</p><span class="devnote">birthdays:read</span></div>
+      <div class="perm"><div class="ic2"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18"/></svg></div><h3>Current and next cohort</h3><p>Dates of the cohort running now and the next one.</p><span class="devnote">cohorts:read</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">Teenagers</div>
+      <h2>Teens stay protected unless an app is approved for them</h2>
+      <p>The teen permission is separate from every other. Here is the same teenager, as two different apps see them.</p>
+    </div>
+    <div class="compare">
+      <div class="cside">
+        <div class="ctag">App without the teen permission</div>
+        <div class="phone-card">
+          <div class="pc-av muted">T</div>
+          <div class="pc-name">Tobi Example</div>
+          <div class="pc-row">Cohort 10</div>
+          <div class="pc-lock">Restricted: no contact details, photo, date of birth, attendance or guardian</div>
+        </div>
+        <p class="cnote">Teens are also left out of birthdays, and their birthday picture is refused.</p>
+      </div>
+      <div class="cside approved">
+        <div class="ctag">App approved for teens</div>
+        <div class="phone-card">
+          <div class="pc-av">T</div>
+          <div class="pc-name">Tobi Example</div>
+          <div class="pc-row">Cohort 10 · Teen group · Saturday 3 PM</div>
+          <div class="pc-row">0803 123 4567 · 14 March 2011</div>
+          <div class="pc-row strong">Guardian: Mrs Example · 0802 987 6543</div>
+          <div class="pc-row">Attendance: 2 of 2 Sundays</div>
+        </div>
+        <p class="cnote">Every teen record it views is counted and shown to FOF admins, app by app.</p>
+      </div>
+    </div>
+    <div class="never"><b>Never shared, with any permission:</b><span>passwords and access codes, weekly reflections, personal notes, private and group chat messages, who gave anonymous feedback, group and hub call links, announcements aimed at one person or group, and scriptures not yet released.</span></div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">One request, step by step</div>
+      <h2>What happens when an app asks a question</h2>
+    </div>
+    <ol class="steps">
+      <li class="step"><div class="dot"></div><h3>The app asks</h3><p>For example: "who is in Cohort 10?", with its key attached.</p><span class="when">Church app</span></li>
+      <li class="step"><div class="dot"></div><h3>Key checked</h3><p>Unknown or switched-off keys are turned away.</p><span class="when">401 if not</span></li>
+      <li class="step"><div class="dot"></div><h3>Permission checked</h3><p>The key must be allowed to ask this question.</p><span class="when">403 if not</span></li>
+      <li class="step"><div class="dot"></div><h3>Limit checked</h3><p>Up to 60 questions a minute per app.</p><span class="when">429 if over</span></li>
+      <li class="step sun"><div class="dot"></div><h3>Answered</h3><p>Only the agreed details, teens restricted unless allowed.</p><span class="when">200</span></li>
+      <li class="step"><div class="dot"></div><h3>Recorded</h3><p>Which app, what it asked, when, and how many teens it saw. Never the answer.</p><span class="when">Always</span></li>
+    </ol>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">In control</div>
+      <h2>FOF admins manage every key from the app</h2>
+      <p>Settings → Church app access. Only full admins can open it.</p>
+    </div>
+    <div class="admin">
+      <div class="mock" aria-hidden="true">
+        <div class="mock-top"><span>Church app access</span><span class="mock-btn">New key</span></div>
+        <div class="mock-card">
+          <div class="mock-row"><b>Church platform</b><span class="mock-on">On</span><span class="mock-dots">⋯</span></div>
+          <div class="mock-sub">Key fof_live_3a9c… · last used 5 min ago</div>
+          <div class="mock-chips"><span>Check if someone is in FOF</span><span>Profiles and progress</span><span class="red">Teenagers in full</span></div>
+          <div class="mock-sub"><b>42</b> requests this week · <b class="redt">7</b> teen records viewed in 30 days</div>
+        </div>
+        <div class="mock-card off">
+          <div class="mock-row"><b>Old test app</b><span class="mock-offt">Switched off</span><span class="mock-dots">⋯</span></div>
+          <div class="mock-chips"><span>Year planner</span></div>
+        </div>
+      </div>
+      <ol class="adm-steps">
+        <li><span><b>New key.</b> Name the app and note who asked and why.</span></li>
+        <li><span><b>Choose what it may read.</b> Tick only what it needs; teens sit apart, in red.</span></li>
+        <li><span><b>Copy the key once.</b> FOF keeps a fingerprint, never the key. Send it privately to the developer.</span></li>
+        <li><span><b>Watch and adjust.</b> See recent requests, change access, or switch the app off at any time.</span></li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">Ready made</div>
+      <h2>Birthday pictures, straight from the API</h2>
+      <p>A church app can ask for a finished birthday picture for anyone it is allowed to see: their photo (or initials), name, date and a Bible verse on FOF's template, ready to post.</p>
+    </div>
+    <div class="bday">
+      <figure><img src="birthday-sample.png" alt="Sample birthday picture for a made-up participant, Ada Example Okonkwo, 4 November" width="1080" height="1350"><figcaption>Example with a made-up name. 1080 × 1350, sized for WhatsApp status and Instagram.</figcaption></figure>
+      <div class="bday-side">
+        <div class="lstep"><b>Ask who has a birthday</b><p>Today, this week, or the next year.</p></div>
+        <div class="lstep"><b>Ask for the picture</b><p>One request per person. Choose one of six verses, or let FOF pick.</p></div>
+        <div class="lstep"><b>Share it</b><p>Post it in the church app, a group chat or a status.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">Coming next</div>
+      <h2>Register for FOF from the church app</h2>
+      <p>Not built yet. Agreed shape: people register in the church app, fill in only what FOF still needs there, and see their FOF login right away.</p>
+    </div>
+    <div class="lsteps">
+      <div class="lstep"><b>Register in the church app</b><p>The church app sends FOF what it already knows.</p></div>
+      <div class="lstep"><b>Fill in what's missing</b><p>Only the few things FOF still needs, inside the church app.</p></div>
+      <div class="lstep"><b>See your FOF login</b><p>Shown in the church app. The first sign-in asks for a new password.</p></div>
+      <div class="lstep later"><b>Later: by email too</b><p>Once email is connected, the login also arrives in their inbox.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">For developers</div>
+      <h2>Getting started</h2>
+    </div>
+    <div class="dev">
+      <ol class="adm-steps">
+        <li><span><b>Read the docs.</b> Every address, with examples you can try: <a href="https://fof.tcnikorodu.org/api-docs.html">fof.tcnikorodu.org/api-docs.html</a></span></li>
+        <li><span><b>Ask for a key</b> with only the permissions your app needs. Keep it on your server.</span></li>
+        <li><span><b>Send it with every request</b> as <code>Authorization: Bearer fof_live_…</code></span></li>
+        <li><span><b>Use <code>current</code></b> for the running cohort, or a cohort id.</span></li>
+      </ol>
+      <div class="code"><div class="ch">Example</div><pre><code>curl "https://…supabase.co/functions/v1/public-api/v1/people/lookup?phone=08031234567" \
+  -H "Authorization: Bearer $FOF_API_KEY"
+
+{ "found": true,
+  "participants": [ { "name": "Ada Example", "isTeen": false,
+                      "cohort": { "name": "Cohort 10" }, "inGroup": true } ],
+  "teamRoles": [] }</code></pre></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <img src="logo-mark.png" alt="">
+    <span>FOF Ops · How the FOF API works, 29 Oct 2026. Examples use made-up people. The full technical reference is at /api-docs.html on the FOF site.</span>
+  </div>
+</footer>
+
+</body>
+</html>
