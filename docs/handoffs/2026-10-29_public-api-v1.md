@@ -18,6 +18,8 @@ church apps need to ask FOF "is this person in FOF, and where are they in the pr
   there is one file to edit. Scalar's AI chat, MCP generator, developer toolbar and telemetry are off.
   `frontend/public/llms.txt` points AI tools at it. The earlier Claude-hosted docs page was deleted (owner's choice).
 - Registration handshake designed in `docs/api/README.md`, not built.
+- 1.0.1 (owner's wording): the lookup's list is `participants`, not `participations`; migration
+  `20261029130000_public_api_participants_rename.sql` **applied live**, function redeployed (version 2).
 
 ## Code review (/code-review medium), all fixed before going live
 - Single-role staff got no team roles: now `app_user_roles`.

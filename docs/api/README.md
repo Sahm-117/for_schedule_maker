@@ -18,7 +18,7 @@ How other church apps ask FOF questions. FLOW_MAP rule 118.
 | `GET /v1/health` | none | `{ ok, version }` |
 | `GET /v1/openapi.json` | none | The OpenAPI document |
 | `GET /v1/cohorts/current` | `cohorts:read` | Current and next cohort |
-| `GET /v1/people/lookup?phone=&email=` | `people:lookup` | `found`, participations (one per cohort), FOF team roles |
+| `GET /v1/people/lookup?phone=&email=` | `people:lookup` | `found`, participants (one per cohort), FOF team roles |
 | `GET /v1/people/{id}` | `people:read` | Short profile of one participation |
 | `GET /v1/people/{id}/programme` | `people:read` | Weeks held, Sunday class and group meeting attendance |
 

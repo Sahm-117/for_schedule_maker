@@ -21,7 +21,7 @@ import openapi from './openapi.json' with { type: 'json' }
 
 const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
 
-const VERSION = '1.0.0'
+const VERSION = '1.0.1'
 const RATE_LIMIT_PER_MINUTE = 60
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
