@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FOF API</title>
+  <meta name="description" content="How other church apps ask FOF Ops about people and cohorts.">
+  <link rel="icon" href="/logo-mark.png">
+  <style>
+    /* FOF orange on Scalar's default theme. */
+    .light-mode { --scalar-color-accent: #c2620f; }
+    .dark-mode { --scalar-color-accent: #ff9a5c; }
+  </style>
+</head>
+<body>
+  <!-- FOF API docs, drawn by Scalar (MIT, open source) from the API's own description, which lives in the repo at
+       supabase/functions/public-api/openapi.json and is served live at /v1/openapi.json. Edit that file, not this page. -->
+  <script id="api-reference" data-url="https://vnmeeqvwqaeczjlvzoul.supabase.co/functions/v1/public-api/v1/openapi.json"></script>
+  <script>
+    document.getElementById('api-reference').dataset.configuration = JSON.stringify({
+      metaData: { title: 'FOF API' },
+      hideClientButton: false,
+      // Keys typed into "Test request" go straight to the FOF API from the reader's browser: no Scalar proxy, no telemetry.
+      telemetry: false,
+      // Hide Scalar's hosted extras (AI chat, MCP generator, local developer toolbar): this page only reads our file.
+      agent: { disabled: true },
+      mcp: { disabled: true },
+      showDeveloperTools: 'never',
+      defaultHttpClient: { targetKey: 'shell', clientKey: 'curl' },
+    })
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.73.1"></script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+# FOF Ops
+
+> FOF Ops runs Foundation of Faith, The Covenant Nation Ikorodu's 10-week course. Other church apps can ask it about people and cohorts through the FOF API.
+
+## API
+
+- [FOF API docs](/api-docs.html): getting a key, scopes, limits, errors and every endpoint.
+- The machine-readable description (OpenAPI 3.1) is served by the API at `/v1/openapi.json`; its source is `supabase/functions/public-api/openapi.json` in the repository.

@@ -1,0 +1,784 @@
+{
+ "openapi": "3.1.0",
+ "info": {
+  "title": "FOF API",
+  "version": "1.0.0",
+  "description": "Lets other church apps ask FOF Ops (Foundation of Faith, The Covenant Nation Ikorodu) about people and cohorts: who has taken FOF, how far they have got, and when the next cohort starts.\n\n## In plain words\n\nAn API is a secure doorway that lets one app ask another a question without seeing everything inside it. This one lets a church app ask FOF things like \"has this member taken FOF?\" and get a short, agreed answer back.\n\n- **Only what's needed.** Answers carry names, cohort and progress. Never passwords, access codes, reflections, notes, private messages or guardian details.\n- **Real people only.** Practice cohorts, test cohorts and test accounts are left out of every answer.\n- **Every request recorded.** FOF records which app asked what and when (never the answer), and can switch any app off at once.\n- **History included.** Finished and archived cohorts count, so you can tell whether someone took FOF years ago.\n\n## Getting a key\n\n1. Ask the FOF Ops team for a key, saying which app it is for and which questions it needs to ask.\n2. You get a key starting `fof_live_`, shown once and sent privately. It only allows the questions you asked for (its scopes).\n3. Keep it on your server. Never put it in a phone app, a web page or a shared chat. If it leaks, tell us and we switch it off.\n\n| Scope | Lets the app |\n|---|---|\n| `people:lookup` | Ask whether a person is in FOF, by phone number or email |\n| `people:read` | Read a person's short profile and programme progress |\n| `cohorts:read` | Read the current and next cohort |\n\n## Sending your key\n\nSend it in the `Authorization` header as `Bearer fof_live_…` (`X-API-Key: <key>` also works). Answers are JSON.\n\nPhone numbers are matched the way FOF stores them: `08031234567`, `2348031234567` and `+234 803 123 4567` are the same person. Other countries need the full international number. Every example uses made-up people.\n\n## Limits and errors\n\nEach key can make **60 requests a minute**. Refused requests do not count towards it. Errors always look like `{ \"error\": { \"code\": \"…\", \"message\": \"…\" } }`.\n\n| Status | Code | Meaning |\n|---|---|---|\n| 400 | `bad_request` | Something is missing or unreadable, such as the phone number or email |\n| 401 | `missing_key`, `invalid_key` | No key, or the key is not recognised or switched off |\n| 403 | `missing_scope` | The key may not ask this question |\n| 404 | `not_found` | No such person or address |\n| 405 | `method_not_allowed` | Version 1 only answers GET requests |\n| 429 | `rate_limited` | Over 60 requests a minute; wait for `Retry-After` |\n| 500 | `server_error` | A problem on FOF's side; try again shortly |\n\n## Coming next: registering from the church app\n\nNot available yet; being designed with the church digital team.\n\n1. **Register.** The church app sends what it already knows: church ID, name, phone, email (`POST /v1/registrations`).\n2. **Fill the gaps.** FOF replies with the few fields still missing, which the person fills in inside the church app (`PATCH /v1/registrations/{id}`).\n3. **Login shown.** FOF returns the person's login details and the church app shows them. Their first sign-in asks for a new password.\n4. **Later, by email.** Once email is connected, the same login details also arrive in their inbox.\n\n## Changes\n\n| Version | Date | What changed |\n|---|---|---|\n| 1.0.0 | 29 Oct 2026 | First version: look a person up, profile, programme progress, current and next cohort |\n\nThis page is drawn from `supabase/functions/public-api/openapi.json` in the FOF Ops repository, the single source for these docs. The API serves the same file at `/v1/openapi.json`.",
+  "contact": {
+   "name": "FOF Ops team"
+  }
+ },
+ "servers": [
+  {
+   "url": "https://vnmeeqvwqaeczjlvzoul.supabase.co/functions/v1/public-api",
+   "description": "Live"
+  }
+ ],
+ "security": [
+  {
+   "fofKey": []
+  }
+ ],
+ "tags": [
+  {
+   "name": "Service",
+   "description": "Check the API is up and fetch this description. No key needed."
+  },
+  {
+   "name": "Cohorts",
+   "description": "FOF runs in cohorts of 10 weeks. Ask which one is running and which is next."
+  },
+  {
+   "name": "People",
+   "description": "Find out whether someone is in FOF and how far they have got. A person who took FOF more than once has one participation per cohort."
+  }
+ ],
+ "paths": {
+  "/v1/health": {
+   "get": {
+    "tags": [
+     "Service"
+    ],
+    "summary": "Check the API is up",
+    "security": [],
+    "operationId": "health",
+    "responses": {
+     "200": {
+      "description": "The API is up.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "ok": {
+           "type": "boolean"
+          },
+          "version": {
+           "type": "string"
+          }
+         }
+        },
+        "example": {
+         "ok": true,
+         "version": "1.0.0"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v1/openapi.json": {
+   "get": {
+    "tags": [
+     "Service"
+    ],
+    "summary": "This description of the API",
+    "security": [],
+    "operationId": "openapi",
+    "responses": {
+     "200": {
+      "description": "The OpenAPI document.",
+      "content": {
+       "application/json": {}
+      }
+     }
+    }
+   }
+  },
+  "/v1/cohorts/current": {
+   "get": {
+    "tags": [
+     "Cohorts"
+    ],
+    "summary": "The current cohort and the next one",
+    "description": "Scope: `cohorts:read`. `current` is the cohort running now, or the next one to start if none is running.",
+    "operationId": "currentCohort",
+    "responses": {
+     "200": {
+      "description": "Cohorts.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Cohorts"
+        },
+        "example": {
+         "current": {
+          "id": "3f6c2a10-0000-4000-8000-000000000010",
+          "name": "Cohort 10",
+          "startDate": "2026-10-11",
+          "endDate": "2026-12-20",
+          "running": true
+         },
+         "next": null
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "No key, or the key is not recognised or switched off.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "The key does not have the scope this needs.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "More than 60 requests in a minute. Wait and try again (see Retry-After).",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Something went wrong on FOF's side.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v1/people/lookup": {
+   "get": {
+    "tags": [
+     "People"
+    ],
+    "summary": "Is this person in FOF?",
+    "description": "Scope: `people:lookup`. Give a phone number, an email, or both. Covers every real cohort, including finished and archived ones. A person who took FOF more than once has one participation per cohort, newest first. `teamRoles` says whether they also serve on the FOF team.",
+    "operationId": "lookupPerson",
+    "parameters": [
+     {
+      "name": "phone",
+      "in": "query",
+      "schema": {
+       "type": "string"
+      },
+      "example": "08031234567"
+     },
+     {
+      "name": "email",
+      "in": "query",
+      "schema": {
+       "type": "string",
+       "format": "email"
+      },
+      "example": "ada@example.com"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "The match, if any. `found` is false when nobody matches.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Lookup"
+        },
+        "example": {
+         "found": true,
+         "participations": [
+          {
+           "id": "9b1e7f52-0000-4000-8000-000000000001",
+           "name": "Ada Example",
+           "status": "ACTIVE",
+           "cohort": {
+            "id": "3f6c2a10-0000-4000-8000-000000000010",
+            "name": "Cohort 10",
+            "startDate": "2026-10-11",
+            "endDate": "2026-12-20"
+           },
+           "cohortFinished": false,
+           "inGroup": true,
+           "registeredOn": "2026-10-02T09:15:00Z"
+          }
+         ],
+         "teamRoles": []
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "The request is missing something (see the message).",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "No key, or the key is not recognised or switched off.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "The key does not have the scope this needs.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "More than 60 requests in a minute. Wait and try again (see Retry-After).",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Something went wrong on FOF's side.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v1/people/{id}": {
+   "get": {
+    "tags": [
+     "People"
+    ],
+    "summary": "A short profile for one participation",
+    "description": "Scope: `people:read`. `id` is a participation id from the lookup.",
+    "operationId": "getPerson",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "The profile.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Person"
+        },
+        "example": {
+         "id": "9b1e7f52-0000-4000-8000-000000000001",
+         "name": "Ada Example",
+         "gender": "Female",
+         "ageRange": "25 - 34",
+         "occupation": "Teacher",
+         "departments": [],
+         "status": "ACTIVE",
+         "registeredOn": "2026-10-02T09:15:00Z",
+         "cohort": {
+          "id": "3f6c2a10-0000-4000-8000-000000000010",
+          "name": "Cohort 10",
+          "startDate": "2026-10-11",
+          "endDate": "2026-12-20"
+         },
+         "group": {
+          "name": "Group 4",
+          "meetingDay": "SATURDAY",
+          "meetingTime": "16:00"
+         }
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "No key, or the key is not recognised or switched off.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "The key does not have the scope this needs.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "No such person, or not one the API can talk about.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "More than 60 requests in a minute. Wait and try again (see Retry-After).",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Something went wrong on FOF's side.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v1/people/{id}/programme": {
+   "get": {
+    "tags": [
+     "People"
+    ],
+    "summary": "How far one participation has got",
+    "description": "Scope: `people:read`. Counted the same way as FOF's own attendance figures: late or leaving early counts as present only when excused.",
+    "operationId": "getProgramme",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Progress.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Programme"
+        },
+        "example": {
+         "id": "9b1e7f52-0000-4000-8000-000000000001",
+         "cohort": {
+          "id": "3f6c2a10-0000-4000-8000-000000000010",
+          "name": "Cohort 10",
+          "startDate": "2026-10-11",
+          "endDate": "2026-12-20"
+         },
+         "cohortFinished": false,
+         "weeksInProgramme": 10,
+         "weeksHeld": 2,
+         "sundayClass": {
+          "present": 2,
+          "lateOrLeftEarly": 0,
+          "excused": 0,
+          "absent": 0
+         },
+         "groupMeetings": {
+          "joined": 1,
+          "excused": 0,
+          "missed": 0
+         }
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "No key, or the key is not recognised or switched off.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "The key does not have the scope this needs.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "No such person, or not one the API can talk about.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "More than 60 requests in a minute. Wait and try again (see Retry-After).",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Something went wrong on FOF's side.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ "components": {
+  "securitySchemes": {
+   "fofKey": {
+    "type": "http",
+    "scheme": "bearer",
+    "description": "Your FOF API key, starting `fof_live_`. `X-API-Key: <key>` also works."
+   }
+  },
+  "schemas": {
+   "Error": {
+    "type": "object",
+    "properties": {
+     "error": {
+      "type": "object",
+      "properties": {
+       "code": {
+        "type": "string",
+        "enum": [
+         "missing_key",
+         "invalid_key",
+         "missing_scope",
+         "rate_limited",
+         "bad_request",
+         "not_found",
+         "method_not_allowed",
+         "server_error"
+        ]
+       },
+       "message": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "code",
+       "message"
+      ]
+     }
+    },
+    "required": [
+     "error"
+    ]
+   },
+   "Cohort": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid"
+     },
+     "name": {
+      "type": "string"
+     },
+     "startDate": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "format": "date"
+     },
+     "endDate": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "format": "date"
+     }
+    },
+    "required": [
+     "id",
+     "name",
+     "startDate",
+     "endDate"
+    ]
+   },
+   "Cohorts": {
+    "type": "object",
+    "properties": {
+     "current": {
+      "oneOf": [
+       {
+        "allOf": [
+         {
+          "$ref": "#/components/schemas/Cohort"
+         },
+         {
+          "type": "object",
+          "properties": {
+           "running": {
+            "type": "boolean"
+           }
+          }
+         }
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "next": {
+      "oneOf": [
+       {
+        "$ref": "#/components/schemas/Cohort"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    }
+   },
+   "Participation": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid"
+     },
+     "name": {
+      "type": "string"
+     },
+     "status": {
+      "type": "string",
+      "description": "ACTIVE or ARCHIVED"
+     },
+     "cohort": {
+      "$ref": "#/components/schemas/Cohort"
+     },
+     "cohortFinished": {
+      "type": "boolean"
+     },
+     "inGroup": {
+      "type": "boolean"
+     },
+     "registeredOn": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "format": "date-time"
+     }
+    }
+   },
+   "Lookup": {
+    "type": "object",
+    "properties": {
+     "found": {
+      "type": "boolean"
+     },
+     "participations": {
+      "type": "array",
+      "items": {
+       "$ref": "#/components/schemas/Participation"
+      }
+     },
+     "teamRoles": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "FOF team roles this person holds, for example ADMIN or SUPPORT. Empty if they are not on the team."
+     }
+    },
+    "required": [
+     "found",
+     "participations",
+     "teamRoles"
+    ]
+   },
+   "Person": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid"
+     },
+     "name": {
+      "type": "string"
+     },
+     "gender": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "ageRange": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "occupation": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "departments": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "status": {
+      "type": "string"
+     },
+     "registeredOn": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "format": "date-time"
+     },
+     "cohort": {
+      "$ref": "#/components/schemas/Cohort"
+     },
+     "group": {
+      "oneOf": [
+       {
+        "type": "object",
+        "properties": {
+         "name": {
+          "type": "string"
+         },
+         "meetingDay": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "meetingTime": {
+          "type": [
+           "string",
+           "null"
+          ]
+         }
+        }
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    }
+   },
+   "Programme": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid"
+     },
+     "cohort": {
+      "$ref": "#/components/schemas/Cohort"
+     },
+     "cohortFinished": {
+      "type": "boolean"
+     },
+     "weeksInProgramme": {
+      "type": "integer"
+     },
+     "weeksHeld": {
+      "type": "integer"
+     },
+     "sundayClass": {
+      "type": "object",
+      "properties": {
+       "present": {
+        "type": "integer",
+        "description": "Present, or late or left early with an excuse"
+       },
+       "lateOrLeftEarly": {
+        "type": "integer",
+        "description": "Late or left early, not excused"
+       },
+       "excused": {
+        "type": "integer"
+       },
+       "absent": {
+        "type": "integer"
+       }
+      }
+     },
+     "groupMeetings": {
+      "type": "object",
+      "properties": {
+       "joined": {
+        "type": "integer"
+       },
+       "excused": {
+        "type": "integer"
+       },
+       "missed": {
+        "type": "integer"
+       }
+      }
+     }
+    }
+   }
+  }
+ }
+}

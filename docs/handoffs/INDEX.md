@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-29 | [Public API v1](2026-10-29_public-api-v1.md) | Public API for other church apps: hashed per-app keys with scopes, request log, look up a person, profile, programme progress, current cohort; OpenAPI description; registration handshake designed. Migration applied and function deployed live, tested with temporary keys (removed); docs page via Scalar at `/api-docs.html`. FLOW_MAP rule 118. |
 | 2026-10-29 | [PostHog replays and names](2026-10-29_posthog-replay-and-names.md) | Session replay turned on in the app (inputs masked) and signed-in people identified with their name, so PostHog shows names instead of ids; distinct ids unchanged. Frontend only; FLOW_MAP rule 111. |
 | 2026-10-29 | [Participant App guide refreshed](2026-10-29_app-guide-refresh.md) | Help → App guide participant topics checked against today's screens (new Getting ready topic and group Discussion task, many fixes, 9 screenshots retaken) and versioned past the service-worker cache; unused `SupportOnboardingPage.tsx` removed; chevron on the Keep an eye on chip. Frontend only; FLOW_MAP rules 109, 113. |
 | 2026-10-29 | [Support first run: one Start here hint](2026-10-29_support-first-run.md) | Supports skip the Welcome and auto-tour; new supports and admins get one "Start here" hint (its own key per role) that stays until Got it; the Get the app sheet waits only the launch it first appears; people already using the app never see it. Frontend only; FLOW_MAP rule 117. |
