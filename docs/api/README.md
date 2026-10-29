@@ -11,22 +11,40 @@ How other church apps ask FOF questions. FLOW_MAP rule 118.
   errors, what's next) lives in the description's `info.description` as Markdown, so humans and AI edit one file.
 - **For AI tools:** `frontend/public/llms.txt` points at the docs and the description.
 
-## v1 (built)
+## What it serves (1.1)
 
 | Call | Scope | Answer |
 |---|---|---|
-| `GET /v1/health` | none | `{ ok, version }` |
-| `GET /v1/openapi.json` | none | The OpenAPI document |
+| `GET /v1/health`, `/v1/openapi.json` | none | Up check; the OpenAPI document |
 | `GET /v1/cohorts/current` | `cohorts:read` | Current and next cohort |
-| `GET /v1/people/lookup?phone=&email=` | `people:lookup` | `found`, participants (one per cohort), FOF team roles |
-| `GET /v1/people/{id}` | `people:read` | Short profile of one participation |
-| `GET /v1/people/{id}/programme` | `people:read` | Weeks held, Sunday class and group meeting attendance |
+| `GET /v1/people/lookup?phone=&email=` | `people:lookup` | `found`, participants (one per cohort, with `isTeen`), FOF team roles |
+| `GET /v1/people/{id}` | `people:read` | Full profile: contact details, photo, date of birth, group and support; guardian for a teen with `teens:read` |
+| `GET /v1/people/{id}/programme` | `people:read` | Weeks held, Sunday class and group meeting counts |
+| `GET /v1/people/{id}/attendance` | `people:read` | Week-by-week marks |
+| `GET /v1/people/{id}/faith-project` | `faith:read` | The faith project |
+| `GET /v1/cohorts/{cohort}/participants` | `people:read` | A cohort's participants, paged (`limit`, `offset`, `group`) |
+| `GET /v1/cohorts/{cohort}/team` | `team:read` | Supports and admins, roles, hubs, groups led |
+| `GET /v1/cohorts/{cohort}/groups`, `/hubs` | `groups:read` | Groups and hubs, meeting day and time, leads (no call links) |
+| `GET /v1/cohorts/{cohort}/weeks`, `/schedule` | `schedule:read` | Class weeks; the weekly programme schedule |
+| `GET /v1/planner?until=` | `planner:read` | Cohorts with phases, planned cohorts, church events, holidays |
+| `GET /v1/scriptures`, `/announcements`, `/resources` | `content:read` | Opened scriptures with totals; everyone-wide announcements; shared resources |
+| `GET /v1/birthdays?days=` | `birthdays:read` | Upcoming birthdays |
+| `GET /v1/birthdays/{kind}/{id}/graphic.png?quote=` | `birthdays:read` | The finished birthday picture (PNG) |
+
+`{cohort}` is a cohort id or `current`. Teens come back as id, name, cohort and `restricted: true` without
+`teens:read`. Each request records how many teen records it showed in full (`ApiRequestLog."teenRecords"`):
+
+```sql
+SELECT c.name, l.path, l."teenRecords", l."createdAt" FROM "ApiRequestLog" l JOIN "ApiClient" c ON c.id = l."clientId"
+WHERE l."teenRecords" > 0 ORDER BY l."createdAt" DESC;
+```
 
 ## Issuing and switching off a key
 
 A key is shown once. Only its SHA-256 hash is stored. Run as the database owner (Management API SQL):
 
 ```sql
+-- Add 'teens:read' only for an app approved for teenagers.
 SELECT public.api_create_client('Church platform (test)', ARRAY['people:lookup','people:read','cohorts:read'], 'who asked, and why');
 -- returns { id, name, scopes, key }  -> send the key to the app's developer privately, never in a group chat
 

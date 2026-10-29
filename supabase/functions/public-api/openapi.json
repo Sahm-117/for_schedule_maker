@@ -2,8 +2,8 @@
  "openapi": "3.1.0",
  "info": {
   "title": "FOF API",
-  "version": "1.0.1",
-  "description": "Lets other church apps ask FOF Ops (Foundation of Faith, The Covenant Nation Ikorodu) about people and cohorts: who has taken FOF, how far they have got, and when the next cohort starts.\n\n## In plain words\n\nAn API is a secure doorway that lets one app ask another a question without seeing everything inside it. This one lets a church app ask FOF things like \"has this member taken FOF?\" and get a short, agreed answer back.\n\n- **Only what's needed.** Answers carry names, cohort and progress. Never passwords, access codes, reflections, notes, private messages or guardian details.\n- **Real people only.** Practice cohorts, test cohorts and test accounts are left out of every answer.\n- **Every request recorded.** FOF records which app asked what and when (never the answer), and can switch any app off at once.\n- **History included.** Finished and archived cohorts count, so you can tell whether someone took FOF years ago.\n- **One participant per cohort.** Someone who took FOF more than once is a participant once per cohort, each with its own id.\n\n## Getting a key\n\n1. Ask the FOF Ops team for a key, saying which app it is for and which questions it needs to ask.\n2. You get a key starting `fof_live_`, shown once and sent privately. It only allows the questions you asked for (its scopes).\n3. Keep it on your server. Never put it in a phone app, a web page or a shared chat. If it leaks, tell us and we switch it off.\n\n| Scope | Lets the app |\n|---|---|\n| `people:lookup` | Ask whether a person is in FOF, by phone number or email |\n| `people:read` | Read a person's short profile and programme progress |\n| `cohorts:read` | Read the current and next cohort |\n\n## Sending your key\n\nSend it in the `Authorization` header as `Bearer fof_live_…` (`X-API-Key: <key>` also works). Answers are JSON.\n\nPhone numbers are matched the way FOF stores them: `08031234567`, `2348031234567` and `+234 803 123 4567` are the same person. Other countries need the full international number. Every example uses made-up people.\n\n## Limits and errors\n\nEach key can make **60 requests a minute**. Refused requests do not count towards it. Errors always look like `{ \"error\": { \"code\": \"…\", \"message\": \"…\" } }`.\n\n| Status | Code | Meaning |\n|---|---|---|\n| 400 | `bad_request` | Something is missing or unreadable, such as the phone number or email |\n| 401 | `missing_key`, `invalid_key` | No key, or the key is not recognised or switched off |\n| 403 | `missing_scope` | The key may not ask this question |\n| 404 | `not_found` | No such person or address |\n| 405 | `method_not_allowed` | Version 1 only answers GET requests |\n| 429 | `rate_limited` | Over 60 requests a minute; wait for `Retry-After` |\n| 500 | `server_error` | A problem on FOF's side; try again shortly |\n\n## Coming next: registering from the church app\n\nNot available yet; being designed with the church digital team.\n\n1. **Register.** The church app sends what it already knows: church ID, name, phone, email (`POST /v1/registrations`).\n2. **Fill the gaps.** FOF replies with the few fields still missing, which the person fills in inside the church app (`PATCH /v1/registrations/{id}`).\n3. **Login shown.** FOF returns the person's login details and the church app shows them. Their first sign-in asks for a new password.\n4. **Later, by email.** Once email is connected, the same login details also arrive in their inbox.\n\n## Changes\n\n| Version | Date | What changed |\n|---|---|---|\n| 1.0.1 | 29 Oct 2026 | The lookup's list is now called `participants`; the wording says participant throughout |\n| 1.0.0 | 29 Oct 2026 | First version: look a person up, profile, programme progress, current and next cohort |\n\nThis page is drawn from `supabase/functions/public-api/openapi.json` in the FOF Ops repository, the single source for these docs. The API serves the same file at `/v1/openapi.json`.",
+  "version": "1.1.0",
+  "description": "Lets other church apps ask FOF Ops (Foundation of Faith, The Covenant Nation Ikorodu) about people and cohorts: who has taken FOF, how far they have got, and when the next cohort starts.\n\n## In plain words\n\nAn API is a secure doorway that lets one app ask another a question without seeing everything inside it. This one lets a church app ask FOF things like \"has this member taken FOF?\" and get a short, agreed answer back.\n\n- **What people see in the app.** Profiles, photos, groups, hubs, the team, class weeks, the schedule, the planner, scriptures, announcements, resources, faith projects and birthdays. Never passwords, access codes, reflections, personal notes, private or group chat messages, or who gave anonymous feedback.\n- **Teenagers protected.** Without the `teens:read` scope, a teen is only their name, cohort and `restricted: true`. FOF records how many teen records each request showed in full, so admins can see who looked.\n- **Real people only.** Practice cohorts, test cohorts and test accounts are left out of every answer.\n- **Every request recorded.** FOF records which app asked what and when (never the answer), and can switch any app off at once.\n- **History included.** Finished and archived cohorts count, so you can tell whether someone took FOF years ago.\n- **One participant per cohort.** Someone who took FOF more than once is a participant once per cohort, each with its own id.\n\n## Getting a key\n\n1. Ask the FOF Ops team for a key, saying which app it is for and which questions it needs to ask.\n2. You get a key starting `fof_live_`, shown once and sent privately. It only allows the questions you asked for (its scopes).\n3. Keep it on your server. Never put it in a phone app, a web page or a shared chat. If it leaks, tell us and we switch it off.\n\n| Scope | Lets the app |\n|---|---|\n| `people:lookup` | Ask whether a person is in FOF, by phone number or email |\n| `people:read` | Read a person's short profile and programme progress |\n| `cohorts:read` | Read the current and next cohort |\n| `teens:read` | See teenagers in full (contact details, photo, date of birth, guardian, attendance). Without it a teen shows as name, cohort and `restricted: true` |\n| `faith:read` | Read a participant's faith project |\n| `team:read` | Read the FOF team for a cohort (supports and admins) |\n| `groups:read` | Read a cohort's groups and hubs |\n| `schedule:read` | Read the class weeks and the weekly programme schedule |\n| `planner:read` | Read the year planner: cohorts, phases, church events and holidays |\n| `content:read` | Read opened scripture posts, announcements sent to everyone, and shared resources |\n| `birthdays:read` | Read upcoming birthdays and get a finished birthday picture |\n\n## Sending your key\n\nSend it in the `Authorization` header as `Bearer fof_live_…` (`X-API-Key: <key>` also works). Answers are JSON.\n\nPhone numbers are matched the way FOF stores them: `08031234567`, `2348031234567` and `+234 803 123 4567` are the same person. Other countries need the full international number. Every example uses made-up people.\n\n## Limits and errors\n\nEach key can make **60 requests a minute**. Refused requests do not count towards it. Errors always look like `{ \"error\": { \"code\": \"…\", \"message\": \"…\" } }`.\n\n| Status | Code | Meaning |\n|---|---|---|\n| 400 | `bad_request` | Something is missing or unreadable, such as the phone number or email |\n| 401 | `missing_key`, `invalid_key` | No key, or the key is not recognised or switched off |\n| 403 | `missing_scope` | The key may not ask this question |\n| 404 | `not_found` | No such person or address |\n| 405 | `method_not_allowed` | Version 1 only answers GET requests |\n| 429 | `rate_limited` | Over 60 requests a minute; wait for `Retry-After` |\n| 500 | `server_error` | A problem on FOF's side; try again shortly |\n\n## Coming next: registering from the church app\n\nNot available yet; being designed with the church digital team.\n\n1. **Register.** The church app sends what it already knows: church ID, name, phone, email (`POST /v1/registrations`).\n2. **Fill the gaps.** FOF replies with the few fields still missing, which the person fills in inside the church app (`PATCH /v1/registrations/{id}`).\n3. **Login shown.** FOF returns the person's login details and the church app shows them. Their first sign-in asks for a new password.\n4. **Later, by email.** Once email is connected, the same login details also arrive in their inbox.\n\n## Changes\n\n| Version | Date | What changed |\n|---|---|---|\n| 1.1.0 | 29 Oct 2026 | Full profiles, cohort participants, attendance, faith project, team, groups, hubs, class weeks, schedule, planner, scriptures, announcements, resources, birthdays and birthday pictures; the `teens:read` scope |\n| 1.0.1 | 29 Oct 2026 | The lookup's list is now called `participants`; the wording says participant throughout |\n| 1.0.0 | 29 Oct 2026 | First version: look a person up, profile, programme progress, current and next cohort |\n\nThis page is drawn from `supabase/functions/public-api/openapi.json` in the FOF Ops repository, the single source for these docs. The API serves the same file at `/v1/openapi.json`.",
   "contact": {
    "name": "FOF Ops team"
   }
@@ -31,6 +31,18 @@
   {
    "name": "People",
    "description": "Find out whether someone is in FOF and how far they have got. Someone who took FOF more than once is a participant once per cohort, each with its own id."
+  },
+  {
+   "name": "Cohort",
+   "description": "Everything about one cohort. Use `current` for the running cohort, or a cohort id."
+  },
+  {
+   "name": "Planner and content",
+   "description": "The year planner, scriptures, announcements and resources."
+  },
+  {
+   "name": "Birthdays",
+   "description": "Upcoming birthdays and a finished birthday picture on FOF's template."
   }
  ],
  "paths": {
@@ -164,7 +176,7 @@
      "People"
     ],
     "summary": "Is this person in FOF?",
-    "description": "Scope: `people:lookup`. Give a phone number, an email, or both. Covers every real cohort, including finished and archived ones. Someone who took FOF more than once is a participant once per cohort, each with its own id; they are listed newest first. `teamRoles` says whether they also serve on the FOF team.",
+    "description": "Scope: `people:lookup`. Give a phone number, an email, or both. Covers every real cohort, including finished and archived ones. Someone who took FOF more than once is a participant once per cohort, each with its own id; they are listed newest first. `teamRoles` says whether they also serve on the FOF team. Each participant says whether they are a teen.",
     "operationId": "lookupPerson",
     "parameters": [
      {
@@ -274,8 +286,8 @@
     "tags": [
      "People"
     ],
-    "summary": "A short profile for one participant",
-    "description": "Scope: `people:read`. `id` is a participant id from the lookup.",
+    "summary": "A participant's profile",
+    "description": "Scope: `people:read`. `id` is a participant id. A teen without `teens:read` comes back restricted; with it, `guardian` (name and phone) is included.",
     "operationId": "getPerson",
     "parameters": [
      {
@@ -293,28 +305,56 @@
       "description": "The profile.",
       "content": {
        "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Person"
-        },
-        "example": {
-         "id": "9b1e7f52-0000-4000-8000-000000000001",
-         "name": "Ada Example",
-         "gender": "Female",
-         "ageRange": "25 - 34",
-         "occupation": "Teacher",
-         "departments": [],
-         "status": "ACTIVE",
-         "registeredOn": "2026-10-02T09:15:00Z",
-         "cohort": {
-          "id": "3f6c2a10-0000-4000-8000-000000000010",
-          "name": "Cohort 10",
-          "startDate": "2026-10-11",
-          "endDate": "2026-12-20"
+        "examples": {
+         "adult": {
+          "value": {
+           "id": "9b1e7f52-0000-4000-8000-000000000001",
+           "name": "Ada Example",
+           "phone": "08031234567",
+           "email": "ada@example.com",
+           "gender": "Female",
+           "ageRange": "25 - 34",
+           "dateOfBirth": "1996-11-04",
+           "occupation": "Teacher",
+           "departments": [],
+           "photoUrl": "https://example.com/photo.jpg",
+           "status": "ACTIVE",
+           "registeredOn": "2026-10-02T09:15:00Z",
+           "isTeen": false,
+           "cohort": {
+            "id": "3f6c2a10-0000-4000-8000-000000000010",
+            "name": "Cohort 10",
+            "startDate": "2026-10-11",
+            "endDate": "2026-12-20"
+           },
+           "cohortFinished": false,
+           "group": {
+            "id": "4c2e0000-0000-4000-8000-000000000004",
+            "name": "Group 4",
+            "isTeenGroup": false,
+            "meetingDay": "SATURDAY",
+            "meetingTime": "16:00",
+            "support": {
+             "id": "51d00000-0000-4000-8000-000000000005",
+             "name": "Bola Support",
+             "phone": "08029876543"
+            }
+           }
+          }
          },
-         "group": {
-          "name": "Group 4",
-          "meetingDay": "SATURDAY",
-          "meetingTime": "16:00"
+         "teenWithoutTeensRead": {
+          "value": {
+           "id": "7a7a0000-0000-4000-8000-000000000007",
+           "name": "Tobi Example",
+           "isTeen": true,
+           "restricted": true,
+           "cohort": {
+            "id": "3f6c2a10-0000-4000-8000-000000000010",
+            "name": "Cohort 10",
+            "startDate": "2026-10-11",
+            "endDate": "2026-12-20"
+           }
+          }
          }
         }
        }
@@ -341,7 +381,7 @@
       }
      },
      "404": {
-      "description": "No such person, or not one the API can talk about.",
+      "description": "No such person, cohort or address.",
       "content": {
        "application/json": {
         "schema": {
@@ -351,7 +391,7 @@
       }
      },
      "429": {
-      "description": "More than 60 requests in a minute. Wait and try again (see Retry-After).",
+      "description": "More than 60 requests in a minute.",
       "content": {
        "application/json": {
         "schema": {
@@ -379,7 +419,7 @@
      "People"
     ],
     "summary": "How far a participant has got",
-    "description": "Scope: `people:read`. Counted the same way as FOF's own attendance figures: late or leaving early counts as present only when excused.",
+    "description": "Scope: `people:read`. Counted the same way as FOF's own attendance figures: late or leaving early counts as present only when excused. A teen without `teens:read` comes back restricted.",
     "operationId": "getProgramme",
     "parameters": [
      {
@@ -477,6 +517,1596 @@
       }
      }
     }
+   }
+  },
+  "/v1/people/{id}/attendance": {
+   "get": {
+    "tags": [
+     "People"
+    ],
+    "summary": "Week-by-week attendance",
+    "operationId": "getAttendance",
+    "description": "Scope: `people:read`. Sunday class mark (`PRESENT`, `LATE`, `LEFT_EARLY`, `EXCUSED`, `ABSENT`, or null if not marked) and group meeting mark (`JOINED`, `EXCUSED`, `MISSED`, or null) for each week.",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "example": {
+         "id": "9b1e7f52-0000-4000-8000-000000000001",
+         "weeks": [
+          {
+           "weekNumber": 1,
+           "classDate": "2026-10-11",
+           "sundayClass": "PRESENT",
+           "lateExcused": null,
+           "groupMeeting": "JOINED"
+          }
+         ],
+         "isTeen": false
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Something is missing or not allowed.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "No key, or the key is not recognised or switched off.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "The key does not have the scope this needs.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "No such person, cohort or address.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "More than 60 requests in a minute.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Something went wrong on FOF's side.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    },
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid"
+      }
+     }
+    ]
+   }
+  },
+  "/v1/people/{id}/faith-project": {
+   "get": {
+    "tags": [
+     "People"
+    ],
+    "summary": "A participant's faith project",
+    "operationId": "getFaithProject",
+    "description": "Scope: `faith:read`. As their support and the programme team see it. `faithProject` is null until they write one.",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "example": {
+         "id": "9b1e7f52-0000-4000-8000-000000000001",
+         "faithProject": {
+          "title": "Start a prayer group at work",
+          "text": "By December, meet weekly with two colleagues to pray.",
+          "status": "ACTIVE",
+          "category": "Workplace",
+          "sharedForPrayer": true,
+          "createdAt": "2026-10-20T10:00:00Z",
+          "updatedAt": "2026-10-25T18:30:00Z"
+         },
+         "isTeen": false
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Something is missing or not allowed.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "No key, or the key is not recognised or switched off.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "The key does not have the scope this needs.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "No such person, cohort or address.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "More than 60 requests in a minute.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Something went wrong on FOF's side.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    },
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid"
+      }
+     }
+    ]
+   }
+  },
+  "/v1/cohorts/{cohort}/participants": {
+   "get": {
+    "tags": [
+     "Cohort"
+    ],
+    "summary": "A cohort's participants",
+    "operationId": "listParticipants",
+    "description": "Scope: `people:read`. A page at a time, by name. `group` limits it to one group. Teens follow the `teens:read` rule.",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "example": {
+         "cohortId": "3f6c2a10-0000-4000-8000-000000000010",
+         "total": 87,
+         "limit": 100,
+         "offset": 0,
+         "participants": [
+          {
+           "id": "9b1e7f52-0000-4000-8000-000000000001",
+           "name": "Ada Example",
+           "phone": "08031234567",
+           "email": "ada@example.com",
+           "gender": "Female",
+           "ageRange": "25 - 34",
+           "dateOfBirth": "1996-11-04",
+           "occupation": "Teacher",
+           "departments": [],
+           "photoUrl": "https://example.com/photo.jpg",
+           "status": "ACTIVE",
+           "registeredOn": "2026-10-02T09:15:00Z",
+           "isTeen": false,
+           "cohort": {
+            "id": "3f6c2a10-0000-4000-8000-000000000010",
+            "name": "Cohort 10",
+            "startDate": "2026-10-11",
+            "endDate": "2026-12-20"
+           },
+           "cohortFinished": false,
+           "group": {
+            "id": "4c2e0000-0000-4000-8000-000000000004",
+            "name": "Group 4",
+            "isTeenGroup": false,
+            "meetingDay": "SATURDAY",
+            "meetingTime": "16:00",
+            "support": {
+             "id": "51d00000-0000-4000-8000-000000000005",
+             "name": "Bola Support",
+             "phone": "08029876543"
+            }
+           }
+          },
+          {
+           "id": "7a7a0000-0000-4000-8000-000000000007",
+           "name": "Tobi Example",
+           "isTeen": true,
+           "restricted": true,
+           "cohort": {
+            "id": "3f6c2a10-0000-4000-8000-000000000010",
+            "name": "Cohort 10",
+            "startDate": "2026-10-11",
+            "endDate": "2026-12-20"
+           }
+          }
+         ]
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Something is missing or not allowed.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "No key, or the key is not recognised or switched off.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "The key does not have the scope this needs.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "No such person, cohort or address.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "More than 60 requests in a minute.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Something went wrong on FOF's side.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    },
+    "parameters": [
+     {
+      "name": "cohort",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "`current` or a cohort id",
+      "example": "current"
+     },
+     {
+      "name": "group",
+      "in": "query",
+      "schema": {
+       "type": "string",
+       "format": "uuid"
+      }
+     },
+     {
+      "name": "limit",
+      "in": "query",
+      "schema": {
+       "type": "integer",
+       "minimum": 1,
+       "maximum": 200,
+       "default": 100
+      }
+     },
+     {
+      "name": "offset",
+      "in": "query",
+      "schema": {
+       "type": "integer",
+       "minimum": 0,
+       "default": 0
+      }
+     }
+    ]
+   }
+  },
+  "/v1/cohorts/{cohort}/team": {
+   "get": {
+    "tags": [
+     "Cohort"
+    ],
+    "summary": "The FOF team for a cohort",
+    "operationId": "listTeam",
+    "description": "Scope: `team:read`. Supports and admins on the cohort, with roles, hubs and the groups they lead.",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "example": {
+         "cohortId": "3f6c2a10-0000-4000-8000-000000000010",
+         "team": [
+          {
+           "id": "51d00000-0000-4000-8000-000000000005",
+           "name": "Bola Support",
+           "phone": "08029876543",
+           "email": "bola@example.com",
+           "photoUrl": null,
+           "roles": [
+            "SUPPORT"
+           ],
+           "supportKind": "GROUP",
+           "hubs": [
+            "Hub 2"
+           ],
+           "groups": [
+            "Group 4"
+           ]
+          }
+         ]
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Something is missing or not allowed.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "No key, or the key is not recognised or switched off.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "The key does not have the scope this needs.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "No such person, cohort or address.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "More than 60 requests in a minute.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Something went wrong on FOF's side.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    },
+    "parameters": [
+     {
+      "name": "cohort",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "`current` or a cohort id",
+      "example": "current"
+     }
+    ]
+   }
+  },
+  "/v1/cohorts/{cohort}/groups": {
+   "get": {
+    "tags": [
+     "Cohort"
+    ],
+    "summary": "A cohort's groups",
+    "operationId": "listGroups",
+    "description": "Scope: `groups:read`. Meeting day and time, the support, and how many participants. Call links stay private.",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "example": {
+         "cohortId": "3f6c2a10-0000-4000-8000-000000000010",
+         "groups": [
+          {
+           "id": "4c2e0000-0000-4000-8000-000000000004",
+           "name": "Group 4",
+           "isTeenGroup": false,
+           "meetingDay": "SATURDAY",
+           "meetingTime": "16:00",
+           "callPlatform": "GOOGLE_MEET",
+           "support": {
+            "id": "51d00000-0000-4000-8000-000000000005",
+            "name": "Bola Support",
+            "phone": "08029876543"
+           },
+           "participants": 4
+          }
+         ]
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Something is missing or not allowed.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "No key, or the key is not recognised or switched off.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "The key does not have the scope this needs.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "No such person, cohort or address.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "More than 60 requests in a minute.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Something went wrong on FOF's side.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    },
+    "parameters": [
+     {
+      "name": "cohort",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "`current` or a cohort id",
+      "example": "current"
+     }
+    ]
+   }
+  },
+  "/v1/cohorts/{cohort}/hubs": {
+   "get": {
+    "tags": [
+     "Cohort"
+    ],
+    "summary": "A cohort's hubs",
+    "operationId": "listHubs",
+    "description": "Scope: `groups:read`. Meeting day and time, lead, assistant lead and members.",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "example": {
+         "cohortId": "3f6c2a10-0000-4000-8000-000000000010",
+         "hubs": [
+          {
+           "id": "8b000000-0000-4000-8000-000000000008",
+           "name": "Hub 2",
+           "meetingDay": "WEDNESDAY",
+           "meetingTime": "20:00",
+           "callPlatform": "GOOGLE_MEET",
+           "lead": {
+            "id": "1e000000-0000-4000-8000-000000000001",
+            "name": "Kemi Lead",
+            "phone": "08011112222"
+           },
+           "assistantLead": null,
+           "members": [
+            {
+             "id": "51d00000-0000-4000-8000-000000000005",
+             "name": "Bola Support"
+            }
+           ]
+          }
+         ]
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Something is missing or not allowed.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "No key, or the key is not recognised or switched off.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "The key does not have the scope this needs.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "No such person, cohort or address.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "More than 60 requests in a minute.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Something went wrong on FOF's side.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    },
+    "parameters": [
+     {
+      "name": "cohort",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "`current` or a cohort id",
+      "example": "current"
+     }
+    ]
+   }
+  },
+  "/v1/cohorts/{cohort}/weeks": {
+   "get": {
+    "tags": [
+     "Cohort"
+    ],
+    "summary": "The ten class weeks",
+    "operationId": "listWeeks",
+    "description": "Scope: `schedule:read`. Class date, title and teacher, and whether the manual and recap exist.",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "example": {
+         "cohortId": "3f6c2a10-0000-4000-8000-000000000010",
+         "weeks": [
+          {
+           "weekNumber": 2,
+           "title": "New Creation Realities",
+           "classDate": "2026-10-25",
+           "teacher": {
+            "name": "Pastor Example",
+            "role": "Teacher",
+            "photoUrl": null
+           },
+           "classGraphicUrl": null,
+           "hasManual": true,
+           "hasRecap": true
+          }
+         ]
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Something is missing or not allowed.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "No key, or the key is not recognised or switched off.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "The key does not have the scope this needs.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "No such person, cohort or address.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "More than 60 requests in a minute.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Something went wrong on FOF's side.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    },
+    "parameters": [
+     {
+      "name": "cohort",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "`current` or a cohort id",
+      "example": "current"
+     }
+    ]
+   }
+  },
+  "/v1/cohorts/{cohort}/schedule": {
+   "get": {
+    "tags": [
+     "Cohort"
+    ],
+    "summary": "The weekly programme schedule",
+    "operationId": "getSchedule",
+    "description": "Scope: `schedule:read`. Each week's days, activities and teams, as on the admin Schedule page.",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "example": {
+         "cohortId": "3f6c2a10-0000-4000-8000-000000000010",
+         "weeks": [
+          {
+           "weekNumber": 1,
+           "days": [
+            {
+             "day": "Sunday",
+             "activities": [
+              {
+               "time": "9:00 AM",
+               "period": "MORNING",
+               "description": "Welcome and class",
+               "teams": [
+                "Ushering"
+               ]
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Something is missing or not allowed.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "No key, or the key is not recognised or switched off.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "The key does not have the scope this needs.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "No such person, cohort or address.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "More than 60 requests in a minute.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Something went wrong on FOF's side.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    },
+    "parameters": [
+     {
+      "name": "cohort",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "`current` or a cohort id",
+      "example": "current"
+     }
+    ]
+   }
+  },
+  "/v1/planner": {
+   "get": {
+    "tags": [
+     "Planner and content"
+    ],
+    "summary": "The year planner",
+    "operationId": "getPlanner",
+    "description": "Scope: `planner:read`. Every real cohort and the planned ones after it, each with class dates and phases (rest, mobilisation, classes, spare week), plus church events and public holidays.",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "example": {
+         "cohorts": [
+          {
+           "id": "3f6c2a10-0000-4000-8000-000000000010",
+           "name": "Cohort 10",
+           "planned": false,
+           "status": "ACTIVE",
+           "classDates": [
+            "2026-10-11",
+            "2026-10-25"
+           ],
+           "cycleEnd": "2026-12-27",
+           "phases": [
+            {
+             "kind": "rest",
+             "start": "2026-08-24",
+             "end": "2026-09-13"
+            }
+           ]
+          },
+          {
+           "id": null,
+           "name": "Cohort 11",
+           "planned": true,
+           "status": null,
+           "classDates": [
+            "2027-02-21"
+           ],
+           "cycleEnd": "2027-05-02",
+           "phases": []
+          }
+         ],
+         "churchEvents": [
+          {
+           "name": "Convention",
+           "startDate": "2026-12-03",
+           "endDate": "2026-12-06",
+           "stopsFof": true
+          }
+         ],
+         "publicHolidays": [
+          {
+           "name": "Christmas Day",
+           "date": "2026-12-25",
+           "isEstimate": false
+          }
+         ]
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Something is missing or not allowed.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "No key, or the key is not recognised or switched off.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "The key does not have the scope this needs.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "No such person, cohort or address.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "More than 60 requests in a minute.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Something went wrong on FOF's side.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    },
+    "parameters": [
+     {
+      "name": "until",
+      "in": "query",
+      "schema": {
+       "type": "string",
+       "format": "date"
+      },
+      "description": "Show planned cohorts up to this date. Default: the end of next year."
+     }
+    ]
+   }
+  },
+  "/v1/scriptures": {
+   "get": {
+    "tags": [
+     "Planner and content"
+    ],
+    "summary": "Scripture posts opened so far",
+    "operationId": "listScriptures",
+    "description": "Scope: `content:read`. The current cohort's daily scripture posts up to today, newest first, with like, download and share totals.",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "example": {
+         "scriptures": [
+          {
+           "day": 20,
+           "opensOn": "2026-10-30",
+           "imageUrl": "https://example.com/day-20.jpg",
+           "likes": 12,
+           "downloads": 5,
+           "shares": 3
+          }
+         ]
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Something is missing or not allowed.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "No key, or the key is not recognised or switched off.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "The key does not have the scope this needs.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "No such person, cohort or address.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "More than 60 requests in a minute.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Something went wrong on FOF's side.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v1/announcements": {
+   "get": {
+    "tags": [
+     "Planner and content"
+    ],
+    "summary": "Announcements sent to everyone",
+    "operationId": "listAnnouncements",
+    "description": "Scope: `content:read`. Announcements sent to all users or a whole cohort, newest first. Ones sent to a person, group, hub or label are left out.",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "example": {
+         "announcements": [
+          {
+           "id": "a1000000-0000-4000-8000-000000000001",
+           "subject": "Class this Sunday",
+           "body": "See you at 9am.",
+           "sentAt": "2026-10-24T18:00:00Z",
+           "audience": "PARTICIPANTS",
+           "scope": "ACTIVE_COHORT",
+           "cohort": "Cohort 10",
+           "link": null
+          }
+         ]
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Something is missing or not allowed.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "No key, or the key is not recognised or switched off.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "The key does not have the scope this needs.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "No such person, cohort or address.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "More than 60 requests in a minute.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Something went wrong on FOF's side.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    },
+    "parameters": [
+     {
+      "name": "limit",
+      "in": "query",
+      "schema": {
+       "type": "integer",
+       "minimum": 1,
+       "maximum": 200,
+       "default": 50
+      }
+     }
+    ]
+   }
+  },
+  "/v1/resources": {
+   "get": {
+    "tags": [
+     "Planner and content"
+    ],
+    "summary": "Shared resources",
+    "operationId": "listResources",
+    "description": "Scope: `content:read`. Files and links shared with participants or supports (not ones limited to particular hubs).",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "example": {
+         "resources": [
+          {
+           "id": "b1000000-0000-4000-8000-000000000001",
+           "title": "Week 2 manual",
+           "description": null,
+           "type": "FILE",
+           "url": "https://example.com/week-2.pdf",
+           "fileName": "week-2.pdf",
+           "forParticipants": true,
+           "forSupports": true,
+           "cohort": "Cohort 10",
+           "updatedAt": "2026-10-20T09:00:00Z"
+          }
+         ]
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Something is missing or not allowed.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "No key, or the key is not recognised or switched off.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "The key does not have the scope this needs.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "No such person, cohort or address.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "More than 60 requests in a minute.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Something went wrong on FOF's side.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v1/birthdays": {
+   "get": {
+    "tags": [
+     "Birthdays"
+    ],
+    "summary": "Upcoming birthdays",
+    "operationId": "listBirthdays",
+    "description": "Scope: `birthdays:read`. Participants (active, real cohorts) and the FOF team with a birthday in the next `days` days (0 = today). Teens are left out unless the key has `teens:read`.",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "example": {
+         "today": "2026-10-29",
+         "birthdays": [
+          {
+           "kind": "participant",
+           "id": "9b1e7f52-0000-4000-8000-000000000001",
+           "name": "Ada Example",
+           "month": 11,
+           "day": 4,
+           "daysUntil": 6,
+           "cohort": "Cohort 10",
+           "isTeen": false,
+           "photoUrl": "https://example.com/photo.jpg"
+          }
+         ]
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Something is missing or not allowed.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "No key, or the key is not recognised or switched off.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "The key does not have the scope this needs.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "No such person, cohort or address.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "More than 60 requests in a minute.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Something went wrong on FOF's side.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    },
+    "parameters": [
+     {
+      "name": "days",
+      "in": "query",
+      "schema": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 366,
+       "default": 0
+      }
+     }
+    ]
+   }
+  },
+  "/v1/birthdays/{kind}/{id}/graphic.png": {
+   "get": {
+    "tags": [
+     "Birthdays"
+    ],
+    "summary": "A finished birthday picture",
+    "operationId": "birthdayGraphic",
+    "description": "Scope: `birthdays:read`. A 1080 × 1350 PNG on FOF's birthday template: photo (or initials), name, date, role and a Bible verse. `kind` and `id` come from `/v1/birthdays`. `quote` picks one of six verses (0 to 5); by default each person always gets the same one. A teen needs `teens:read`.",
+    "responses": {
+     "200": {
+      "description": "The picture.",
+      "content": {
+       "image/png": {
+        "schema": {
+         "type": "string",
+         "format": "binary"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Something is missing or not allowed.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "No key, or the key is not recognised or switched off.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "The key does not have the scope this needs.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "No such person, cohort or address.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "More than 60 requests in a minute.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Something went wrong on FOF's side.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    },
+    "parameters": [
+     {
+      "name": "kind",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "enum": [
+        "participant",
+        "team"
+       ]
+      }
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid"
+      }
+     },
+     {
+      "name": "quote",
+      "in": "query",
+      "schema": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 5
+      }
+     }
+    ]
    }
   }
  },
@@ -777,6 +2407,9 @@
        "null"
       ],
       "format": "date-time"
+     },
+     "isTeen": {
+      "type": "boolean"
      }
     }
    }
