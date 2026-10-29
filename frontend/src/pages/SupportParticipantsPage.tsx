@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { startPolling } from '../hooks/usePolling';
-import { NavLink, Navigate, useSearchParams } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
+import NoGroupCard from '../components/supports/NoGroupCard';
 import AppSelect from '../components/AppSelect';
 import SegmentedTabs from '../components/SegmentedTabs';
 import StaffDiscussionPanel from '../components/discussion/StaffDiscussionPanel';
@@ -485,13 +486,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
           </button>
         </section>
       ) : !selectedGroupId ? (
-        <section className="surface-card p-8 text-center">
-          <p className="text-sm font-semibold text-gray-700">You don&apos;t have a participant group this cohort</p>
-          <p className="mt-1 text-xs text-gray-400">Your hub's members, prayer list and meetings live on My Hub instead.</p>
-          <NavLink to="/support/my-hub" className="mt-4 inline-flex min-h-[38px] items-center rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white">
-            Open My Hub
-          </NavLink>
-        </section>
+        <NoGroupCard hubOnlyText="Your hub's members, prayer list and meetings live on My Hub instead." />
       ) : (
         <div className="max-w-[760px] space-y-3 lg:max-w-6xl">
           {/* What is still to do to get the group ready, at the top whichever tab is open. */}

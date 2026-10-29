@@ -54,8 +54,8 @@ const ICON = {
 
 export const WELCOME: Record<TourAudience, WelcomeContent> = {
   support: {
-    title: 'Welcome to V2',
-    subtitle: 'Everything for your group, now in one place.',
+    title: 'Welcome to FOF',
+    subtitle: 'Everything for your group in one place.',
     tiles: [
       { icon: ICON.group, title: 'My Group and Meeting Mode', body: 'Run your weekly meeting step by step, take attendance and flag concerns.' },
       { icon: ICON.megaphone, title: 'Mobilisation', body: 'Register people you meet and follow up the ones assigned to you.' },
@@ -99,11 +99,9 @@ const HELP_STEP: TourStep = {
 export const PAGE_TOURS: Record<string, TourStep[]> = {
   // ── Support ───────────────────────────────────────────────────────────────
   'support:home': [
-    { target: wt('home-metrics'), title: 'Your next class', body: 'The next class, its title and teacher. Tap Open classes for the recap and manual.' },
-    { target: wt('home-attendance'), title: 'Mark attendance', body: 'One tap opens the shared Sunday attendance register.' },
-    { target: wt('home-quick-links'), title: 'Your group', body: 'Your next group meeting, faith projects, My Hub, your group call, tasks and resources, each one tap away.' },
-    { target: wt('home-schedule'), title: 'Today’s activities', body: 'Your activities for today. Tap "Mark done" as you finish each one, or open the full week.' },
-    { target: wt('home-checklist'), title: 'Your tasks', body: 'Tick off your tasks as you go. Ones from an admin say From admin.', optional: true },
+    { target: wt('onb-steps'), title: 'Start here', body: 'Introduce yourself, help your participants get ready, and set your meeting time and call link. Each step ticks itself.', optional: true },
+    { target: wt('home-metrics'), title: 'Your next class', body: 'Open classes for the manual and, after class, the recap. Mark attendance below opens the Sunday register.' },
+    { target: wt('home-schedule'), title: 'Today', body: 'Your activities and tasks for today. Tap Mark done as you go, or open the full week.' },
     { target: wt('app-nav'), title: 'Find your way around', body: 'Use the menu to move between pages. On your phone, the rest sits under More.' },
     HELP_STEP,
   ],
@@ -120,7 +118,8 @@ export const PAGE_TOURS: Record<string, TourStep[]> = {
     { target: wt('activity-mark-done'), title: 'Mark activities done', body: 'Tap "Mark done" when you finish an activity. It saves straight away. Tap again to undo.', optional: true },
   ],
   'support:group': [
-    { target: wt('group-tabs'), title: 'Your group workspace', body: 'Discussion is where your group talks. Group meetings walks you through your weekly meeting in Meeting Mode. People shows each person. Attendance has its own place in the menu.' },
+    { target: wt('sp-no-group'), title: 'Your group is coming', body: 'Once you’re placed, your group’s people, chat and meetings show here.', optional: true },
+    { target: wt('group-tabs'), optional: true, title: 'Your group workspace', body: 'Discussion is where your group talks. Group meetings walks you through your weekly meeting in Meeting Mode. People shows each person. Attendance has its own place in the menu.' },
     { target: wt('group-call'), title: 'Your group call', body: 'Your group’s meeting link and time. Set or update them here.', optional: true },
     { target: '[data-wt="group-call"] + *', title: 'Each participant', body: 'See how each person is doing and read their faith project. If something is wrong, flag a concern and Operations is told straight away.', optional: true },
   ],

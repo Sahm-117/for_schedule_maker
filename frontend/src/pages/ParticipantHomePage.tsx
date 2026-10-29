@@ -23,7 +23,7 @@ import { participantAppApi, practiceApi } from '../services/api';
 import type { OnboardingState } from '../types';
 import { useToast } from '../components/Toast';
 import AppSetupBanner from '../components/participantApp/AppSetupBanner';
-import { useParticipantHelp } from '../components/participantApp/participantHelp';
+import { useShellHelp } from '../components/shellHelp';
 import { useParticipantPush } from '../hooks/useParticipantPush';
 import { buildWhatsAppLink } from '../utils/phone';
 import PendingSurveyCards from '../components/surveys/PendingSurveyCards';
@@ -60,7 +60,7 @@ const ParticipantHomePage: React.FC = () => {
   const toast = useToast();
   const push = useParticipantPush();
   const navigate = useNavigate();
-  const openHelp = useParticipantHelp();
+  const openHelp = useShellHelp();
   const [goalSaving, setGoalSaving] = useState(false);
   const { streak } = usePrayerStreak();
   const [introOpen, setIntroOpen] = useState(false);

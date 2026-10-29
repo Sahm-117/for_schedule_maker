@@ -485,7 +485,10 @@ const SupportMyHubPage: React.FC = () => {
           {[0, 1].map((i) => <div key={i} className="surface-card h-24 animate-pulse" />)}
         </div>
       ) : !myHub?.hub ? (
-        <div className={`${SURFACE} px-6 py-10 text-center text-[15px] text-gray-500`}>You’re not in a hub for this cohort yet.</div>
+        <div className={`${SURFACE} px-6 py-10 text-center text-[15px] text-gray-500`}>
+          <p>You’re not in a hub for this cohort yet.</p>
+          <p className="mt-1.5 text-[13.5px] text-gray-400">The FOF team adds you to a hub. Your hub lead, members and hub meetings show here then.</p>
+        </div>
       ) : (
         <div className="space-y-4">
           {hubs.length > 1 && (

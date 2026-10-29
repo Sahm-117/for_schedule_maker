@@ -31,6 +31,7 @@ import ProfileMenu from './ProfileMenu';
 import { useGroupMeetingLive } from '../hooks/useGroupMeetingLive';
 import NewNotificationBanner from './NewNotificationBanner';
 import NeedSupportButton from './NeedSupportButton';
+import type { ShellOutletContext } from './shellHelp';
 import NotificationBell from './NotificationBell';
 import ForcePasswordChangeModal from './ForcePasswordChangeModal';
 import LoginShareReminder from './followups/LoginShareReminder';
@@ -407,6 +408,7 @@ const AppShell: React.FC = () => {
   }, [cohorts, activeCohort?.id]);
   const [returningToReal, setReturningToReal] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const shellOutletContext = useMemo<ShellOutletContext>(() => ({ openHelp: () => setHelpOpen(true) }), []);
 
   // Leaving practice from the top bar is asked about first.
   const [confirmPracticeExit, setConfirmPracticeExit] = useState<PracticeExitKind | null>(null);
@@ -449,14 +451,15 @@ const AppShell: React.FC = () => {
   );
   const navigate = useNavigate();
   // First-login order: password change, Welcome + Home tour, then the notification prompt.
-  const { busy: tourBusy } = useTourState();
+  const { busy: tourBusy, welcomedThisLaunch } = useTourState();
   // Get the app (Home Screen + notifications): one ask per launch. It waits for a
   // launch where the weekly feedback question or a role intro isn't due, and the
   // banner in the page keeps asking meanwhile.
   const [appSetupDismissed, setAppSetupDismissed] = useState(() => {
     try { return sessionStorage.getItem('fof_staff_appsetup_dismissed_session') === '1'; } catch { return false; }
   });
-  const showAppSetup = !!user && !tourBusy && !classFeedbackDueWeek && !pendingIntroJob && !appSetupDismissed && appSetupSheetDue(appSetup);
+  // Not straight after the Welcome and its tour: the notifications banner on Home still asks, and the sheet comes next launch.
+  const showAppSetup = !!user && !tourBusy && !welcomedThisLaunch && !classFeedbackDueWeek && !pendingIntroJob && !appSetupDismissed && appSetupSheetDue(appSetup);
   useEffect(() => {
     if (user) void recordAppState(appSetup.installed, appSetup.device, appSetup.notifications, 'staff');
   }, [user?.id, appSetup.installed, appSetup.device, appSetup.notifications]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -940,7 +943,7 @@ const AppShell: React.FC = () => {
               <SectionTabs pathname={location.pathname} isAdmin={isAdmin} pendingApprovals={globalPendingChanges.length} />
             )}
             {/* A seat switch in Practice remounts the page so it loads the new group and hub. */}
-            <SectionTabsContext.Provider value={isSupport ? null : sectionTabsValue}><PracticeEntryProvider value={practiceEntry}><React.Fragment key={workspaceRevision}><PermissionGate><Outlet /></PermissionGate></React.Fragment></PracticeEntryProvider></SectionTabsContext.Provider>
+            <SectionTabsContext.Provider value={isSupport ? null : sectionTabsValue}><PracticeEntryProvider value={practiceEntry}><React.Fragment key={workspaceRevision}><PermissionGate><Outlet context={shellOutletContext} /></PermissionGate></React.Fragment></PracticeEntryProvider></SectionTabsContext.Provider>
           </ErrorBoundary>
         </main>
 

@@ -9,7 +9,7 @@ import WhatsAppIcon from '../components/WhatsAppIcon';
 import DocumentViewerSheet from '../components/DocumentViewerSheet';
 import SegmentedTabs from '../components/SegmentedTabs';
 import ParticipantDiscussionTab from '../components/participantApp/ParticipantDiscussionTab';
-import { useParticipantHelp } from '../components/participantApp/participantHelp';
+import { useShellHelp } from '../components/shellHelp';
 import { useParticipantApp } from '../context/ParticipantAppContext';
 import { buildWhatsAppLink } from '../utils/phone';
 import { normalizeLink } from '../utils/links';
@@ -25,7 +25,7 @@ const CARD = 'rounded-[22px] border border-[#eef0f4] bg-white p-5 shadow-[0_2px_
 
 const ParticipantGroupPage: React.FC = () => {
   const { home, loading } = useParticipantApp();
-  const openHelp = useParticipantHelp();
+  const openHelp = useShellHelp();
   const [docOpen, setDocOpen] = useState(false);
   const [searchParams] = useSearchParams();
   // Discussion comes first; the meeting tab opens by default while a meeting is on.

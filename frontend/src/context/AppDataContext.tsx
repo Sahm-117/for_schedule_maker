@@ -42,6 +42,8 @@ interface AppDataContextType {
   refreshHubActivity: () => Promise<void>;
   markHubSeen: () => void;
   myHub: MyHubPayload | null;
+  /** True once get_my_hub has answered for this support (myHub may still be hub: null), so "not in a hub" is known, not still loading. */
+  myHubLoaded: boolean;
   refreshMyHub: () => Promise<void>;
 }
 
@@ -73,6 +75,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [newResourceCount, setNewResourceCount] = useState(0);
   const [latestHubActivityAt, setLatestHubActivityAt] = useState<string | null>(null);
   const [myHub, setMyHub] = useState<MyHubPayload | null>(null);
+  const [myHubLoaded, setMyHubLoaded] = useState(false);
   const [liveRevision, setLiveRevision] = useState(0);
 
   const refreshInProgressRef = useRef(false);
@@ -231,10 +234,11 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // Support hub membership — fetched once per cohort so nav (My Hub link),
   // Support Home and the lead nudge can all read it without their own calls.
   const loadMyHub = useCallback(async (cohortId?: string | null) => {
-    if (user?.role !== 'SUPPORT' || !cohortId) { setMyHub(null); return; }
+    if (user?.role !== 'SUPPORT' || !cohortId) { setMyHub(null); setMyHubLoaded(false); return; }
     try {
       const hub = await myHubApi.get(cohortId);
       setMyHub(hub);
+      setMyHubLoaded(true);
     } catch (error) {
       console.error('Failed to load my hub:', error);
     }
@@ -477,6 +481,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     refreshHubActivity,
     markHubSeen,
     myHub,
+    myHubLoaded,
     refreshMyHub,
   }), [
     activeCohort,
@@ -510,6 +515,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     refreshHubActivity,
     markHubSeen,
     myHub,
+    myHubLoaded,
     refreshMyHub,
   ]);
 

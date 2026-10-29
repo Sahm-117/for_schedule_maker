@@ -56,7 +56,7 @@ export const supportOnboardingSteps = (
     total: people.length,
     steps: [
       step('INTRO', 'Introduce yourself', 'Your group can’t introduce themselves until you have.'),
-      step('READY', 'Ensure your participants complete their onboarding steps', people.length > 0 ? `${readyCount} of ${people.length} ready` : null),
+      step('READY', 'Ensure your participants complete their onboarding steps', people.length > 0 ? `${readyCount} of ${people.length} ready` : 'Once people are added to your group, you’ll see who’s ready here.'),
       step('MEETING', 'Set meeting time and call link', null),
     ],
   };

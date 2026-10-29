@@ -15,6 +15,8 @@ interface TourContextValue {
   audience: TourAudience | null;
   /** True while progress loads, the Welcome modal is open or a tour is running. */
   busy: boolean;
+  /** The Welcome was shown in this launch: other "please do this" sheets wait for the next launch. */
+  welcomedThisLaunch: boolean;
   hasTour: (pageId: string) => boolean;
   hasSeen: (pageId: string) => boolean;
   startTour: (pageId: string) => void;
@@ -73,10 +75,14 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [welcome, markSeen, location.pathname, navigate]);
 
   const busy = ready && (seen === null || welcomeOpen || activePage !== null);
+  const [welcomedThisLaunch, setWelcomedThisLaunch] = useState(false);
+  useEffect(() => { if (welcomeOpen) setWelcomedThisLaunch(true); }, [welcomeOpen]);
+  // Another person signing in on this tab has not seen a Welcome yet.
+  useEffect(() => { setWelcomedThisLaunch(false); }, [user?.id]);
 
   const value = useMemo<TourContextValue>(
-    () => ({ audience, busy, hasTour, hasSeen, startTour }),
-    [audience, busy, hasTour, hasSeen, startTour],
+    () => ({ audience, busy, welcomedThisLaunch, hasTour, hasSeen, startTour }),
+    [audience, busy, welcomedThisLaunch, hasTour, hasSeen, startTour],
   );
 
   return (

@@ -85,14 +85,16 @@ const SupportHomePage: React.FC = () => {
 const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
   const practiceEntry = usePracticeEntry();
   const { userLabelIds, userCohortIds } = useAuth();
-  const { activeCohort, selectedWeek, weeks, liveRevision, myHub } = useAppData();
+  const { activeCohort, selectedWeek, weeks, liveRevision, myHub, myHubLoaded } = useAppData();
   const { ids: teenSupportIds } = useTeenSupportIds(true);
   const isTeenSupport = !!teenSupportIds?.has(user.id);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [faithProjects, setFaithProjects] = useState<FaithProject[]>([]);
   const [helpRequests, setHelpRequests] = useState<ParticipantCheckIn[]>([]);
-  const [myGroups, setMyGroups] = useState<Group[]>([]);
+  // null until the support's groups have loaded, so "not in a group yet" never shows for someone who has one.
+  const [loadedGroups, setMyGroups] = useState<Group[] | null>(null);
+  const myGroups = useMemo(() => loadedGroups ?? [], [loadedGroups]);
   const navigate = useNavigate();
   const [tickNow, setTickNow] = useState(() => new Date());
   const [completions, setCompletions] = useState<SupportActivityCompletion[]>([]);
@@ -309,10 +311,10 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
   }, [activeCohort, user, liveRevision]);
 
   useEffect(() => {
-    if (!user || !activeCohort) { setMyGroups([]); return; }
+    if (!user || !activeCohort) { setMyGroups(null); return; }
     groupsApi.getAll({ cohortId: activeCohort.id })
       .then((res) => setMyGroups(res.groups.filter((g) => g.supportId === user.id)))
-      .catch(() => setMyGroups([]));
+      .catch(() => { /* keep what was loaded; a failed refresh is not "no group" */ });
   }, [activeCohort, user, liveRevision]);
 
   // Ticking clock so open sessions roll over at Sunday-10am boundaries
@@ -416,6 +418,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
   // Home shows the first 3 tasks inside the Today card; the rest are one tap away on the Schedule.
   // The Today badge counts what is due now: open tasks due today or overdue (not ones due later or with no deadline).
   const todayIso = lagosTodayIso(new Date());
+  const cohortStarted = !!activeCohort?.startDate && todayIso >= activeCohort.startDate.slice(0, 10);
   const homeWeekStarts = weekStartMap(activeCohort?.startDate?.slice(0, 10) ?? null, weeks);
   const homeDueOf = (item: SupportChecklistItem) => effectiveDue(item, homeWeekStarts);
   const dueNowCount = checklist.filter((item) => { const due = homeDueOf(item); return !item.done && !!due && due <= todayIso; }).length;
@@ -426,14 +429,14 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
   const todayEmptyText = !schedulePublished
     ? 'Schedule not published yet. Check back once your coordinator publishes it.'
     : userLabelIds.length === 0
-      ? 'No activities are assigned to your tags yet.'
+      ? 'No activities are assigned to you yet. Your coordinator assigns them; check back after the schedule is shared.'
       : 'Nothing scheduled for you today.';
 
   return (
     <div>
       <PageHeader
-        title={`Welcome back, ${user.name.split(' ')[0]}`}
-        subtitle={activeCohort ? `${activeCohort.name} is running. Here is what is lined up for you.` : 'Here is what is lined up for you today.'}
+        title={`${cohortStarted ? 'Welcome back' : 'Welcome'}, ${user.name.split(' ')[0]}`}
+        subtitle={activeCohort ? (cohortStarted ? `${activeCohort.name} is running. Here is what is lined up for you.` : `${activeCohort.name} starts soon. Here is what to do first.`) : 'Here is what is lined up for you today.'}
         tourId="support:home"
       />
 
@@ -501,6 +504,9 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
                 />
                 {hubJoinHref && <HomeRow href={hubJoinHref} label="Join hub call" value="" />}
               </>
+            ) : loadedGroups?.length === 0 && myHubLoaded && !myHub?.hub ? (
+              // Not placed in a group or hub yet: nothing to set up, so say what comes next.
+              <p className="px-[18px] pb-3 text-[14px] leading-relaxed text-gray-500">You&apos;re not in a group yet. You&apos;ll see your next meeting and faith projects here once you&apos;re placed.</p>
             ) : (
               <>
                 {(!nextGroupPrayerDisplay || groupMeetingLive || myGroup?.isTeenGroup) && <HomeRow to="/support/participants" label="Next group meeting" value={nextGroupPrayerDisplay?.label ?? 'Not set'} />}

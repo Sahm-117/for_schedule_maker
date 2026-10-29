@@ -140,7 +140,9 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
                 </svg>
               </div>
               <p className="text-sm text-gray-500 font-medium">No resources yet</p>
-              {isAdmin && canAdd && <p className="text-xs text-gray-400 mt-1">Tap Add to upload files or add links</p>}
+              {isAdmin && canAdd
+                ? <p className="text-xs text-gray-400 mt-1">Tap Add to upload files or add links</p>
+                : !isAdmin && <p className="text-xs text-gray-400 mt-1">Guides and files from the FOF team will appear here.</p>}
             </div>
           ) : layout === 'grid' ? (
             <div className="grid gap-3.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 210px), 1fr))' }}>
