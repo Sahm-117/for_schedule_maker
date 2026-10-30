@@ -97,9 +97,11 @@ interface GroupCardProps {
   progress: Map<string, OnboardingProgressParticipant> | null;
   /** Phone and last-seen by participant id; null while it has not loaded (then those chips are left out). */
   appDetails: Record<string, ParticipantAppInfo> | null;
+  /** Posts and replies in the group discussion since Monday; undefined while it has not loaded. */
+  discussionThisWeek?: number;
 }
 
-const GroupCard: React.FC<GroupCardProps> = ({ group, members, summary, maxDays, hubName, menu, signedInIds, progress, appDetails }) => {
+const GroupCard: React.FC<GroupCardProps> = ({ group, members, summary, maxDays, hubName, menu, signedInIds, progress, appDetails, discussionThisWeek }) => {
   const [open, setOpen] = useState(false);
   const shown = members.slice(0, 3);
   const waiting = summary?.waitingOn ?? null;
@@ -114,6 +116,11 @@ const GroupCard: React.FC<GroupCardProps> = ({ group, members, summary, maxDays,
             {group.supportId && hubName && <span className="text-gray-400"> · {hubName}</span>}
           </p>
           {group.archivedAt && <p className="mt-1 text-[11px] font-semibold text-amber-700">Archived</p>}
+          {discussionThisWeek !== undefined && !group.archivedAt && (
+            <p className={`mt-1 text-[12px] font-semibold ${discussionThisWeek > 0 ? 'text-emerald-700' : 'text-gray-400'}`}>
+              {discussionThisWeek > 0 ? `${discussionThisWeek} ${discussionThisWeek === 1 ? 'post or reply' : 'posts & replies'} this week` : 'Quiet this week'}
+            </p>
+          )}
         </div>
         <div className="flex-shrink-0">{menu}</div>
       </div>

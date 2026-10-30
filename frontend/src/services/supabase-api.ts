@@ -6911,10 +6911,11 @@ export const groupDiscussionApi = {
     return data as import('../types').DiscussionFeed;
   },
   // Admin Dashboard line: this week's posts/replies, how many groups are talking, reports waiting.
-  async summary(cohortId: string): Promise<{ groups: number; postsAndReplies: number; activeGroups: number; openReports: number }> {
+  /** byGroup: posts and replies since Monday (Lagos) per group id; groups with none are left out. */
+  async summary(cohortId: string): Promise<{ groups: number; postsAndReplies: number; activeGroups: number; openReports: number; byGroup?: Record<string, number> }> {
     const { data, error } = await supabase.rpc('admin_discussion_summary', { p_cohort_id: cohortId });
     if (error) throw new Error(error.message);
-    return data as { groups: number; postsAndReplies: number; activeGroups: number; openReports: number };
+    return data as { groups: number; postsAndReplies: number; activeGroups: number; openReports: number; byGroup?: Record<string, number> };
   },
   // The group's support only: new posts/replies since they last opened the tab (0 for others).
   async unseen(groupId: string): Promise<number> {

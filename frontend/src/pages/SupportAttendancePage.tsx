@@ -25,11 +25,6 @@ const STATUS_BUTTONS: Array<{ status: AttendanceStatus; label: string; activeCls
   { status: 'EXCUSED', label: 'Excused', activeCls: 'bg-sky-100 text-sky-700' },
 ];
 
-// Once the register is locked (closed or finalised), a support can only move
-// an Absent mark to Late or Left early -- everything else needs an admin.
-const allowedWhenLocked = (current: AttendanceStatus | undefined, next: AttendanceStatus) =>
-  current === 'ABSENT' && (next === 'LATE' || next === 'LEFT_EARLY');
-
 const DEFAULT_SESSION: AttendanceSession = { weekId: 0, autoFinalizeAtNoon: true, finalizedAt: null };
 const initialsOf = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('');
 type AttendanceWeekResult = {
@@ -210,7 +205,12 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
   const now = useDeadlineClock(windowClosesAt, classDay?.getTime());
   const windowClosed = !!windowClosesAt && new Date(windowClosesAt).getTime() <= now;
   const windowOpen = !!activeSession.startedAt && !finalised && !windowClosed;
-  const locked = finalised || windowClosed;
+  // After the class (finalised, window closed, or the class day gone) only an admin changes marks; an admin
+  // reopen runs a fresh window. The database enforces the same (attendance_week_locked).
+  const classDayPassed = !!selectedWeek && !!activeCohort?.startDate && classDateIso(activeCohort.startDate, selectedWeek) < todayIso;
+  // An admin reopen of a week that never had a timed window opens it until it is finalised again.
+  const reopenedUntimed = !!activeSession.reopenedAt && !activeSession.closesAt && !finalised;
+  const locked = finalised || windowClosed || (classDayPassed && !windowOpen && !reopenedUntimed);
   const beforeClassDay = !allWeeks && !!classDay && !activeSession.startedAt && !finalised && now < classDay.getTime();
   const classDayLabel = classDay ? classDay.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) : '';
   const markedCount = participants.filter((participant) => records.has(participant.id)).length;
@@ -270,7 +270,7 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
 
   const mark = async (participant: Participant, status: AttendanceStatus): Promise<boolean> => {
     if (typeof selectedWeekId !== 'number' || saving.has(participant.id)) return false;
-    if (locked && !allowedWhenLocked(records.get(participant.id)?.status, status)) return false;
+    if (locked) return false;
     const previous = records.get(participant.id);
     writesInFlight.current += 1;
     setSaving((current) => new Map(current).set(participant.id, status));
@@ -293,7 +293,8 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
         else next.delete(participant.id);
         return next;
       });
-      toast({ tone: 'error', message: error instanceof Error ? error.message : `Couldn’t save ${participant.fullName}.` });
+      const message = error instanceof Error ? error.message : '';
+      toast({ tone: 'error', message: message.includes('ATTENDANCE_LOCKED') ? 'Attendance for this class is closed. To dispute a mark, message an admin.' : message || `Couldn’t save ${participant.fullName}.` });
       return false;
     } finally {
       writesInFlight.current -= 1;
@@ -313,7 +314,7 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
               <div className="min-w-[10rem] flex-1 sm:max-w-xs"><AppSelect value={selectedWeekId === 'ALL' ? 'ALL' : selectedWeekId ? String(selectedWeekId) : ''} onChange={(value) => setSelectedWeekId(value === 'ALL' ? 'ALL' : Number(value))} options={[{ value: 'ALL', label: 'All weeks' }, ...cohortWeeks.map((week) => ({ value: String(week.id), label: `Week ${week.weekNumber}` }))]} placeholder="Choose week" compact /></div>
               {!allWeeks && beforeClassDay && <span className="rounded-full bg-neutral-100 px-3 py-1.5 text-xs font-bold text-neutral-600">Opens {classDayLabel}</span>}
               {!allWeeks && !beforeClassDay && <span className={`rounded-full px-3 py-1.5 text-xs font-bold ${finalised ? 'bg-emerald-100 text-emerald-700' : allMarked ? 'bg-sky-100 text-sky-700' : 'bg-neutral-100 text-neutral-600'}`}>{finalised ? 'Report sent' : `${markedCount} of ${participants.length} marked${markedCount < participants.length ? ` · ${participants.length - markedCount} to go` : ''}`}</span>}
-              {!allWeeks && !beforeClassDay && !activeSession.startedAt && !finalised && (
+              {!allWeeks && !beforeClassDay && !activeSession.startedAt && !finalised && !locked && (
                 <button type="button" onClick={() => void startAttendance()} disabled={starting} className="rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50">{starting ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Starting…</span>) : 'Start attendance'}</button>
               )}
               {!allWeeks && windowOpen && windowClosesAt && (
@@ -337,7 +338,7 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
             )}
             {!allWeeks && finalised && <p className="mt-2 text-[13px] font-medium text-emerald-700">Attendance report sent.</p>}
             {!allWeeks && !finalised && allMarked && !(teenGroupId && scope !== 'everyone') && <p className="mt-2 text-[13px] font-medium text-emerald-700">Attendance taken.{activeSession.autoFinalizeAtNoon ? ' It will be sent automatically at noon on Sunday.' : ' Waiting for the admin to send the report.'}</p>}
-            {!allWeeks && locked && <p className="mt-2 text-[13px] font-medium text-gray-500">The register is locked. You can still move an Absent mark to Late or Left early.</p>}
+            {!allWeeks && locked && <p className="mt-2 text-[13px] font-medium text-gray-500">Attendance for this class is closed. To dispute someone's mark, message an admin.</p>}
           </section>
           {allWeeks ? (loading ? <PageLoader /> : <section className="overflow-hidden rounded-[20px] border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">{weekResults.map((result) => {
             const reportSent = !!result.session?.finalizedAt;
@@ -377,8 +378,8 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
                 <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold text-gray-900">{participant.fullName}</p>{participant.groupName && <p className="truncate text-[11px] text-gray-400">{participant.groupName}</p>}</div>
                 <div className="col-span-2 grid w-full grid-cols-5 gap-1 sm:col-span-1 sm:w-auto sm:flex sm:flex-wrap sm:gap-1.5">{STATUS_BUTTONS.map(({ status, label, activeCls }) => {
                   const pending = saving.get(participant.id) === status;
-                  const disallowed = locked && !allowedWhenLocked(current, status);
-                  return <button key={status} type="button" disabled={disallowed || busy} aria-busy={pending} onClick={() => void mark(participant, status)} className={`flex min-h-11 items-center justify-center gap-1 rounded-lg px-0.5 text-center text-[10.5px] font-semibold leading-tight transition disabled:cursor-wait disabled:opacity-40 sm:inline-flex sm:min-h-9 sm:rounded-full sm:px-2.5 sm:text-xs ${pending || current === status ? activeCls : 'bg-[#f4f5f7] text-gray-500 hover:bg-gray-200/70'} ${busy && !pending ? 'opacity-50' : ''}`}>
+                  const disallowed = locked;
+                  return <button key={status} type="button" disabled={disallowed || busy} aria-busy={pending} onClick={() => void mark(participant, status)} className={`flex min-h-11 items-center justify-center gap-1 rounded-lg px-0.5 text-center text-[10.5px] font-semibold leading-tight transition ${disallowed ? `cursor-not-allowed ${current === status ? '' : 'opacity-40'}` : 'disabled:cursor-wait disabled:opacity-40'} sm:inline-flex sm:min-h-9 sm:rounded-full sm:px-2.5 sm:text-xs ${pending || current === status ? activeCls : 'bg-[#f4f5f7] text-gray-500 hover:bg-gray-200/70'} ${busy && !pending ? 'opacity-50' : ''}`}>
                     {pending && <span className="h-3 w-3 flex-none animate-spin rounded-full border-[1.5px] border-current border-t-transparent" aria-hidden="true" />}<span className="truncate">{label}</span>
                   </button>;
                 })}</div>

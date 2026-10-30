@@ -6,6 +6,7 @@ import { useToast } from '../components/Toast';
 import CohortTrendChart from '../components/dashboard/CohortTrendChart';
 import PlannerNowLine from '../components/dashboard/PlannerNowLine';
 import DiscussionNowLine from '../components/dashboard/DiscussionNowLine';
+import AbsenceReviewCard from '../components/participants/AbsenceReviewCard';
 import HubReportsNowLine from '../components/dashboard/HubReportsNowLine';
 import BirthdaysCard from '../components/dashboard/BirthdaysCard';
 import {
@@ -285,6 +286,7 @@ const AdminDashboardPage: React.FC = () => {
         </div>
       ) : health && model ? (
         <div className="space-y-5">
+          {isAdmin && <AbsenceReviewCard />}
           {/* One card for the "right now" lines; it hides itself when none of them has anything to say. */}
           {isAdmin && (
             <div className="overflow-hidden rounded-2xl bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04),0_8px_24px_-14px_rgba(17,24,39,0.18)] empty:hidden">

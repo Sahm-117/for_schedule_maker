@@ -5,7 +5,7 @@ import { groupDiscussionApi } from '../../services/api';
 
 type Summary = { groups: number; postsAndReplies: number; activeGroups: number; openReports: number };
 
-/** "Discussions this week: 23 posts & replies · in 8 of 10 groups · 2 reports waiting", linking to Groups. Admins only. */
+/** "Discussions this week: 23 posts & replies · in 8 of 10 groups · 2 reports waiting", linking to Groups filtered to the groups that posted. Admins only. */
 const DiscussionNowLine: React.FC = () => {
   const { activeCohort } = useAppData();
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -18,7 +18,7 @@ const DiscussionNowLine: React.FC = () => {
   if (!summary || summary.groups === 0) return null;
   return (
     <NavLink
-      to="/groups"
+      to={summary.activeGroups > 0 ? '/groups?discussion=active' : '/groups'}
       className="flex min-h-[48px] items-center justify-between gap-3 border-t border-[#f0f0f2] px-4 py-3 text-sm first:border-t-0 active:bg-gray-50"
     >
       <span className="min-w-0">
@@ -29,7 +29,7 @@ const DiscussionNowLine: React.FC = () => {
           <span className="font-semibold text-red-700"> · {summary.openReports} {summary.openReports === 1 ? 'report' : 'reports'} waiting</span>
         )}
       </span>
-      <span className="shrink-0 font-semibold text-primary">Groups ›</span>
+      <span className="shrink-0 font-semibold text-primary">{summary.activeGroups > 0 ? 'See which ›' : 'Groups ›'}</span>
     </NavLink>
   );
 };

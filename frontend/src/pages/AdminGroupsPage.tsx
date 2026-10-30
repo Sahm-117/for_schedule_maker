@@ -637,7 +637,16 @@ const AdminGroupsContent: React.FC = () => {
   // /groups?group=<id>, so the URL — not local state — decides what's in view.
   // That keeps the link shareable and survives a refresh.
   // Each filter takes several choices at once and lives in the address (`?group=` is what the Supports page links to).
-  const [filters, setFilters] = useUrlFilters(['group', 'support', 'type', 'people', 'onboarding', 'gender', 'hub']);
+  const [filters, setFilters] = useUrlFilters(['group', 'support', 'type', 'people', 'onboarding', 'gender', 'hub', 'discussion']);
+  // Posts and replies this week per group (admin_discussion_summary.byGroup); null until loaded or if it fails.
+  const [discussionByGroup, setDiscussionByGroup] = useState<Record<string, number> | null>(null);
+  useEffect(() => {
+    setDiscussionByGroup(null);
+    if (!activeCohort?.id) return;
+    let cancelled = false;
+    groupDiscussionApi.summary(activeCohort.id).then((s) => { if (!cancelled) setDiscussionByGroup(s.byGroup ?? {}); }).catch(() => { if (!cancelled) setDiscussionByGroup(null); });
+    return () => { cancelled = true; };
+  }, [activeCohort?.id]);
 
   // `silent` background refreshes (triggered by realtime liveRevision bumps)
   // update the data in place WITHOUT flipping `loading`, so the grid doesn't
@@ -848,6 +857,7 @@ const AdminGroupsContent: React.FC = () => {
         return choice === NO_HUB_OPTION ? hubIds.length === 0 : hubIds.includes(choice);
       }
       case 'people': return choice === 'empty' ? (membersByGroupId.get(g.id)?.length ?? 0) === 0 : (membersByGroupId.get(g.id)?.length ?? 0) > 0;
+      case 'discussion': return choice === 'active' ? (discussionByGroup?.[g.id] ?? 0) > 0 : (discussionByGroup?.[g.id] ?? 0) === 0;
       default: return true;
     }
   };
@@ -856,7 +866,7 @@ const AdminGroupsContent: React.FC = () => {
   // A hub from another cohort (an old link) has no chip to clear it, so it is ignored rather than hiding every group.
   const hubChoices = (filters.hub ?? []).filter((v) => v === NO_HUB_OPTION || hubOptions.some((hub) => hub.id === v));
   const sheetFilters = Object.fromEntries(Object.entries(filters).filter(([key]) => key !== 'hub'));
-  const displayedGroups = groups.filter((g) => Object.entries({ ...sheetFilters, hub: hubChoices }).every(([key, choices]) => choices.length === 0 || (key === 'onboarding' && onboardingByGroup.size === 0) || choices.some((c) => groupFits(key, c, g))));
+  const displayedGroups = groups.filter((g) => Object.entries({ ...sheetFilters, hub: hubChoices }).every(([key, choices]) => choices.length === 0 || (key === 'onboarding' && onboardingByGroup.size === 0) || (key === 'discussion' && !discussionByGroup) || choices.some((c) => groupFits(key, c, g))));
   const hubChipOptions = [
     ...hubOptions.map((hub) => ({ value: hub.id, label: hub.name })),
     { value: NO_HUB_OPTION, label: 'No hub' },
@@ -864,9 +874,10 @@ const AdminGroupsContent: React.FC = () => {
   ].map((o) => ({ ...o, count: [...groups, ...teenGroups].filter((g) => groupFits('hub', o.value, g)).length }))
     .filter((o) => o.value !== NO_HUB_OPTION || o.count > 0 || hubChoices.includes(NO_HUB_OPTION));
   // Teen groups sit in their own section; the hub chips filter it too (a teen group's hub is its Teen Support's).
-  // The Gender filter applies to the Teen groups section as well.
+  // The Gender and Discussion filters apply to the Teen groups section as well.
   const genderChoices = filters.gender ?? [];
-  const displayedTeenGroups = teenGroups.filter((g) => (hubChoices.length === 0 || hubChoices.some((c) => groupFits('hub', c, g))) && (genderChoices.length === 0 || genderChoices.some((c) => groupFits('gender', c, g))));
+  const discussionChoices = discussionByGroup ? filters.discussion ?? [] : [];
+  const displayedTeenGroups = teenGroups.filter((g) => (hubChoices.length === 0 || hubChoices.some((c) => groupFits('hub', c, g))) && (genderChoices.length === 0 || genderChoices.some((c) => groupFits('gender', c, g))) && (discussionChoices.length === 0 || discussionChoices.some((c) => groupFits('discussion', c, g))));
   const toggleHub = (value: string) => setFilters({ ...filters, hub: hubChoices.includes(value) ? hubChoices.filter((v) => v !== value) : [...hubChoices, value] });
   const filterGroups: FilterGroup[] = (() => {
     const opt = (key: string, value: string, label: string) => ({ value, label, count: groups.filter((g) => groupFits(key, value, g)).length });
@@ -889,6 +900,7 @@ const AdminGroupsContent: React.FC = () => {
       out.push({ key: 'onboarding', label: 'Onboarding', options: ONBOARDING_CHIPS.map((chip) => opt('onboarding', chip, ONBOARDING_CHIP_LABEL[chip])), hint: assignedDatesKnown ? undefined : 'Day counts unavailable, so Overdue can’t be shown.' });
     }
     out.push({ key: 'people', label: 'Members', options: [opt('people', 'empty', 'Empty'), opt('people', 'has', 'Has participants')] });
+    if (discussionByGroup) out.push({ key: 'discussion', label: 'Discussion this week', options: [opt('discussion', 'active', 'Posted this week'), opt('discussion', 'quiet', 'Quiet this week')] });
     return out;
   })();
 
@@ -1016,6 +1028,7 @@ const AdminGroupsContent: React.FC = () => {
                 signedInIds={signedInIds}
                 progress={onboardingProgress}
                 appDetails={appDetails}
+                discussionThisWeek={discussionByGroup ? discussionByGroup[g.id] ?? 0 : undefined}
               />
             );
           })}
@@ -1026,10 +1039,10 @@ const AdminGroupsContent: React.FC = () => {
         <section className="mt-8">
           <h2 className="text-sm font-bold text-gray-900">
             Teen groups
-            {(hubChoices.length > 0 || genderChoices.length > 0) && <span className="ml-1.5 text-xs font-medium text-gray-500">{displayedTeenGroups.length} of {teenGroups.length} {hubChoices.length > 0 && genderChoices.length === 0 ? 'in the chosen hubs' : 'match the filters'}</span>}
+            {(hubChoices.length > 0 || genderChoices.length > 0 || discussionChoices.length > 0) && <span className="ml-1.5 text-xs font-medium text-gray-500">{displayedTeenGroups.length} of {teenGroups.length} {hubChoices.length > 0 && genderChoices.length === 0 && discussionChoices.length === 0 ? 'in the chosen hubs' : 'match the filters'}</span>}
           </h2>
           <p className="mb-3 text-xs text-gray-500">Each Teen Support's teens. No meetings or recaps; Sunday attendance only.</p>
-          {displayedTeenGroups.length === 0 && <p className="text-sm text-gray-500">No teen groups in the chosen hubs.</p>}
+          {displayedTeenGroups.length === 0 && <p className="text-sm text-gray-500">{hubChoices.length > 0 && genderChoices.length === 0 && discussionChoices.length === 0 ? 'No teen groups in the chosen hubs.' : 'No teen groups match the filters.'}</p>}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {displayedTeenGroups.map((g) => {
               const members = membersByGroupId.get(g.id) ?? [];

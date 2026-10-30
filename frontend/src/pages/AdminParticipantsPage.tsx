@@ -4,6 +4,7 @@ import SegmentedTabs from '../components/SegmentedTabs';
 import { Navigate, NavLink, useNavigate, useSearchParams } from 'react-router-dom';
 import Avatar from '../components/Avatar';
 import PageHeader from '../components/PageHeader';
+import AbsenceReviewCard from '../components/participants/AbsenceReviewCard';
 import PageLoader from '../components/PageLoader';
 import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
@@ -1257,6 +1258,7 @@ const AdminParticipantsContent: React.FC = () => {
         }
       />
 
+      {activeCohort && <AbsenceReviewCard className="mb-4" />}
       {!activeCohort ? (
         <p className="text-sm text-gray-500">Select or create a cohort first.</p>
       ) : (
