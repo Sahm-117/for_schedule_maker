@@ -60,9 +60,16 @@ primer (`2026-10-30_security-review-primer.md`); the owner chose to fix all four
   - `private-files` can't be read without a link, and admins can upload, read and delete.
 - Every test file, session and throttle row was removed.
 
+- **Files moved:** after the new app was live, the 7 Resource files and 2 earlier versions were copied into
+  `private-files/resources/<same name>` (sizes checked), and their rows now point to `fof-private:…`.
+  - `file-links` signs all 9 for an admin and none for a participant (none of these are shared with participants),
+    and refuses callers who aren't signed in.
+  - Checked in the browser: previews load, and a PDF opens in the viewer.
+- **Old public copies removed, with the owner's go-ahead:** the 9 moved files plus 5 unused top-level documents
+  (old Faith Project Guide PDFs, two spreadsheets, a week 1 schedule). They are in the 30 Oct encrypted backup, and
+  the old links now return an error, with nothing cached.
+
 ## Open items
-- The existing Resource files and their earlier versions still need moving into `private-files` and the old public
-  copies removing (the old copies need the owner's go-ahead per file). See the follow-up handoff.
 - Survey uploads (`survey-files/…`) still go to the public bucket. None exist yet; move them to `private-files`
   before surveys collect files.
 - Installed phone apps on an older version open private files only after they update (Refresh, or the update
