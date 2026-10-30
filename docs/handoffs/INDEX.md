@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-30 | [Admin review batch 1](2026-10-30_admin-review-batch-1.md) | Only admins (or the service key) can send announcements, and empty audiences are refused, with a recipient count before Send; one-call last active on Supports; Scripture previews; Users paging; clearer Right now. One live migration, send-announcement v30, 84 preview images. |
 | 2026-10-30 | [Late counts as attended; Realtime off; empty announcement removed](2026-10-30_late-counts-realtime-off.md) | Only Absent is a missed class everywhere (frontend, 4 database functions, API); Notification off the Realtime feed; the announcement that reached nobody deleted. 2 live migrations, public-api v5. FLOW_MAP rules 12, 118. |
 | 2026-10-30 | [Check-ups after a cohort](2026-10-30_post-cohort-checkups.md) | Daily job gives every group leader a check-up task when the cohort's rest week 3 begins (due that Sunday), then reminders 1, 2 and 3 months later. Cohort 10's begins 4 Jan 2027. 1 live migration, 1 cron job. FLOW_MAP rule 121. |
 | 2026-10-30 | [App review, 11 Oct slowdown, primer risks](2026-10-30_app-review-load-risks-primer.md) | Why the app lagged on 11 Oct: whole-database stalls on the smallest free instance, the Realtime change feed (43% of database time since Feb), polling and pg_net. All 32 admin pages checked. Primer gains What's new and Risks. No live changes. |

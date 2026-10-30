@@ -521,6 +521,7 @@ export const usersApi = USE_SUPABASE ? supabaseUsersApi : {
   async saveWhatsappGroupUrl(_userId: string, _url: string | null): Promise<void> { return; },
   async saveProfileDetails(_userId: string, _details: { gender: string | null; ageRange: string | null }): Promise<void> { return; },
   async getLastActive(_userId: string): Promise<string | null> { return null; },
+  async getLastActiveMany(_userIds: string[]): Promise<Record<string, string | null>> { return {}; },
   async saveBirthday(_userId: string, _birthday: string | null): Promise<void> { return; },
   async saveBirthYear(_userId: string, _birthYear: number | null): Promise<{ ageRange: string | null }> { return { ageRange: null }; },
   async savePhone(_userId: string, _phone: string): Promise<void> { return; },
@@ -644,6 +645,7 @@ export const notificationSettingsApi = USE_SUPABASE ? supabaseNotificationSettin
 };
 
 export const announcementsApi = USE_SUPABASE ? supabaseAnnouncementsApi : {
+  async preview(_options?: unknown): Promise<{ supports: number; participants: number }> { return { supports: 0, participants: 0 }; },
   async send(_subject: string, _body: string, _sentBy: string, _options?: { scope?: 'ACTIVE_COHORT' | 'ALL_USERS'; cohortId?: string | null; targetLabelId?: string | null; targetGroupId?: string | null; targetHubId?: string | null; targetHubJobs?: import('../types').HubJob[]; targetUserId?: string | null; targetUserIds?: string[] | null; targetParticipantId?: string | null; home?: { homeUntil: string; homeLabel?: string | null; linkUrl?: string | null; linkLabel?: string | null } | null }): Promise<{ sent: number }> { return { sent: 0 }; },
   async delete(_announcementId: string): Promise<{ message: string }> { return { message: 'Not supported' }; },
   async removeFromHome(_announcementId: string): Promise<void> {},
@@ -1186,7 +1188,7 @@ export const participantCheckInsApi = USE_SUPABASE ? supabaseParticipantCheckIns
 
 export const scripturesApi = USE_SUPABASE ? supabaseScripturesApi : {
   async getAll(): Promise<{ scriptures: import('../types').Scripture[] }> { return { scriptures: [] }; },
-  async upload(_dayNumber: number, _image: Blob, _userId: string): Promise<never> { return peopleUnavailable(); },
+  async upload(_dayNumber: number, _image: Blob, _userId: string, _thumb?: Blob): Promise<never> { return peopleUnavailable(); },
   async remove(_scripture: import('../types').Scripture): Promise<void> { return; },
   async reorder(_ids: string[]): Promise<void> { return; },
 };

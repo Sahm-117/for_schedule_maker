@@ -221,17 +221,19 @@ export const formatPlannerDate = (iso: string, withWeekday = true, yearOf?: stri
 export const formatPlannerRange = (start: string, end: string, yearOf?: string) =>
   `${formatPlannerDate(start, false, yearOf)} – ${formatPlannerDate(end, false, yearOf)}`;
 
-/** One-line summary for the Right now card, e.g. "Cohort 10 · Class 4 of 10". */
+/** One-line summary for the Right now card, e.g. "Cohort 10 · Class 2 of 10 done" and "Class 3 on Sun 1 Nov". */
 export const describeMoment = (moment: PlannerMoment, today: string) => {
   const { cohort, phase } = moment;
   if (phase.kind === 'classes') {
+    const total = cohort.classDates.length;
     const held = cohort.classDates.filter((d) => d <= today).length;
     const next = cohort.classDates.find((d) => d >= today) ?? null;
+    // On a class day that class is "today", not done; otherwise say which class comes next, so
+    // "Class 2 of 10" can't read as if class 2 is the next one.
+    if (next === today) return { title: `${cohort.name} · Class ${held} of ${total}`, detail: 'Class today' };
     return {
-      title: held === 0 ? `${cohort.name} · Getting ready` : `${cohort.name} · Class ${held} of ${cohort.classDates.length}`,
-      detail: next
-        ? next === today ? 'Class today' : `${held === 0 ? 'First' : 'Next'} class ${formatPlannerDate(next, true, today)}`
-        : 'Last class done',
+      title: held === 0 ? `${cohort.name} · Getting ready` : `${cohort.name} · Class ${held} of ${total} done`,
+      detail: next ? `Class ${held + 1} on ${formatPlannerDate(next, true, today)}` : 'All classes done',
     };
   }
   if (phase.kind === 'spare') {

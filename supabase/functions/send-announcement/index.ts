@@ -20,7 +20,11 @@
  *   targetParticipantId?: string | null (send to a single participant only)
  *   audience?: 'SUPPORTS' | 'PARTICIPANTS' | 'EVERYONE'
  *   popup?: boolean (a popup each recipient must acknowledge; recorded in AnnouncementPopup)
+ *   dryRun?: boolean (only work out who would get it: { ok, dryRun: true, supports, participants }; nothing is sent or saved)
  * }
+ *
+ * Callers: a signed-in admin (x-session-token) or the service role (push-reminders' survey sends). Recipients are
+ * worked out first; an admin send that would reach nobody is refused with NO_RECIPIENTS and nothing is saved.
  *
  * Required Supabase secrets:
  *   VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT
@@ -54,6 +58,22 @@ const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT') || 'mailto:admin@fof.com'
 
 webPush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
 
+// The gateway checks the JWT (verify_jwt), so its role claim can be trusted here.
+const jwtRole = (req: Request): string | null => {
+  const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '')
+  const part = token.split('.')[1]
+  if (!part) return null
+  try {
+    const payload = JSON.parse(atob(part.replace(/-/g, '+').replace(/_/g, '/')))
+    return typeof payload.role === 'string' ? payload.role : null
+  } catch {
+    return null
+  }
+}
+
+const json = (value: unknown, status = 200) =>
+  new Response(JSON.stringify(value), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -66,8 +86,19 @@ Deno.serve(async (req) => {
     })
   }
 
+  // The service role (scheduled jobs) may send; anyone else must be a signed-in admin.
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+  const fromServer = (!!serviceKey && req.headers.get('Authorization') === `Bearer ${serviceKey}`) || jwtRole(req) === 'service_role'
+  if (!fromServer) {
+    const token = req.headers.get('x-session-token')
+    if (!token) return json({ ok: false, error: 'SESSION_EXPIRED' }, 401)
+    const { data: staff } = await supabase.rpc('app_staff', { p_token: token })
+    if (!staff?.id) return json({ ok: false, error: 'SESSION_EXPIRED' }, 401)
+    if (staff.role !== 'ADMIN') return json({ ok: false, error: 'Only admins can send announcements' }, 403)
+  }
+
   try {
-    const { subject, body, sentBy, scope = 'ACTIVE_COHORT', cohortId = null, targetLabelId = null, targetGroupId = null, targetHubId = null, targetHubJobs = null, targetUserId = null, targetUserIds = null, targetParticipantId = null, audience = 'SUPPORTS', popup = false } = await req.json() as {
+    const { subject, body, sentBy, scope = 'ACTIVE_COHORT', cohortId = null, targetLabelId = null, targetGroupId = null, targetHubId = null, targetHubJobs = null, targetUserId = null, targetUserIds = null, targetParticipantId = null, audience = 'SUPPORTS', popup = false, dryRun = false, allowEmpty = false } = await req.json() as {
       subject: string
       body: string
       sentBy?: string
@@ -89,9 +120,13 @@ Deno.serve(async (req) => {
       audience?: 'SUPPORTS' | 'PARTICIPANTS' | 'EVERYONE'
       // A popup: stays on screen for each recipient until they tap Got it (see AnnouncementPopup).
       popup?: boolean
+      // Only count who would get it; nothing is sent or saved.
+      dryRun?: boolean
+      // Save it even if nobody would get an alert now (a Home-pinned post that people see when they sign in).
+      allowEmpty?: boolean
     }
 
-    if (!subject || !body) {
+    if (!dryRun && (!subject || !body)) {
       return new Response(JSON.stringify({ ok: false, error: 'subject and body are required' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -113,7 +148,166 @@ Deno.serve(async (req) => {
     // Hub roles this send is narrowed to (none for a single or picked person). Kept on the row so the feed can say who it was for.
     const hubJobs = targetUserId || hasPickedUsers || targetParticipantId ? [] : (targetHubJobs || [])
 
-    // 1. Record the announcement
+    // Supports and admins this send reaches (resolved before anything is saved).
+    async function resolveSupportRecipients(): Promise<{ recipientIds: string[]; roleByUser: Map<string, string> }> {
+      let scopedUserIds: string[] = []
+
+      if (targetParticipantId) {
+        scopedUserIds = []
+      } else if (targetUserId) {
+        scopedUserIds = [targetUserId]
+      } else if (hasPickedUsers) {
+        scopedUserIds = pickedUserIds
+      } else {
+        if (scope === 'ACTIVE_COHORT' && cohortId) {
+          const { data: memberships, error: membershipError } = await supabase
+            .from('UserCohort')
+            .select('userId')
+            .eq('cohortId', cohortId)
+
+          if (membershipError) {
+            throw new Error(membershipError.message)
+          }
+
+          scopedUserIds = Array.from(new Set((memberships || []).map((row: any) => row.userId).filter(Boolean)))
+        } else {
+          const { data: users, error: usersError } = await supabase
+            .from('User')
+            .select('id')
+            .eq('isActive', true)
+
+          if (usersError) {
+            throw new Error(usersError.message)
+          }
+
+          scopedUserIds = Array.from(new Set((users || []).map((row: any) => row.id).filter(Boolean)))
+        }
+
+        if (targetLabelId) {
+          const { data: labelUsers, error: labelError } = await supabase
+            .from('UserLabel')
+            .select('userId')
+            .eq('labelId', targetLabelId)
+
+          if (labelError) {
+            throw new Error(labelError.message)
+          }
+
+          const labelUserIds = new Set((labelUsers || []).map((row: any) => row.userId).filter(Boolean))
+          scopedUserIds = scopedUserIds.filter((userId) => labelUserIds.has(userId))
+        }
+
+        if (hubJobs.length > 0) {
+          // Leads aren't always hub members, so read the roles straight off the
+          // hubs (this cohort's, or the one picked) instead of HubMembership.
+          let hubQuery = supabase
+            .from('SupportHub')
+            .select('id, "leadUserId", "assistantLeadUserId", "recapLeadUserIds", "prayerLeadUserIds"')
+          if (targetHubId) hubQuery = hubQuery.eq('id', targetHubId)
+          else if (scope === 'ACTIVE_COHORT' && cohortId) hubQuery = hubQuery.eq('cohortId', cohortId)
+          const { data: hubs, error: hubsError } = await hubQuery
+          if (hubsError) {
+            throw new Error(hubsError.message)
+          }
+
+          const roleUserIds = new Set<string>()
+          for (const hub of (hubs || []) as any[]) {
+            if (hubJobs.includes('HUB_LEAD') && hub.leadUserId) roleUserIds.add(hub.leadUserId)
+            if (hubJobs.includes('ASSISTANT_HUB_LEAD') && hub.assistantLeadUserId) roleUserIds.add(hub.assistantLeadUserId)
+            if (hubJobs.includes('RECAP_LEAD')) for (const id of hub.recapLeadUserIds || []) roleUserIds.add(id)
+            if (hubJobs.includes('PRAYER_LEAD')) for (const id of hub.prayerLeadUserIds || []) roleUserIds.add(id)
+          }
+          if (hubJobs.includes('IT_SUPPORT') && (hubs || []).length > 0) {
+            const { data: itRows, error: itError } = await supabase
+              .from('HubItSupport')
+              .select('userId')
+              .in('hubId', (hubs || []).map((hub: any) => hub.id))
+            if (itError) {
+              throw new Error(itError.message)
+            }
+            for (const row of (itRows || []) as any[]) if (row.userId) roleUserIds.add(row.userId)
+          }
+          scopedUserIds = scopedUserIds.filter((userId) => roleUserIds.has(userId))
+        } else if (targetHubId) {
+          const { data: hubMembers, error: hubError } = await supabase
+            .from('HubMembership')
+            .select('userId')
+            .eq('hubId', targetHubId)
+
+          if (hubError) {
+            throw new Error(hubError.message)
+          }
+
+          const hubUserIds = new Set((hubMembers || []).map((row: any) => row.userId).filter(Boolean))
+          scopedUserIds = scopedUserIds.filter((userId) => hubUserIds.has(userId))
+        }
+      }
+
+      if (scopedUserIds.length === 0) return { recipientIds: [] as string[], roleByUser: new Map<string, string>() }
+
+      const { data: activeUsers, error: activeUsersError } = await supabase
+        .from('User')
+        .select('id, role')
+        .in('id', scopedUserIds)
+        .eq('isActive', true)
+
+      if (activeUsersError) {
+        throw new Error(activeUsersError.message)
+      }
+
+      const roleByUser = new Map<string, string>()
+      for (const row of (activeUsers || []) as any[]) {
+        if (row?.id) roleByUser.set(row.id, row.role)
+      }
+
+      const recipientIds = Array.from(new Set((activeUsers || []).map((row: any) => row.id).filter(Boolean))) as string[]
+      return { recipientIds, roleByUser }
+    }
+
+    // 1. Who would get it. Participants: skipped entirely when the send is targeted at a single support/admin.
+    let participantIds: string[] = []
+    if ((audience === 'PARTICIPANTS' || audience === 'EVERYONE') && !targetUserId && !hasPickedUsers && hubJobs.length === 0) {
+      if (targetParticipantId) {
+        participantIds = [targetParticipantId]
+      } else {
+        let participantQuery = supabase
+          .from('ParticipantAccount')
+          .select('participantId, participant:Participant!inner(cohortId, status)')
+          .eq('isActive', true)
+          .eq('participant.status', 'ACTIVE')
+        if (scope === 'ACTIVE_COHORT' && cohortId) participantQuery = participantQuery.eq('participant.cohortId', cohortId)
+        const { data: accounts, error: accountsError } = await participantQuery
+        // A failed read must not look like "nobody": the dry run and NO_RECIPIENTS rely on this count.
+        if (accountsError) throw new Error(accountsError.message)
+        participantIds = ((accounts ?? []) as any[]).map((row) => row.participantId)
+        if (targetGroupId) {
+          const { data: groupMembers, error: groupMembersError } = await supabase
+            .from('GroupParticipant')
+            .select('participantId')
+            .eq('groupId', targetGroupId)
+          if (groupMembersError) throw new Error(groupMembersError.message)
+          const groupParticipantIds = new Set((groupMembers || []).map((row: any) => row.participantId))
+          participantIds = participantIds.filter((id) => groupParticipantIds.has(id))
+        }
+      }
+      participantIds = Array.from(new Set(participantIds))
+    }
+
+    // Supports and admins: from scope, optional tag, hub or hub roles, then only active users.
+    //    A single-participant target excludes every support/admin; a single-user
+    //    target is the whole recipient set, skipping scope/tag/hub filtering.
+    const recipients = audience === 'PARTICIPANTS' ? { recipientIds: [] as string[], roleByUser: new Map<string, string>() } : await resolveSupportRecipients()
+
+    if (dryRun) {
+      return json({ ok: true, dryRun: true, supports: recipients.recipientIds.length, participants: participantIds.length })
+    }
+    // An admin's send that would reach nobody is refused before anything is saved (a scheduled survey send and a
+    // Home-pinned post, which people see when they next sign in, are not).
+    if (!fromServer && !allowEmpty && participantIds.length === 0 && recipients.recipientIds.length === 0) {
+      return json({ ok: false, code: 'NO_RECIPIENTS', error: 'Nobody would receive this. Check who it is for and try again.' }, 400)
+    }
+
+    // 2. Record the announcement (only now that someone will get it)
     const { data: announcement, error: insertError } = await supabase
       .from('Announcement')
       .insert([{
@@ -139,60 +333,35 @@ Deno.serve(async (req) => {
       throw new Error(insertError?.message || 'Failed to insert announcement')
     }
 
-    // 1b. Participants: push to their devices (they have no in-app feed; the
+    // 3. Participants: push to their devices (they have no in-app feed; the
     //     announcement shows on their Home when pinned there).
     let participantSent = 0
-    // Skip participants entirely when the send is targeted at a single support/admin.
-    if ((audience === 'PARTICIPANTS' || audience === 'EVERYONE') && !targetUserId && !hasPickedUsers && hubJobs.length === 0) {
-      let participantIds: string[]
-      if (targetParticipantId) {
-        participantIds = [targetParticipantId]
-      } else {
-        let participantQuery = supabase
-          .from('ParticipantAccount')
-          .select('participantId, participant:Participant!inner(cohortId, status)')
-          .eq('isActive', true)
-          .eq('participant.status', 'ACTIVE')
-        if (scope === 'ACTIVE_COHORT' && cohortId) participantQuery = participantQuery.eq('participant.cohortId', cohortId)
-        const { data: accounts } = await participantQuery
-        participantIds = ((accounts ?? []) as any[]).map((row) => row.participantId)
-        if (targetGroupId) {
-          const { data: groupMembers, error: groupMembersError } = await supabase
-            .from('GroupParticipant')
-            .select('participantId')
-            .eq('groupId', targetGroupId)
-          if (groupMembersError) throw new Error(groupMembersError.message)
-          const groupParticipantIds = new Set((groupMembers || []).map((row: any) => row.participantId))
-          participantIds = participantIds.filter((id) => groupParticipantIds.has(id))
-        }
+    if (participantIds.length > 0) {
+      if (popup) {
+        const { error: popupError } = await supabase.from('AnnouncementPopup').insert(
+          Array.from(new Set(participantIds)).map((participantId) => ({ announcementId: announcement.id, participantId })),
+        )
+        if (popupError) console.error('send-announcement: could not record participant popups', popupError.message)
       }
-      if (participantIds.length > 0) {
-        if (popup) {
-          const { error: popupError } = await supabase.from('AnnouncementPopup').insert(
-            Array.from(new Set(participantIds)).map((participantId) => ({ announcementId: announcement.id, participantId })),
-          )
-          if (popupError) console.error('send-announcement: could not record participant popups', popupError.message)
-        }
-        // Participant bell row for everyone targeted, push or not.
-        await insertParticipantNotifications(supabase, participantIds.map((participantId) => ({
-          participantId, title: subject, body, path: '/me', type: 'ANNOUNCEMENT',
-        })))
-        const { data: participantSubs } = await supabase
-          .from('ParticipantPushSubscription')
-          .select('participantId, endpoint, p256dh, auth')
-          .in('participantId', participantIds)
-        const rows = ((participantSubs ?? []) as any[]).map((row) => ({ userId: row.participantId, endpoint: row.endpoint, p256dh: row.p256dh, auth: row.auth }))
-        if (rows.length > 0) {
-          const result = await sendToSubscriptions(webPush, supabase, rows, JSON.stringify({
-            title: subject,
-            body,
-            icon: '/icon-192.png',
-            tag: `fof-announcement-${announcement.id}`,
-            data: { path: '/me' },
-          }), undefined, PARTICIPANT_PUSH_STORE)
-          participantSent = result.sent
-          if (result.failed > 0) console.error(`send-announcement (participants): ${result.sent} sent, ${result.failed} failed, ${result.removed} removed`, JSON.stringify(result.errors))
-        }
+      // Participant bell row for everyone targeted, push or not.
+      await insertParticipantNotifications(supabase, participantIds.map((participantId) => ({
+        participantId, title: subject, body, path: '/me', type: 'ANNOUNCEMENT',
+      })))
+      const { data: participantSubs } = await supabase
+        .from('ParticipantPushSubscription')
+        .select('participantId, endpoint, p256dh, auth')
+        .in('participantId', participantIds)
+      const rows = ((participantSubs ?? []) as any[]).map((row) => ({ userId: row.participantId, endpoint: row.endpoint, p256dh: row.p256dh, auth: row.auth }))
+      if (rows.length > 0) {
+        const result = await sendToSubscriptions(webPush, supabase, rows, JSON.stringify({
+          title: subject,
+          body,
+          icon: '/icon-192.png',
+          tag: `fof-announcement-${announcement.id}`,
+          data: { path: '/me' },
+        }), undefined, PARTICIPANT_PUSH_STORE)
+        participantSent = result.sent
+        if (result.failed > 0) console.error(`send-announcement (participants): ${result.sent} sent, ${result.failed} failed, ${result.removed} removed`, JSON.stringify(result.errors))
       }
     }
     if (audience === 'PARTICIPANTS') {
@@ -201,116 +370,9 @@ Deno.serve(async (req) => {
       })
     }
 
-    // 2. Resolve final recipients from scope, optional tag, and active users.
-    //    A single-participant target excludes every support/admin; a single-user
-    //    target is the whole recipient set, skipping scope/tag/hub filtering.
-    let scopedUserIds: string[] = []
-
-    if (targetParticipantId) {
-      scopedUserIds = []
-    } else if (targetUserId) {
-      scopedUserIds = [targetUserId]
-    } else if (hasPickedUsers) {
-      scopedUserIds = pickedUserIds
-    } else {
-      if (scope === 'ACTIVE_COHORT' && cohortId) {
-        const { data: memberships, error: membershipError } = await supabase
-          .from('UserCohort')
-          .select('userId')
-          .eq('cohortId', cohortId)
-
-        if (membershipError) {
-          throw new Error(membershipError.message)
-        }
-
-        scopedUserIds = Array.from(new Set((memberships || []).map((row: any) => row.userId).filter(Boolean)))
-      } else {
-        const { data: users, error: usersError } = await supabase
-          .from('User')
-          .select('id')
-          .eq('isActive', true)
-
-        if (usersError) {
-          throw new Error(usersError.message)
-        }
-
-        scopedUserIds = Array.from(new Set((users || []).map((row: any) => row.id).filter(Boolean)))
-      }
-
-      if (targetLabelId) {
-        const { data: labelUsers, error: labelError } = await supabase
-          .from('UserLabel')
-          .select('userId')
-          .eq('labelId', targetLabelId)
-
-        if (labelError) {
-          throw new Error(labelError.message)
-        }
-
-        const labelUserIds = new Set((labelUsers || []).map((row: any) => row.userId).filter(Boolean))
-        scopedUserIds = scopedUserIds.filter((userId) => labelUserIds.has(userId))
-      }
-
-      if (hubJobs.length > 0) {
-        // Leads aren't always hub members, so read the roles straight off the
-        // hubs (this cohort's, or the one picked) instead of HubMembership.
-        let hubQuery = supabase
-          .from('SupportHub')
-          .select('id, "leadUserId", "assistantLeadUserId", "recapLeadUserIds", "prayerLeadUserIds"')
-        if (targetHubId) hubQuery = hubQuery.eq('id', targetHubId)
-        else if (scope === 'ACTIVE_COHORT' && cohortId) hubQuery = hubQuery.eq('cohortId', cohortId)
-        const { data: hubs, error: hubsError } = await hubQuery
-        if (hubsError) {
-          throw new Error(hubsError.message)
-        }
-
-        const roleUserIds = new Set<string>()
-        for (const hub of (hubs || []) as any[]) {
-          if (hubJobs.includes('HUB_LEAD') && hub.leadUserId) roleUserIds.add(hub.leadUserId)
-          if (hubJobs.includes('ASSISTANT_HUB_LEAD') && hub.assistantLeadUserId) roleUserIds.add(hub.assistantLeadUserId)
-          if (hubJobs.includes('RECAP_LEAD')) for (const id of hub.recapLeadUserIds || []) roleUserIds.add(id)
-          if (hubJobs.includes('PRAYER_LEAD')) for (const id of hub.prayerLeadUserIds || []) roleUserIds.add(id)
-        }
-        if (hubJobs.includes('IT_SUPPORT') && (hubs || []).length > 0) {
-          const { data: itRows, error: itError } = await supabase
-            .from('HubItSupport')
-            .select('userId')
-            .in('hubId', (hubs || []).map((hub: any) => hub.id))
-          if (itError) {
-            throw new Error(itError.message)
-          }
-          for (const row of (itRows || []) as any[]) if (row.userId) roleUserIds.add(row.userId)
-        }
-        scopedUserIds = scopedUserIds.filter((userId) => roleUserIds.has(userId))
-      } else if (targetHubId) {
-        const { data: hubMembers, error: hubError } = await supabase
-          .from('HubMembership')
-          .select('userId')
-          .eq('hubId', targetHubId)
-
-        if (hubError) {
-          throw new Error(hubError.message)
-        }
-
-        const hubUserIds = new Set((hubMembers || []).map((row: any) => row.userId).filter(Boolean))
-        scopedUserIds = scopedUserIds.filter((userId) => hubUserIds.has(userId))
-      }
-    }
-
-    if (scopedUserIds.length === 0) {
-      return new Response(JSON.stringify({ ok: true, sent: 0, announcementId: announcement.id }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
-    const { data: activeUsers, error: activeUsersError } = await supabase
-      .from('User')
-      .select('id, role')
-      .in('id', scopedUserIds)
-      .eq('isActive', true)
-
-    if (activeUsersError) {
-      throw new Error(activeUsersError.message)
+    const { recipientIds, roleByUser } = recipients
+    if (recipientIds.length === 0) {
+      return json({ ok: true, sent: 0, announcementId: announcement.id })
     }
 
     // Role-aware deep-link: announcements are read on the announcements feed,
@@ -318,17 +380,6 @@ Deno.serve(async (req) => {
     // route). Keep this in sync between the in-app row and the push payload.
     const pathForRole = (role?: string) =>
       role === 'SUPPORT' ? '/support/announcements' : '/team-announcements'
-    const roleByUser = new Map<string, string>()
-    for (const row of (activeUsers || []) as any[]) {
-      if (row?.id) roleByUser.set(row.id, row.role)
-    }
-
-    const recipientIds = Array.from(new Set((activeUsers || []).map((row: any) => row.id).filter(Boolean)))
-    if (recipientIds.length === 0) {
-      return new Response(JSON.stringify({ ok: true, sent: 0, announcementId: announcement.id }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
 
     // 2b. A popup: remember who it was sent to, so each person sees it until they tap Got it.
     if (popup) {

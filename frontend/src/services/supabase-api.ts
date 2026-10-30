@@ -2920,6 +2920,14 @@ export const usersApi = {
   },
 
   // Admin-only: last time this account used the app (to the hour). Null for anyone else.
+  /** Last active for many people in one request (staff only): id -> time, or null when nothing is recorded. */
+  async getLastActiveMany(userIds: string[]): Promise<Record<string, string | null>> {
+    if (userIds.length === 0) return {};
+    const { data, error } = await supabase.rpc('users_last_active', { p_user_ids: userIds });
+    if (error) throw new Error(error.message);
+    return (data as Record<string, string | null> | null) ?? {};
+  },
+
   async getLastActive(userId: string): Promise<string | null> {
     const { data, error } = await supabase.rpc('user_last_active', { p_user_id: userId });
     if (error) throw new Error(error.message);
@@ -3162,7 +3170,51 @@ export const announcementPopupsApi = {
   },
 };
 
+// Who an announcement goes to, as send-announcement reads it (the parts that decide its recipients).
+type AnnouncementAudienceOptions = {
+  scope?: 'ACTIVE_COHORT' | 'ALL_USERS';
+  cohortId?: string | null;
+  targetLabelId?: string | null;
+  targetGroupId?: string | null;
+  targetHubId?: string | null;
+  targetHubJobs?: import('../types').HubJob[];
+  targetUserId?: string | null;
+  targetUserIds?: string[] | null;
+  targetParticipantId?: string | null;
+  audience?: import('../types').AnnouncementAudience;
+};
+const announcementAudienceBody = (options?: AnnouncementAudienceOptions) => ({
+  scope: options?.scope || 'ACTIVE_COHORT',
+  cohortId: options?.cohortId || null,
+  targetLabelId: options?.targetLabelId || null,
+  targetGroupId: options?.targetGroupId || null,
+  targetHubId: options?.targetHubId || null,
+  targetHubJobs: options?.targetHubJobs?.length ? options.targetHubJobs : null,
+  targetUserId: options?.targetUserId || null,
+  targetUserIds: options?.targetUserIds?.length ? options.targetUserIds : null,
+  targetParticipantId: options?.targetParticipantId || null,
+  audience: options?.audience || 'SUPPORTS',
+});
+// A function's own error text (for example "Nobody would receive this…") instead of "non-2xx status code",
+// with its code (NO_RECIPIENTS) on `.code` so callers can tell that refusal apart.
+const functionError = async (error: unknown): Promise<Error & { code?: string }> => {
+  const context = (error as { context?: Response })?.context;
+  if (context && typeof context.json === 'function') {
+    try {
+      const body = await context.clone().json();
+      if (body?.error) return Object.assign(new Error(String(body.error)), { code: body.code ? String(body.code) : undefined });
+    } catch { /* not JSON */ }
+  }
+  return new Error(error instanceof Error ? error.message : 'Something went wrong. Please try again.');
+};
+
 export const announcementsApi = {
+  /** How many supports and participants an announcement would reach; nothing is sent. */
+  async preview(options?: AnnouncementAudienceOptions): Promise<{ supports: number; participants: number }> {
+    const { data, error } = await supabase.functions.invoke('send-announcement', { body: { ...announcementAudienceBody(options), dryRun: true } });
+    if (error) throw await functionError(error);
+    return { supports: Number((data as any)?.supports ?? 0), participants: Number((data as any)?.participants ?? 0) };
+  },
   async send(
     subject: string,
     body: string,
@@ -3186,24 +3238,10 @@ export const announcementsApi = {
     }
   ): Promise<{ sent: number }> {
     const { data, error } = await supabase.functions.invoke('send-announcement', {
-      body: {
-        subject,
-        body,
-        sentBy,
-        scope: options?.scope || 'ACTIVE_COHORT',
-        cohortId: options?.cohortId || null,
-        targetLabelId: options?.targetLabelId || null,
-        targetGroupId: options?.targetGroupId || null,
-        targetHubId: options?.targetHubId || null,
-        targetHubJobs: options?.targetHubJobs?.length ? options.targetHubJobs : null,
-        targetUserId: options?.targetUserId || null,
-        targetUserIds: options?.targetUserIds?.length ? options.targetUserIds : null,
-        targetParticipantId: options?.targetParticipantId || null,
-        audience: options?.audience || 'SUPPORTS',
-        popup: !!options?.popup,
-      },
+      // A Home-pinned post is saved even when nobody gets an alert now: people see it when they sign in.
+      body: { subject, body, sentBy, ...announcementAudienceBody(options), popup: !!options?.popup, allowEmpty: !!options?.home },
     });
-    if (error) throw new Error(error.message);
+    if (error) throw await functionError(error);
     const announcementId = (data as any)?.announcementId as string | undefined;
     if (options?.home && announcementId) {
       const { error: homeError } = await supabase.from('Announcement').update({
@@ -8756,20 +8794,36 @@ export const tourProgressApi = {
   },
 };
 
+// Each design has a small preview beside it under scriptures/thumbs/ with the same file name, so the admin
+// Scriptures page loads about 15 KB per design instead of the full one. Participants still get the full design.
+const scriptureThumbPath = (storagePath: string) => storagePath.replace(/^scriptures\//, 'scriptures/thumbs/');
+const withScriptureThumb = (s: import('../types').Scripture): import('../types').Scripture => (
+  s.storagePath?.startsWith('scriptures/')
+    ? { ...s, thumbUrl: supabase.storage.from('resources').getPublicUrl(scriptureThumbPath(s.storagePath)).data.publicUrl }
+    : s
+);
+
 export const scripturesApi = {
   async getAll(): Promise<{ scriptures: import('../types').Scripture[] }> {
     const { data, error } = await supabase.from('Scripture').select('id, dayNumber, imageUrl, storagePath, createdAt').order('dayNumber');
     if (error) throw new Error(error.message);
-    return { scriptures: (data as import('../types').Scripture[]) || [] };
+    return { scriptures: ((data as import('../types').Scripture[]) || []).map(withScriptureThumb) };
   },
 
-  // Uploads the (already resized) image and sets it as that day's scripture,
-  // replacing any design already on that day.
-  async upload(dayNumber: number, image: Blob, userId: string): Promise<{ scripture: import('../types').Scripture }> {
+  // Uploads the (already resized) image and its small preview, and sets it as
+  // that day's scripture, replacing any design already on that day. The preview
+  // is optional: without one the admin page falls back to the full design.
+  async upload(dayNumber: number, image: Blob, userId: string, thumb?: Blob): Promise<{ scripture: import('../types').Scripture }> {
     const extension = image.type === 'image/webp' ? 'webp' : image.type === 'image/png' ? 'png' : 'jpg';
     const path = `scriptures/day-${dayNumber}-${Date.now()}.${extension}`;
     const { error: uploadError } = await supabase.storage.from('resources').upload(path, image, { cacheControl: '31536000', upsert: false, contentType: image.type || undefined });
     if (uploadError) throw new Error(uploadError.message);
+    if (thumb) {
+      // The design is already safe; without a preview the admin page shows the full design instead.
+      const { error: thumbError } = await supabase.storage.from('resources')
+        .upload(scriptureThumbPath(path), thumb, { cacheControl: '31536000', upsert: false, contentType: thumb.type || undefined });
+      if (thumbError) console.warn('Scripture preview upload failed', thumbError.message);
+    }
     const { data: publicUrl } = supabase.storage.from('resources').getPublicUrl(path);
 
     const { data: previous } = await supabase.from('Scripture').select('id, storagePath').eq('dayNumber', dayNumber).maybeSingle();
@@ -8783,17 +8837,17 @@ export const scripturesApi = {
       .select('id, dayNumber, imageUrl, storagePath, createdAt')
       .single();
     if (error) throw new Error(error.message);
-    // The replaced design's file is no longer used by anything.
+    // The replaced design's files are no longer used by anything.
     if (previous?.storagePath && previous.storagePath !== path) {
-      void supabase.storage.from('resources').remove([previous.storagePath]);
+      void supabase.storage.from('resources').remove([previous.storagePath, scriptureThumbPath(previous.storagePath)]);
     }
-    return { scripture: data as import('../types').Scripture };
+    return { scripture: withScriptureThumb(data as import('../types').Scripture) };
   },
 
   async remove(scripture: import('../types').Scripture): Promise<void> {
     const { error } = await supabase.from('Scripture').delete().eq('id', scripture.id);
     if (error) throw new Error(error.message);
-    if (scripture.storagePath) void supabase.storage.from('resources').remove([scripture.storagePath]);
+    if (scripture.storagePath) void supabase.storage.from('resources').remove([scripture.storagePath, scriptureThumbPath(scripture.storagePath)]);
   },
 
   // Persists a drag-reorder: dayNumber becomes each id's 1-based position.

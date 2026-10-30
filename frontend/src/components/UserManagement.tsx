@@ -28,6 +28,8 @@ const ROLE_BADGE: Record<string, string> = {
 // Everyone holds at least their home role; some hold more and can switch between them.
 // STAFF is the Team member role: it sees the modules their custom roles allow.
 type StaffRole = 'ADMIN' | 'SUPPORT' | 'STAFF';
+// The users list shows this many rows at a time, with "Show more" for the rest.
+const USERS_PAGE_SIZE = 25;
 const rolesOf = (user: User): StaffRole[] => (user.roles && user.roles.length > 0 ? user.roles : [user.role as StaffRole]);
 const RoleBadges: React.FC<{ user: User; customNames?: string[]; align?: 'start' | 'end' }> = ({ user, customNames = [], align = 'end' }) => (
   <span className={`inline-flex flex-wrap gap-1 ${align === 'start' ? 'justify-start' : 'justify-end'}`}>
@@ -106,6 +108,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const [subscribedUserIds, setSubscribedUserIds] = useState<Set<string>>(new Set());
   const [notInstalledIds, setNotInstalledIds] = useState<Set<string>>(new Set());
   const [noAlertsOnly, setNoAlertsOnly] = useState(false);
+  // How many rows of the list are shown; back to one page whenever the search or filters change.
+  const [shownRows, setShownRows] = useState({ filters: '', count: USERS_PAGE_SIZE });
   const [noAlertsCopied, setNoAlertsCopied] = useState(false);
   const [roleChangeTarget, setRoleChangeTarget] = useState<User | null>(null);
   const [roleChangeValues, setRoleChangeValues] = useState<StaffRole[]>(['SUPPORT']);
@@ -465,6 +469,9 @@ const UserManagement: React.FC<UserManagementProps> = ({
     const matchesAlerts = !noAlertsOnly || hasNoAlerts(user);
     return matchesRole && matchesSearch && matchesAlerts;
   }), (user) => user.name);
+  const filtersKey = `${roleFilter}|${searchQuery.trim()}|${noAlertsOnly}`;
+  const shownCount = shownRows.filters === filtersKey ? shownRows.count : USERS_PAGE_SIZE;
+  const visibleUsers = filteredUsers.slice(0, shownCount);
 
   // At-a-glance head count beside the list title.
   const activeUsers = users.filter((u) => u.isActive !== false);
@@ -763,7 +770,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
 
                 {/* Mobile cards */}
                 <div className="sm:hidden space-y-3">
-                  {filteredUsers.map((user) => (
+                  {visibleUsers.map((user) => (
                     <div key={user.id} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
@@ -835,7 +842,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredUsers.map((user) => (
+                      {visibleUsers.map((user) => (
                         <tr key={user.id}>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center gap-2">
@@ -893,6 +900,17 @@ const UserManagement: React.FC<UserManagementProps> = ({
                     </tbody>
                   </table>
                 </div>
+                {filteredUsers.length > visibleUsers.length && (
+                  <div className="mt-3 flex justify-center">
+                    <button
+                      type="button"
+                      onClick={() => setShownRows({ filters: filtersKey, count: shownCount + USERS_PAGE_SIZE })}
+                      className="inline-flex h-11 items-center rounded-2xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-800 hover:bg-gray-50"
+                    >
+                      Show next {Math.min(USERS_PAGE_SIZE, filteredUsers.length - visibleUsers.length)} · {filteredUsers.length - visibleUsers.length} not shown
+                    </button>
+                  </div>
+                )}
                 {openMenuId && (() => {
                   const menuUser = users.find((user) => user.id === openMenuId);
                   return menuUser ? renderUserMenu(menuUser) : null;

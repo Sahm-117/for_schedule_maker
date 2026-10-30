@@ -16,6 +16,7 @@ import {
 import Spinner from '../components/Spinner';
 import PageHeader from '../components/PageHeader';
 import ConfirmationModal from '../components/ConfirmationModal';
+import ModalShell from '../components/followups/ModalShell';
 import SaveStatus, { type SaveState } from '../components/SaveStatus';
 import { useToast } from '../components/Toast';
 import AppSelect from '../components/AppSelect';
@@ -31,13 +32,16 @@ import type { Scripture, ScriptureEngagementCounts } from '../types';
 
 const MAX_WIDTH = 1080;
 const QUALITY = 0.82;
+// The small preview this page shows in the grid (the full design opens on tap).
+const THUMB_WIDTH = 360;
+const THUMB_QUALITY = 0.72;
 
-// Resize to at most 1080px wide and re-encode as WebP (JPEG where WebP isn't supported).
-const shrinkImage = (file: File): Promise<Blob> => new Promise((resolve, reject) => {
+// Resize to at most maxWidth wide and re-encode as WebP (JPEG where WebP isn't supported).
+const shrinkImage = (file: File, maxWidth = MAX_WIDTH, quality = QUALITY): Promise<Blob> => new Promise((resolve, reject) => {
   const url = URL.createObjectURL(file);
   const img = new Image();
   img.onload = () => {
-    const scale = Math.min(1, MAX_WIDTH / img.naturalWidth);
+    const scale = Math.min(1, maxWidth / img.naturalWidth);
     const canvas = document.createElement('canvas');
     canvas.width = Math.round(img.naturalWidth * scale);
     canvas.height = Math.round(img.naturalHeight * scale);
@@ -47,12 +51,24 @@ const shrinkImage = (file: File): Promise<Blob> => new Promise((resolve, reject)
     URL.revokeObjectURL(url);
     canvas.toBlob((webp) => {
       if (webp && webp.type === 'image/webp') { resolve(webp); return; }
-      canvas.toBlob((jpeg) => (jpeg ? resolve(jpeg) : reject(new Error('Could not compress this image.'))), 'image/jpeg', QUALITY);
-    }, 'image/webp', QUALITY);
+      canvas.toBlob((jpeg) => (jpeg ? resolve(jpeg) : reject(new Error('Could not compress this image.'))), 'image/jpeg', quality);
+    }, 'image/webp', quality);
   };
   img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not read this image.')); };
   img.src = url;
 });
+
+// The preview is a nice-to-have: if it can't be made, the page shows the full design instead.
+const makeThumb = (file: File): Promise<Blob | undefined> => shrinkImage(file, THUMB_WIDTH, THUMB_QUALITY).catch(() => undefined);
+
+// The small preview, or the full design when an upload has none.
+const ScriptureImage: React.FC<{ scripture: Scripture; alt: string; className: string }> = ({ scripture, alt, className }) => {
+  const [failed, setFailed] = useState(false);
+  return (
+    <img src={!failed && scripture.thumbUrl ? scripture.thumbUrl : scripture.imageUrl} alt={alt} className={className}
+      loading="lazy" decoding="async" draggable={false} onError={() => setFailed(true)} />
+  );
+};
 
 interface PendingUpload {
   key: string;
@@ -110,9 +126,10 @@ interface CardProps {
   canEdit: boolean;
   canDelete: boolean;
   stats?: ScriptureEngagementCounts;
+  onOpen: () => void;
 }
 
-const ScriptureCard: React.FC<CardProps> = ({ scripture, position, onReplace, onRemove, canEdit, canDelete, stats }) => {
+const ScriptureCard: React.FC<CardProps> = ({ scripture, position, onReplace, onRemove, canEdit, canDelete, stats, onOpen }) => {
   const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({ id: scripture.id, disabled: !canEdit });
   const { setNodeRef: setDropRef, isOver } = useDroppable({ id: scripture.id });
   const setRefs = (node: HTMLDivElement | null) => { setDragRef(node); setDropRef(node); };
@@ -125,7 +142,9 @@ const ScriptureCard: React.FC<CardProps> = ({ scripture, position, onReplace, on
       style={canEdit ? { touchAction: 'none' } : undefined}
       className={`surface-card p-2 ${canEdit ? 'cursor-grab active:cursor-grabbing' : ''} ${isDragging ? 'opacity-30' : ''} ${isOver && !isDragging ? 'ring-2 ring-primary' : ''}`}
     >
-      <img src={scripture.imageUrl} alt={`Scripture, ${ordinal(position)} post`} className="aspect-[4/5] w-full rounded-xl bg-gray-50 object-cover" loading="lazy" draggable={false} />
+      <button type="button" onClick={onOpen} className="block w-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary" aria-label={`Open the ${ordinal(position)} post full size`}>
+        <ScriptureImage scripture={scripture} alt={`Scripture, ${ordinal(position)} post`} className="aspect-[4/5] w-full rounded-xl bg-gray-50 object-cover" />
+      </button>
       <div className="mt-2 flex items-center gap-2 px-1">
         <span className="text-sm font-semibold text-gray-900">{ordinal(position)}</span>
         {canEdit && <button type="button" onClick={(e) => { e.stopPropagation(); onReplace(); }} className="ml-auto text-xs font-semibold text-primary">Replace</button>}
@@ -149,6 +168,7 @@ const AdminScripturesPage: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [toDelete, setToDelete] = useState<Scripture | null>(null);
   const [replaceDay, setReplaceDay] = useState<number | null>(null);
+  const [viewing, setViewing] = useState<Scripture | null>(null);
   const addInput = useRef<HTMLInputElement>(null);
   const replaceInput = useRef<HTMLInputElement>(null);
 
@@ -255,8 +275,8 @@ const AdminScripturesPage: React.FC = () => {
       if (item.status === 'done') continue;
       setPending((prev) => prev.map((p) => (p.key === item.key ? { ...p, status: 'uploading', error: undefined } : p)));
       try {
-        const image = await shrinkImage(item.file);
-        const { scripture } = await scripturesApi.upload(Number(item.day), image, user.id);
+        const [image, thumb] = await Promise.all([shrinkImage(item.file), makeThumb(item.file)]);
+        const { scripture } = await scripturesApi.upload(Number(item.day), image, user.id, thumb);
         setScriptures((prev) => [...prev.filter((s) => s.dayNumber !== scripture.dayNumber), scripture].sort((a, b) => a.dayNumber - b.dayNumber));
         setPending((prev) => prev.map((p) => (p.key === item.key ? { ...p, status: 'done' } : p)));
         uploaded += 1;
@@ -278,7 +298,8 @@ const AdminScripturesPage: React.FC = () => {
     const day = replaceDay;
     setReplaceDay(null);
     try {
-      const { scripture } = await scripturesApi.upload(day, await shrinkImage(file), user.id);
+      const [image, thumb] = await Promise.all([shrinkImage(file), makeThumb(file)]);
+      const { scripture } = await scripturesApi.upload(day, image, user.id, thumb);
       setScriptures((prev) => [...prev.filter((s) => s.dayNumber !== day), scripture].sort((a, b) => a.dayNumber - b.dayNumber));
       toast({ message: `${ordinal(day)} post replaced` });
     } catch (err) {
@@ -439,19 +460,24 @@ const AdminScripturesPage: React.FC = () => {
                   canEdit={canEdit}
                   canDelete={canDelete}
                   stats={engagement[scripture.dayNumber]}
+                  onOpen={() => setViewing(scripture)}
                 />
               ))}
             </div>
             <DragOverlay>
               {activeScripture && (
                 <div className="surface-card scale-105 p-2 shadow-xl">
-                  <img src={activeScripture.imageUrl} alt="" className="aspect-[4/5] w-full rounded-xl object-cover" />
+                  <ScriptureImage scripture={activeScripture} alt="" className="aspect-[4/5] w-full rounded-xl object-cover" />
                 </div>
               )}
             </DragOverlay>
           </DndContext>
         </>
       )}
+
+      <ModalShell isOpen={!!viewing} onClose={() => setViewing(null)} title={viewing ? `${ordinal(viewing.dayNumber)} post` : ''}>
+        {viewing && <img src={viewing.imageUrl} alt={`Scripture, ${ordinal(viewing.dayNumber)} post`} className="mx-auto max-h-[70vh] w-auto rounded-xl bg-gray-50 object-contain" />}
+      </ModalShell>
 
       <ConfirmationModal
         isOpen={!!toDelete}

@@ -220,7 +220,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
     if (supports.length === 0) return;
     setPickedSupportIds((current) => (current.every((id) => knownSupportIds.has(id)) ? current : current.filter((id) => knownSupportIds.has(id))));
   }, [supports.length, knownSupportIds]);
-  const pickedSupports = audience === 'SUPPORTS' ? pickedSupportIds : [];
+  const pickedSupports = useMemo(() => (audience === 'SUPPORTS' ? pickedSupportIds : []), [audience, pickedSupportIds]);
   const anyPersonPicked = !!targetPersonKey || pickedSupports.length > 0;
   const pickedNames = pickedSupports.map((id) => supportNameById.get(id) || 'a support');
 
@@ -283,24 +283,51 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
   const linkInvalid = (showOnHome || popupOn) && linkTarget === EXTERNAL_LINK && !/^https?:\/\//i.test(externalUrl.trim());
   const homeInvalid = (showOnHome && (!homeUntil || !homeLabel.trim())) || linkInvalid;
 
+  // Who it goes to, exactly as the send reads it; the preview below counts the same thing.
+  const audienceOptions = useMemo(() => ({
+    scope: (activeCohort?.isPractice ? 'ACTIVE_COHORT' : scope) as 'ACTIVE_COHORT' | 'ALL_USERS',
+    cohortId: (activeCohort?.isPractice || scope === 'ACTIVE_COHORT') ? activeCohort?.id || null : null,
+    targetLabelId: anyPersonPicked || audience === 'PARTICIPANTS' ? null : targetLabelId || null,
+    targetGroupId: anyPersonPicked || audience !== 'PARTICIPANTS' ? null : targetGroupId || null,
+    targetHubId: anyPersonPicked || audience === 'PARTICIPANTS' ? null : targetHubId || null,
+    targetHubJobs: anyPersonPicked || audience !== 'SUPPORTS' ? [] : targetHubJobs,
+    targetUserId: pickedSupports.length === 1 ? pickedSupports[0] : targetUserId,
+    targetUserIds: pickedSupports.length > 1 ? pickedSupports : null,
+    targetParticipantId,
+    audience,
+  }), [activeCohort?.isPractice, activeCohort?.id, scope, anyPersonPicked, audience, targetLabelId, targetGroupId, targetHubId, targetHubJobs, pickedSupports, targetUserId, targetParticipantId]);
+
+  // How many people it would reach, shown before Send; Send is off when that is nobody.
+  // null while counting; 'unknown' when it could not be counted (Send stays on, the server still refuses nobody).
+  const [reach, setReach] = useState<{ supports: number; participants: number } | 'unknown' | null>(null);
+  const audienceKey = JSON.stringify(audienceOptions);
+  useEffect(() => {
+    let cancelled = false;
+    setReach(null);
+    // Nothing to count while closed or history-only, or before the cohort it is for has loaded.
+    if (!shouldRender || !showComposer) return undefined;
+    if (audienceOptions.scope === 'ACTIVE_COHORT' && !audienceOptions.cohortId) { setReach('unknown'); return undefined; }
+    const timer = window.setTimeout(() => {
+      announcementsApi.preview(audienceOptions).then((r) => { if (!cancelled) setReach(r); }).catch(() => { if (!cancelled) setReach('unknown'); });
+    }, 400);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+    // audienceKey stands for audienceOptions' contents.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [audienceKey, shouldRender, showComposer]);
+  const counted = reach !== null && reach !== 'unknown' ? reach : null;
+  const nobodyNow = !!counted && counted.supports + counted.participants === 0;
+  // A Home-pinned post still shows to people when they sign in, so it may go out with nobody to alert now.
+  const reachesNobody = nobodyNow && !showOnHome;
+
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!subject.trim() || !body.trim() || !user || homeInvalid) return;
+    if (!subject.trim() || !body.trim() || !user || homeInvalid || reachesNobody) return;
     setSending(true);
     setStatus(null);
     try {
       const personPicked = anyPersonPicked;
       const { sent } = await announcementsApi.send(subject.trim(), body.trim(), user.id, {
-        scope: activeCohort?.isPractice ? 'ACTIVE_COHORT' : scope,
-        cohortId: (activeCohort?.isPractice || scope === 'ACTIVE_COHORT') ? activeCohort?.id || null : null,
-        targetLabelId: personPicked || audience === 'PARTICIPANTS' ? null : targetLabelId || null,
-        targetGroupId: personPicked || audience !== 'PARTICIPANTS' ? null : targetGroupId || null,
-        targetHubId: personPicked || audience === 'PARTICIPANTS' ? null : targetHubId || null,
-        targetHubJobs: personPicked || audience !== 'SUPPORTS' ? [] : targetHubJobs,
-        targetUserId: pickedSupports.length === 1 ? pickedSupports[0] : targetUserId,
-        targetUserIds: pickedSupports.length > 1 ? pickedSupports : null,
-        targetParticipantId,
-        audience,
+        ...audienceOptions,
         popup: popupOn,
         link: popupOn && !showOnHome && homeLinkUrl ? { linkUrl: homeLinkUrl, linkLabel: linkLabel.trim() || null } : null,
         home: showOnHome
@@ -349,8 +376,8 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
         });
         setLocalHistory(res.announcements);
       }
-    } catch {
-      setStatus({ type: 'error', message: 'Failed to send announcement. Please try again.' });
+    } catch (err) {
+      setStatus({ type: 'error', message: err instanceof Error && err.message ? err.message : 'Failed to send announcement. Please try again.' });
     } finally {
       setSending(false);
     }
@@ -742,9 +769,16 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
               </div>
             )}
 
+            <p className={`text-xs ${reachesNobody ? 'font-semibold text-red-700' : 'text-gray-500'}`} aria-live="polite">
+              {reach === null ? 'Working out who gets this…'
+                : !counted ? 'Could not count who gets this.'
+                : reachesNobody ? 'Nobody would receive this. Check who it is for.'
+                : nobodyNow ? 'Nobody gets an alert now; it shows on Home to them when they sign in.'
+                : `Goes to ${[counted.supports ? `${counted.supports} ${counted.supports === 1 ? 'support or admin' : 'supports and admins'}` : '', counted.participants ? `${counted.participants} participant${counted.participants === 1 ? '' : 's'}` : ''].filter(Boolean).join(' and ')}.`}
+            </p>
             <button
               type="submit"
-              disabled={sending || !subject.trim() || !body.trim() || homeInvalid}
+              disabled={sending || !subject.trim() || !body.trim() || homeInvalid || reachesNobody}
               className="w-full h-11 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {sending ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Sending...</span>) : 'Send Announcement'}

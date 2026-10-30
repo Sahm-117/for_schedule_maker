@@ -67,19 +67,23 @@ const ResourceEditorModal: React.FC<Props> = ({ isOpen, onClose, mode, resource,
   const tellPeople = async (subject: string, body: string) => {
     if (!user) return;
     const base = { scope: audience.cohortId ? 'ACTIVE_COHORT' as const : 'ALL_USERS' as const, cohortId: audience.cohortId };
+    // An audience with nobody in it (an empty hub, no participants signed in yet) is refused with NO_RECIPIENTS;
+    // that is not a failure here, so the other notices still go. Any other error still stops the save's notice.
+    const send = (options: Parameters<typeof announcementsApi.send>[3]) => announcementsApi.send(subject, body, user.id, options)
+      .catch((e: Error & { code?: string }) => { if (e.code !== 'NO_RECIPIENTS') throw e; });
     const supportsAll = audience.supports && !audience.hubsOnly;
     const supportsHubs = audience.supports && audience.hubsOnly;
     if (supportsAll && audience.participants) {
-      await announcementsApi.send(subject, body, user.id, { ...base, audience: 'EVERYONE' });
+      await send({ ...base, audience: 'EVERYONE' });
       return;
     }
-    if (supportsAll) await announcementsApi.send(subject, body, user.id, { ...base, audience: 'SUPPORTS' });
+    if (supportsAll) await send({ ...base, audience: 'SUPPORTS' });
     if (supportsHubs) {
       for (const hubId of audience.hubIds) {
-        await announcementsApi.send(subject, body, user.id, { ...base, audience: 'SUPPORTS', targetHubId: hubId });
+        await send({ ...base, audience: 'SUPPORTS', targetHubId: hubId });
       }
     }
-    if (audience.participants) await announcementsApi.send(subject, body, user.id, { ...base, audience: 'PARTICIPANTS' });
+    if (audience.participants) await send({ ...base, audience: 'PARTICIPANTS' });
   };
 
   const handleSave = async () => {

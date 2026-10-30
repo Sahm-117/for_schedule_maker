@@ -126,30 +126,6 @@ const AdminSupportsPage: React.FC = () => {
   // Undefined means unavailable; only a successful null response means no recorded activity.
   const [lastSeenById, setLastSeenById] = useState<Record<string, string | null | undefined>>({});
   const lastSeenCache = useRef(new Map<string, { seen: string | null; at: number }>());
-  const lastSeenRequests = useRef(new Map<string, Promise<string | null>>());
-  const lastSeenWork = useRef({ running: 0, queue: [] as Array<() => void> });
-  const fetchLastSeen = useCallback((id: string): Promise<string | null> => {
-    const existing = lastSeenRequests.current.get(id);
-    if (existing) return existing;
-    let start!: () => void;
-    const request = new Promise<string | null>((resolve, reject) => {
-      start = () => {
-        lastSeenWork.current.running += 1;
-        void usersApi.getLastActive(id).then((seen) => {
-          lastSeenCache.current.set(id, { seen, at: Date.now() });
-          resolve(seen);
-        }, reject).finally(() => {
-          lastSeenRequests.current.delete(id);
-          lastSeenWork.current.running -= 1;
-          lastSeenWork.current.queue.shift()?.();
-        });
-      };
-    });
-    lastSeenRequests.current.set(id, request);
-    if (lastSeenWork.current.running < 4) start();
-    else lastSeenWork.current.queue.push(start);
-    return request;
-  }, []);
   // Onboarding stage roll-up per group (one extra cohort fetch; missing data falls back to the sentence).
   const [stagesByGroup, setStagesByGroup] = useState<Record<string, StageSummary>>({});
   // Per group: how many members count as onboarded (the Groups page rule, `participantFinished`), and whether an admin
@@ -205,7 +181,8 @@ const AdminSupportsPage: React.FC = () => {
       byGroup.forEach((statuses, groupId) => { readyMap[groupId] = { ready: statuses.filter(participantFinished).length, override: readyOverride.has(groupId) }; });
       readyOverride.forEach((groupId) => { if (!readyMap[groupId]) readyMap[groupId] = { ready: 0, override: true }; });
       setReadyByGroup(readyMap);
-      followUpContactsApi.getAll().then((res) => setFollowUpLoad(openLoadByOwner(res.contacts, activeCohort.id))).catch(() => {});
+      // Only open contacts count towards a support's load, so archived ones (most of them) are not fetched.
+      followUpContactsApi.getAll({ archived: false }).then((res) => setFollowUpLoad(openLoadByOwner(res.contacts, activeCohort.id))).catch(() => {});
       setNotedIds(new Set(await supportNotesApi.getSupportIdsWithNotes(hb.map((x) => x.id)).then((res) => res.supportIds).catch(() => [] as string[])));
       const groupIds = h.groups.map((g) => g.id);
       setReports(await participantNotesApi.getMeetingReports(groupIds).then((res) => res.notes).catch(() => [] as ParticipantNote[]));
@@ -216,7 +193,22 @@ const AdminSupportsPage: React.FC = () => {
     }
   }, [activeCohort?.id]);
 
-  useEffect(() => { void load(); }, [load, liveRevision]);
+  // A background refresh elsewhere in the app reloads this page at most every 30 seconds (one inside that window is
+  // held until it ends, not dropped); a cohort change reloads at once.
+  const lastLoadAt = useRef(0);
+  const loadedCohort = useRef<string | null>(null);
+  useEffect(() => {
+    const run = () => {
+      loadedCohort.current = activeCohort?.id ?? null;
+      lastLoadAt.current = Date.now();
+      void load();
+    };
+    const cohortChanged = loadedCohort.current !== (activeCohort?.id ?? null);
+    const wait = cohortChanged ? 0 : lastLoadAt.current + 30000 - Date.now();
+    if (wait <= 0) { run(); return undefined; }
+    const timer = window.setTimeout(run, wait);
+    return () => window.clearTimeout(timer);
+  }, [load, liveRevision, activeCohort?.id]);
 
   useEffect(() => {
     const leadingIds = new Set(health?.groups.map((g) => g.supportId));
@@ -224,17 +216,19 @@ const AdminSupportsPage: React.FC = () => {
     const cached: Record<string, string | null | undefined> = {};
     supports.forEach((u) => { cached[u.id] = lastSeenCache.current.get(u.id)?.seen; });
     setLastSeenById(cached);
-    const pending = supports.filter((u) => Date.now() - (lastSeenCache.current.get(u.id)?.at ?? 0) >= 120000);
+    const pending = supports.filter((u) => Date.now() - (lastSeenCache.current.get(u.id)?.at ?? 0) >= 120000).map((u) => u.id);
+    if (pending.length === 0) return undefined;
     let cancelled = false;
-    pending.forEach((support) => {
-      void fetchLastSeen(support.id).then((seen) => {
-        if (!cancelled) setLastSeenById((prev) => ({ ...prev, [support.id]: seen }));
-      }, () => {
-        if (!cancelled) setLastSeenById((prev) => ({ ...prev, [support.id]: undefined }));
-      });
+    // One request for everyone still to look up (it was one per support).
+    void usersApi.getLastActiveMany(pending).then((seenById) => {
+      const now = Date.now();
+      pending.forEach((id) => lastSeenCache.current.set(id, { seen: seenById[id] ?? null, at: now }));
+      if (!cancelled) setLastSeenById((prev) => ({ ...prev, ...Object.fromEntries(pending.map((id) => [id, seenById[id] ?? null])) }));
+    }, () => {
+      if (!cancelled) setLastSeenById((prev) => ({ ...prev, ...Object.fromEntries(pending.map((id) => [id, undefined])) }));
     });
     return () => { cancelled = true; };
-  }, [users, cohortMemberIds, health, fetchLastSeen]);
+  }, [users, cohortMemberIds, health]);
 
   const model = useMemo(() => {
     if (!health || !people || !rules || !activeCohort) return null;

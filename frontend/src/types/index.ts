@@ -1389,6 +1389,8 @@ export interface Scripture {
   id: string;
   dayNumber: number;
   imageUrl: string;
+  /** Small preview for the admin Scriptures page; may not exist for an old upload, so fall back to imageUrl. */
+  thumbUrl?: string;
   storagePath: string | null;
   createdAt: string;
 }

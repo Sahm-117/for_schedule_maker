@@ -96,6 +96,9 @@ const KEEP_MS = 3000;
 const REFERENCE_READS = /\/rest\/v1\/(AppSetting|Scripture|FaithProjectCategory)\?/;
 const REFERENCE_KEEP_MS = 20000;
 const HARMLESS_POSTS = new RegExp(`/rest/v1/rpc/(get_session_user|get_tour_progress|record_participant_app_state|record_participant_setup_sheet|record_user_app_state|record_user_setup_sheet|my_app_nudge|practice_pulse|mark_tour_seen|${SHAREABLE_RPCS.join('|')})$`);
+// An announcement's "who gets this" count (send-announcement with dryRun) changes nothing.
+const isDryRun = (url: string, init: RequestInit | undefined) =>
+  url.split('?')[0].endsWith('/functions/v1/send-announcement') && typeof init?.body === 'string' && /"dryRun":true/.test(init.body);
 const inFlight = new Map<string, Promise<Response>>();
 const keptKeys = new Set<string>();
 // A change throws away everything kept AND everything still on its way, so a read made after the
@@ -130,7 +133,7 @@ const fetchWithTimeout: typeof fetch = (input, init) => {
   const key = shareKey(url, init);
   if (!key) {
     // A real change drops the saved answers. Start-up bookkeeping (writes that no kept answer depends on) and plain reads sent as POSTs don't.
-    if ((init?.method || 'GET').toUpperCase() !== 'GET' && !HARMLESS_POSTS.test(url.split('?')[0])) dropKept();
+    if ((init?.method || 'GET').toUpperCase() !== 'GET' && !HARMLESS_POSTS.test(url.split('?')[0]) && !isDryRun(url, init)) dropKept();
     return send();
   }
   let pending = inFlight.get(key);
