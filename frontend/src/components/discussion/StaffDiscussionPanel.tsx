@@ -56,7 +56,7 @@ const StaffDiscussionPanel: React.FC<{ groupId: string; viewerName: string; view
   useEffect(() => {
     setLoading(true);
     void load();
-    return startPolling(load, 30000);
+    return startPolling(load, 30000, { sundaySlow: true });
   }, [load]);
 
   const actions = useMemo<DiscussionActions>(() => {

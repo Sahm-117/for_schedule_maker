@@ -62,7 +62,7 @@ const AppNudgeCard: React.FC = () => {
       finally { loading = false; }
     };
     void load();
-    const stopPolling = startPolling(load, REFRESH_MS, { catchUp: false });
+    const stopPolling = startPolling(load, REFRESH_MS, { catchUp: false, sundaySlow: true });
     // Focus, online and visibilitychange can fire together; refresh once.
     let lastRefresh = 0;
     const refresh = () => {

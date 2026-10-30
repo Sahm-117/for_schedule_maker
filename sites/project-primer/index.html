@@ -225,7 +225,7 @@ section.band { padding-block: 56px; border-bottom: 1px solid var(--line); scroll
 /* Risks */
 .risks { display: grid; gap: 12px }
 .risk { background: var(--surface); border: 1px solid var(--line); border-left: 6px solid var(--c); border-radius: 16px; padding: 16px 18px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px 22px }
-.risk.h { --c: var(--bad) } .risk.m { --c: var(--warn) } .risk.l { --c: var(--blue) }
+.risk.h { --c: var(--bad) } .risk.m { --c: var(--warn) } .risk.l { --c: var(--blue) } .risk.ok { --c: var(--good) }
 .risk .top { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 10px }
 .risk .lvl { font: 800 11px/1 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--ink); border: 1.5px solid var(--c); border-radius: 999px; padding: 5px 9px 5px 8px; display: inline-flex; align-items: center; gap: 6px }
 .risk .lvl::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--c) }
@@ -338,10 +338,16 @@ footer img { width: 28px; height: 28px }
       <p>Each one has a handoff note in <code>docs/handoffs/</code> with what is live and what is still open.</p>
     </div>
     <div class="news">
-      <div class="new"><span class="d">29 Oct</span><b>Public API for church apps</b><p>Other church apps read FOF with their own key. Admins make and switch off keys under Administration, Church app access. Teens need a separate permission.</p></div>
+      <div class="new"><span class="d">30 Oct</span><b>Safer announcements</b><p>Only an admin (or a server job) can send one. The composer says how many people it reaches before Send, and an announcement that would reach nobody is refused.</p></div>
+      <div class="new"><span class="d">30 Oct</span><b>Lighter on the database</b><p>The live-update feed is off (it was 43% of all database time). On Sunday mornings the background checks nobody waits on run half as often. Supports page: one call instead of one per person.</p></div>
+      <div class="new"><span class="d">30 Oct</span><b>The build checks itself</b><p><code>npm run build</code> now runs the type check and the rule tests first. A type error or a broken rule stops the deploy.</p></div>
+      <div class="new"><span class="d">30 Oct</span><b>Late counts as attended</b><p>Late and Left early count as attended everywhere. Only Absent is a miss; Excused is left out of completion.</p></div>
+      <div class="new"><span class="d">30 Oct</span><b>Check-ups after a cohort</b><p>In rest week 3 every group leader gets a task to check in with their people, then a reminder each month for three months.</p></div>
       <div class="new"><span class="d">30 Oct</span><b>Attendance locks after class</b><p>Once a class is over, only admins change its marks. Supports see a note to message an admin to dispute a mark.</p></div>
       <div class="new"><span class="d">30 Oct</span><b>Two-absence review</b><p>The Saturday before class 3, admins review people absent for classes 1 and 2 and move them to the next cohort. Nothing moves by itself; same-day undo.</p></div>
+      <div class="new"><span class="d">30 Oct</span><b>Quicker admin pages</b><p>Scriptures shows small previews (full design on tap), Users shows 25 at a time, and the dashboard says "Class 2 of 10 done · Class 3 on Sun 1 Nov".</p></div>
       <div class="new"><span class="d">30 Oct</span><b>Which groups are talking</b><p>The dashboard's discussions line opens Groups filtered to groups that posted this week, each with its count.</p></div>
+      <div class="new"><span class="d">29 Oct</span><b>Public API for church apps</b><p>Other church apps read FOF with their own key. Admins make and switch off keys under Administration, Church app access. Teens need a separate permission.</p></div>
       <div class="new"><span class="d">28 to 29 Oct</span><b>PostHog analytics</b><p>Page views, clicks and session replays (inputs hidden), shown by name. A dashboard tracks the inspirational scriptures.</p></div>
       <div class="new"><span class="d">30 Oct</span><b>Public pages and a password manager</b><p>Pages like this one are hosted on Cloudflare from <code>sites/</code>. Secrets now live in a Bitwarden vault.</p></div>
     </div>
@@ -353,31 +359,31 @@ footer img { width: 28px; height: 28px }
     <div class="head">
       <div class="eyebrow">Risks</div>
       <h2>What could hurt the programme, and what to do about it</h2>
-      <p>Checked on 30 October 2026 against the live database. Red first.</p>
+      <p>Checked on 30 October 2026 against the live database, then again after the fixes that day. Open risks first, then what is done.</p>
     </div>
     <div class="risks">
-      <div class="risk h"><div class="top"><span class="lvl">High</span><h3>The app slows down when many people use it at once</h3></div>
-        <div><span class="k">What we saw</span><p>On Sunday 11 October (Cohort 10's first class) the app lagged during class, when attendance marks and notifications came in bursts (around 9:30 and 10:15). Many unrelated screens share the same worst time, about 2.8 seconds, which means the whole database stalled, not one slow screen. This week the two every-minute jobs each stalled for about 10 seconds and failed once. The database runs on Supabase's smallest free instance (shared CPU), already using 26 of its 60 connections when idle.</p></div>
-        <div><span class="k">What to do</span><p>Move to Supabase Pro with a slightly bigger compute size before the next big Sunday; that also adds daily backups. Keep cutting background checks the app makes every few seconds (below). Re-check on a Sunday after each change.</p></div></div>
-      <div class="risk m"><div class="top"><span class="lvl">Medium</span><h3>Live updates were the biggest single cost</h3></div>
-        <div><span class="k">What we saw</span><p>Supabase's live-update feed used about 43% of all database time since February, more than any other single thing. The app stopped listening on 10 October, the day before that Sunday, but installed phone apps update late, so old copies likely still listened that morning. The notifications table is still published to that feed.</p></div>
-        <div><span class="k">What to do</span><p>Take the notifications table off the live-update feed (one change, with the owner's yes). Nothing in the app uses it now.</p></div></div>
-      <div class="risk m"><div class="top"><span class="lvl">Medium</span><h3>Screens that check for news every few seconds</h3></div>
-        <div><span class="k">What we saw</span><p>Practice, corporate prayer and notification checks run tens of thousands of times. A participant's Home costs about 180 ms of database time each open, the most of any screen, and many people open it at the same moments on a Sunday.</p></div>
-        <div><span class="k">What to do</span><p>Slow the checks down on busy days and cache Home for a minute. Pollers already pause in hidden tabs.</p></div></div>
-      <div class="risk m"><div class="top"><span class="lvl">Medium</span><h3>Every notification goes through one queue in the database</h3></div>
-        <div><span class="k">What we saw</span><p>Pushes, Telegram and reminders are sent from the database through its web-request queue. Cleaning that queue averages 93 ms and has hit 8.8 seconds.</p></div>
-        <div><span class="k">What to do</span><p>Fewer, batched sends on Sundays; watch the queue size.</p></div></div>
-      <div class="risk m"><div class="top"><span class="lvl">Medium</span><h3>Code checks don't stop a bad deploy</h3></div>
-        <div><span class="k">What we saw</span><p>The build passes while the type check has 7 errors, and some pages have older lint errors. There are no automated tests; every check is by hand in a browser.</p></div>
-        <div><span class="k">What to do</span><p>Fix the 7 type errors, then make the build run the type check. Add a few tests for the rules that bite.</p></div></div>
+      <div class="risk m"><div class="top"><span class="lvl">Medium · re-check Sun 1 Nov</span><h3>The app slows down when many people use it at once</h3></div>
+        <div><span class="k">What we saw</span><p>On Sunday 11 October (Cohort 10's first class) the app lagged during class, when attendance marks and notifications came in bursts (around 9:30 and 10:15). Many unrelated screens share the same worst time, about 2.8 seconds, which means the whole database stalled, not one slow screen. The database runs on Supabase's smallest free instance (shared CPU). Measured on a quiet database, each screen's question takes only 1 to 9 ms; the slow averages come from those stalls.</p></div>
+        <div><span class="k">Done, and what is left</span><p>The biggest cause is gone (the live-update feed, below), and on Sunday mornings the background checks nobody waits on (bells, unread dots, the prayer signal, Practice's background beat) run half as often. Upgrading is not affordable. If it still stalls, the free option that fits is Oracle Cloud's Always Free server (4 CPUs, 24 GB) running Supabase ourselves, which is a project of its own. Neon and Appwrite's free plans don't fit. First, check the database numbers after Sunday 1 November.</p></div></div>
+      <div class="risk l"><div class="top"><span class="lvl">Watch</span><h3>Background checks, and Practice left on</h3></div>
+        <div><span class="k">What we saw</span><p>Practice, corporate prayer and notification checks run tens of thousands of times. Practice is switched on for all 47 supports, but only one used it in the last day, and every open app still checks it every 20 seconds.</p></div>
+        <div><span class="k">Done, and what is left</span><p>Sunday 7 am to 2 pm: the bells, unread dots, prayer signal, update check and Practice's background beat wait twice as long; Home, a live register, meetings and walkthroughs keep their pace. The Supports page asks for everyone's last-active time in one call, and Scriptures loads 2.6 MB of previews instead of 14 MB. Left for the owner: switch Practice off when nobody is training.</p></div></div>
+      <div class="risk l"><div class="top"><span class="lvl">Watch</span><h3>Every notification goes through one queue in the database</h3></div>
+        <div><span class="k">What we saw</span><p>Pushes, Telegram and reminders are sent from the database through its web-request queue. Cleaning that queue averaged 93 ms and once hit 8.8 seconds, mostly while the database was clogged by the live-update feed.</p></div>
+        <div><span class="k">Done, and what is left</span><p>Checked on 30 October: about 13 requests an hour, and a broadcast makes at most 10 Telegram copies, because only 10 people have Telegram on. Nothing to change now; look again if the queue grows.</p></div></div>
       <div class="risk l"><div class="top"><span class="lvl">Watch</span><h3>One test-free database, one person, a few free accounts</h3></div>
         <div><span class="k">What we saw</span><p>Local work and every test touch live data. Vercel's free plan caps deploys a day. The daily checks depend on one cron-job.org login.</p></div>
         <div><span class="k">What to do</span><p>Keep two owners on every account and every secret in Bitwarden. Batch pushes. Use test accounts and clean up.</p></div></div>
+      <div class="risk ok"><div class="top"><span class="lvl">Done 30 Oct</span><h3>Live updates were the biggest single cost</h3></div>
+        <div><span class="k">What we saw</span><p>Supabase's live-update feed used about 43% of all database time since February, more than any other single thing. The app stopped listening on 10 October, but the notifications table was still on the feed.</p></div>
+        <div><span class="k">Done</span><p>The notifications table is off the feed, which now has no tables. The feed's database check has not run once since; the bell checks for news on its own.</p></div></div>
+      <div class="risk ok"><div class="top"><span class="lvl">Done 30 Oct</span><h3>Code checks didn't stop a bad deploy</h3></div>
+        <div><span class="k">What we saw</span><p>The build passed while the type check had 7 errors. There were no automated tests; every check was by hand in a browser.</p></div>
+        <div><span class="k">Done, and what is left</span><p>The 7 errors are fixed, and <code>npm run build</code> runs the type check and 12 rule tests (attendance marks, completion, the Right now line, rest weeks, Sunday polling) before building, so Vercel refuses a broken deploy. Still open: older lint warnings, and the tests don't cover database functions.</p></div></div>
     </div>
     <figure class="loadbars" aria-labelledby="loadbars-title">
       <h3 id="loadbars-title">Share of all database time since February</h3>
-      <div class="lb"><span>Live-update feed</span><span class="bar"><i style="width:43.4%"></i></span><span class="v">43%</span></div>
+      <div class="lb"><span>Live-update feed (now off)</span><span class="bar"><i style="width:43.4%"></i></span><span class="v">43%</span></div>
       <div class="lb"><span>Notification queue cleanup</span><span class="bar"><i style="width:5.1%"></i></span><span class="v">5%</span></div>
       <div class="lb"><span>Practice checks</span><span class="bar"><i style="width:3.4%"></i></span><span class="v">3.4%</span></div>
       <div class="lb"><span>Participant Home</span><span class="bar"><i style="width:2.6%"></i></span><span class="v">2.6%</span></div>
@@ -622,7 +628,7 @@ footer img { width: 28px; height: 28px }
     </div>
     <div class="lanes">
       <div class="lane f"><h3><i></i>Screens and wording</h3>
-        <ol><li><span>Read the latest handoff for that area</span></li><li><span>Change <code>frontend/src/</code></span></li><li><span><code>npm run build</code> passes</span></li><li><span>Try it in a browser as the role that uses it</span></li><li><span>Commit, push to <code>main</code></span></li></ol>
+        <ol><li><span>Read the latest handoff for that area</span></li><li><span>Change <code>frontend/src/</code></span></li><li><span><code>npm run build</code> passes (type check, tests, build)</span></li><li><span>Try it in a browser as the role that uses it</span></li><li><span>Commit, push to <code>main</code></span></li></ol>
         <p class="out">Live in about 2 minutes (Vercel)</p></div>
       <div class="lane d"><h3><i></i>Database</h3>
         <ol><li><span>Write a dated file in <code>supabase/migrations/</code></span></li><li><span>Apply it to the live database by hand</span></li><li><span>Check it live, as each role</span></li><li><span>Register any new rule in FLOW_MAP</span></li><li><span>Commit the file</span></li></ol>

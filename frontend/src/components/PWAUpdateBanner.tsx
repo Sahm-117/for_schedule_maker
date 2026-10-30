@@ -27,7 +27,7 @@ const PWAUpdateBanner: React.FC = () => {
       });
     };
 
-    const stopPolling = startPolling(checkForUpdates, 120_000);
+    const stopPolling = startPolling(checkForUpdates, 120_000, { sundaySlow: true });
     const handleFocus = () => checkForUpdates();
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {

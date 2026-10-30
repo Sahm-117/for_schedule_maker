@@ -50,7 +50,8 @@ export const usePracticePulse = (enabled: boolean, onCohortKeyChange: () => void
   useEffect(() => {
     if (!enabled) { setPulse(null); lastKey.current = null; return undefined; }
     void refresh();
-    const stopPolling = startPolling(() => refresh(), idle ? IDLE_POLL_MS : fast ? POLL_MS : BACKGROUND_POLL_MS, { catchUp: false });
+    // Only the quick beat (inside Practice or a walkthrough) keeps its pace on a Sunday morning.
+    const stopPolling = startPolling(() => refresh(), idle ? IDLE_POLL_MS : fast ? POLL_MS : BACKGROUND_POLL_MS, { catchUp: false, sundaySlow: !fast });
     const onVisible = () => { if (document.visibilityState === 'visible') void refresh(); };
     document.addEventListener('visibilitychange', onVisible);
     return () => { stopPolling(); document.removeEventListener('visibilitychange', onVisible); };

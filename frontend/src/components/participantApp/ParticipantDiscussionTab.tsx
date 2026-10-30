@@ -46,7 +46,7 @@ const ParticipantDiscussionTab: React.FC<{ viewerName: string; viewerAvatarUrl?:
   useEffect(() => {
     void load();
     // Pick up new posts while the tab is open.
-    return startPolling(load, 30000);
+    return startPolling(load, 30000, { sundaySlow: true });
   }, [load]);
 
   const loadMore = async () => {

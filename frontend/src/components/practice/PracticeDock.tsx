@@ -157,6 +157,8 @@ const PracticeDock: React.FC<DockProps> = ({ mode, active = true, pulse, refresh
     }).catch(() => {});
     if (mode === 'participant') practiceApi.participantPeer().then((next) => {
       if (pendingSaves.current > 0 || changeRevision.current !== revisionAtStart) return;
+      // The walkthrough has ended (the partner closed it): stop showing their checklist.
+      if (!next) { setPartner(null); return; }
       rememberConfirmedItems(confirmedPeerItems.current, next.myProgress);
       setPartner(next);
     }).catch(() => {});

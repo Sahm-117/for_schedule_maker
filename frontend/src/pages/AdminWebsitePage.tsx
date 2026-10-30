@@ -35,7 +35,7 @@ const TABS: Array<{ key: keyof LandingContent | 'photos'; label: string }> = [
   { key: 'howItWorks', label: 'How it works' },
   { key: 'journey', label: 'Journey' },
   { key: 'faq', label: 'FAQ' },
-  { key: 'footer', label: 'Closing & footer', shortLabel: 'Footer' },
+  { key: 'footer', label: 'Closing & footer' },
 ];
 
 // ---- shared field primitives -----------------------------------------------
@@ -54,8 +54,8 @@ const TextInput: React.FC<{ value: string; onChange: (v: string) => void; placeh
   <input type="text" value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className={inputCls} />
 );
 
-const TextArea: React.FC<{ value: string; onChange: (v: string) => void; rows?: number }> = ({ value, onChange, rows = 3 }) => (
-  <textarea value={value} rows={rows} onChange={(e) => onChange(e.target.value)} className={inputCls} />
+const TextArea: React.FC<{ value: string; onChange: (v: string) => void; rows?: number; placeholder?: string }> = ({ value, onChange, rows = 3, placeholder }) => (
+  <textarea value={value} rows={rows} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className={inputCls} />
 );
 
 const SectionCard: React.FC<{ title: string; description?: string; onReset: () => void; children: React.ReactNode }> = ({ title, description, onReset, children }) => (
@@ -410,7 +410,7 @@ const AdminWebsitePage: React.FC = () => {
                         <IconPicker value={item.icon} onChange={(icon) => setItem({ ...item, icon })} />
                       </div>
                     )}
-                    newItem={() => ({ title: 'New card', body: '', icon: 'calendar' })}
+                    newItem={() => ({ title: 'New card', body: '', icon: 'calendar' as LandingIconKey })}
                     addLabel="+ Add card"
                     minItems={1}
                   />

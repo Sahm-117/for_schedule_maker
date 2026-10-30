@@ -70,7 +70,7 @@ const ParticipantNotificationBell: React.FC = () => {
       document.removeEventListener('visibilitychange', onVisible);
     };
   }, [load]);
-  usePolling(load, 60000, { catchUp: false });
+  usePolling(load, 60000, { catchUp: false, sundaySlow: true });
 
   // Also refresh whenever the panel opens.
   useEffect(() => {

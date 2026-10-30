@@ -94,7 +94,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
     if (!selectedGroupId || activeTab === 'discussion') { setDiscussionUnseen(0); return undefined; }
     const check = () => { groupDiscussionApi.unseen(selectedGroupId).then(setDiscussionUnseen).catch(() => {}); };
     check();
-    return startPolling(check, 30000);
+    return startPolling(check, 30000, { sundaySlow: true });
   }, [selectedGroupId, activeTab]);
   const [savingPrayerFocus, setSavingPrayerFocus] = useState(false);
   const [loading, setLoading] = useState(true);

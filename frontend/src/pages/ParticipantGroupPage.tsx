@@ -39,7 +39,7 @@ const ParticipantGroupPage: React.FC = () => {
     if (tabNow === 'discussion') { setUnseen(0); return undefined; }
     const check = () => { participantAppApi.discussionUnseen().then(setUnseen).catch(() => {}); };
     check();
-    return startPolling(check, 30000);
+    return startPolling(check, 30000, { sundaySlow: true });
   }, [tabNow]);
   if (loading || !home) return <PageLoader />;
   const tab = tabNow;

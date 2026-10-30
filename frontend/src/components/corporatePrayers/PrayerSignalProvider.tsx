@@ -34,7 +34,7 @@ const PrayerSignalProvider: React.FC<{ audience: 'participant' | 'staff'; cohort
   }, [cohortId]);
 
   useEffect(() => { if (enabled) void refresh(); }, [enabled, refresh]);
-  usePolling(refresh, enabled ? 60000 : null);
+  usePolling(refresh, enabled ? 60000 : null, { sundaySlow: true });
 
   const markAnswered = useCallback(() => {
     ignoreUpTo.current = issued.current;

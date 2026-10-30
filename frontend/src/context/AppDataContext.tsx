@@ -343,9 +343,9 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (signal !== null && signal === lastNotificationSignalRef.current) return;
     await refreshNotifications();
     lastNotificationSignalRef.current = signal;
-  }, user ? 30000 : null);
+  }, user ? 30000 : null, { sundaySlow: true });
   // The Community unread dot.
-  usePolling(() => refreshHubActivity(), user ? 60000 : null);
+  usePolling(() => refreshHubActivity(), user ? 60000 : null, { sundaySlow: true });
 
   // A support whose cohort list changes (e.g. Practice switched on for them) sees
   // it in their cohort menu straight away, without reloading.
