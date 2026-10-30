@@ -1,6 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
 import PageHeader from '../components/PageHeader';
 import NotificationSettings from '../components/NotificationSettings';
 import AppStatusCard from '../components/AppStatusCard';
@@ -861,17 +859,7 @@ const RecapTimingsCard: React.FC = () => {
   );
 };
 
-// Link to Church app access (keys for other church apps to read FOF through the API). Full admins only.
-const ChurchAppAccessCard: React.FC = () => (
-  <div className="surface-card p-6">
-    <p className="text-lg font-semibold text-gray-900">Church app access</p>
-    <p className="mt-1 text-sm text-gray-500">Make keys for other church apps to read FOF, choose what each may see, and switch them off.</p>
-    <Link to="/settings/api-access" className="mt-4 inline-flex h-11 items-center rounded-2xl border border-gray-200 px-4 text-sm font-semibold text-gray-800 hover:bg-gray-50">Manage keys</Link>
-  </div>
-);
-
 const AdminSettingsPage: React.FC = () => {
-  const { isRealAdmin } = useAuth();
   return (
     <div>
       <PageHeader
@@ -895,7 +883,6 @@ const AdminSettingsPage: React.FC = () => {
         <div data-wt="settings-followup-assignment" className="mb-4 break-inside-avoid"><FollowUpAssignmentSettings /></div>
         <div data-wt="settings-teens" className="mb-4 break-inside-avoid"><TeenSettingsCard /></div>
         <div className="mb-4 break-inside-avoid"><PracticeModeCard /></div>
-        {isRealAdmin && <div className="mb-4 break-inside-avoid"><ChurchAppAccessCard /></div>}
       </div>
 
       <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Just for you</h2>

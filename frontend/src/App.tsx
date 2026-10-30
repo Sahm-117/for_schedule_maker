@@ -163,7 +163,8 @@ function App() {
             <Route path="/scriptures" element={<Suspense fallback={<RouteFallback />}><AdminScripturesPage /></Suspense>} />
             <Route path="/practice" element={<Suspense fallback={<RouteFallback />}><AdminPracticePage /></Suspense>} />
             <Route path="/settings" element={<Suspense fallback={<RouteFallback />}><AdminSettingsPage /></Suspense>} />
-            <Route path="/settings/api-access" element={<Suspense fallback={<RouteFallback />}><AdminApiAccessPage /></Suspense>} />
+            <Route path="/church-apps" element={<Suspense fallback={<RouteFallback />}><AdminApiAccessPage /></Suspense>} />
+            <Route path="/settings/api-access" element={<Navigate to="/church-apps" replace />} />
             <Route path="/website" element={<Suspense fallback={<RouteFallback />}><AdminWebsitePage /></Suspense>} />
             <Route path="/activity-overview" element={<Suspense fallback={<RouteFallback />}><ActivityOverviewPage /></Suspense>} />
             <Route path="/cohorts" element={<Suspense fallback={<RouteFallback />}><CohortsPage /></Suspense>} />

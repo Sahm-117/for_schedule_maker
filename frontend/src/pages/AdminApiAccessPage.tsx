@@ -202,9 +202,9 @@ const AdminApiAccessPage: React.FC = () => {
   const load = useCallback(async () => {
     try { setApps(await apiAccessApi.list()); setLoadError(''); } catch (e) { setLoadError((e as Error).message); }
   }, []);
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { if (isRealAdmin) void load(); }, [isRealAdmin, load]);
 
-  if (!isRealAdmin) return <Navigate to="/settings" replace />;
+  if (!isRealAdmin) return <Navigate to="/" replace />;
 
   const create = async (v: { name: string; notes: string; scopes: string[] }) => {
     setBusy(true);

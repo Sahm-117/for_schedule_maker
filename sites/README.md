@@ -2,11 +2,12 @@
 
 Small static pages for people outside FOF Ops (for example the church digital team). Each folder is one site, with
 no build step: `index.html` plus its images. They are hosted free on Cloudflare Pages and redeploy on every push to
-`main` that changes that folder.
+`main`.
 
 | Folder | What it is | Cloudflare Pages project |
 |---|---|---|
 | `how-the-api-works/` | Visual guide to the FOF API for church apps | `fof-how-the-api-works` |
+| `project-primer/` | Handover primer and walkthrough for whoever picks up FOF Ops | `fof-project-primer` (to create) |
 
 ## Connecting a new site (once, in the Cloudflare dashboard)
 

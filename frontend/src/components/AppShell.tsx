@@ -115,6 +115,7 @@ const ICONS = {
   feedback: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h8M8 14h5m-9 6l2.5-3H18a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v14z" /></svg></IconBox>,
   rota: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M3 9h18M9 4v16M4 20h16a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1Z" /></svg></IconBox>,
   roles: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 3 4 6v5c0 4.5 3.2 8.2 8 10 4.8-1.8 8-5.5 8-10V6l-8-3Zm-3 9 2 2 4-4" /></svg></IconBox>,
+  key: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M15 7a2 2 0 0 1 2 2m4 0a6 6 0 0 1-7.743 5.743L11 17H9v2H7v2H4a1 1 0 0 1-1-1v-2.586a1 1 0 0 1 .293-.707l5.964-5.964A6 6 0 1 1 21 9Z" /></svg></IconBox>,
   website: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0 0c2.21 0 4-4.03 4-9s-1.79-9-4-9-4 4.03-4 9 1.79 9 4 9Zm-9-9h18" /></svg></IconBox>,
 };
 
@@ -136,6 +137,7 @@ const adminNav: NavItem[] = [
   { to: '/birthdays', label: 'Birthdays', icon: ICONS.birthdays, module: 'birthdays' },
   { to: '/users', label: 'Users', icon: ICONS.users, module: 'users' },
   { to: '/roles', label: 'Roles', icon: ICONS.roles, realAdminOnly: true },
+  { to: '/church-apps', label: 'Church app access', icon: ICONS.key, realAdminOnly: true },
   { to: '/announcements', label: 'Announcements', icon: ICONS.megaphone, module: 'announcements' },
   { to: '/notifications', label: 'Notifications', icon: ICONS.bell, module: 'notifications' },
   { to: '/practice', label: 'Practice', icon: ICONS.practice, module: 'practice' },
@@ -185,6 +187,7 @@ const adminNavGroups: NavGroup[] = [
     items: [
       { to: '/users', label: 'Users', icon: ICONS.users, module: 'users' },
       { to: '/roles', label: 'Roles', icon: ICONS.roles, realAdminOnly: true },
+      { to: '/church-apps', label: 'Church app access', icon: ICONS.key, realAdminOnly: true },
       { to: '/announcements', label: 'Announcements', icon: ICONS.megaphone, module: 'announcements' },
       { to: '/notifications', label: 'Notifications', icon: ICONS.bell, module: 'notifications' },
       { to: '/practice', label: 'Practice', icon: ICONS.practice, module: 'practice' },

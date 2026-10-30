@@ -1,0 +1,704 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="A visual primer for whoever picks up FOF Ops next: what it is, how it fits together, what runs on its own, and how to change it safely.">
+<link rel="icon" href="logo-mark.png">
+<title>Taking Over FOF Ops</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800;900&family=Source+Sans+3:wght@400;600;700&display=swap">
+<style>
+/* Layout: same FOF look as how-the-api-works. One band per question a new maintainer asks, picture first, words second. */
+body { margin: 0 } img { max-width: 100% } [hidden] { display: none !important }
+:root {
+  --orange: #ff914d; --orange-deep: #e5822d; --orange-ink: #a24a0c; --orange-soft: #fff1e6; --orange-wash: #ffe5d3;
+  --bg: #fffaf6; --surface: #ffffff; --ink: #1f2430; --muted: #6a6560; --line: #efe3d8;
+  --good: #1f8a4c; --good-soft: #e3f4e9; --warn: #b7791f; --warn-soft: #fbf0d9; --bad: #c2412d; --bad-soft: #fbe6e2;
+  --blue: #2f6fb3; --blue-soft: #e4eef9; --purple: #7a4bb5; --purple-soft: #efe7f9;
+  --hero-ink: #2a1407; --panel: #221a14; --panel-ink: #fff3ea; --panel-muted: #e3d4c6;
+  --display: "Montserrat", "Segoe UI", system-ui, sans-serif;
+  --body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --orange: #ff9a5c; --orange-deep: #f08a3c; --orange-ink: #ffb889; --orange-soft: #2e2018; --orange-wash: #3a2618;
+  --bg: #16120f; --surface: #201a16; --ink: #f4ede7; --muted: #b0a59b; --line: #3a2f27;
+  --good: #5fd08d; --good-soft: #17301f; --warn: #f0c060; --warn-soft: #33290f; --bad: #ff8a75; --bad-soft: #3a1c16;
+  --blue: #7fb2ea; --blue-soft: #18263a; --purple: #c3a0f0; --purple-soft: #2a1f3a;
+  --hero-ink: #fff3ea; --panel: #2c231d; --panel-ink: #fff3ea; --panel-muted: #d9c9bb; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --orange: #ff9a5c; --orange-deep: #f08a3c; --orange-ink: #ffb889; --orange-soft: #2e2018; --orange-wash: #3a2618;
+  --bg: #16120f; --surface: #201a16; --ink: #f4ede7; --muted: #b0a59b; --line: #3a2f27;
+  --good: #5fd08d; --good-soft: #17301f; --warn: #f0c060; --warn-soft: #33290f; --bad: #ff8a75; --bad-soft: #3a1c16;
+  --blue: #7fb2ea; --blue-soft: #18263a; --purple: #c3a0f0; --purple-soft: #2a1f3a;
+  --hero-ink: #fff3ea; --panel: #2c231d; --panel-ink: #fff3ea; --panel-muted: #d9c9bb; color-scheme: dark }
+
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--ink); font: 400 17px/1.55 var(--body); }
+.wrap { max-width: 1080px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; letter-spacing: -0.01em }
+p { margin: 0 }
+a { color: var(--orange-ink) }
+code { font: 600 12.5px/1.4 var(--mono); background: var(--orange-soft); color: var(--orange-ink); padding: 2px 6px; border-radius: 6px; overflow-wrap: anywhere }
+.eyebrow { font: 700 12px/1 var(--display); letter-spacing: .14em; text-transform: uppercase; color: var(--orange-ink) }
+
+/* Hero */
+.hero { background: radial-gradient(circle at 12% 0%, var(--orange-wash), transparent 55%), linear-gradient(180deg, var(--orange-soft), var(--bg)); border-bottom: 1px solid var(--line) }
+.hero .wrap { padding-block: 40px 44px; display: grid; grid-template-columns: auto 1fr; gap: 28px; align-items: center }
+.crest { width: 120px; height: 120px; border-radius: 28px; background: var(--surface); display: grid; place-items: center; box-shadow: 0 10px 30px rgba(229,130,45,.25); border: 1px solid var(--line) }
+.crest img { width: 96px; height: 96px }
+.hero h1 { font-size: clamp(30px, 5vw, 52px); font-weight: 900; line-height: 1.05; color: var(--hero-ink); margin-top: 10px }
+.hero h1 span { color: var(--orange-deep) }
+.hero .lead { margin-top: 14px; max-width: 62ch; font-size: 19px; color: var(--muted) }
+.verdict { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 10px }
+.pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; font: 700 14px/1.2 var(--display) }
+.pill i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: none }
+.pill.g { background: var(--good-soft); color: var(--good) } .pill.g i { background: var(--good) }
+.pill.w { background: var(--warn-soft); color: var(--warn) } .pill.w i { background: var(--warn) }
+.pill.b { background: var(--bad-soft); color: var(--bad) } .pill.b i { background: var(--bad) }
+
+/* Contents */
+.toc { position: sticky; top: 0; z-index: 5; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(6px); border-bottom: 1px solid var(--line) }
+.toc .wrap { display: flex; gap: 8px; overflow-x: auto; padding-block: 10px; scrollbar-width: none }
+.toc a { flex: none; text-decoration: none; font: 700 13px/1 var(--display); color: var(--ink); background: var(--surface); border: 1px solid var(--line); padding: 8px 12px; border-radius: 999px }
+.toc a:hover { border-color: var(--orange) }
+
+section.band { padding-block: 56px; border-bottom: 1px solid var(--line); scroll-margin-top: 50px }
+.head { display: grid; gap: 10px; margin-bottom: 28px; max-width: 70ch }
+.head h2 { font-size: clamp(24px, 3.4vw, 34px); font-weight: 800; line-height: 1.15 }
+.head p { color: var(--muted) }
+
+/* Thirty seconds */
+.facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px }
+.fact { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 16px; display: grid; gap: 6px; align-content: start }
+.fact .n { font: 900 34px/1 var(--display); color: var(--orange-deep); font-variant-numeric: tabular-nums }
+.fact b { font: 800 15.5px/1.25 var(--display) }
+.fact p { font-size: 14px; color: var(--muted) }
+
+/* Audiences */
+.aud { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px }
+.who { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: 20px; display: grid; gap: 12px; align-content: start; border-top: 6px solid var(--c) }
+.who .top { display: flex; gap: 12px; align-items: center }
+.who .av { width: 46px; height: 46px; border-radius: 14px; background: var(--cs); display: grid; place-items: center; flex: none }
+.who .av svg { width: 24px; height: 24px; stroke: var(--c); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
+.who h3 { font-size: 20px; font-weight: 800 }
+.who .route { font: 600 12.5px/1 var(--mono); color: var(--muted) }
+.who p { font-size: 15px; color: var(--muted) }
+.chips { display: flex; flex-wrap: wrap; gap: 6px }
+.chips span { background: var(--cs); color: var(--c); border-radius: 999px; padding: 5px 10px; font: 700 12px/1.2 var(--display) }
+.who.a { --c: var(--orange-deep); --cs: var(--orange-soft) }
+.who.s { --c: var(--blue); --cs: var(--blue-soft) }
+.who.p { --c: var(--good); --cs: var(--good-soft) }
+.nest { margin-top: 22px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font: 700 15px/1.3 var(--display) }
+.nest .box { padding: 10px 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line) }
+.nest .box.k { background: var(--orange); color: #2a1407; border-color: var(--orange) }
+.nest .arr { color: var(--orange-deep); font-weight: 900 }
+.nest small { display: block; font: 600 12.5px/1.2 var(--body); color: var(--muted) }
+.nest .box.k small { color: #4a2610 }
+
+/* Diagram */
+.diagram { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: 20px; overflow-x: auto }
+.diagram svg { display: block; width: 100%; min-width: 760px; height: auto }
+.diagram .hint { display: none; font-size: 13px; color: var(--muted); margin-bottom: 8px }
+@media (max-width: 800px) { .diagram .hint { display: block } }
+.legend { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 16px; font-size: 14px; color: var(--muted) }
+.legend span { display: inline-flex; align-items: center; gap: 8px }
+.legend b { width: 12px; height: 12px; border-radius: 3px; display: inline-block }
+
+/* Journey */
+.steps { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); position: relative; counter-reset: s }
+.steps::before { content: ""; position: absolute; left: 8%; right: 8%; top: 27px; height: 4px; border-radius: 4px; background: linear-gradient(90deg, var(--orange-wash), var(--orange)) }
+.step { position: relative; display: grid; justify-items: center; text-align: center; gap: 10px; padding: 0 8px; counter-increment: s; align-content: start }
+.step .dot { width: 58px; height: 58px; border-radius: 50%; background: var(--surface); border: 4px solid var(--orange); display: grid; place-items: center; font: 900 22px/1 var(--display); color: var(--orange-deep); position: relative; z-index: 1 }
+.step .dot::before { content: counter(s) }
+.step.end .dot { background: var(--orange); color: #2a1407 }
+.step h3 { font-size: 15.5px; font-weight: 800; line-height: 1.25 }
+.step p { font-size: 14px; color: var(--muted); line-height: 1.4 }
+.step .who2 { font: 700 11px/1 var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--orange-ink); background: var(--orange-soft); padding: 5px 8px; border-radius: 6px }
+.gate { margin-top: 26px; display: flex; gap: 12px; align-items: flex-start; background: var(--warn-soft); border-radius: 14px; padding: 14px 16px; font-size: 15px }
+.gate b { color: var(--warn); font-family: var(--display) }
+
+/* Repo map */
+.repo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start }
+.tree { background: #1b1511; color: #fbeee3; border-radius: 18px; padding: 18px 20px; font: 500 14px/1.9 var(--mono); overflow-x: auto; white-space: pre; min-width: 0 }
+.tree .d { color: #ffb889; font-weight: 700 }
+.tree .c { color: #a8978a }
+.tree .hot { background: rgba(255,145,77,.18); border-radius: 6px; padding: 1px 6px; margin-left: -6px }
+.docs { display: grid; gap: 10px }
+.doc { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 12px; align-items: start; text-decoration: none; color: inherit }
+.doc:hover { border-color: var(--orange) }
+.doc .num { width: 40px; height: 40px; border-radius: 12px; background: var(--orange); color: #2a1407; display: grid; place-items: center; font: 900 16px/1 var(--display) }
+.doc b { font: 800 15.5px/1.25 var(--display); color: var(--ink) }
+.doc p { font-size: 14px; color: var(--muted); margin-top: 2px }
+
+/* Accounts */
+.accts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px }
+.acct { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px; display: grid; gap: 6px; align-content: start }
+.acct.must { border: 2px solid var(--orange) }
+.acct .k { font: 800 11px/1 var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted) }
+.acct.must .k { color: var(--orange-ink) }
+.acct b { font: 800 16px/1.25 var(--display) }
+.acct p { font-size: 14px; color: var(--muted) }
+.vault { margin-top: 18px; display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; background: var(--panel); color: var(--panel-ink); border-radius: 18px; padding: 18px 20px }
+.vault svg { width: 44px; height: 44px; stroke: var(--orange); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
+.vault p { color: var(--panel-muted); font-size: 15px }
+.vault b { color: var(--panel-ink); font-family: var(--display) }
+
+/* Clock */
+.clock { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px }
+.tick { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 16px; display: grid; gap: 10px; align-content: start }
+.tick .when { font: 900 13px/1 var(--display); letter-spacing: .08em; text-transform: uppercase; color: #2a1407; background: var(--orange); border-radius: 8px; padding: 7px 9px; justify-self: start }
+.tick:nth-child(n+3) .when { background: var(--orange-wash); color: var(--orange-ink) }
+.tick ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 14.5px }
+.tick li::marker { color: var(--orange-deep) }
+.tick .src { font: 600 12px/1.3 var(--mono); color: var(--muted) }
+
+/* Change loop */
+.lanes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px }
+.lane { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: 18px; display: grid; gap: 12px; align-content: start }
+.lane h3 { font-size: 19px; font-weight: 800; display: flex; align-items: center; gap: 10px }
+.lane h3 i { width: 12px; height: 12px; border-radius: 50%; background: var(--c) }
+.lane.f { --c: var(--orange-deep) } .lane.d { --c: var(--blue) } .lane.e { --c: var(--purple) }
+.lane ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; counter-reset: l }
+.lane li { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; font-size: 14.5px; counter-increment: l; align-items: start }
+.lane li::before { content: counter(l); width: 28px; height: 28px; border-radius: 50%; background: var(--c); color: #fff; display: grid; place-items: center; font: 900 13px/1 var(--display) }
+.lane.f li::before { color: #2a1407 }
+.lane.d li::before, .lane.e li::before { color: var(--surface) }
+.lane .out { font: 700 13.5px/1.3 var(--display); padding-top: 10px; border-top: 1px dashed var(--line); color: var(--c) }
+.always { margin-top: 18px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px }
+.always div { background: var(--orange-soft); border-radius: 14px; padding: 12px 14px; font-size: 14.5px }
+.always b { display: block; font: 800 14.5px/1.25 var(--display); color: var(--orange-ink); margin-bottom: 2px }
+
+/* Rules */
+.rules { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px }
+.rule { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 16px; display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 12px; align-items: start }
+.rule .no { width: 44px; height: 44px; border-radius: 12px; background: var(--orange-soft); color: var(--orange-ink); display: grid; place-items: center; font: 900 15px/1 var(--display) }
+.rule h3 { font-size: 16px; font-weight: 800; line-height: 1.25 }
+.rule p { font-size: 14px; color: var(--muted); margin-top: 4px }
+.more { margin-top: 16px; font-size: 15px; color: var(--muted) }
+
+/* Never */
+.nevers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px }
+.nv { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 12px; background: var(--bad-soft); border-radius: 16px; padding: 14px 16px; align-items: start }
+.nv .x { width: 40px; height: 40px; border-radius: 12px; background: var(--bad); color: #fff; display: grid; place-items: center; font: 900 18px/1 var(--display) }
+.nv b { font: 800 15.5px/1.25 var(--display); color: var(--bad) }
+.nv p { font-size: 14.5px; margin-top: 2px }
+.nv.w { background: var(--warn-soft) } .nv.w .x { background: var(--warn) } .nv.w b { color: var(--warn) }
+
+/* First week */
+.week { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px }
+.day { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 14px; display: grid; gap: 10px; align-content: start }
+.day .dn { font: 900 13px/1 var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--orange-ink) }
+.day h3 { font-size: 16px; font-weight: 800; line-height: 1.25 }
+.day label { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px; font-size: 14px; cursor: pointer; align-items: start }
+.day input { appearance: none; width: 22px; height: 22px; border-radius: 7px; border: 2px solid var(--line); background: var(--bg); margin: 0; display: grid; place-items: center; cursor: pointer }
+.day input:checked { background: var(--good); border-color: var(--good) }
+.day input:checked::after { content: "✓"; color: #fff; font: 900 13px/1 var(--display) }
+.day input:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px }
+.day label:has(input:checked) span { color: var(--muted); text-decoration: line-through }
+.progress { margin-top: 18px; display: grid; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px 18px }
+.progress .row { display: flex; justify-content: space-between; gap: 12px; font: 700 15px/1.3 var(--display) }
+.progress .row button { font: 700 13px/1 var(--display); background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 999px; padding: 6px 10px; cursor: pointer }
+.track { height: 12px; border-radius: 999px; overflow: hidden; background: var(--line) }
+.track i { display: block; height: 100%; width: 0; background: var(--good); transition: width .3s }
+
+/* Claude */
+.ai { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 24px; align-items: start }
+.ai ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 12px }
+.ai li { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; font-size: 15.5px }
+.ai li .t { width: 26px; height: 26px; border-radius: 8px; background: var(--good-soft); color: var(--good); display: grid; place-items: center; font: 900 14px/1 var(--display) }
+.ai li b { font-family: var(--display) }
+.say { display: grid; gap: 10px }
+.bubble { background: var(--orange-soft); border-radius: 18px 18px 18px 6px; padding: 12px 16px; font-size: 15px }
+.bubble .k { display: block; font: 800 11px/1 var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--orange-ink); margin-bottom: 4px }
+
+/* Glossary */
+.gloss { margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px }
+.gloss div { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px }
+.gloss dt { font: 800 16px/1.2 var(--display); color: var(--orange-deep) }
+.gloss dd { margin: 6px 0 0; font-size: 15px }
+
+footer .wrap { padding-block: 28px 40px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; color: var(--muted); font-size: 14px }
+footer img { width: 28px; height: 28px }
+
+@media (max-width: 1000px) {
+  .clock, .week { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+  .accts, .facts, .always { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+}
+@media (max-width: 860px) {
+  .aud, .lanes, .rules, .repo, .ai, .gloss, .nevers { grid-template-columns: 1fr }
+  .steps { grid-template-columns: 1fr; gap: 18px }
+  .steps::before { left: 27px; right: auto; top: 10px; bottom: 10px; width: 4px; height: auto; background: linear-gradient(180deg, var(--orange-wash), var(--orange)) }
+  .step { grid-template-columns: 58px 1fr; justify-items: start; text-align: left; column-gap: 16px; row-gap: 4px; padding: 0 }
+  .step .dot { grid-row: span 3 }
+}
+@media (max-width: 600px) {
+  .nest { flex-direction: column; align-items: stretch; gap: 4px }
+  .nest .arr { transform: rotate(90deg); align-self: center; line-height: 1 }
+  .gate { flex-direction: column; gap: 2px }
+  .tree { font-size: 11.5px; padding: 14px }
+}
+@media (max-width: 520px) {
+  .hero .wrap { grid-template-columns: 1fr }
+  .crest { width: 88px; height: 88px; border-radius: 22px } .crest img { width: 70px; height: 70px }
+  .clock, .week, .accts, .facts, .always { grid-template-columns: 1fr }
+  .vault { grid-template-columns: 1fr }
+}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="crest"><img src="logo-mark.png" alt="The Covenant Nation crest"></div>
+    <div>
+      <div class="eyebrow">FOF Ops · Handover primer · Oct 2026</div>
+      <h1>Taking over <span>FOF Ops</span></h1>
+      <p class="lead">Everything someone new needs to pick up the app that runs Foundation of Faith: what it is, how the pieces fit, what runs on its own, and how to change it without breaking a live programme.</p>
+      <div class="verdict">
+        <span class="pill g"><i></i>Live with real people</span>
+        <span class="pill b"><i></i>One database, no test copy</span>
+        <span class="pill w"><i></i>Push to main = live in ~2 min</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc" aria-label="Sections">
+  <div class="wrap">
+    <a href="#glance">At a glance</a>
+    <a href="#who">Who uses it</a>
+    <a href="#machine">How it fits</a>
+    <a href="#journey">A person's journey</a>
+    <a href="#where">Where things live</a>
+    <a href="#accounts">Accounts</a>
+    <a href="#auto">Runs on its own</a>
+    <a href="#change">Making a change</a>
+    <a href="#rules">Rules that bite</a>
+    <a href="#never">Never do</a>
+    <a href="#week">First week</a>
+    <a href="#claude">With Claude Code</a>
+    <a href="#words">Words</a>
+  </div>
+</nav>
+
+<section class="band" id="glance">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">In thirty seconds</div>
+      <h2>One app, three audiences, one database</h2>
+      <p>FOF Ops is a phone-installable web app (a PWA). It replaced spreadsheets, group-chat lists and a printed schedule. Older names for the same thing: the repo <code>for_schedule_maker</code>, the Vercel site <code>for-schedule-maker</code> and the Supabase project "FOF Schedule Editor". Don't rename them: links, installed phone apps and backups depend on them.</p>
+    </div>
+    <div class="facts">
+      <div class="fact"><span class="n">3</span><b>apps in one</b><p>Admin back office, the support app and the participant app, chosen at sign-in by role.</p></div>
+      <div class="fact"><span class="n">100+</span><b>numbered rules</b><p>The business rules, each with where it is enforced. <code>FLOW_MAP.md</code> section 4.</p></div>
+      <div class="fact"><span class="n">18</span><b>server functions</b><p>Notifications, reminders, the form feed, Telegram, AI help, the public API (one more is retired).</p></div>
+      <div class="fact"><span class="n">100+</span><b>handoff notes</b><p>One per piece of work: what changed, what is live, what is still open. <code>docs/handoffs/</code>.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="who">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">Who uses it</div>
+      <h2>Three people open the same app and see three different things</h2>
+    </div>
+    <div class="aud">
+      <div class="who a">
+        <div class="top"><div class="av"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 14h3M8 17h6"/></svg></div><div><h3>Admin</h3><span class="route">/dashboard and more</span></div></div>
+        <p>Runs the programme: sets up each cohort, places people in groups and hubs, tracks attendance and follow-ups, sends announcements.</p>
+        <div class="chips"><span>Dashboard</span><span>Schedule</span><span>Planner</span><span>Participants</span><span>Groups</span><span>Hubs</span><span>Supports</span><span>Follow-ups</span><span>Announcements</span><span>Settings</span></div>
+      </div>
+      <div class="who s">
+        <div class="top"><div class="av"><svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M2 21v-1a7 7 0 0 1 14 0v1M17 3.5a4 4 0 0 1 0 7M22 21v-1a6 6 0 0 0-4-5.6"/></svg></div><div><h3>Support</h3><span class="route">/support/*</span></div></div>
+        <p>Volunteers who each look after a small group. They work their prospect list, run group meetings, mark attendance and belong to a hub.</p>
+        <div class="chips"><span>Home</span><span>Mobilisation</span><span>My Schedule</span><span>My Group</span><span>My Hub</span><span>Attendance</span><span>Community</span></div>
+      </div>
+      <div class="who p">
+        <div class="top"><div class="av"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0 1 16 0v1"/></svg></div><div><h3>Participant</h3><span class="route">/me/*</span></div></div>
+        <p>The people taking the course. They sign in with their phone number once their support enrols them.</p>
+        <div class="chips"><span>Home</span><span>Journey</span><span>Group</span><span>Faith project</span><span>People</span><span>Resources</span><span>Feedback</span></div>
+      </div>
+    </div>
+    <div class="nest" aria-label="How the programme is organised">
+      <span class="box k">Cohort<small>one run of the course</small></span><span class="arr">→</span>
+      <span class="box">Weeks<small>classes on Sundays</small></span><span class="arr">→</span>
+      <span class="box">Hubs<small>teams of supports</small></span><span class="arr">→</span>
+      <span class="box">Groups<small>one support, a few participants</small></span><span class="arr">→</span>
+      <span class="box">Participants</span>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="machine">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">How it fits together</div>
+      <h2>Phones talk to one database, through checked doors</h2>
+      <p>The website itself holds no data. Every read and write goes to Supabase, where database functions check who is asking before they answer. Server functions do the jobs that need secrets, like sending notifications.</p>
+    </div>
+    <div class="diagram">
+      <p class="hint">Swipe sideways to see the whole picture.</p>
+      <svg viewBox="0 0 960 470" role="img" aria-label="Phones load the app from Vercel and talk to Supabase. Supabase holds the database, database functions, server functions, files and scheduled jobs. Server functions reach email, Telegram, push, AI and the Google Sheet. GitHub holds the code, deploys to Vercel and runs the nightly backup and keep-alive. Church apps use the public API.">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" fill="var(--orange-deep)"/></marker>
+          <marker id="ahm" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" fill="var(--muted)"/></marker>
+        </defs>
+        <g font-family="Montserrat, sans-serif">
+          <!-- People -->
+          <rect x="20" y="150" width="160" height="150" rx="20" fill="var(--ink)"/>
+          <text x="100" y="190" text-anchor="middle" font-weight="800" font-size="16" fill="var(--bg)">Phones and</text>
+          <text x="100" y="210" text-anchor="middle" font-weight="800" font-size="16" fill="var(--bg)">laptops</text>
+          <text x="100" y="238" text-anchor="middle" font-weight="600" font-size="12" fill="var(--bg)" opacity=".75">admins, supports,</text>
+          <text x="100" y="255" text-anchor="middle" font-weight="600" font-size="12" fill="var(--bg)" opacity=".75">participants</text>
+          <text x="100" y="281" text-anchor="middle" font-weight="800" font-size="11" fill="var(--bg)">installed as an app</text>
+
+          <!-- Vercel -->
+          <rect x="20" y="30" width="160" height="80" rx="18" fill="var(--surface)" stroke="var(--line)" stroke-width="2"/>
+          <text x="100" y="62" text-anchor="middle" font-weight="800" font-size="16" fill="var(--ink)">Vercel</text>
+          <text x="100" y="84" text-anchor="middle" font-weight="600" font-size="12" fill="var(--muted)">hosts the website</text>
+          <path d="M100 148 V116" stroke="var(--muted)" stroke-width="2.5" stroke-dasharray="6 5" marker-end="url(#ahm)"/>
+          <text x="110" y="136" font-weight="700" font-size="11.5" fill="var(--muted)">loads the app</text>
+
+          <!-- Supabase -->
+          <rect x="250" y="160" width="430" height="230" rx="24" fill="var(--orange-soft)" stroke="var(--orange)" stroke-width="2.5"/>
+          <text x="465" y="192" text-anchor="middle" font-weight="900" font-size="18" fill="var(--orange-ink)">Supabase</text>
+          <g font-weight="700" font-size="13" fill="var(--ink)">
+            <rect x="270" y="208" width="190" height="52" rx="12" fill="var(--surface)"/>
+            <text x="365" y="230" text-anchor="middle">Database functions</text>
+            <text x="365" y="248" text-anchor="middle" font-size="11.5" font-weight="600" fill="var(--muted)">check the session, then answer</text>
+            <rect x="470" y="208" width="190" height="52" rx="12" fill="var(--surface)"/>
+            <text x="565" y="230" text-anchor="middle">Server functions</text>
+            <text x="565" y="248" text-anchor="middle" font-size="11.5" font-weight="600" fill="var(--muted)">jobs that need secrets</text>
+            <rect x="270" y="270" width="190" height="52" rx="12" fill="var(--surface)"/>
+            <text x="365" y="292" text-anchor="middle">PostgreSQL tables</text>
+            <text x="365" y="310" text-anchor="middle" font-size="11.5" font-weight="600" fill="var(--muted)">locked; reached via functions</text>
+            <rect x="470" y="270" width="190" height="52" rx="12" fill="var(--surface)"/>
+            <text x="565" y="292" text-anchor="middle">Scheduled jobs</text>
+            <text x="565" y="310" text-anchor="middle" font-size="11.5" font-weight="600" fill="var(--muted)">reminders, sweeps, windows</text>
+            <rect x="270" y="332" width="390" height="40" rx="12" fill="var(--surface)"/>
+            <text x="465" y="357" text-anchor="middle">Files: photos, recaps, graphics, manuals</text>
+          </g>
+          <path d="M180 225 H244" stroke="var(--orange-deep)" stroke-width="3.5" marker-end="url(#ah)"/>
+          <path d="M244 255 H186" stroke="var(--good)" stroke-width="3.5"/>
+          <path d="M194 248 L184 255 L194 262" fill="none" stroke="var(--good)" stroke-width="3"/>
+          <text x="214" y="216" text-anchor="middle" font-weight="700" font-size="11" fill="var(--ink)">asks</text>
+          <text x="214" y="276" text-anchor="middle" font-weight="700" font-size="11" fill="var(--good)">answers</text>
+
+          <!-- Outside services -->
+          <rect x="740" y="40" width="200" height="240" rx="20" fill="var(--surface)" stroke="var(--line)" stroke-width="2"/>
+          <text x="840" y="70" text-anchor="middle" font-weight="800" font-size="14.5" fill="var(--ink)">Outside services</text>
+          <g font-weight="700" font-size="12.5" fill="var(--ink)">
+            <circle cx="762" cy="96" r="5" fill="var(--orange)"/><text x="776" y="100">Web push to phones</text>
+            <circle cx="762" cy="122" r="5" fill="var(--orange)"/><text x="776" y="126">Email (Resend)</text>
+            <circle cx="762" cy="148" r="5" fill="var(--orange)"/><text x="776" y="152">Telegram bot</text>
+            <circle cx="762" cy="174" r="5" fill="var(--orange)"/><text x="776" y="178">AI helper (OpenRouter)</text>
+            <circle cx="762" cy="200" r="5" fill="var(--orange)"/><text x="776" y="204">Google Form + Sheet</text>
+            <circle cx="762" cy="226" r="5" fill="var(--orange)"/><text x="776" y="230">Public holidays feed</text>
+            <circle cx="762" cy="252" r="5" fill="var(--muted)"/><text x="776" y="256" fill="var(--muted)">PostHog, Clarity (usage)</text>
+          </g>
+          <path d="M664 234 C700 234 705 160 734 160" fill="none" stroke="var(--orange-deep)" stroke-width="3" marker-end="url(#ah)"/>
+
+          <!-- Church apps -->
+          <rect x="740" y="310" width="200" height="80" rx="18" fill="var(--surface)" stroke="var(--orange)" stroke-width="2" stroke-dasharray="7 5"/>
+          <text x="840" y="343" text-anchor="middle" font-weight="800" font-size="14.5" fill="var(--ink)">Church apps</text>
+          <text x="840" y="364" text-anchor="middle" font-weight="600" font-size="12" fill="var(--muted)">read through the public API</text>
+          <path d="M734 350 H686" stroke="var(--orange-deep)" stroke-width="3" marker-end="url(#ah)"/>
+
+          <!-- GitHub -->
+          <rect x="270" y="30" width="200" height="80" rx="18" fill="var(--panel)"/>
+          <text x="370" y="62" text-anchor="middle" font-weight="800" font-size="15" fill="var(--panel-ink)">GitHub</text>
+          <text x="370" y="84" text-anchor="middle" font-weight="600" font-size="11.5" fill="var(--panel-muted)">code, backups, keep-alive</text>
+          <path d="M266 70 H186" stroke="var(--muted)" stroke-width="2.5" stroke-dasharray="6 5" marker-end="url(#ahm)"/>
+          <text x="226" y="60" text-anchor="middle" font-weight="700" font-size="11" fill="var(--muted)">deploys</text>
+          <path d="M370 110 V154" stroke="var(--muted)" stroke-width="2.5" stroke-dasharray="6 5" marker-end="url(#ahm)"/>
+          <text x="380" y="137" font-weight="700" font-size="11" fill="var(--muted)">nightly backup + ping</text>
+
+          <!-- cron-job.org -->
+          <rect x="430" y="410" width="250" height="46" rx="14" fill="var(--surface)" stroke="var(--line)" stroke-width="2"/>
+          <text x="555" y="438" text-anchor="middle" font-weight="700" font-size="12.5" fill="var(--ink)">cron-job.org: daily checks</text>
+          <path d="M555 410 V396" stroke="var(--muted)" stroke-width="2.5" marker-end="url(#ahm)"/>
+        </g>
+      </svg>
+      <div class="legend">
+        <span><b style="background:var(--orange-deep)"></b>Live traffic</span>
+        <span><b style="background:var(--good)"></b>Answers</span>
+        <span><b style="background:var(--muted)"></b>Deploys and timed jobs</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="journey">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">Follow one person through</div>
+      <h2>From sign-up form to a seat in class</h2>
+      <p>This is the path most of the code exists to serve. Learn it first and the rest of the app makes sense.</p>
+    </div>
+    <ol class="steps">
+      <li class="step"><span class="dot"></span><span class="who2">Prospect</span><h3>Fills in the form</h3><p>Google Form → Sheet → Apps Script posts it to the app.</p></li>
+      <li class="step"><span class="dot"></span><span class="who2">App</span><h3>Matched or created</h3><p>Matched by phone to an existing contact, or a new one is made.</p></li>
+      <li class="step"><span class="dot"></span><span class="who2">App</span><h3>Assigned</h3><p>Every 10 minutes: a same-gender support with room.</p></li>
+      <li class="step"><span class="dot"></span><span class="who2">Support</span><h3>Calls and messages</h3><p>Works them through reply, call and registration stages.</p></li>
+      <li class="step"><span class="dot"></span><span class="who2">Support</span><h3>Shares the login</h3><p>Phone number and an access code.</p></li>
+      <li class="step end"><span class="dot"></span><span class="who2">Participant</span><h3>Sets a password</h3><p>Access confirmed. They're in, the contact closes.</p></li>
+    </ol>
+    <div class="gate"><b>The gate:</b><span>no one moves to Registered without a form on file. The database refuses it, not the screen (rule 1). Only an admin can override, with a written reason.</span></div>
+  </div>
+</section>
+
+<section class="band" id="where">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">Where things live</div>
+      <h2>The repository, and the five files to read first</h2>
+      <p>All of it is in one GitHub repository. The highlighted folders are where nearly every change happens.</p>
+    </div>
+    <div class="repo">
+      <div class="tree" aria-label="Folder map"><span class="d">for_schedule_maker/</span>
+├─ <span class="d hot">frontend/src/</span>      <span class="c"># the app (React)</span>
+│  ├─ <span class="d">pages/</span>          <span class="c"># one file per screen</span>
+│  ├─ <span class="d">components/</span>     <span class="c"># shared pieces</span>
+│  ├─ <span class="d">services/</span>       <span class="c"># database calls</span>
+│  └─ sw.ts            <span class="c"># offline + push</span>
+├─ <span class="d hot">supabase/migrations/</span> <span class="c"># database changes</span>
+├─ <span class="d hot">supabase/functions/</span>  <span class="c"># server functions</span>
+├─ <span class="d">docs/handoffs/</span>       <span class="c"># notes on each change</span>
+├─ <span class="d">docs/api/</span>            <span class="c"># the public API</span>
+├─ <span class="d">integrations/</span>        <span class="c"># Google Sheet script</span>
+├─ <span class="d">sites/</span>               <span class="c"># public pages</span>
+├─ <span class="d">.github/workflows/</span>   <span class="c"># backups, ping</span>
+└─ <span class="d">.githooks/</span>           <span class="c"># pre-push check</span></div>
+      <div class="docs">
+        <a class="doc" href="https://github.com/Sahm-117/for_schedule_maker/blob/main/HANDOVER.md"><span class="num">1</span><span><b>HANDOVER.md</b><p>Accounts, where each secret lives (names only), first day, deploys, what runs on its own.</p></span></a>
+        <a class="doc" href="https://github.com/Sahm-117/for_schedule_maker/blob/main/AGENTS.md"><span class="num">2</span><span><b>AGENTS.md</b><p>The working rules for people and AI: layout conventions, safe practices, how to verify.</p></span></a>
+        <a class="doc" href="https://github.com/Sahm-117/for_schedule_maker/blob/main/FLOW_MAP.md"><span class="num">3</span><span><b>FLOW_MAP.md</b><p>How it works end to end. Section 4 is the numbered rules; read it before every push.</p></span></a>
+        <a class="doc" href="https://github.com/Sahm-117/for_schedule_maker/blob/main/docs/handoffs/INDEX.md"><span class="num">4</span><span><b>docs/handoffs/INDEX.md</b><p>Newest first. Read the latest note for the area you're about to touch.</p></span></a>
+        <a class="doc" href="https://github.com/Sahm-117/for_schedule_maker/blob/main/BACKUP_RESTORE.md"><span class="num">5</span><span><b>BACKUP_RESTORE.md</b><p>The nightly backup and how to restore it.</p></span></a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="accounts">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">Accounts</div>
+      <h2>Be an owner on these, not just a collaborator</h2>
+      <p>The orange three hold the app. The rest each do one job; losing one stops that job quietly.</p>
+    </div>
+    <div class="accts">
+      <div class="acct must"><span class="k">Must have</span><b>GitHub</b><p>Code, history, backups, their secrets, failure emails.</p></div>
+      <div class="acct must"><span class="k">Must have</span><b>Vercel</b><p>The live website. Root <code>frontend</code>, build <code>npm run build</code>.</p></div>
+      <div class="acct must"><span class="k">Must have</span><b>Supabase</b><p>Database, server functions, files, scheduled jobs, secrets.</p></div>
+      <div class="acct"><span class="k">Timed job</span><b>cron-job.org</b><p>Calls the daily checks. Lose it and daily digests stop silently.</p></div>
+      <div class="acct"><span class="k">Sign-ups</span><b>Google account</b><p>Owns the sign-up Form, its Sheet and Apps Script.</p></div>
+      <div class="acct"><span class="k">Messages</span><b>Resend, Telegram</b><p>Email sending and the team alert bot.</p></div>
+      <div class="acct"><span class="k">AI and usage</span><b>OpenRouter, PostHog, Clarity</b><p>The AI helper, and how people use the app.</p></div>
+      <div class="acct"><span class="k">Public pages</span><b>Cloudflare</b><p>Hosts pages like this one, redeployed on every push.</p></div>
+    </div>
+    <div class="vault">
+      <svg viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><circle cx="12" cy="15.5" r="1.5"/></svg>
+      <p><b>Secrets live in the team password manager, never in the repo or a chat.</b> <code>HANDOVER.md</code> section 3 names every one and where it is set (GitHub, Vercel, Supabase, the database vault).</p>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="auto">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">Runs on its own</div>
+      <h2>The app's clock</h2>
+      <p>None of this needs a person. If reminders or digests stop, check these first.</p>
+    </div>
+    <div class="clock">
+      <div class="tick"><span class="when">Every minute</span><ul><li><span>Close attendance windows</span></li><li><span>Corporate prayer slot alerts</span></li></ul><span class="src">database jobs</span></div>
+      <div class="tick"><span class="when">Every 10 min</span><ul><li><span>Push reminders (meetings, classes)</span></li><li><span>Assign new prospects</span></li></ul><span class="src">database jobs → server functions</span></div>
+      <div class="tick"><span class="when">Daily</span><ul><li><span>Daily checks and digests</span></li><li><span>Database keep-alive ping (every 6 h)</span></li></ul><span class="src">cron-job.org, GitHub</span></div>
+      <div class="tick"><span class="when">Nightly</span><ul><li><span>Encrypted backup, 2:30 UTC</span></li><li><span>Restore check</span></li><li><span>Age brackets, old log cleanup</span></li></ul><span class="src">GitHub, database jobs</span></div>
+      <div class="tick"><span class="when">Less often</span><ul><li><span>Sunday attendance finalised at noon</span></li><li><span>Public holidays refreshed</span></li></ul><span class="src">database jobs</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="change">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">Making a change</div>
+      <h2>Three kinds of change, three routes to live</h2>
+      <p>Only the first goes live by pushing. Database changes and server functions are applied by hand, so the repo and the live system can drift if a step is skipped.</p>
+    </div>
+    <div class="lanes">
+      <div class="lane f"><h3><i></i>Screens and wording</h3>
+        <ol><li><span>Read the latest handoff for that area</span></li><li><span>Change <code>frontend/src/</code></span></li><li><span><code>npm run build</code> passes</span></li><li><span>Try it in a browser as the role that uses it</span></li><li><span>Commit, push to <code>main</code></span></li></ol>
+        <p class="out">Live in about 2 minutes (Vercel)</p></div>
+      <div class="lane d"><h3><i></i>Database</h3>
+        <ol><li><span>Write a dated file in <code>supabase/migrations/</code></span></li><li><span>Apply it to the live database by hand</span></li><li><span>Check it live, as each role</span></li><li><span>Register any new rule in FLOW_MAP</span></li><li><span>Commit the file</span></li></ol>
+        <p class="out">Live when applied; the file keeps the history</p></div>
+      <div class="lane e"><h3><i></i>Server functions</h3>
+        <ol><li><span>Edit <code>supabase/functions/&lt;name&gt;</code></span></li><li><span>Deploy with the Supabase CLI</span></li><li><span>Note the version in the handoff</span></li><li><span>Commit</span></li></ol>
+        <p class="out">Saving in the repo does <em>not</em> deploy it</p></div>
+    </div>
+    <div class="always">
+      <div><b>Every commit</b>a <code>Flow-Map: checked</code> line, after re-reading FLOW_MAP section 4. The pre-push hook checks it.</div>
+      <div><b>Every finished piece</b>a handoff in <code>docs/handoffs/</code> and a row in its INDEX.</div>
+      <div><b>Every test</b>uses test accounts, and you clean up what you made.</div>
+      <div><b>Every mistake</b>is undone with <code>git revert</code> and a push.</div>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="rules">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">Rules that bite</div>
+      <h2>The six that break things most often</h2>
+      <p>The database enforces these. Screens only mirror them, so never re-create the logic in the frontend.</p>
+    </div>
+    <div class="rules">
+      <div class="rule"><span class="no">1</span><div><h3>No form, no progress</h3><p>Registered and beyond needs a sign-up form on file.</p></div></div>
+      <div class="rule"><span class="no">2</span><div><h3>One current cohort</h3><p>Defined once in the database. Never work it out again elsewhere.</p></div></div>
+      <div class="rule"><span class="no">3</span><div><h3>One phone per cohort per name</h3><p>Couples and teens may share a number. No email login: emails repeat.</p></div></div>
+      <div class="rule"><span class="no">4</span><div><h3>Same-gender assignment</h3><p>With a load cap from Settings. Quiet supports are skipped.</p></div></div>
+      <div class="rule"><span class="no">7</span><div><h3>Phone numbers normalised</h3><p>Nigerian mobiles saved as 080…; bad numbers held back, never dropped.</p></div></div>
+      <div class="rule"><span class="no" style="font-size:11px">TEEN</span><div><h3>Teens are protected</h3><p>Ages 10 to 17: guardian signs in first, numbers hidden, API needs a separate permission.</p></div></div>
+    </div>
+    <p class="more">Over a hundred rules in all, each pointing to the migration or function that enforces it: <a href="https://github.com/Sahm-117/for_schedule_maker/blob/main/FLOW_MAP.md">FLOW_MAP.md section 4</a>. New tables start locked, with no open access.</p>
+  </div>
+</section>
+
+<section class="band" id="never">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">Never do</div>
+      <h2>Mistakes that can't be undone, or hurt quietly</h2>
+    </div>
+    <div class="nevers">
+      <div class="nv"><span class="x">✕</span><div><b>Change the push (VAPID) keys</b><p>Every phone stops getting notifications until each person turns them on again.</p></div></div>
+      <div class="nv"><span class="x">✕</span><div><b>Lose the backup passphrase</b><p>Without it, no backup can be opened. Keep it in the password manager.</p></div></div>
+      <div class="nv"><span class="x">✕</span><div><b>Delete tables, functions or jobs "while you're there"</b><p>Look at what uses it first, then get a clear yes for that one thing.</p></div></div>
+      <div class="nv"><span class="x">✕</span><div><b>Change the live database without a migration file</b><p>The repo then lies about what is live.</p></div></div>
+      <div class="nv w"><span class="x">!</span><div><b>Testing touches real data</b><p>There is no test copy. Local development talks to the live database.</p></div></div>
+      <div class="nv w"><span class="x">!</span><div><b>Vercel's free plan caps deploys per day</b><p>Batch your pushes. If capped, the site stays on the last good version; press Redeploy later.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="week">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">Walkthrough</div>
+      <h2>Your first week</h2>
+      <p>Tick as you go. Your ticks are saved in this browser only.</p>
+    </div>
+    <div class="week" id="weekList">
+      <div class="day"><span class="dn">Day 1</span><h3>Get in</h3>
+        <label><input type="checkbox" data-k="d1a"><span>Accept GitHub, Vercel and Supabase owner invites</span></label>
+        <label><input type="checkbox" data-k="d1b"><span>Get the password manager shared with you</span></label>
+        <label><input type="checkbox" data-k="d1c"><span>Sign in to the live app as an admin</span></label></div>
+      <div class="day"><span class="dn">Day 2</span><h3>Run it</h3>
+        <label><input type="checkbox" data-k="d2a"><span>Clone the repo and run npm install in the frontend folder</span></label>
+        <label><input type="checkbox" data-k="d2b"><span>Copy Vercel's three VITE_ settings into a local .env.local</span></label>
+        <label><input type="checkbox" data-k="d2c"><span>Run the git hooks setup script in scripts/ once</span></label></div>
+      <div class="day"><span class="dn">Day 3</span><h3>Read</h3>
+        <label><input type="checkbox" data-k="d3a"><span>HANDOVER.md and AGENTS.md</span></label>
+        <label><input type="checkbox" data-k="d3b"><span>FLOW_MAP.md sections 1 to 3, skim section 4</span></label>
+        <label><input type="checkbox" data-k="d3c"><span>The five newest handoffs and their Open items</span></label></div>
+      <div class="day"><span class="dn">Day 4</span><h3>Look around</h3>
+        <label><input type="checkbox" data-k="d4a"><span>Walk the app as admin, support and participant (test accounts)</span></label>
+        <label><input type="checkbox" data-k="d4b"><span>Supabase: see tables, scheduled jobs, function logs</span></label>
+        <label><input type="checkbox" data-k="d4c"><span>GitHub Actions: backup and restore check are green</span></label></div>
+      <div class="day"><span class="dn">Day 5</span><h3>Ship something small</h3>
+        <label><input type="checkbox" data-k="d5a"><span>Fix a wording or small bug end to end</span></label>
+        <label><input type="checkbox" data-k="d5b"><span>Push it and watch Vercel deploy it</span></label>
+        <label><input type="checkbox" data-k="d5c"><span>Write its handoff</span></label></div>
+    </div>
+    <div class="progress"><div class="row"><span id="pText">0 of 15 done</span><button type="button" id="pReset">Clear ticks</button></div><div class="track"><i id="pBar"></i></div></div>
+  </div>
+</section>
+
+<section class="band" id="claude">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">With Claude Code</div>
+      <h2>Keep building with Claude Code</h2>
+      <p>Most of this project was built with an AI pair. Claude Code reads <code>AGENTS.md</code> on its own, so it already knows the house rules. The handoffs are how one session tells the next what happened.</p>
+    </div>
+    <div class="ai">
+      <ul>
+        <li><span class="t">✓</span><span><b>Ask for a preview before it builds</b>, then say "build and push" when you're happy.</span></li>
+        <li><span class="t">✓</span><span><b>Ask it to check database changes against the live database</b>, as the role that uses them.</span></li>
+        <li><span class="t">✓</span><span><b>It confirms before every push</b>, and commits under the owner's name.</span></li>
+        <li><span class="t">✓</span><span><b>Ask for test data to be cleaned up</b> and for a handoff at the end.</span></li>
+        <li><span class="t">✓</span><span><b>To touch the database</b>, give it a Supabase access token in the git-ignored <code>.env.local</code>, never in chat.</span></li>
+      </ul>
+      <div class="say">
+        <div class="bubble"><span class="k">First message</span>Read HANDOVER.md, docs/handoffs/INDEX.md and the newest handoffs, then tell me what's open.</div>
+        <div class="bubble"><span class="k">A change</span>Supports can't see X on My Group. Trace it from the data to the screen, show me the fix first.</div>
+        <div class="bubble"><span class="k">Before you stop</span>Write the handoff, list what you applied live, and push after I confirm.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="words">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">Words you'll hear</div>
+      <h2>The programme's vocabulary</h2>
+    </div>
+    <dl class="gloss">
+      <div><dt>FOF</dt><dd>Foundation of Faith, the church's discipleship course. Runs in cohorts.</dd></div>
+      <div><dt>Cohort</dt><dd>One run of the course, with its own weeks, people, groups and hubs.</dd></div>
+      <div><dt>Support</dt><dd>A volunteer who looks after a small group of participants.</dd></div>
+      <div><dt>Hub</dt><dd>A team of supports. Hub leads run it and its Sunday recap meeting.</dd></div>
+      <div><dt>Mobilisation</dt><dd>Turning sign-ups into enrolled participants: calls, messages, logins.</dd></div>
+      <div><dt>Follow-up</dt><dd>One prospect being worked by a support. Its status is four separate parts.</dd></div>
+      <div><dt>Faith project</dt><dd>What a participant is believing God for during the course.</dd></div>
+      <div><dt>Practice</dt><dd>A sandbox cohort for trying the app. Left out of real counts.</dd></div>
+      <div><dt>Handoff</dt><dd>A short note at the end of each piece of work: what changed, what's live, what's open.</dd></div>
+    </dl>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <img src="logo-mark.png" alt="">
+    <span>FOF Ops · Taking over FOF Ops, 30 Oct 2026. No passwords, keys or people's details on this page; those live in the team password manager and the private records.</span>
+  </div>
+</footer>
+
+<script>
+(() => {
+  const KEY = 'fof-primer-week';
+  const boxes = [...document.querySelectorAll('#weekList input[type=checkbox]')];
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { saved = {}; }
+  const render = () => {
+    const done = boxes.filter(b => b.checked).length;
+    document.getElementById('pText').textContent = done + ' of ' + boxes.length + ' done';
+    document.getElementById('pBar').style.width = (done / boxes.length * 100) + '%';
+  };
+  boxes.forEach(b => {
+    b.checked = !!saved[b.dataset.k];
+    b.addEventListener('change', () => {
+      saved[b.dataset.k] = b.checked;
+      try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (e) {}
+      render();
+    });
+  });
+  document.getElementById('pReset').addEventListener('click', () => {
+    boxes.forEach(b => { b.checked = false; });
+    saved = {};
+    try { localStorage.removeItem(KEY); } catch (e) {}
+    render();
+  });
+  render();
+})();
+</script>
+</body>
+</html>

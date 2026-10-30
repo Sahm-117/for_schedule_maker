@@ -64,6 +64,9 @@ export const MODULES: ModuleDef[] = [
 /** The Roles screen is not a grid module: only a real admin can open it. */
 export const ROLES_PATH = '/roles';
 
+/** Church app access (API keys) is not a grid module either: full admins only. */
+export const CHURCH_APPS_PATH = '/church-apps';
+
 /** Open to every signed-in staff member, whatever their role. */
 const OPEN_PATHS = ['/team-announcements', '/sop-download', '/support'];
 
@@ -88,7 +91,7 @@ export const can = (perms: MyPermissions | null | undefined, key: ModuleKey, act
 /** Whether this person may open `pathname`. `isSupport` keeps the support screens' own links working. */
 export const canOpenPath = (perms: MyPermissions | null | undefined, pathname: string, isSupport: boolean): boolean => {
   if (OPEN_PATHS.some((base) => matchesPath(pathname, base))) return true;
-  if (matchesPath(pathname, ROLES_PATH)) return !!perms?.isAdmin;
+  if (matchesPath(pathname, ROLES_PATH) || matchesPath(pathname, CHURCH_APPS_PATH)) return !!perms?.isAdmin;
   const key = moduleForPath(pathname);
   if (!key) return true; // not a module page (login, 404, redirects): the route table decides
   if (can(perms, key, 'view')) return true;
