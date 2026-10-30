@@ -8398,13 +8398,17 @@ export const supportChecklistApi = {
 
   /**
    * Every task a support has in this cohort, whatever week it was made in: those on the cohort's class weeks and those
-   * that only carry a date. The week picker on the Schedule never changes this list.
+   * that only carry a date, plus open dated tasks from other cohorts due in the last three weeks or later (rest weeks,
+   * check-ups). The week picker on the Schedule never changes this list.
    */
   async getForCohort(userId: string, cohortId: string | null, weekIds: number[]): Promise<{ items: import('../types').SupportChecklistItem[] }> {
     const parts: string[] = [];
     if (weekIds.length > 0) parts.push(`weekId.in.(${weekIds.join(',')})`);
     if (cohortId) parts.push(`cohortId.eq.${cohortId}`);
-    if (parts.length === 0) return { items: [] };
+    // Rest-week tasks come after their cohort ends, often once the next cohort is the current one (a check-up, rule
+    // 121), so open dated tasks from the last few weeks stay on the list whichever cohort is chosen.
+    const since = new Date(Date.now() - 21 * 86400000).toISOString().slice(0, 10);
+    parts.push(`and(weekId.is.null,done.is.false,dueDate.gte.${since})`);
     const { data, error } = await supabase.from('SupportChecklistItem').select('*')
       .eq('userId', userId).or(parts.join(',')).order('position').order('createdAt');
     if (error) throw new Error(error.message);
