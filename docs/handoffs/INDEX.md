@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-30 | [Security hardening](2026-10-30_security-hardening.md) | Sign-in limits, storage needs a session, resource files private with 2-hour links, reminders job service-only, browser headers. Two live migrations; push-reminders v61, file-links v1, public-api v7. |
 | 2026-10-30 | [Security in the primer](2026-10-30_security-review-primer.md) | What protects the platform, checked live: sign-in, row-level security, server functions, secrets, encrypted backups. Primer only. |
 | 2026-10-30 | [Admin review batch 2](2026-10-30_admin-review-batch-2.md) | "This week" chase list on Supports and Group meetings (WhatsApp or one in-app reminder); Supports' first tab is group leaders; one support and group count on Cohorts, Supports, Hubs and Groups; overdue filter button; Dashboard leads with what needs you. Frontend only. |
 | 2026-10-30 | [Risks: Sunday polling, build checks, primer](2026-10-30_risks-polling-build-checks.md) | Slow polls wait twice as long on Sunday mornings; the build runs the type check and 12 rule tests; the 7 type errors are fixed; the primer's risks are updated with live numbers. No live changes. |

@@ -415,7 +415,24 @@ const sendScriptureDrop = async (todayIso: string, dryRun: boolean, debug: Recor
   debug.push({ sentScripture: tag, participants: claimedParticipants.length, supports: claimedSupports.length })
 }
 
+// The role in the caller's token. This is only safe because the platform checks the token's signature first:
+// ALWAYS deploy push-reminders with verify_jwt ON (FLOW_MAP section 5). With it off, anyone could forge the role.
+// The schedule sends the service-role JWT (vault push_reminders_service_key); if that ever becomes a non-JWT
+// secret key, this check needs changing too, or every run is refused.
+const callerRole = (req: Request): string | null => {
+  try {
+    const payload = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '').split('.')[1]
+    return JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/'))).role ?? null
+  } catch {
+    return null
+  }
+}
+
 Deno.serve(async (req) => {
+  // Only the database's own schedule (invoke_push_reminders, which sends the service-role key) may run this.
+  if (callerRole(req) !== 'service_role') {
+    return new Response(JSON.stringify({ ok: false, error: 'Not allowed' }), { status: 403, headers: { 'Content-Type': 'application/json' } })
+  }
   try {
     // Test hooks. dryRun computes everything but sends/logs nothing; onlyUserIds
     // shrinks the blast radius to specific users for a live smoke test.
@@ -449,10 +466,6 @@ Deno.serve(async (req) => {
     const debug: Record<string, unknown>[] = []
 
     if (scriptureNow) {
-      const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-      if (!serviceKey || req.headers.get('Authorization') !== `Bearer ${serviceKey}`) {
-        return new Response(JSON.stringify({ ok: false, error: 'Not allowed' }), { status: 403, headers: { 'Content-Type': 'application/json' } })
-      }
       await sendScriptureDrop(getLagosDateParts(new Date()).isoDate, dryRun, debug)
       return new Response(JSON.stringify({ ok: true, scriptureNow: true, debug }), { headers: { 'Content-Type': 'application/json' } })
     }

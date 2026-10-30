@@ -9,7 +9,7 @@ const ResourceArtwork: React.FC<{ resource: Resource; compact?: boolean }> = ({ 
   const tone = resource.type === 'pdf' ? 'bg-[#fff1ec] text-[#bd5037]' : link ? 'bg-[#eef4fb] text-[#47759a]' : image ? 'bg-[#f1f3ef] text-[#71826b]' : 'bg-[#f0f1f6] text-[#69738e]';
   return (
     <span aria-hidden="true" className={`relative flex shrink-0 items-center justify-center overflow-hidden ${tone} ${compact ? 'h-16 w-14 rounded-xl' : 'h-40 w-full rounded-t-[19px] border-b border-black/[0.04]'}`}>
-      {image && failedUrl !== resource.url ? (
+      {image && resource.url && failedUrl !== resource.url ? (
         <img src={resource.url} alt="" loading="lazy" decoding="async" onError={() => setFailedUrl(resource.url)} className={`h-full w-full object-contain ${compact ? 'p-1' : 'p-3'}`} />
       ) : link ? (
         <svg viewBox="0 0 120 100" className={compact ? 'w-12' : 'w-32'} fill="none">

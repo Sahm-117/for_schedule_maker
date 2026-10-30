@@ -32,7 +32,7 @@ import { BIRTHDAY_QUOTES, birthdayPng } from './birthday.ts'
 
 const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
 
-const VERSION = '1.1.0'
+const VERSION = '1.1.1'
 const RATE_LIMIT_PER_MINUTE = 60
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -75,6 +75,22 @@ const authenticate = async (req: Request, path: string): Promise<Client> => {
 
 const requireScope = (client: Client, scope: string) => {
   if (!client.scopes.includes(scope)) throw new ApiError(403, 'missing_scope', `This key may not do that. It needs the "${scope}" scope.`)
+}
+
+// Private resource files ("fof-private:<path>", FLOW_MAP rule 129) are answered with a link that lasts two hours.
+const PRIVATE_FILE_PREFIX = 'fof-private:'
+const withSignedFiles = async (result: { resources: Array<{ url: string }> }) => {
+  const privateOnes = (result.resources ?? []).filter((r) => typeof r.url === 'string' && r.url.startsWith(PRIVATE_FILE_PREFIX))
+  if (privateOnes.length === 0) return result
+  const { data, error } = await supabase.storage.from('private-files')
+    .createSignedUrls(privateOnes.map((r) => r.url.slice(PRIVATE_FILE_PREFIX.length)), 2 * 60 * 60)
+  if (error || !data) {
+    console.error('public-api: could not sign private files', error?.message)
+    throw new ApiError(500, 'server_error', 'Could not prepare the file links. Please try again shortly.')
+  }
+  // A file that is missing from storage comes back without a link rather than failing the whole list.
+  privateOnes.forEach((r, i) => { r.url = data[i]?.signedUrl ?? '' })
+  return result
 }
 
 const call = async (fn: string, args: Record<string, unknown> = {}) => {
@@ -174,7 +190,8 @@ const route = async (req: Request, path: string, url: URL, client: () => Promise
   if (path === '/v1/scriptures' || path === '/v1/announcements' || path === '/v1/resources') {
     requireScope(who, 'content:read')
     if (path === '/v1/announcements') return json(await call('api_announcements', { p_limit: intParam(url, 'limit', 50, 1, 200) }))
-    return json(await call(path === '/v1/scriptures' ? 'api_scriptures' : 'api_resources'))
+    if (path === '/v1/scriptures') return json(await call('api_scriptures'))
+    return json(await withSignedFiles(await call('api_resources') as { resources: Array<{ url: string }> }))
   }
 
   if (path === '/v1/birthdays') {

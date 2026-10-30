@@ -26,6 +26,7 @@ import {
   notificationSettingsApi as supabaseNotificationSettingsApi,
   announcementsApi as supabaseAnnouncementsApi,
   resourcesApi as supabaseResourcesApi,
+  privateFilesApi as supabasePrivateFilesApi,
   practiceApi as supabasePracticeApi,
   followUpContactsApi as supabaseFollowUpContactsApi,
   formRegistrationsApi as supabaseFormRegistrationsApi,
@@ -689,6 +690,10 @@ export const practiceApi = USE_SUPABASE ? supabasePracticeApi : {
   async setMine(_k: string, _d: boolean, _s: boolean): Promise<void> {},
   async getForParticipant(): Promise<import('../types').PracticeMyProgress> { return { role: null, practice: false, items: [] }; },
   async setForParticipant(_k: string, _d: boolean, _s: boolean): Promise<void> {},
+};
+
+export const privateFilesApi = USE_SUPABASE ? supabasePrivateFilesApi : {
+  async sign(_kind: 'resource' | 'version', _ids: string[]): Promise<Record<string, string>> { return {}; },
 };
 
 export const resourcesApi = USE_SUPABASE ? supabaseResourcesApi : {

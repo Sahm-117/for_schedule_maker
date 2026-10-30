@@ -182,6 +182,8 @@ export const authApi = {
     });
 
     if (error) {
+      // Ten wrong passwords in 15 minutes pause this login for 15 minutes (FLOW_MAP rule 128).
+      if (error.message.includes('TOO_MANY_ATTEMPTS')) throw new Error('TOO_MANY_ATTEMPTS');
       throw new Error('Login service unavailable');
     }
     if (!data) {
@@ -2886,7 +2888,9 @@ export const usersApi = {
     if (error) {
       throw new Error(error.message.includes('at least 8')
         ? 'Your new password must be at least 8 characters.'
-        : 'The password could not be changed.');
+        : error.message.includes('TOO_MANY_ATTEMPTS')
+          ? 'Too many wrong passwords. Wait 15 minutes, then try again.'
+          : 'The password could not be changed.');
     }
     if (data !== true) {
       throw new Error('Your current password is not correct.');
@@ -3370,6 +3374,19 @@ export const announcementsApi = {
   },
 };
 
+// A private file's url (Resource.url, ResourceVersion.url) is this prefix plus its path in "private-files".
+export const PRIVATE_FILE_PREFIX = 'fof-private:';
+
+export const privateFilesApi = {
+  /** Links that work for two hours, for the private files among these ids that this person may open. */
+  async sign(kind: 'resource' | 'version', ids: string[]): Promise<Record<string, string>> {
+    if (ids.length === 0) return {};
+    const { data, error } = await supabase.functions.invoke('file-links', { body: { kind, ids } });
+    if (error) throw new Error('Could not open the file. Please try again.');
+    return ((data as { urls?: Record<string, string> } | null)?.urls) ?? {};
+  },
+};
+
 export const resourcesApi = {
   async setVisibleToParticipants(id: string, visible: boolean): Promise<void> {
     const { error } = await supabase.from('Resource').update({ visibleToParticipants: visible }).eq('id', id);
@@ -3408,16 +3425,17 @@ export const resourcesApi = {
     return { resource: data as any };
   },
 
-  // Puts a file in the resources bucket and says what kind of file it is.
+  // Puts a file in the private bucket and says what kind of file it is. Its url is "fof-private:<path>"; the app
+  // opens it through a signed link (privateFilesApi, FLOW_MAP rule 129), never a public one.
   async uploadToBucket(file: File): Promise<{ url: string; type: import('../types').Resource['type']; fileName: string; fileSize: number }> {
     const ext = file.name.split('.').pop()?.toLowerCase() || 'file';
-    const path = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+    const path = `resources/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
     const { error: uploadError } = await supabase.storage
-      .from('resources')
-      .upload(path, file, { cacheControl: '31536000', upsert: false });
+      .from('private-files')
+      .upload(path, file, { upsert: false, contentType: file.type || undefined });
     if (uploadError) throw new Error(uploadError.message);
 
-    const { data: urlData } = supabase.storage.from('resources').getPublicUrl(path);
+    const urlData = { publicUrl: `${PRIVATE_FILE_PREFIX}${path}` };
     const type = ['pdf'].includes(ext) ? 'pdf'
       : ['doc', 'docx'].includes(ext) ? 'doc'
       : ['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext) ? 'image'

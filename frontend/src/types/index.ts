@@ -31,6 +31,8 @@ export interface ResourceAudiencePayload {
 }
 
 export interface ResourceVersionEntry {
+  /** The version's id (the resource's own id for the current one); used to sign a private file. */
+  id?: string;
   versionNo: number;
   type: Resource['type'];
   url: string;

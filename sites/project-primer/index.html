@@ -417,7 +417,7 @@ footer img { width: 28px; height: 28px }
         <div class="acct ok"><b>Passwords are hashed</b><p>Staff and participant passwords are stored only as bcrypt hashes, and the hash columns can't be read through the app's data API.</p></div>
         <div class="acct ok"><b>Sessions can't be stolen from the database</b><p>Each sign-in gets a random token. The database keeps only its SHA-256 fingerprint, and the token expires after 90 days unused.</p></div>
         <div class="acct ok"><b>Participants sign in by phone</b><p>With a password or a one-time code their support issues. Several people on one number each get their own profile.</p></div>
-        <div class="acct ok"><b>The handover pages are locked</b><p>This primer sits behind one shared password (Cloudflare). The password lives in Bitwarden.</p></div>
+        <div class="acct ok"><b>Guessing is stopped</b><p>Ten wrong passwords for one login in 15 minutes pause it for 15 minutes. The app says so and points to an admin.</p></div>
       </div>
     </div>
 
@@ -434,7 +434,7 @@ footer img { width: 28px; height: 28px }
     <div class="seclayer">
       <h3>Server functions and other apps</h3>
       <div class="accts">
-        <div class="acct ok"><b>Server functions check the caller</b><p>Most need a valid app token. The Telegram webhook checks its own secret header, and the public API its own key.</p></div>
+        <div class="acct ok"><b>Server functions check the caller</b><p>Most need a valid app token; the reminders job only runs for the database's own schedule. The Telegram webhook checks its secret header, and the public API its key.</p></div>
         <div class="acct ok"><b>Only admins can send announcements</b><p>Since 30 October, an announcement needs an admin session or the server's own key, and one that would reach nobody is refused.</p></div>
         <div class="acct ok"><b>Church app keys</b><p>Stored only as fingerprints, limited to the areas an admin ticks, 60 requests a minute each, every request logged, and switched off in one tap.</p></div>
         <div class="acct ok"><b>Attendance can't be rewritten</b><p>After class only admins change marks. Moves in the two-absence review are recorded and can be undone the same day.</p></div>
@@ -451,7 +451,17 @@ footer img { width: 28px; height: 28px }
       </div>
     </div>
 
-    <p class="secnote">A few hardening items found in this check are being fixed. They are tracked with the owner, not on this page, because the code is public.</p>
+    <div class="seclayer">
+      <h3>Files</h3>
+      <div class="accts">
+        <div class="acct ok"><b>Resource files are private</b><p>Files added under Resources sit in a private store. The app opens each one with a link that works for two hours, only for people allowed to see it.</p></div>
+        <div class="acct ok"><b>Only signed-in people upload</b><p>Uploading needs a signed-in session, and only staff can replace or delete a file. Shared designs and photos keep their public links.</p></div>
+        <div class="acct ok"><b>Browser protections</b><p>Other sites can't frame the app, browsers don't guess file types, and links don't leak full addresses to other sites.</p></div>
+        <div class="acct ok"><b>The handover pages are locked</b><p>This primer sits behind one shared password (Cloudflare). The password lives in Bitwarden.</p></div>
+      </div>
+    </div>
+
+    <p class="secnote">The hardening items this check found were fixed the same day (sign-in limits, locked storage, private files, the reminders job, browser protections). Report anything new to the owner privately: this page's code is public.</p>
   </div>
 </section>
 

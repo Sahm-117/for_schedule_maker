@@ -4,6 +4,7 @@ import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import DocumentViewerSheet from '../components/DocumentViewerSheet';
 import { useParticipantApp } from '../context/ParticipantAppContext';
+import { useSignedFileUrls } from '../hooks/useSignedFileUrls';
 
 // Resources for participants: guides the FOF team chose to share, and each week's
 // class material once it has been released to them: the manual (opened on its week page,
@@ -25,6 +26,8 @@ const TYPE_LABEL: Record<string, string> = { link: 'Link', pdf: 'PDF', doc: 'Doc
 const ParticipantResourcesPage: React.FC = () => {
   const { home, loading } = useParticipantApp();
   const [viewing, setViewing] = useState<{ url: string; title: string; fileName?: string | null } | null>(null);
+  // Private files get a signed link to open (rule 129); links and public files are unchanged.
+  const resources = useSignedFileUrls(home?.resources ?? [], 'resource');
 
   if (loading || !home) return <PageLoader />;
 
@@ -46,11 +49,11 @@ const ParticipantResourcesPage: React.FC = () => {
       <div className="flex flex-col gap-4 desktop-cols">
         <section data-wt="pr-guides" className={CARD}>
           <h2 className="text-base font-bold text-gray-900">General guides</h2>
-          {home.resources.length === 0 ? (
+          {resources.length === 0 ? (
             <p className="mt-2 text-[13px] text-gray-500">Nothing shared yet.</p>
           ) : (
             <div className="mt-3.5 flex flex-col gap-2">
-              {home.resources.map((resource) => {
+              {resources.map((resource) => {
                 const isLink = resource.type === 'link';
                 const content = (
                   <>
@@ -64,7 +67,8 @@ const ParticipantResourcesPage: React.FC = () => {
                 return isLink ? (
                   <a key={resource.id} href={resource.url} target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-[14px] border border-[#f1f2f5] p-3 text-left hover:border-[#ffdeca]">{content}</a>
                 ) : (
-                  <button key={resource.id} type="button" onClick={() => setViewing({ url: resource.url, title: resource.title, fileName: resource.fileName })} className="flex items-center gap-3 rounded-[14px] border border-[#f1f2f5] p-3 text-left hover:border-[#ffdeca]">{content}</button>
+                  // A private file opens once its link has arrived (an empty url means not yet).
+                  <button key={resource.id} type="button" disabled={!resource.url} aria-busy={!resource.url} onClick={() => setViewing({ url: resource.url, title: resource.title, fileName: resource.fileName })} className="flex items-center gap-3 rounded-[14px] border border-[#f1f2f5] p-3 text-left hover:border-[#ffdeca] disabled:opacity-60">{content}</button>
                 );
               })}
             </div>

@@ -7,6 +7,7 @@ import type { Resource, SupportHub } from '../types';
 import { downloadFile } from '../utils/download';
 import DocumentViewerSheet from './DocumentViewerSheet';
 import ResourceArtwork from './resources/ResourceArtwork';
+import { useSignedFileUrls } from '../hooks/useSignedFileUrls';
 import AppOverflowMenu from './AppOverflowMenu';
 import ResourceEditorModal from './resources/ResourceEditorModal';
 import ResourceHistorySheet from './resources/ResourceHistorySheet';
@@ -38,7 +39,9 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
   const canEdit = can('resources', 'edit');
   const canDelete = can('resources', 'delete');
   const { activeCohort, liveRevision } = useAppData();
-  const [resources, setResources] = useState<Resource[]>([]);
+  const [storedResources, setResources] = useState<Resource[]>([]);
+  // Private files get a signed link to open (rule 129); links and public files are unchanged.
+  const resources = useSignedFileUrls(storedResources, 'resource');
   const [viewing, setViewing] = useState<Resource | null>(null);
   const [loading, setLoading] = useState(false);
   const [editor, setEditor] = useState<{ mode: 'add' | 'update'; resource: Resource | null } | null>(null);
@@ -162,14 +165,16 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
                     </span>
                   </>
                 );
-                const cardCls = 'group flex min-w-0 flex-col overflow-hidden rounded-[20px] border border-[#e9ebef] bg-white text-left shadow-sm transition hover:border-[#d3d7df] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2';
+                const cardCls = 'group flex min-w-0 flex-col overflow-hidden rounded-[20px] border border-[#e9ebef] bg-white text-left shadow-sm transition hover:border-[#d3d7df] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-60';
                 return r.type === 'link' ? (
                   <a key={r.id} href={r.url} target="_blank" rel="noopener noreferrer" className={cardCls}>{inner}</a>
                 ) : (
                   <button
                     key={r.id}
                     type="button"
-                    onClick={() => { if (r.type === 'pdf' || r.type === 'image') setViewing(r); else void downloadFile(r.url, r.fileName ?? r.title); }}
+                    disabled={!r.url}
+                    aria-busy={!r.url}
+                    onClick={() => { if (!r.url) return; if (r.type === 'pdf' || r.type === 'image') setViewing(r); else void downloadFile(r.url, r.fileName ?? r.title); }}
                     className={cardCls}
                   >
                     {inner}
@@ -226,7 +231,9 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
                     ) : (
                       <button
                         type="button"
-                        onClick={() => { if (r.type === 'pdf' || r.type === 'image') setViewing(r); else void downloadFile(r.url, r.fileName ?? r.title); }}
+                        disabled={!r.url}
+                    aria-busy={!r.url}
+                    onClick={() => { if (!r.url) return; if (r.type === 'pdf' || r.type === 'image') setViewing(r); else void downloadFile(r.url, r.fileName ?? r.title); }}
                         className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
                         title={r.type === 'pdf' || r.type === 'image' ? 'View in app' : 'Download'}
                       >

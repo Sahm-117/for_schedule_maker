@@ -66,7 +66,9 @@ const Login: React.FC = () => {
     } catch (err: any) {
       const errorMessage = err.response?.data?.error || err.message || 'Login failed';
 
-      if (errorMessage.includes('User not found') || errorMessage.includes('Invalid credentials') || errorMessage.includes('Unauthorized')) {
+      if (errorMessage.includes('TOO_MANY_ATTEMPTS')) {
+        setError('Too many wrong passwords for this login. Wait 15 minutes, then try again, or ask an admin or your support to reset your password.');
+      } else if (errorMessage.includes('User not found') || errorMessage.includes('Invalid credentials') || errorMessage.includes('Unauthorized')) {
         // A failed login is usually a typo, or a stale cached app that can't find
         // the account, so cover both.
         setError("We couldn't sign you in. Double-check your email (or phone number) and password. If it still fails, tap “Refresh” at the top to update the app, or reinstall it, then sign in with your email.");

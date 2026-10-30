@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import ModalShell from '../followups/ModalShell';
 import Spinner from '../Spinner';
 import { resourcesApi } from '../../services/api';
+import { useSignedFileUrls } from '../../hooks/useSignedFileUrls';
 import type { Resource, ResourceVersionEntry, ResourceVersions } from '../../types';
 
 const when = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -16,7 +17,9 @@ const Row: React.FC<{ v: ResourceVersionEntry; current?: boolean }> = ({ v, curr
     </div>
     {current
       ? <span className="flex-none rounded-full bg-emerald-100/80 px-2.5 py-1 text-xs font-semibold text-emerald-700">Live</span>
-      : <a href={v.url} target="_blank" rel="noopener noreferrer" className="flex-none text-[13px] font-semibold text-primary">Open</a>}
+      : v.url
+        ? <a href={v.url} target="_blank" rel="noopener noreferrer" className="flex-none text-[13px] font-semibold text-primary">Open</a>
+        : <span className="flex-none text-[13px] text-gray-400">Opening…</span>}
   </li>
 );
 
@@ -24,6 +27,8 @@ const Row: React.FC<{ v: ResourceVersionEntry; current?: boolean }> = ({ v, curr
 const ResourceHistorySheet: React.FC<{ resource: Resource | null; onClose: () => void }> = ({ resource, onClose }) => {
   const [data, setData] = useState<ResourceVersions | null>(null);
   const [error, setError] = useState('');
+  // Earlier private files open through a signed link (rule 129).
+  const earlier = useSignedFileUrls(data?.earlier ?? [], 'version');
 
   useEffect(() => {
     if (!resource) return undefined;
@@ -44,7 +49,7 @@ const ResourceHistorySheet: React.FC<{ resource: Resource | null; onClose: () =>
         ) : (
           <ul>
             <Row v={data.current} current />
-            {data.earlier.map((v) => <Row key={v.versionNo} v={v} />)}
+            {earlier.map((v) => <Row key={v.versionNo} v={v} />)}
             {data.earlier.length === 0 && <li className="border-t border-gray-100 py-3 text-[13px] text-gray-500">No earlier versions yet.</li>}
           </ul>
         )}
