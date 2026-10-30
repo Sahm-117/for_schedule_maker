@@ -267,6 +267,12 @@ const AdminDashboardPage: React.FC = () => {
     );
   }
 
+  const attentionBlock = model ? (
+    <div data-wt="dash-attention" className={openingAssign ? 'pointer-events-none opacity-70' : ''}>
+      <AttentionList items={model.attention} canAct={canAssignNextCohort} onAction={(item) => { void handleAttentionAction(item); }} emptyText={setupLeft > 0 ? 'Nothing else needs you. Finish getting the cohort ready above.' : undefined} />
+    </div>
+  ) : null;
+
   return (
     <div>
       <PageHeader
@@ -295,6 +301,8 @@ const AdminDashboardPage: React.FC = () => {
               <HubReportsNowLine />
             </div>
           )}
+          {/* Once the cohort is running, what needs you comes first (the header counts it), then how it is going. */}
+          {!upcoming && attentionBlock}
           <div data-wt="dash-strip"><CohortStrip health={health} model={model} cohortName={activeCohort.name} /></div>
 
           {/* Before the start, getting the cohort set up comes first. */}
@@ -312,9 +320,7 @@ const AdminDashboardPage: React.FC = () => {
 
           {teenOverview && teenOverview.total > 0 && <TeenOverviewCard overview={teenOverview} meetings={teenMeetingSummary} />}
 
-          <div data-wt="dash-attention" className={openingAssign ? 'pointer-events-none opacity-70' : ''}>
-            <AttentionList items={model.attention} canAct={canAssignNextCohort} onAction={(item) => { void handleAttentionAction(item); }} emptyText={setupLeft > 0 ? 'Nothing else needs you. Finish getting the cohort ready above.' : undefined} />
-          </div>
+          {upcoming && attentionBlock}
 
           {!upcoming && (
             <div data-wt="dash-trend" className="grid gap-5 xl:grid-cols-2">

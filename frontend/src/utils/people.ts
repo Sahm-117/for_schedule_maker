@@ -69,6 +69,14 @@ export const isSupportProfileComplete = (user: Pick<User, 'avatarUrl' | 'gender'
 export const hasSupportRole = (user: { role?: string; roles?: string[] | null }): boolean =>
   user.role === 'SUPPORT' || !!user.roles?.includes('SUPPORT');
 
+/**
+ * One definition of "a support in this cohort" for every headline count (Cohorts, Supports, Hubs; FLOW_MAP rule 127):
+ * a cohort member (UserCohort) with the Support role (an admin who is also a Support counts), switched on, not a test
+ * account. Pass members of the cohort only.
+ */
+export const countsAsCohortSupport = (user: { role?: string; roles?: string[] | null; isActive?: boolean | null; isTest?: boolean | null }): boolean =>
+  hasSupportRole(user) && user.isActive !== false && !user.isTest;
+
 /** The age range a date of birth (YYYY-MM-DD) gives today, or null when it isn't believable (age 5 to 100). Mirrors the database. */
 export const ageRangeFromDate = (dob: string, now: Date = new Date()): string | null => {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dob);

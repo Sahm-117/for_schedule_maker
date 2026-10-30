@@ -33,7 +33,9 @@ import FilterBar, { describeFilters, type FilterGroup } from '../components/filt
 import { PERSON_OF_INTEREST_INFO } from '../components/hubs/hubJobs';
 import { useToast } from '../components/Toast';
 import { buildWhatsAppLink } from '../utils/phone';
-import { activeDot, activeStatus, isSupportProfileComplete, hasSupportRole, matchesGenderAge } from '../utils/people';
+import SupportsThisWeek from '../components/supports/SupportsThisWeek';
+import { meetingNotDoneItem, noMeetingTimeItem, type ThisWeekItem } from '../components/supports/thisWeekItems';
+import { activeDot, activeStatus, countsAsCohortSupport, isSupportProfileComplete, hasSupportRole, matchesGenderAge } from '../utils/people';
 import { AGE_RANGE_OPTIONS } from '../constants/departments';
 import { openLoadByOwner } from '../utils/followUps';
 import HubAuthorProfileModal from '../components/HubAuthorProfileModal';
@@ -80,7 +82,7 @@ type Filter = 'all' | PersonHealth | 'nogroup';
 const NOTES_PILL = `${PERSON_OF_INTEREST_INFO.label} Notes`;
 
 const AdminSupportsPage: React.FC = () => {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const { activeCohort, liveRevision } = useAppData();
   const { can } = usePermissions();
   const canEdit = can('supports', 'edit');
@@ -250,9 +252,9 @@ const AdminSupportsPage: React.FC = () => {
     bySupport.forEach((h) => { counts[h] += 1; });
     const unsupported = health.groups.filter((g) => !g.supportId && g.members > 0);
     const leading = new Set(health.groups.map((g) => g.supportId).filter(Boolean));
-    const notLeading = users.filter((u) => hasSupportRole(u) && u.isActive !== false && cohortMemberIds.has(u.id) && !leading.has(u.id));
+    const notLeading = users.filter((u) => countsAsCohortSupport(u) && cohortMemberIds.has(u.id) && !leading.has(u.id));
     const weekIdByNumber = new Map(health.weeks.map((w) => [w.weekNumber, w.id]));
-    return { mode, judged, evaluations, counts, total: bySupport.size, bySupport, unsupported, notLeading, weekIdByNumber };
+    return { mode, currentWeek, judged, evaluations, counts, total: bySupport.size, bySupport, unsupported, notLeading, weekIdByNumber };
   }, [health, people, rules, users, cohortMemberIds, activeCohort, meetingSetByGroup, readiness]);
 
   // Newest report per group+week: a support can submit more than once, and the
@@ -346,13 +348,16 @@ const AdminSupportsPage: React.FC = () => {
   // entirely. They have no health, so a health filter other than "all" hides
   // their card too.
   const notLeadingWithHub = (model?.notLeading ?? []).filter((u) => !!hubByUserId.get(u.id) || !isProblemKind(u.id));
-  const notLeadingCards = filter === 'all' || filter === 'nogroup'
+  // They have their own tab (No group), so the first tab is only the supports leading a group; a search on the
+  // first tab still finds them, so a name is never hidden by the tab.
+  const showNotLeading = filter === 'nogroup' || (filter === 'all' && searchTerm.length > 0);
+  const notLeadingCards = showNotLeading
     ? notLeadingWithHub.filter((u) => matchesSearch(u.id))
     : [];
   const notLeadingCardIds = new Set(notLeadingCards.map((u) => u.id));
   // Hub leads and operational supports are never flagged as a "no group"
   // problem, regardless of the health filter/tab in view.
-  const notLeadingCollapsed = (filter === 'all' || filter === 'nogroup' ? (model?.notLeading ?? []) : [])
+  const notLeadingCollapsed = (showNotLeading ? (model?.notLeading ?? []) : [])
     .filter((u) => !notLeadingCardIds.has(u.id))
     .filter((u) => isProblemKind(u.id))
     .filter((u) => matchesSearch(u.id));
@@ -390,7 +395,9 @@ const AdminSupportsPage: React.FC = () => {
   const leadingCount = model?.total ?? 0;
   const noGroupCount = model?.notLeading.length ?? 0;
   const splitLine = `${leadingCount} leading a group · ${noGroupCount} not`;
-  const countSubtitle = shownSupports.length === totalSupports
+  // The tabs split the list, so only a search or a filter makes it "N of M shown".
+  const narrowed = searchTerm.length > 0 || Object.values(filters).some((choices) => choices.length > 0);
+  const countSubtitle = !narrowed
     ? `${totalSupports} supports (${splitLine}) · ${activeCohort?.name ?? ''}`
     : `${shownSupports.length} of ${totalSupports} supports shown · ${activeCohort?.name ?? ''}`;
   // Groups whose onboarding is not finished, for the line above the tabs before any week is judged.
@@ -399,6 +406,35 @@ const AdminSupportsPage: React.FC = () => {
     ...describeFilters(filterGroups, filters),
     search.trim() ? `Search "${search.trim()}"` : '',
   ].filter(Boolean).join(' · ');
+
+  // What to chase now (rule 126): this class week's meetings not marked done (what judging counts as reported,
+  // GroupPrayerStatus via cohort_health; the same count as Group meetings), groups with no meeting time, and
+  // groups with no support. Whole cohort, whatever the tabs and filters show.
+  const thisWeekItems: ThisWeekItem[] = (() => {
+    if (!model) return [];
+    const items: ThisWeekItem[] = [];
+    const supportsOf = (evals: typeof model.evaluations) => {
+      const seen = new Set<string>();
+      return evals.filter((e) => (seen.has(e.supportId) ? false : (seen.add(e.supportId), true)))
+        .map((e) => ({ id: e.supportId, name: userById.get(e.supportId)?.name ?? groupById.get(e.groupId)?.supportName ?? 'Support', user: userById.get(e.supportId) ?? null }));
+    };
+    const week = model.currentWeek;
+    const weekId = week > 0 ? model.weekIdByNumber.get(week) : undefined;
+    if (model.mode === 'running' && weekId != null) {
+      const doneKeys = new Set((health?.meetings ?? []).map((m) => `${m.groupId}:${m.weekId}`));
+      const missing = model.evaluations.filter((e) => !doneKeys.has(`${e.groupId}:${weekId}`));
+      items.push(meetingNotDoneItem(week, missing.length, model.evaluations.length, supportsOf(missing)));
+    }
+    const noTime = model.evaluations.filter((e) => !e.onboarding.meetingSet);
+    items.push(noMeetingTimeItem(noTime.length, supportsOf(noTime)));
+    items.push({
+      key: 'no-support',
+      title: `${model.unsupported.length} group${model.unsupported.length === 1 ? ' has' : 's have'} no support`,
+      people: model.unsupported.map((g) => ({ id: g.id, name: g.name, notAPerson: true })),
+      link: { to: '/groups', label: 'Assign' },
+    });
+    return items;
+  })();
 
   return (
     <div>
@@ -441,6 +477,8 @@ const AdminSupportsPage: React.FC = () => {
         <div className="surface-card p-8 text-center text-sm text-gray-500">No cohort selected.</div>
       ) : (
         <div className="space-y-5">
+          <SupportsThisWeek key={activeCohort?.id ?? 'none'} items={thisWeekItems} cohortId={activeCohort?.id ?? null} senderId={user?.id ?? null}
+            weekLabel={model.currentWeek > 0 ? `${activeCohort?.name ?? ''} · class ${model.currentWeek} week` : `${activeCohort?.name ?? ''} · before the first class`} />
           <section data-wt="supports-rules" className="surface-card p-4 sm:p-5">
             <div className="flex items-center gap-1.5 text-sm font-medium text-gray-800">
               <span>
@@ -461,7 +499,7 @@ const AdminSupportsPage: React.FC = () => {
               <SegmentedTabs
                 scrollable
                 tabs={[
-                  { key: 'all', label: `All ${totalSupports}` },
+                  { key: 'all', label: `Leading a group ${leadingCount}` },
                   { key: 'critical', label: `Needs attention ${model.counts.critical}` },
                   { key: 'warning', label: `Keep an eye on ${model.counts.warning}` },
                   { key: 'good', label: `On track ${model.counts.good}` },
@@ -490,8 +528,8 @@ const AdminSupportsPage: React.FC = () => {
             searching={search.trim().length > 0}
             onClear={() => setSearch('')}
             shown={shownSupports.length}
-            total={filter === 'all' ? totalSupports : filter === 'nogroup' ? noGroupCount : model.counts[filter]}
-            noun={filter === 'all' ? 'supports' : 'supports in this tab'}
+            total={filter === 'all' ? leadingCount : filter === 'nogroup' ? noGroupCount : model.counts[filter]}
+            noun={filter === 'all' ? 'supports leading a group' : 'supports in this tab'}
           />
 
           {visible.length === 0 && notLeadingCards.length === 0 ? (
@@ -553,44 +591,33 @@ const AdminSupportsPage: React.FC = () => {
             </ul>
           )}
 
-          {(model.unsupported.length > 0 || notLeadingCollapsed.length > 0) && (
+          {notLeadingCollapsed.length > 0 && (
             <section className="surface-card p-5 sm:p-6">
-              {model.unsupported.length > 0 && (
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm text-gray-800">
-                    <span className="font-semibold">{model.unsupported.length} group{model.unsupported.length === 1 ? '' : 's'} without a support:</span>{' '}
-                    {model.unsupported.map((g) => g.name).join(', ')}
-                  </p>
-                  <NavLink to="/groups" className="rounded-xl bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200">Assign</NavLink>
-                </div>
-              )}
-              {notLeadingCollapsed.length > 0 && (
-                <details className={model.unsupported.length > 0 ? 'mt-3' : ''}>
-                  <summary className="cursor-pointer text-sm font-semibold text-gray-700">{notLeadingCollapsed.length} support{notLeadingCollapsed.length === 1 ? ' isn’t' : 's aren’t'} leading a group this cohort</summary>
-                  <ul className="mt-2 flex flex-col gap-2">
-                    {notLeadingCollapsed.map((u) => (
-                      <li key={u.id} className="flex items-center justify-between gap-3 text-sm text-gray-600">
-                        <button type="button" onClick={() => setProfileUserId(u.id)} className="flex min-w-0 items-center gap-2.5 text-left">
-                          <Avatar name={u.name} avatarUrl={u.avatarUrl} size="xs" />
-                          <span className="min-w-0 truncate hover:underline">{u.name}</span>
-                        </button>
-                        <span className="min-w-0 flex-1 truncate">{notedIds.has(u.id) && <span title={PERSON_OF_INTEREST_INFO.description} className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold ${PERSON_OF_INTEREST_INFO.pill}`}>{NOTES_PILL}</span>}</span>
-                        <div className="w-44 flex-none">
-                          <AppSelect
-                            value={kindOf(u.id)}
-                            onChange={(v) => void saveKind(u.id, v as SupportKind)}
-                            options={KIND_OPTIONS}
-                            placeholder="Participant support"
-                            disabled={!canEdit || savingKindIds.has(u.id)}
-                            loading={savingKindIds.has(u.id)}
-                            compact
-                          />
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </details>
-              )}
+              <details>
+                <summary className="cursor-pointer text-sm font-semibold text-gray-700">{notLeadingCollapsed.length} support{notLeadingCollapsed.length === 1 ? ' isn’t' : 's aren’t'} leading a group this cohort</summary>
+                <ul className="mt-2 flex flex-col gap-2">
+                  {notLeadingCollapsed.map((u) => (
+                    <li key={u.id} className="flex items-center justify-between gap-3 text-sm text-gray-600">
+                      <button type="button" onClick={() => setProfileUserId(u.id)} className="flex min-w-0 items-center gap-2.5 text-left">
+                        <Avatar name={u.name} avatarUrl={u.avatarUrl} size="xs" />
+                        <span className="min-w-0 truncate hover:underline">{u.name}</span>
+                      </button>
+                      <span className="min-w-0 flex-1 truncate">{notedIds.has(u.id) && <span title={PERSON_OF_INTEREST_INFO.description} className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold ${PERSON_OF_INTEREST_INFO.pill}`}>{NOTES_PILL}</span>}</span>
+                      <div className="w-44 flex-none">
+                        <AppSelect
+                          value={kindOf(u.id)}
+                          onChange={(v) => void saveKind(u.id, v as SupportKind)}
+                          options={KIND_OPTIONS}
+                          placeholder="Participant support"
+                          disabled={!canEdit || savingKindIds.has(u.id)}
+                          loading={savingKindIds.has(u.id)}
+                          compact
+                        />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </details>
             </section>
           )}
 

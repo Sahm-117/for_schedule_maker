@@ -8,11 +8,15 @@ import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
 import { useAppData } from '../context/AppDataContext';
 import ModalShell from '../components/followups/ModalShell';
-import { groupPrayerFocusApi, groupPrayerStatusApi, groupsApi, meetingAttendanceApi, participantNotesApi } from '../services/api';
+import { groupPrayerFocusApi, groupPrayerStatusApi, groupsApi, meetingAttendanceApi, participantNotesApi, usersApi } from '../services/api';
+import SupportsThisWeek from '../components/supports/SupportsThisWeek';
+import { meetingNotDoneItem, noMeetingTimeItem, type ThisWeekItem } from '../components/supports/thisWeekItems';
+import { classDateIso } from '../utils/participantApp';
+import { formatPlannerDate, plannerToday } from '../utils/planner';
 import GroupReportsCard from '../components/groups/GroupReportsCard';
 import { cohortMode } from '../components/dashboard/healthModel';
 import { getIdealWeekNumberForCohort } from '../utils/weekFocus';
-import type { Group, GroupPrayerFocus, GroupPrayerStatus, MeetingAttendance, MeetingAttendanceStatus, Participant, ParticipantNote, Week } from '../types';
+import type { Group, GroupPrayerFocus, GroupPrayerStatus, MeetingAttendance, MeetingAttendanceStatus, Participant, ParticipantNote, User, Week } from '../types';
 import { sortByText } from '../utils/sort';
 import Spinner from '../components/Spinner';
 
@@ -24,6 +28,7 @@ const AdminGroupPrayersPage: React.FC = () => {
 
 const AdminGroupPrayersContent: React.FC = () => {
   const { activeCohort, weeks } = useAppData();
+  const { user } = useAuth();
 
   const cohortWeeks: Week[] = useMemo(
     () => (weeks ?? []).filter((w) => w.cohortId === activeCohort?.id).sort((a, b) => a.weekNumber - b.weekNumber),
@@ -41,6 +46,8 @@ const AdminGroupPrayersContent: React.FC = () => {
   const [reportsFailed, setReportsFailed] = useState(false);
   const [markTarget, setMarkTarget] = useState<{ group: Group; week: Week } | null>(null);
   const [loading, setLoading] = useState(true);
+  // Supports' phones, for the WhatsApp links in "This week".
+  const [userById, setUserById] = useState<Map<string, User>>(new Map());
 
   const load = useCallback(async () => {
     if (!activeCohort) { setLoading(false); return; }
@@ -58,6 +65,7 @@ const AdminGroupPrayersContent: React.FC = () => {
       void participantNotesApi.getMeetingReports(gs.map((g) => g.id))
         .then((res) => setReports(res.notes))
         .catch(() => { setReports([]); setReportsFailed(true); });
+      void usersApi.getAll().then((res) => setUserById(new Map(res.users.map((u) => [u.id, u])))).catch(() => undefined);
       setGroups(sortByText(gs, (group) => group.name));
       setFocuses(fs);
       setStatuses(ss);
@@ -122,15 +130,40 @@ const AdminGroupPrayersContent: React.FC = () => {
   );
 
   // Trend: per week, count of groups marked done out of all groups
-  const trend = useMemo(
-    () => cohortWeeks.map((w) => ({
-      weekId: w.id,
-      weekNumber: w.weekNumber,
-      done: groups.filter((g) => isDone(g.id, w.id)).length,
-      total: groups.length,
-    })),
-    [cohortWeeks, groups, isDone]
-  );
+  // Each week shows its class date; a week whose class hasn't happened says "Not yet", so 0/23 isn't read as missed.
+  const trend = useMemo(() => {
+    const today = plannerToday();
+    return cohortWeeks.map((w) => {
+      const classDate = activeCohort?.startDate ? classDateIso(activeCohort.startDate.slice(0, 10), w) : null;
+      return {
+        weekId: w.id,
+        weekNumber: w.weekNumber,
+        classDate,
+        started: !classDate || classDate <= today,
+        done: groups.filter((g) => isDone(g.id, w.id)).length,
+        total: groups.length,
+      };
+    });
+  }, [cohortWeeks, groups, isDone, activeCohort?.startDate]);
+
+  // What to chase now (rule 126): this week's meetings not marked done, and groups with no meeting time.
+  const thisWeekItems = useMemo<ThisWeekItem[]>(() => {
+    const current = reportWeeks.at(-1);
+    const person = (g: Group) => (g.supportId
+      ? { id: g.supportId, name: g.supportName || 'Support', user: userById.get(g.supportId) ?? null }
+      : { id: g.id, name: `${g.name} (no support)`, notAPerson: true });
+    const uniq = (gs: Group[]) => { const seen = new Set<string>(); return gs.map(person).filter((p) => (seen.has(p.id) ? false : (seen.add(p.id), true))); };
+    const items: ThisWeekItem[] = [];
+    // Only while the cohort runs: after it ends there is no "this week" to chase.
+    if (current && activeCohort && cohortMode(activeCohort) === 'running') {
+      // Every group, as the trend and the reports below count them; a group with no support shows by name.
+      const notDone = groups.filter((g) => !isDone(g.id, current.id));
+      items.push(meetingNotDoneItem(current.weekNumber, notDone.length, groups.length, uniq(notDone)));
+    }
+    const noTime = groups.filter((g) => !g.meetingDay || !g.meetingTime);
+    items.push(noMeetingTimeItem(noTime.length, uniq(noTime), { to: '/groups', label: 'Set on Groups' }));
+    return items;
+  }, [reportWeeks, groups, isDone, userById, activeCohort]);
 
   const filterGroups = useMemo<FilterGroup[]>(() => {
     const sorted = sortByText(groups, (group) => group.name);
@@ -167,6 +200,9 @@ const AdminGroupPrayersContent: React.FC = () => {
         </div>
       ) : (
         <div className="flex flex-col gap-6">
+          <SupportsThisWeek key={activeCohort.id} items={thisWeekItems} cohortId={activeCohort.id} senderId={user?.id ?? null}
+            weekLabel={reportWeeks.at(-1) ? `${activeCohort.name} · week ${reportWeeks.at(-1)!.weekNumber}` : `${activeCohort.name} · before the first class`} />
+
           {/* Trend strip */}
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Weekly trend</p>
@@ -174,15 +210,18 @@ const AdminGroupPrayersContent: React.FC = () => {
               {trend.map((t) => {
                 const all = t.total > 0 && t.done === t.total;
                 const none = t.done === 0;
-                const cls = all
-                  ? 'bg-emerald-100/80 text-emerald-700'
-                  : none
-                    ? 'bg-neutral-100 text-neutral-600'
-                    : 'bg-amber-100/80 text-amber-700';
+                const cls = !t.started
+                  ? 'border border-dashed border-gray-200 bg-white text-gray-400'
+                  : all
+                    ? 'bg-emerald-100/80 text-emerald-700'
+                    : none
+                      ? 'bg-neutral-100 text-neutral-600'
+                      : 'bg-amber-100/80 text-amber-700';
                 return (
                   <div key={t.weekId} className={`rounded-2xl px-4 py-2 ${cls}`}>
                     <p className="text-[11px] font-semibold uppercase tracking-wide opacity-70">Week {t.weekNumber}</p>
-                    <p className="mt-0.5 text-lg font-bold">{t.done}/{t.total}</p>
+                    <p className="mt-0.5 text-lg font-bold">{t.started ? `${t.done}/${t.total}` : 'Not yet'}</p>
+                    {t.classDate && <p className="text-[11px] opacity-70">Class {formatPlannerDate(t.classDate)}</p>}
                   </div>
                 );
               })}

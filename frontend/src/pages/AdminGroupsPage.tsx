@@ -589,6 +589,9 @@ const AdminGroupsContent: React.FC = () => {
   const [cohortMemberIds, setCohortMemberIds] = useState<Set<string> | null>(null);
   const [supportKinds, setSupportKinds] = useState<Record<string, SupportKind> | null>(null);
   const [supportTags, setSupportTags] = useState<SupportTag[] | null>(null);
+  // The newest load, and the cohort whose extras are on screen (load below).
+  const loadSeq = useRef(0);
+  const extrasCohort = useRef<string | null>(null);
   const [trainingSessions, setTrainingSessions] = useState<SupportSession[]>([]);
   const [trainingAttendance, setTrainingAttendance] = useState<Array<{ sessionId: string; userId: string; status: string }>>([]);
   const [minTrainingsAttended, setMinTrainingsAttended] = useState(DEFAULT_PROGRAMME_RULES.minTrainingsAttended);
@@ -653,20 +656,24 @@ const AdminGroupsContent: React.FC = () => {
   // flash a full-page "Loading…" every time anything changes in the cohort.
   const load = useCallback(async (silent = false) => {
     if (!activeCohort) { setLoading(false); return; }
+    const seq = ++loadSeq.current;
     if (!silent) setLoading(true);
+    // A different cohort: drop the last one's extras so its onboarding, hubs and members never show on these cards.
+    if (!silent && extrasCohort.current !== activeCohort.id) {
+      extrasCohort.current = activeCohort.id;
+      setCohortMemberIds(null); setSupportKinds(null); setSupportTags(null); setOnboardingProgress(null);
+      setHubNameByUser({}); setHubIdsByUser({}); setAssignedAtByGroup({}); setAssignedDatesKnown(false);
+    }
     try {
       // The assigned dates need the group ids, so they start as soon as the groups arrive and overlap the other requests.
       const groupsRequest = groupsApi.getAll({ cohortId: activeCohort.id, includeArchived: showArchived, includeTeenGroups: true });
       const assignedRequest = groupsRequest
         .then((res) => groupsApi.getAssignedDates(res.groups.filter((g) => !g.isTeenGroup).map((g) => g.id)))
         .catch(() => null);
-      const [{ groups: allGs }, { participants: ps }, { users }, { sessions: ts, attendance: ta }, rules, teenOn, members, kindMap, tagList, progressRes, hubList, hubMemberships, assignedDates] = await Promise.all([
-        groupsRequest,
-        participantsApi.getAll({ cohortId: activeCohort.id }),
-        usersApi.getAll(),
-        supportSessionsApi.getForCohort(activeCohort.id, ['PRE_COHORT_TRAINING']),
-        settingsApi.getProgrammeRules(),
-        settingsApi.getTeenFlowEnabled().catch(() => false),
+      // Everything starts at once, but the cards show as soon as groups, people and supports are in; onboarding,
+      // hubs, trainings and tags fill in after (they used to hold the whole page back).
+      const extrasRequest = Promise.all([
+        supportSessionsApi.getForCohort(activeCohort.id, ['PRE_COHORT_TRAINING']).catch(() => null),
         cohortsApi.getMembers(activeCohort.id).then((r) => new Set(r.users.map((u) => u.id))).catch(() => null),
         supportKindApi.getForCohort(activeCohort.id).then((r) => r.kinds).catch(() => null),
         supportTagsApi.getAll().then((r) => r.tags).catch(() => null),
@@ -675,9 +682,16 @@ const AdminGroupsContent: React.FC = () => {
         supportHubsApi.getMembershipsForCohort(activeCohort.id).then((r) => r.memberships).catch(() => null),
         assignedRequest,
       ]);
-      setCohortMemberIds(members);
-      setSupportKinds(kindMap);
-      setSupportTags(tagList);
+      // Handled below; this only stops an early failure being reported as unhandled while the core loads.
+      extrasRequest.catch(() => undefined);
+      const [{ groups: allGs }, { participants: ps }, { users }, rules, teenOn] = await Promise.all([
+        groupsRequest,
+        participantsApi.getAll({ cohortId: activeCohort.id }),
+        usersApi.getAll(),
+        settingsApi.getProgrammeRules(),
+        settingsApi.getTeenFlowEnabled().catch(() => false),
+      ]);
+      if (seq !== loadSeq.current) return;
       const gs = allGs.filter((g) => !g.isTeenGroup);
       const sortedTeenGs = sortGroupsByName(allGs.filter((g) => g.isTeenGroup));
       setTeenFlowOn(teenOn);
@@ -697,10 +711,19 @@ const AdminGroupsContent: React.FC = () => {
         setParticipants(sortedPs);
         setAllSupportUsers(sortedUsers);
       }
-      setTrainingSessions(ts);
-      setTrainingAttendance(ta);
       setMinTrainingsAttended(rules.minTrainingsAttended);
       setOnboardingMaxDays(rules.onboardingMaxDays);
+      // Whichever load is newest ends the spinner, even a background one that took over from the first.
+      setLoading(false);
+
+      const [trainings, members, kindMap, tagList, progressRes, hubList, hubMemberships, assignedDates] = await extrasRequest;
+      // A newer load (another cohort, or a later refresh) has started: its extras win.
+      if (seq !== loadSeq.current) return;
+      setCohortMemberIds(members);
+      setSupportKinds(kindMap);
+      setSupportTags(tagList);
+      if (trainings) { setTrainingSessions(trainings.sessions); setTrainingAttendance(trainings.attendance); }
+      else if (!silent) { setTrainingSessions([]); setTrainingAttendance([]); }
       // A background refresh that fails keeps what the page already had; only a first load clears it.
       if (hubList && hubMemberships) {
         const hubNames = new Map(hubList.map((hub) => [hub.id, hub.name]));
@@ -725,7 +748,7 @@ const AdminGroupsContent: React.FC = () => {
       if (assignedDates) { setAssignedAtByGroup(assignedDates); setAssignedDatesKnown(true); }
       else if (!silent) { setAssignedAtByGroup({}); setAssignedDatesKnown(false); }
     } catch { /* ignore */ }
-    finally { if (!silent) setLoading(false); }
+    finally { if (seq === loadSeq.current) setLoading(false); }
   }, [activeCohort, showArchived]);
 
   const trainingsTotal = trainingSessions.length;
@@ -916,9 +939,13 @@ const AdminGroupsContent: React.FC = () => {
       <PageHeader
         title="Groups"
         tourId="admin:groups"
-        subtitle={!activeCohort ? 'No active cohort' : onboardingByGroup.size > 0
-          ? [onboardingCounts.overdue > 0 ? `${onboardingCounts.overdue} overdue` : null, onboardingCounts.in_progress > 0 ? `${onboardingCounts.in_progress} in progress` : null, `${participants.filter((p) => !p.isTest).length} participants`].filter(Boolean).join(' · ')
-          : `${groups.length} groups · ${participants.filter((p) => !p.isTest).length} participants`}
+        subtitle={!activeCohort ? 'No active cohort' : [
+          // The same group count everywhere (rule 127): groups, with teen groups said separately.
+          `${groups.filter((g) => !g.archivedAt).length} groups${teenGroups.filter((g) => !g.archivedAt).length > 0 ? ` (+${teenGroups.filter((g) => !g.archivedAt).length} teen)` : ''}`,
+          onboardingByGroup.size > 0 && onboardingCounts.overdue > 0 ? `${onboardingCounts.overdue} overdue` : null,
+          onboardingByGroup.size > 0 && onboardingCounts.in_progress > 0 ? `${onboardingCounts.in_progress} in progress` : null,
+          `${participants.filter((p) => !p.isTest).length} participants`,
+        ].filter(Boolean).join(' · ')}
         action={
           activeCohort && (
             <div className="flex items-center gap-2">
@@ -938,6 +965,12 @@ const AdminGroupsContent: React.FC = () => {
         }
       />
 
+      {activeCohort && !loading && onboardingCounts.overdue > 0 && !(filters.onboarding ?? []).includes('overdue') && (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-900">
+          <span><span className="font-semibold">{onboardingCounts.overdue} group{onboardingCounts.overdue === 1 ? ' is' : 's are'} overdue</span> on onboarding.</span>
+          <button type="button" onClick={() => setFilters({ onboarding: ['overdue'], hub: [] })} className="inline-flex h-9 items-center rounded-xl bg-white px-3 text-xs font-semibold text-amber-900 ring-1 ring-amber-200 hover:bg-amber-100">Show them</button>
+        </div>
+      )}
       {activeCohort && !loading && (
         <div data-wt="groups-filters" className="mb-4">
           <FilterBar

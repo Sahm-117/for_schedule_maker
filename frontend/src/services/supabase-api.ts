@@ -850,6 +850,8 @@ export const cohortsApi = {
           phone: member.phone,
           name: member.name,
           role: member.role,
+          // Kept so an admin who is also a Support counts as a support (Cohorts used to say 44 where Supports said 49).
+          roles: member.roles ?? [],
           isActive: member.isActive,
           isTest: !!member.isTest,
           avatarUrl: member.avatarUrl ?? null,

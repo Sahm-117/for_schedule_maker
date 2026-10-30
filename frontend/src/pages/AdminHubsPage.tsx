@@ -6,7 +6,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { useTeenSupportIds } from '../hooks/useTeenSupportIds';
 import TeenSupportPill from '../components/supports/TeenSupportPill';
 import { useAppData } from '../context/AppDataContext';
-import { groupsApi, myHubApi, supportHubsApi, supportKindApi, supportSessionsApi, usersApi } from '../services/api';
+import { cohortsApi, groupsApi, myHubApi, supportHubsApi, supportKindApi, supportSessionsApi, usersApi } from '../services/api';
 import type { Group, HubItSupportEntry, HubJob, HubLeadsMeeting, HubMembership, SupportAttendanceStatus, SupportHub, SupportKind, User, Week } from '../types';
 import { HUB_JOB_INFO, sortHubJobs } from '../components/hubs/hubJobs';
 import ModalShell from '../components/followups/ModalShell';
@@ -29,7 +29,7 @@ import SupportNotesStar from '../components/hubs/SupportNotesStar';
 import Avatar from '../components/Avatar';
 import HubAuthorProfileModal from '../components/HubAuthorProfileModal';
 import { pickableUsers } from '../utils/testUsers';
-import { hasSupportRole } from '../utils/people';
+import { countsAsCohortSupport, hasSupportRole } from '../utils/people';
 import { normaliseGender } from '../utils/groupingRules';
 
 // ── Recap Attendance Modal ────────────────────────────────────────────────────
@@ -353,7 +353,7 @@ const HubRolesModal: React.FC<{
           {itSupportCandidates.length === 0 ? (
             <p className="text-sm text-gray-500">
               No operational supports yet. Set someone's type to Operational support on the{' '}
-              <Link to="/supports" className="font-semibold text-primary underline">Supports page</Link> first.
+              <Link to="/supports?health=nogroup" className="font-semibold text-primary underline">Supports page</Link> (No group tab, or their card) first.
             </p>
           ) : (
             <ul className="max-h-64 overflow-y-auto divide-y divide-orange-50 rounded-xl border border-orange-100">
@@ -524,17 +524,22 @@ const AdminHubsPage: React.FC = () => {
   // Filter choices (see FilterBar): hub, lead, recap, teen.
   const [filters, setFilters] = useState<FilterValues>({});
 
+  // Supports in this cohort (rule 127), so the headline can say "48 of 49 in a hub".
+  const [cohortSupportIds, setCohortSupportIds] = useState<string[] | null>(null);
+
   const load = useCallback(async () => {
     if (!activeCohort) { setLoading(false); return; }
     setLoading(true);
     try {
-      const [{ hubs: hs }, { memberships: ms }, { users }, { groups: gs }, { kinds: ks }] = await Promise.all([
+      const [{ hubs: hs }, { memberships: ms }, { users }, { groups: gs }, { kinds: ks }, cohortMembers] = await Promise.all([
         supportHubsApi.getAll(activeCohort.id),
         supportHubsApi.getMembershipsForCohort(activeCohort.id),
         usersApi.getAll(),
         groupsApi.getAll({ cohortId: activeCohort.id }),
         supportKindApi.getForCohort(activeCohort.id).catch(() => ({ kinds: {} as Record<string, SupportKind> })),
+        cohortsApi.getMembers(activeCohort.id).then((r) => r.users).catch(() => null),
       ]);
+      setCohortSupportIds(cohortMembers ? cohortMembers.filter(countsAsCohortSupport).map((u) => u.id) : null);
       setHubs(hs);
       setMemberships(ms);
       // Test supports stay out of the pickers, unless they already hold a place.
@@ -708,12 +713,14 @@ const AdminHubsPage: React.FC = () => {
   // The same people the hub cards list (support accounts), test accounts left out, each counted once.
   const hubPeopleIds = [...allHubUserIds].filter((id) => userById.has(id) && !userById.get(id)?.isTest);
   const allSplit = genderSplit(hubPeopleIds);
+  // Cohort supports who are in no hub (compared person by person, so a deactivated hub member can't hide one).
+  const notInHub = (cohortSupportIds ?? []).filter((id) => !allHubUserIds.has(id)).length;
 
   return (
     <div className="page-content">
       <PageHeader
         title="Hubs"
-        subtitle={activeCohort ? `${hubs.length} hubs · ${hubPeopleIds.length} supports (${describeSplit(allSplit)}) · ${activeCohort.name}` : 'No active cohort'}
+        subtitle={activeCohort ? `${hubs.length} hubs · ${notInHub > 0 && cohortSupportIds ? `${cohortSupportIds.length - notInHub} of ${cohortSupportIds.length} supports in a hub` : `${hubPeopleIds.length} supports`} (${describeSplit(allSplit)}) · ${activeCohort.name}` : 'No active cohort'}
         action={
           activeCohort && canAdd && (
             <button type="button" onClick={() => { setEditing(null); setFormOpen(true); }} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white active:scale-95">

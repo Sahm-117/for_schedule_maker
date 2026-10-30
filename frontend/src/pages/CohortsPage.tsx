@@ -17,7 +17,7 @@ import Spinner from '../components/Spinner';
 import SegmentedTabs from '../components/SegmentedTabs';
 import AppDateTimePicker from '../components/AppDateTimePicker';
 import InfoTip from '../components/InfoTip';
-import { hasSupportRole } from '../utils/people';
+import { countsAsCohortSupport, hasSupportRole } from '../utils/people';
 
 type CohortFormState = {
   name: string;
@@ -269,22 +269,24 @@ const CohortsPage: React.FC = () => {
   }, [activeCohort?.id, cohorts]);
 
   // Summary counts for the active cohort card.
-  const [activeSummary, setActiveSummary] = useState<{ groups: number; hubs: number; supports: number; participants: number } | null>(null);
+  const [activeSummary, setActiveSummary] = useState<{ groups: number; teenGroups: number; hubs: number; supports: number; participants: number } | null>(null);
   useEffect(() => {
     if (!activeCohort?.id) { setActiveSummary(null); return; }
     let cancelled = false;
     void (async () => {
       try {
         const [{ groups }, { participants }, { hubs }, { users: members }] = await Promise.all([
-          groupsApi.getAll({ cohortId: activeCohort.id }),
+          groupsApi.getAll({ cohortId: activeCohort.id, includeTeenGroups: true }),
           participantsApi.getAll({ cohortId: activeCohort.id }),
           supportHubsApi.getAll(activeCohort.id),
           cohortsApi.getMembers(activeCohort.id),
         ]);
         if (cancelled) return;
-        // Supports = those switched on for this cohort in the members list.
-        const supports = members.filter((u) => hasSupportRole(u) && u.isActive !== false).length;
-        setActiveSummary({ groups: groups.length, hubs: hubs.length, supports, participants: participants.length });
+        // Supports = those switched on for this cohort in the members list (the same count as Supports and Hubs).
+        const supports = members.filter(countsAsCohortSupport).length;
+        // Groups as the Groups page counts them: teen groups said separately (rule 127).
+        const teenGroups = groups.filter((g) => g.isTeenGroup).length;
+        setActiveSummary({ groups: groups.length - teenGroups, teenGroups, hubs: hubs.length, supports, participants: participants.length });
       } catch {
         if (!cancelled) setActiveSummary(null);
       }
@@ -1010,7 +1012,7 @@ const CohortsPage: React.FC = () => {
                 {activeSummary && (
                   <>
                     <span className="rounded-full bg-sky-100/80 px-3 py-1.5 text-xs font-semibold text-sky-700">
-                      {activeSummary.groups} groups
+                      {activeSummary.groups} groups{activeSummary.teenGroups > 0 ? ` (+${activeSummary.teenGroups} teen)` : ''}
                     </span>
                     <span className="rounded-full bg-indigo-100/80 px-3 py-1.5 text-xs font-semibold text-indigo-700">
                       {activeSummary.hubs} hubs
