@@ -142,6 +142,11 @@ section.band { padding-block: 56px; border-bottom: 1px solid var(--line); scroll
 .acct b { font: 800 16px/1.25 var(--display) }
 .acct p { font-size: 14px; color: var(--muted) }
 .acct code { white-space: nowrap }
+/* Security */
+.seclayer { margin-top: 22px }
+.seclayer h3 { font: 800 13px/1 var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px }
+.acct.ok b::before { content: "✓"; display: inline-grid; place-items: center; width: 20px; height: 20px; margin-right: 8px; border-radius: 50%; background: var(--good-soft); color: var(--good); font-size: 12px; vertical-align: 2px }
+.secnote { margin-top: 22px; font-size: 14.5px; color: var(--muted) }
 .vault { margin-top: 18px; display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; background: var(--panel); color: var(--panel-ink); border-radius: 18px; padding: 18px 20px }
 .vault svg { width: 44px; height: 44px; stroke: var(--orange); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
 .vault p { color: var(--panel-muted); font-size: 15px }
@@ -299,6 +304,7 @@ footer img { width: 28px; height: 28px }
     <a href="#glance">At a glance</a>
     <a href="#new">What's new</a>
     <a href="#risks">Risks</a>
+    <a href="#security">Security</a>
     <a href="#who">Who uses it</a>
     <a href="#machine">How it fits</a>
     <a href="#journey">A person's journey</a>
@@ -394,6 +400,58 @@ footer img { width: 28px; height: 28px }
       <div class="lb"><span>My hubs</span><span class="bar"><i style="width:1.6%"></i></span><span class="v">1.6%</span></div>
       <p class="note">From the database's own query statistics (about 63,600 seconds in total). Supabase's raw request logs for 11 October are gone: the free plan keeps about a day.</p>
     </figure>
+  </div>
+</section>
+
+<section class="band" id="security">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">Security</div>
+      <h2>How the platform keeps people's data safe</h2>
+      <p>Checked against the live system on 30 October 2026. What is in place, layer by layer.</p>
+    </div>
+
+    <div class="seclayer">
+      <h3>Signing in</h3>
+      <div class="accts">
+        <div class="acct ok"><b>Passwords are hashed</b><p>Staff and participant passwords are stored only as bcrypt hashes, and the hash columns can't be read through the app's data API.</p></div>
+        <div class="acct ok"><b>Sessions can't be stolen from the database</b><p>Each sign-in gets a random token. The database keeps only its SHA-256 fingerprint, and the token expires after 90 days unused.</p></div>
+        <div class="acct ok"><b>Participants sign in by phone</b><p>With a password or a one-time code their support issues. Several people on one number each get their own profile.</p></div>
+        <div class="acct ok"><b>The handover pages are locked</b><p>This primer sits behind one shared password (Cloudflare). The password lives in Bitwarden.</p></div>
+      </div>
+    </div>
+
+    <div class="seclayer">
+      <h3>Who sees what</h3>
+      <div class="accts">
+        <div class="acct ok"><b>Every table is locked</b><p>All 156 tables have row-level security on. No table is open to anyone who isn't signed in.</p></div>
+        <div class="acct ok"><b>The database checks every request</b><p>Reads and writes go through 467 database functions that check the session's role first. Each has a fixed search path, so it can't be tricked into running other code.</p></div>
+        <div class="acct ok"><b>Roles and permissions</b><p>Admin, Support, Team member and custom roles with a per-page grid. Church app access and Roles are for full admins only.</p></div>
+        <div class="acct ok"><b>Teens are protected</b><p>Teens are seen by their own Teen Support. Church apps need a separate permission to see teen details in full.</p></div>
+      </div>
+    </div>
+
+    <div class="seclayer">
+      <h3>Server functions and other apps</h3>
+      <div class="accts">
+        <div class="acct ok"><b>Server functions check the caller</b><p>Most need a valid app token. The Telegram webhook checks its own secret header, and the public API its own key.</p></div>
+        <div class="acct ok"><b>Only admins can send announcements</b><p>Since 30 October, an announcement needs an admin session or the server's own key, and one that would reach nobody is refused.</p></div>
+        <div class="acct ok"><b>Church app keys</b><p>Stored only as fingerprints, limited to the areas an admin ticks, 60 requests a minute each, every request logged, and switched off in one tap.</p></div>
+        <div class="acct ok"><b>Attendance can't be rewritten</b><p>After class only admins change marks. Moves in the two-absence review are recorded and can be undone the same day.</p></div>
+      </div>
+    </div>
+
+    <div class="seclayer">
+      <h3>Secrets, backups and the wire</h3>
+      <div class="accts">
+        <div class="acct ok"><b>No secrets in the code</b><p>The repository is public, so keys live in Supabase's vault, GitHub's secrets and the team's Bitwarden vault, never in files.</p></div>
+        <div class="acct ok"><b>Encrypted nightly backups</b><p>The whole database and its files, AES-256 encrypted before upload, kept 90 days. A second job restores each one to prove it works.</p></div>
+        <div class="acct ok"><b>HTTPS everywhere</b><p>The app forces secure connections (HSTS, two years). Supabase, Vercel and Cloudflare all serve over HTTPS.</p></div>
+        <div class="acct ok"><b>Analytics hide what people type</b><p>PostHog session replays mask every input. Test accounts and the Practice cohort are kept out of live numbers.</p></div>
+      </div>
+    </div>
+
+    <p class="secnote">A few hardening items found in this check are being fixed. They are tracked with the owner, not on this page, because the code is public.</p>
   </div>
 </section>
 
