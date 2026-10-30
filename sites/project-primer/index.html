@@ -141,6 +141,7 @@ section.band { padding-block: 56px; border-bottom: 1px solid var(--line); scroll
 .acct.must .k { color: var(--orange-ink) }
 .acct b { font: 800 16px/1.25 var(--display) }
 .acct p { font-size: 14px; color: var(--muted) }
+.acct code { white-space: nowrap }
 .vault { margin-top: 18px; display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; background: var(--panel); color: var(--panel-ink); border-radius: 18px; padding: 18px 20px }
 .vault svg { width: 44px; height: 44px; stroke: var(--orange); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
 .vault p { color: var(--panel-muted); font-size: 15px }
@@ -214,6 +215,33 @@ section.band { padding-block: 56px; border-bottom: 1px solid var(--line); scroll
 .bubble { background: var(--orange-soft); border-radius: 18px 18px 18px 6px; padding: 12px 16px; font-size: 15px }
 .bubble .k { display: block; font: 800 11px/1 var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--orange-ink); margin-bottom: 4px }
 
+/* What's new */
+.news { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px }
+.new { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 16px; display: grid; gap: 6px; align-content: start }
+.new .d { font: 800 11px/1 var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--orange-ink) }
+.new b { font: 800 16px/1.25 var(--display) }
+.new p { font-size: 14px; color: var(--muted) }
+
+/* Risks */
+.risks { display: grid; gap: 12px }
+.risk { background: var(--surface); border: 1px solid var(--line); border-left: 6px solid var(--c); border-radius: 16px; padding: 16px 18px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px 22px }
+.risk.h { --c: var(--bad) } .risk.m { --c: var(--warn) } .risk.l { --c: var(--blue) }
+.risk .top { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 10px }
+.risk .lvl { font: 800 11px/1 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--ink); border: 1.5px solid var(--c); border-radius: 999px; padding: 5px 9px 5px 8px; display: inline-flex; align-items: center; gap: 6px }
+.risk .lvl::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--c) }
+.risk h3 { font-size: 17px; font-weight: 800; line-height: 1.25 }
+.risk .k { display: block; font: 800 11px/1 var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px }
+.risk p { font-size: 14.5px }
+.loadbars { margin: 18px 0 0; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 16px 18px; display: grid; gap: 10px }
+.loadbars h3 { font-size: 16px; font-weight: 800 }
+.lb { display: grid; grid-template-columns: minmax(0, 210px) minmax(0, 1fr) 72px; gap: 10px; align-items: center; font-size: 14px }
+.lb .bar { height: 12px; border-radius: 999px; background: var(--line); overflow: hidden }
+.lb .bar i { display: block; height: 100%; background: var(--orange-deep); border-radius: 999px }
+.lb .v { font: 700 13px/1 var(--display); text-align: right; font-variant-numeric: tabular-nums }
+.loadbars .note { font-size: 13px; color: var(--muted) }
+@media (max-width: 860px) { .news { grid-template-columns: 1fr } .risk { grid-template-columns: 1fr } }
+@media (max-width: 520px) { .lb { grid-template-columns: minmax(0, 1fr) 64px } .lb .bar { grid-column: 1 / -1; grid-row: 2 } }
+
 /* Glossary */
 .gloss { margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px }
 .gloss div { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px }
@@ -269,6 +297,8 @@ footer img { width: 28px; height: 28px }
 <nav class="toc" aria-label="Sections">
   <div class="wrap">
     <a href="#glance">At a glance</a>
+    <a href="#new">What's new</a>
+    <a href="#risks">Risks</a>
     <a href="#who">Who uses it</a>
     <a href="#machine">How it fits</a>
     <a href="#journey">A person's journey</a>
@@ -297,6 +327,64 @@ footer img { width: 28px; height: 28px }
       <div class="fact"><span class="n">18</span><b>server functions</b><p>Notifications, reminders, the form feed, Telegram, AI help, the public API (one more is retired).</p></div>
       <div class="fact"><span class="n">100+</span><b>handoff notes</b><p>One per piece of work: what changed, what is live, what is still open. <code>docs/handoffs/</code>.</p></div>
     </div>
+  </div>
+</section>
+
+<section class="band" id="new">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">What's new (October 2026)</div>
+      <h2>Recent changes worth knowing first</h2>
+      <p>Each one has a handoff note in <code>docs/handoffs/</code> with what is live and what is still open.</p>
+    </div>
+    <div class="news">
+      <div class="new"><span class="d">29 Oct</span><b>Public API for church apps</b><p>Other church apps read FOF with their own key. Admins make and switch off keys under Administration, Church app access. Teens need a separate permission.</p></div>
+      <div class="new"><span class="d">30 Oct</span><b>Attendance locks after class</b><p>Once a class is over, only admins change its marks. Supports see a note to message an admin to dispute a mark.</p></div>
+      <div class="new"><span class="d">30 Oct</span><b>Two-absence review</b><p>The Saturday before class 3, admins review people absent for classes 1 and 2 and move them to the next cohort. Nothing moves by itself; same-day undo.</p></div>
+      <div class="new"><span class="d">30 Oct</span><b>Which groups are talking</b><p>The dashboard's discussions line opens Groups filtered to groups that posted this week, each with its count.</p></div>
+      <div class="new"><span class="d">28 to 29 Oct</span><b>PostHog analytics</b><p>Page views, clicks and session replays (inputs hidden), shown by name. A dashboard tracks the inspirational scriptures.</p></div>
+      <div class="new"><span class="d">30 Oct</span><b>Public pages and a password manager</b><p>Pages like this one are hosted on Cloudflare from <code>sites/</code>. Secrets now live in a Bitwarden vault.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="risks">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">Risks</div>
+      <h2>What could hurt the programme, and what to do about it</h2>
+      <p>Checked on 30 October 2026 against the live database. Red first.</p>
+    </div>
+    <div class="risks">
+      <div class="risk h"><div class="top"><span class="lvl">High</span><h3>The app slows down when many people use it at once</h3></div>
+        <div><span class="k">What we saw</span><p>On Sunday 11 October (Cohort 10's first class) the app lagged during class, when attendance marks and notifications came in bursts (around 9:30 and 10:15). Many unrelated screens share the same worst time, about 2.8 seconds, which means the whole database stalled, not one slow screen. This week the two every-minute jobs each stalled for about 10 seconds and failed once. The database runs on Supabase's smallest free instance (shared CPU), already using 26 of its 60 connections when idle.</p></div>
+        <div><span class="k">What to do</span><p>Move to Supabase Pro with a slightly bigger compute size before the next big Sunday; that also adds daily backups. Keep cutting background checks the app makes every few seconds (below). Re-check on a Sunday after each change.</p></div></div>
+      <div class="risk m"><div class="top"><span class="lvl">Medium</span><h3>Live updates were the biggest single cost</h3></div>
+        <div><span class="k">What we saw</span><p>Supabase's live-update feed used about 43% of all database time since February, more than any other single thing. The app stopped listening on 10 October, the day before that Sunday, but installed phone apps update late, so old copies likely still listened that morning. The notifications table is still published to that feed.</p></div>
+        <div><span class="k">What to do</span><p>Take the notifications table off the live-update feed (one change, with the owner's yes). Nothing in the app uses it now.</p></div></div>
+      <div class="risk m"><div class="top"><span class="lvl">Medium</span><h3>Screens that check for news every few seconds</h3></div>
+        <div><span class="k">What we saw</span><p>Practice, corporate prayer and notification checks run tens of thousands of times. A participant's Home costs about 180 ms of database time each open, the most of any screen, and many people open it at the same moments on a Sunday.</p></div>
+        <div><span class="k">What to do</span><p>Slow the checks down on busy days and cache Home for a minute. Pollers already pause in hidden tabs.</p></div></div>
+      <div class="risk m"><div class="top"><span class="lvl">Medium</span><h3>Every notification goes through one queue in the database</h3></div>
+        <div><span class="k">What we saw</span><p>Pushes, Telegram and reminders are sent from the database through its web-request queue. Cleaning that queue averages 93 ms and has hit 8.8 seconds.</p></div>
+        <div><span class="k">What to do</span><p>Fewer, batched sends on Sundays; watch the queue size.</p></div></div>
+      <div class="risk m"><div class="top"><span class="lvl">Medium</span><h3>Code checks don't stop a bad deploy</h3></div>
+        <div><span class="k">What we saw</span><p>The build passes while the type check has 7 errors, and some pages have older lint errors. There are no automated tests; every check is by hand in a browser.</p></div>
+        <div><span class="k">What to do</span><p>Fix the 7 type errors, then make the build run the type check. Add a few tests for the rules that bite.</p></div></div>
+      <div class="risk l"><div class="top"><span class="lvl">Watch</span><h3>One test-free database, one person, a few free accounts</h3></div>
+        <div><span class="k">What we saw</span><p>Local work and every test touch live data. Vercel's free plan caps deploys a day. The daily checks depend on one cron-job.org login.</p></div>
+        <div><span class="k">What to do</span><p>Keep two owners on every account and every secret in Bitwarden. Batch pushes. Use test accounts and clean up.</p></div></div>
+    </div>
+    <figure class="loadbars" aria-labelledby="loadbars-title">
+      <h3 id="loadbars-title">Share of all database time since February</h3>
+      <div class="lb"><span>Live-update feed</span><span class="bar"><i style="width:43.4%"></i></span><span class="v">43%</span></div>
+      <div class="lb"><span>Notification queue cleanup</span><span class="bar"><i style="width:5.1%"></i></span><span class="v">5%</span></div>
+      <div class="lb"><span>Practice checks</span><span class="bar"><i style="width:3.4%"></i></span><span class="v">3.4%</span></div>
+      <div class="lb"><span>Participant Home</span><span class="bar"><i style="width:2.6%"></i></span><span class="v">2.6%</span></div>
+      <div class="lb"><span>Corporate prayer checks</span><span class="bar"><i style="width:1.9%"></i></span><span class="v">1.9%</span></div>
+      <div class="lb"><span>My hubs</span><span class="bar"><i style="width:1.6%"></i></span><span class="v">1.6%</span></div>
+      <p class="note">From the database's own query statistics (about 63,600 seconds in total). Supabase's raw request logs for 11 October are gone: the free plan keeps about a day.</p>
+    </figure>
   </div>
 </section>
 
@@ -489,21 +577,21 @@ footer img { width: 28px; height: 28px }
     <div class="head">
       <div class="eyebrow">Accounts</div>
       <h2>Be an owner on these, not just a collaborator</h2>
-      <p>The orange three hold the app. The rest each do one job; losing one stops that job quietly.</p>
+      <p>The orange four hold the app. The rest each do one job; losing one stops that job quietly.</p>
     </div>
     <div class="accts">
       <div class="acct must"><span class="k">Must have</span><b>GitHub</b><p>Code, history, backups, their secrets, failure emails.</p></div>
       <div class="acct must"><span class="k">Must have</span><b>Vercel</b><p>The live website. Root <code>frontend</code>, build <code>npm run build</code>.</p></div>
       <div class="acct must"><span class="k">Must have</span><b>Supabase</b><p>Database, server functions, files, scheduled jobs, secrets.</p></div>
+      <div class="acct must"><span class="k">Must have</span><b>Bitwarden</b><p>The team password manager: every login and secret, in folders. Two owners.</p></div>
       <div class="acct"><span class="k">Timed job</span><b>cron-job.org</b><p>Calls the daily checks. Lose it and daily digests stop silently.</p></div>
       <div class="acct"><span class="k">Sign-ups</span><b>Google account</b><p>Owns the sign-up Form, its Sheet and Apps Script.</p></div>
-      <div class="acct"><span class="k">Messages</span><b>Resend, Telegram</b><p>Email sending and the team alert bot.</p></div>
-      <div class="acct"><span class="k">AI and usage</span><b>OpenRouter, PostHog, Clarity</b><p>The AI helper, and how people use the app.</p></div>
-      <div class="acct"><span class="k">Public pages</span><b>Cloudflare</b><p>Hosts pages like this one, redeployed on every push.</p></div>
+      <div class="acct"><span class="k">Services</span><b>Resend, Telegram, OpenRouter, PostHog, Clarity</b><p>Email, the team alert bot, the AI helper, and how people use the app.</p></div>
+      <div class="acct"><span class="k">Public pages</span><b>Cloudflare</b><p>Hosts the explainer pages, and this password-protected one, redeployed on every push.</p></div>
     </div>
     <div class="vault">
       <svg viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><circle cx="12" cy="15.5" r="1.5"/></svg>
-      <p><b>Secrets live in the team password manager, never in the repo or a chat.</b> <code>HANDOVER.md</code> section 3 names every one and where it is set (GitHub, Vercel, Supabase, the database vault).</p>
+      <p><b>Secrets live in Bitwarden, never in the repo or a chat.</b> Save a new secret there first, then paste it into GitHub, Vercel or Supabase. <code>HANDOVER.md</code> section 3 names every one and where it is set (GitHub, Vercel, Supabase, the database vault).</p>
     </div>
   </div>
 </section>
@@ -520,7 +608,7 @@ footer img { width: 28px; height: 28px }
       <div class="tick"><span class="when">Every 10 min</span><ul><li><span>Push reminders (meetings, classes)</span></li><li><span>Assign new prospects</span></li></ul><span class="src">database jobs → server functions</span></div>
       <div class="tick"><span class="when">Daily</span><ul><li><span>Daily checks and digests</span></li><li><span>Database keep-alive ping (every 6 h)</span></li></ul><span class="src">cron-job.org, GitHub</span></div>
       <div class="tick"><span class="when">Nightly</span><ul><li><span>Encrypted backup, 2:30 UTC</span></li><li><span>Restore check</span></li><li><span>Age brackets, old log cleanup</span></li></ul><span class="src">GitHub, database jobs</span></div>
-      <div class="tick"><span class="when">Less often</span><ul><li><span>Sunday attendance finalised at noon</span></li><li><span>Public holidays refreshed</span></li></ul><span class="src">database jobs</span></div>
+      <div class="tick"><span class="when">Less often</span><ul><li><span>Sunday attendance finalised at noon</span></li><li><span>Saturday before class 3: review reminders, 4 to 7 pm Lagos</span></li><li><span>Public holidays refreshed</span></li></ul><span class="src">database jobs</span></div>
     </div>
   </div>
 </section>

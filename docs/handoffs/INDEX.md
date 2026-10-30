@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-30 | [App review, 11 Oct slowdown, primer risks](2026-10-30_app-review-load-risks-primer.md) | Why the app lagged on 11 Oct: whole-database stalls on the smallest free instance, the Realtime change feed (43% of database time since Feb), polling and pg_net. All 32 admin pages checked. Primer gains What's new and Risks. No live changes. |
 | 2026-10-30 | [Attendance lock, two-absence review, which groups are talking](2026-10-30_attendance-lock-absence-review-discussions.md) | Supports can no longer change a class's marks after it (admins only); Saturday-before-class-3 review of people absent for classes 1 and 2 with Move, Undo and 4 to 7 pm reminders; dashboard discussions line opens Groups filtered to groups that posted. 3 live migrations, 1 cron job. FLOW_MAP rules 12, 119, 120. |
 | 2026-10-30 | [Handover primer behind a shared password](2026-10-30_handover-primer-password.md) | `sites/project-primer` asks for one shared password (Pages Function, secret `PRIMER_PASSWORD`), instead of Cloudflare Access. Nothing live in the app. |
 | 2026-10-30 | [Church app access in the menu; handover primer site](2026-10-30_church-app-access-menu-and-primer.md) | Church app access moves off Settings to its own Administration item at `/church-apps` (full admins; old path redirects). New public site `sites/project-primer/`: visual handover primer. Frontend only. FLOW_MAP rule 118. |
