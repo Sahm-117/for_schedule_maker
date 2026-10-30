@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-30 | [Late counts as attended; Realtime off; empty announcement removed](2026-10-30_late-counts-realtime-off.md) | Only Absent is a missed class everywhere (frontend, 4 database functions, API); Notification off the Realtime feed; the announcement that reached nobody deleted. 2 live migrations, public-api v5. FLOW_MAP rules 12, 118. |
 | 2026-10-30 | [Check-ups after a cohort](2026-10-30_post-cohort-checkups.md) | Daily job gives every group leader a check-up task when the cohort's rest week 3 begins (due that Sunday), then reminders 1, 2 and 3 months later. Cohort 10's begins 4 Jan 2027. 1 live migration, 1 cron job. FLOW_MAP rule 121. |
 | 2026-10-30 | [App review, 11 Oct slowdown, primer risks](2026-10-30_app-review-load-risks-primer.md) | Why the app lagged on 11 Oct: whole-database stalls on the smallest free instance, the Realtime change feed (43% of database time since Feb), polling and pg_net. All 32 admin pages checked. Primer gains What's new and Risks. No live changes. |
 | 2026-10-30 | [Attendance lock, two-absence review, which groups are talking](2026-10-30_attendance-lock-absence-review-discussions.md) | Supports can no longer change a class's marks after it (admins only); Saturday-before-class-3 review of people absent for classes 1 and 2 with Move, Undo and 4 to 7 pm reminders; dashboard discussions line opens Groups filtered to groups that posted. 3 live migrations, 1 cron job. FLOW_MAP rules 12, 119, 120. |

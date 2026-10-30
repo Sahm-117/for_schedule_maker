@@ -419,7 +419,7 @@
      "People"
     ],
     "summary": "How far a participant has got",
-    "description": "Scope: `people:read`. Counted the same way as FOF's own attendance figures: late or leaving early counts as present only when excused. A teen without `teens:read` comes back restricted.",
+    "description": "Scope: `people:read`. Counted the same way as FOF's own attendance figures: late or leaving early counts as present, and `lateOrLeftEarly` says how many of those were late or left early. A teen without `teens:read` comes back restricted.",
     "operationId": "getProgramme",
     "parameters": [
      {
@@ -2352,7 +2352,7 @@
        },
        "lateOrLeftEarly": {
         "type": "integer",
-        "description": "Late or left early, not excused"
+        "description": "Classes marked late or left early (already counted in present)"
        },
        "excused": {
         "type": "integer"

@@ -311,7 +311,7 @@ const ProgrammeRulesCard: React.FC = () => {
   return (
     <SettingsCard
       title="Programme rules"
-      description={'How participants and supports are judged. Misses add up across the cohort, Late counts as missed unless an admin excuses it, and any single miss marks a participant \u201CKeep an eye on\u201D.'}
+      description={'How participants and supports are judged. Misses add up across the cohort. Only Absent is a miss: Late and Left early count as attended, and Excused counts as neither. Any single miss marks a participant \u201CKeep an eye on\u201D.'}
       loading={loading}
       editing={editing}
       onEdit={() => { setStatus(''); setEditing(true); }}

@@ -6,7 +6,6 @@ import { countdownLabel, useDeadlineClock } from '../hooks/useDeadlineClock';
 import Spinner from '../components/Spinner';
 import FilterBar, { NO_CHOICES, type FilterGroup, type FilterValues } from '../components/filters/FilterBar';
 import AppOverflowMenu from '../components/AppOverflowMenu';
-import ModalShell from '../components/followups/ModalShell';
 import TrainingMarkersModal from '../components/TrainingMarkersModal';
 import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
@@ -87,10 +86,6 @@ const AdminAttendanceContent: React.FC = () => {
   const [saving, setSaving] = useState<Set<string>>(new Set());
   const [sessionSaving, setSessionSaving] = useState(false);
   const [startingWindow, setStartingWindow] = useState(false);
-  const [excuseTarget, setExcuseTarget] = useState<{ recordId: string; participantName: string } | null>(null);
-  const [excuseNote, setExcuseNote] = useState('');
-  const [excuseSaving, setExcuseSaving] = useState(false);
-  const [excuseError, setExcuseError] = useState('');
   const [followUpOpen, setFollowUpOpen] = useState(false);
   const [markersOpen, setMarkersOpen] = useState(false);
 
@@ -157,34 +152,6 @@ const AdminAttendanceContent: React.FC = () => {
       setSession(saved);
     } catch { /* ignore */ }
     finally { setStartingWindow(false); }
-  };
-
-  const openExcuseModal = (participant: Participant) => {
-    const record = records.get(participant.id);
-    if (!record) return;
-    setExcuseTarget({ recordId: record.id, participantName: participant.fullName });
-    setExcuseNote('');
-    setExcuseError('');
-  };
-
-  const submitExcuse = async () => {
-    if (!excuseTarget || !excuseNote.trim()) return;
-    setExcuseSaving(true);
-    setExcuseError('');
-    try {
-      const { record } = await attendanceApi.excuseLateness(excuseTarget.recordId, excuseNote.trim());
-      setRecords((prev) => {
-        const next = new Map(prev);
-        const existing = [...next.values()].find((r) => r.id === record.id);
-        if (existing) next.set(existing.participantId, { ...existing, lateExcused: true, lateExcusedAt: record.lateExcusedAt, lateExcusedById: record.lateExcusedById });
-        return next;
-      });
-      setExcuseTarget(null);
-    } catch (err) {
-      setExcuseError(err instanceof Error ? err.message : 'Could not save this excusal.');
-    } finally {
-      setExcuseSaving(false);
-    }
   };
 
   const visibleParticipants = useMemo(() => {
@@ -468,9 +435,6 @@ const AdminAttendanceContent: React.FC = () => {
                         { label: 'Mark left early', onClick: () => void handleMark(p.id, 'LEFT_EARLY') },
                         { label: 'Mark absent', onClick: () => void handleMark(p.id, 'ABSENT') },
                         { label: 'Mark excused', onClick: () => void handleMark(p.id, 'EXCUSED') },
-                        ...((status === 'LATE' || status === 'LEFT_EARLY') && !excused
-                          ? [{ label: 'Excuse lateness (appeal)', onClick: () => openExcuseModal(p) }]
-                          : []),
                       ]}
                     />}
                   </div>
@@ -482,28 +446,6 @@ const AdminAttendanceContent: React.FC = () => {
         </>
       )}
       <TrainingMarkersModal isOpen={markersOpen} onClose={() => setMarkersOpen(false)} cohortId={activeCohort?.id ?? null} />
-      <ModalShell
-        isOpen={!!excuseTarget}
-        onClose={() => { if (!excuseSaving) setExcuseTarget(null); }}
-        title="Excuse lateness"
-        subtitle={excuseTarget ? `${excuseTarget.participantName} · this note is admin-only.` : undefined}
-        footer={(
-          <>
-            <button type="button" onClick={() => setExcuseTarget(null)} disabled={excuseSaving} className="rounded-xl bg-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 disabled:opacity-50">Cancel</button>
-            <button type="button" onClick={() => void submitExcuse()} disabled={excuseSaving || !excuseNote.trim()} className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40">{excuseSaving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Excuse lateness'}</button>
-          </>
-        )}
-      >
-        <textarea
-          value={excuseNote}
-          onChange={(e) => setExcuseNote(e.target.value)}
-          rows={3}
-          placeholder="Why is this being excused? (required)"
-          className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-          autoFocus
-        />
-        {excuseError && <p className="mt-2 text-sm text-red-600">{excuseError}</p>}
-      </ModalShell>
     </div>
   );
 };

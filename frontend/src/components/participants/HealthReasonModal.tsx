@@ -81,7 +81,7 @@ const HealthReasonModal: React.FC<Props> = ({ name, health, detail, rules, suppo
           <p className="mt-2 text-xs text-gray-500">No class mark yet for {weekList(detail.unmarked)}. Those do not count against them.</p>
         )}
         <p className="mt-3 rounded-2xl bg-gray-50 px-3.5 py-3 text-xs text-gray-600">
-          How it is decided: one missed class or meeting is Keep an eye on. Needs attention starts at {ruleText}. Excused meetings and excused late arrivals do not count.
+          How it is decided: one missed class or meeting is Keep an eye on. Needs attention starts at {ruleText}. Only Absent counts as a missed class: Late and Left early count as attended, and Excused classes and meetings do not count.
         </p>
       </section>
 

@@ -142,10 +142,11 @@ export const trainingCountFor = (
   total: number,
 ) => counts.get(userId) ?? { attended: 0, total };
 
-// Present always counts. Late/Left early only count as attended once an
-// admin has excused them on appeal -- otherwise they count as missed.
+// Present, Late and Left early count as attended (owner's decision, 30 Oct 2026). Excused is neither attended nor
+// missed. Only Absent is a miss (FLOW_MAP rule 12).
 export const sundayMarkAttended = (r: { status: string; lateExcused?: boolean }) =>
-  r.status === 'PRESENT' || ((r.status === 'LATE' || r.status === 'LEFT_EARLY') && !!r.lateExcused);
+  r.status === 'PRESENT' || r.status === 'LATE' || r.status === 'LEFT_EARLY';
+export const sundayMarkMissed = (r: { status: string }) => r.status === 'ABSENT';
 
 export const evaluateParticipants = (
   people: CohortPeoplePayload,
@@ -173,8 +174,11 @@ export const evaluateParticipants = (
       const sunday = [...(sundayBy.get(p.id)?.values() ?? [])];
       const meeting = [...(meetingBy.get(p.id)?.values() ?? [])];
       const sundayAttended = sunday.filter(sundayMarkAttended).length;
-      const sundayMisses = sunday.length - sundayAttended;
+      const sundayMisses = sunday.filter(sundayMarkMissed).length;
+      const sundayExcused = sunday.filter((r) => r.status === 'EXCUSED').length;
       const sundayUnrecorded = judged.size - sunday.length;
+      // An excused class is left out of the completion sums.
+      const countedClasses = Math.max(judged.size - sundayExcused, 0);
       const meetingAttended = meeting.filter((s) => s === 'JOINED').length;
       // Excused isn't counted as a miss.
       const meetingMisses = meeting.filter((s) => s === 'MISSED').length;
@@ -185,9 +189,9 @@ export const evaluateParticipants = (
           : sundayMisses + meetingMisses >= 1 ? 'warning' : 'good';
 
       let completion: ParticipantEvaluation['completion'] = null;
-      if (allClassesRun && judged.size > 0) {
-        const attendancePct = (sundayAttended / judged.size) * 100;
-        const bestCasePct = ((sundayAttended + sundayUnrecorded) / judged.size) * 100;
+      if (allClassesRun && countedClasses > 0) {
+        const attendancePct = (sundayAttended / countedClasses) * 100;
+        const bestCasePct = ((sundayAttended + sundayUnrecorded) / countedClasses) * 100;
         if (attendancePct >= rules.completionAttendancePct) {
           completion = {
             outcome: 'COMPLETED',

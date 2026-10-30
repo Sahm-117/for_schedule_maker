@@ -461,7 +461,7 @@ const AdminParticipantProfilePage: React.FC = () => {
                 </div>
               </div>
             ))}
-            <p className="text-[11px] text-gray-500">P present · L late (counts as missed unless excused) · E left early (Sunday) / excused (meeting) · A absent · J joined · M missed · – not recorded</p>
+            <p className="text-[11px] text-gray-500">P present · L late (counts as attended) · E left early (Sunday, counts as attended) / excused (meeting) · A absent · J joined · M missed · – not recorded</p>
             {data.excusals.length > 0 && (
               <div className="space-y-1.5 border-t border-gray-100 pt-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Excused lateness</p>

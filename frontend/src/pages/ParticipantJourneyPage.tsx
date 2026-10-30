@@ -14,21 +14,17 @@ import { currentWeekNumber, pickCallback, reflectionFor } from '../utils/partici
 
 // My Journey: what the participant wrote each week and whether they kept their
 // goal (Journey tab), plus their Sunday class / group meeting record and
-// whether a Late mark counted as attended (Attendance tab, added for the
-// "late counts as missed" rule). Matches the V2 design.
+// how each mark counts (Attendance tab; Late and Left early count as attended,
+// FLOW_MAP rule 12). Matches the V2 design.
 
 const CARD = 'rounded-[20px] border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]';
 
-const sundayLine = (status: string | undefined, lateExcused: boolean | undefined) => {
+const sundayLine = (status: string | undefined) => {
   if (!status) return { label: 'Not recorded', cls: 'bg-neutral-100 text-neutral-600' };
   if (status === 'PRESENT') return { label: 'Present', cls: 'bg-emerald-100/80 text-emerald-700' };
   if (status === 'ABSENT') return { label: 'Absent', cls: 'bg-red-100/80 text-red-700' };
-  if (status === 'LATE') return lateExcused
-    ? { label: 'Late — counted as attended', cls: 'bg-emerald-100/80 text-emerald-700' }
-    : { label: 'Late — counts as missed', cls: 'bg-amber-100/80 text-amber-700' };
-  if (status === 'LEFT_EARLY') return lateExcused
-    ? { label: 'Left early — counted as attended', cls: 'bg-emerald-100/80 text-emerald-700' }
-    : { label: 'Left early — counts as missed', cls: 'bg-orange-100/80 text-orange-700' };
+  if (status === 'LATE') return { label: 'Late — counted as attended', cls: 'bg-amber-100/80 text-amber-700' };
+  if (status === 'LEFT_EARLY') return { label: 'Left early — counted as attended', cls: 'bg-orange-100/80 text-orange-700' };
   if (status === 'EXCUSED') return { label: 'Excused', cls: 'bg-sky-100/80 text-sky-700' };
   return { label: status, cls: 'bg-neutral-100 text-neutral-600' };
 };
@@ -204,7 +200,7 @@ const ParticipantJourneyPage: React.FC = () => {
                 {attendanceWeeks.map((week) => {
                   const sunday = home.sunday.find((r) => r.weekId === week.id);
                   const meeting = home.meeting.find((r) => r.weekId === week.id);
-                  const sundayMark = sundayLine(sunday?.status, sunday?.lateExcused);
+                  const sundayMark = sundayLine(sunday?.status);
                   const meetingMark = meetingLine(meeting?.status);
                   return (
                     <div key={week.id} className="py-3">
