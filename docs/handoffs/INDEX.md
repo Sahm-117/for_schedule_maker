@@ -5,6 +5,8 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-31 | [Admin review: done and left](2026-10-31_admin-review-remaining-work.md) | **Start here to finish the admin review:** what shipped, about 45 suggestions left by page with file paths, owner-only decisions, and how to work here safely. |
+| 2026-10-31 | [Demo cohorts deleted](2026-10-31_demo-cohorts-deleted.md) | ZZ Demo Cohort and ZZ Resources QA deleted at the owner's request; the one Cohort 10 repair record copied here first. Live data only. |
 | 2026-10-30 | [Security hardening](2026-10-30_security-hardening.md) | Sign-in limits, storage needs a session, resource files private with 2-hour links, reminders job service-only, browser headers. Two live migrations; push-reminders v61, file-links v1, public-api v7. |
 | 2026-10-30 | [Security in the primer](2026-10-30_security-review-primer.md) | What protects the platform, checked live: sign-in, row-level security, server functions, secrets, encrypted backups. Primer only. |
 | 2026-10-30 | [Admin review batch 2](2026-10-30_admin-review-batch-2.md) | "This week" chase list on Supports and Group meetings (WhatsApp or one in-app reminder); Supports' first tab is group leaders; one support and group count on Cohorts, Supports, Hubs and Groups; overdue filter button; Dashboard leads with what needs you. Frontend only. |
