@@ -6,7 +6,16 @@ import Spinner from '../Spinner';
 // "How was today's class?" — shown after the check-in and before the
 // notification prompt, once the configured feedback time has passed.
 // Anonymous unless they tick "Show my name with this". Same portal/shape as
-// CheckInModal.
+// CheckInModal. The scale is faces with one word each, red (poor) to green
+// (excellent), so nobody reads 1 as best; a short comment is required.
+
+const SCALE = [
+  { value: 1, face: '😞', word: 'Poor', on: 'border-red-300 bg-red-50 text-red-700' },
+  { value: 2, face: '🙁', word: 'Fair', on: 'border-orange-300 bg-orange-50 text-orange-700' },
+  { value: 3, face: '😐', word: 'Okay', on: 'border-amber-300 bg-amber-50 text-amber-700' },
+  { value: 4, face: '🙂', word: 'Good', on: 'border-lime-300 bg-lime-50 text-lime-700' },
+  { value: 5, face: '😍', word: 'Great', on: 'border-green-300 bg-green-50 text-green-700' },
+] as const;
 
 interface ClassFeedbackModalProps {
   weekId: number;
@@ -23,7 +32,8 @@ const ClassFeedbackModal: React.FC<ClassFeedbackModalProps> = ({ weekId, weekNum
   const [error, setError] = useState('');
 
   const submit = async () => {
-    if (!rating) { setError('Choose a rating from 1 to 5.'); return; }
+    if (!rating) { setError('Tap a face to rate the class.'); return; }
+    if (comment.trim().length < 3) { setError('Please tell us why in a few words.'); return; }
     setSending(true);
     setError('');
     try {
@@ -43,26 +53,32 @@ const ClassFeedbackModal: React.FC<ClassFeedbackModalProps> = ({ weekId, weekNum
           <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5Z" /></svg>
         </span>
         <h2 id="classfeedback-title" className="mt-3 text-lg font-bold text-gray-900">How was Week {weekNumber}'s class?</h2>
-        <p className="mt-1.5 text-[14px] leading-relaxed text-gray-600">Rate it, and tell us more if you'd like.</p>
+        <p className="mt-1.5 text-[14px] leading-relaxed text-gray-600">Tap a face, then tell us why.</p>
 
-        <div className="mt-4 flex justify-between gap-2" role="radiogroup" aria-label="Rating">
-          {[1, 2, 3, 4, 5].map((value) => (
+        <div className="mt-4 flex justify-between gap-1.5" role="radiogroup" aria-label="Rating, from poor to great">
+          {SCALE.map((option) => (
             <button
-              key={value}
+              key={option.value}
               type="button"
               role="radio"
-              aria-checked={rating === value}
-              onClick={() => { setRating(value); setError(''); }}
-              className={`grid h-12 flex-1 place-items-center rounded-xl border text-[15px] font-semibold ${rating === value ? 'border-[#ffdeca] bg-[#fff8f3] text-[#c2410c]' : 'border-gray-200 bg-white text-gray-700'}`}
+              aria-checked={rating === option.value}
+              aria-label={option.word}
+              onClick={() => { setRating(option.value); setError(''); }}
+              className={`flex min-h-[72px] flex-1 flex-col items-center justify-center gap-1 rounded-xl border-2 ${rating === option.value ? option.on : 'border-gray-100 bg-white text-gray-500'} ${rating && rating !== option.value ? 'opacity-50' : ''}`}
             >
-              {value}
+              <span className="text-[26px] leading-none" aria-hidden="true">{option.face}</span>
+              <span className="text-[11.5px] font-semibold">{option.word}</span>
             </button>
           ))}
         </div>
+        <div className="mt-1.5 flex justify-between px-1 text-[11px] font-semibold" aria-hidden="true">
+          <span className="text-red-600">← Not good</span>
+          <span className="text-green-700">Very good →</span>
+        </div>
 
         <label className="mt-4 block">
-          <span className="mb-1.5 block text-[13px] font-semibold text-gray-900">Anything to add? (optional)</span>
-          <textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={3} className="min-h-[70px] w-full resize-y rounded-xl border border-gray-200 px-3.5 py-3 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" />
+          <span className="mb-1.5 block text-[13px] font-semibold text-gray-900">Why? <span className="text-red-600">*</span></span>
+          <textarea value={comment} onChange={(e) => { setComment(e.target.value); setError(''); }} rows={3} required placeholder="What stood out, or what could be better?" className="min-h-[70px] w-full resize-y rounded-xl border border-gray-200 px-3.5 py-3 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" />
         </label>
 
         <label className="mt-3 flex items-center gap-2 text-[13px] text-gray-700">
