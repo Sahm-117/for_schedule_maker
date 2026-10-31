@@ -60,6 +60,7 @@ primer (`2026-10-30_security-review-primer.md`); the owner chose to fix all four
   - `private-files` can't be read without a link, and admins can upload, read and delete.
 - Every test file, session and throttle row was removed.
 
+## Existing files moved
 - **Files moved:** after the new app was live, the 7 Resource files and 2 earlier versions were copied into
   `private-files/resources/<same name>` (sizes checked), and their rows now point to `fof-private:…`.
   - `file-links` signs all 9 for an admin and none for a participant (none of these are shared with participants),

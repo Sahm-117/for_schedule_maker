@@ -392,7 +392,8 @@ const CohortsPage: React.FC = () => {
   const olderCohorts = useMemo(() => {
     return cohorts
       .filter((cohort) => cohort.id !== activeCohort?.id)
-      .filter((cohort) => showArchived || cohort.status !== 'ARCHIVED')
+      // Demo cohorts ("ZZ …") sit with the archived ones.
+      .filter((cohort) => showArchived || (cohort.status !== 'ARCHIVED' && !isDemoCohort(cohort)))
       .sort((a, b) => {
         const left = a.startDate || a.createdAt || '';
         const right = b.startDate || b.createdAt || '';
@@ -401,7 +402,7 @@ const CohortsPage: React.FC = () => {
   }, [activeCohort?.id, cohorts, showArchived]);
 
   const archivedOlderCohortCount = useMemo(
-    () => cohorts.filter((cohort) => cohort.id !== activeCohort?.id && cohort.status === 'ARCHIVED').length,
+    () => cohorts.filter((cohort) => cohort.id !== activeCohort?.id && (cohort.status === 'ARCHIVED' || isDemoCohort(cohort))).length,
     [activeCohort?.id, cohorts],
   );
 
@@ -1113,7 +1114,7 @@ const CohortsPage: React.FC = () => {
               <div className="text-sm text-gray-600">{formatDateRange(cohort.startDate, cohort.endDate)}</div>
               <div className="text-sm font-semibold text-gray-900">{weekCounts[cohort.id] || 0}</div>
               <div>
-                <CohortStatusPill status={cohort.status} />
+                <CohortStatusPill status={cohort.status} practice={cohort.isPractice} />
               </div>
               <div className="flex items-center justify-end">
                 {/* "Set active" only changes which cohort this person is looking at, so it stays for everyone. */}
@@ -1144,7 +1145,7 @@ const CohortsPage: React.FC = () => {
                   <p className="mt-1 text-sm text-gray-500">{cohort.description || 'No cohort description yet.'}</p>
                   {cohort.venue && <p className="mt-1 text-sm text-gray-500">{cohort.venue}</p>}
                 </div>
-                <CohortStatusPill status={cohort.status} />
+                <CohortStatusPill status={cohort.status} practice={cohort.isPractice} />
               </div>
               <div className="mt-4 grid gap-2 text-sm text-gray-600">
                 <p><span className="font-semibold text-gray-900">Window:</span> {formatDateRange(cohort.startDate, cohort.endDate)}</p>
@@ -2337,7 +2338,12 @@ const COHORT_STATUS_META: Record<'ACTIVE' | 'COMPLETED' | 'ARCHIVED', { label: s
   ARCHIVED: { label: 'Archived', cls: 'bg-neutral-100 text-neutral-600' },
 };
 
-const CohortStatusPill: React.FC<{ status?: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED' }> = ({ status }) => {
+// A demo cohort for trying things out (its name starts "ZZ"), kept out of the list like an archived one.
+const isDemoCohort = (cohort: { name: string; isPractice?: boolean | null }) => !cohort.isPractice && /^zz\b/i.test(cohort.name.trim());
+
+// Practice has no real status (its calendar moves with today), so it just says Practice.
+const CohortStatusPill: React.FC<{ status?: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED'; practice?: boolean | null }> = ({ status, practice }) => {
+  if (practice) return <span className="rounded-full bg-amber-100/80 px-3 py-1 text-xs font-semibold text-amber-800">Practice</span>;
   const meta = COHORT_STATUS_META[status ?? 'ACTIVE'];
   return <span className={`rounded-full px-3 py-1 text-xs font-semibold ${meta.cls}`}>{meta.label}</span>;
 };

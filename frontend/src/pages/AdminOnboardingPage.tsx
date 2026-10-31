@@ -5,8 +5,8 @@ import PageLoader from '../components/PageLoader';
 import FilterBar, { type FilterGroup, type FilterValues } from '../components/filters/FilterBar';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import OnboardingStepPills from '../components/OnboardingStepPills';
-import { participantFinished } from '../utils/supportOnboarding';
+import OnboardingStepPills, { PROGRESS_STEPS } from '../components/OnboardingStepPills';
+import { participantFinished, participantStepDone } from '../utils/supportOnboarding';
 import {
   groupDiscussionApi,
   onboardingEventsApi,
@@ -85,14 +85,29 @@ const AdminOnboardingContent: React.FC = () => {
         .sort((a, b) => groupCollator.compare(a.name, b.name));
       // The same rule as the Groups page and the Supports page, so the three never disagree.
       const readyCount = members.filter(participantFinished).length;
+      const completed = members.length > 0 && readyCount === members.length;
+      // What holds the group back, said on the card: the support's own intro first (nobody can introduce themselves
+      // before it), otherwise the step most of the unfinished people still have to do.
+      const waiting = members.filter((m) => !participantFinished(m));
+      const stepCounts = PROGRESS_STEPS.map((step) => ({ label: step.label, count: waiting.filter((m) => !participantStepDone(m, step.key)).length }))
+        .filter((c) => c.count > 0)
+        .sort((a, b) => b.count - a.count);
+      const stuckOn = completed || members.length === 0 ? null
+        : !group.supportIntroPosted ? "Waiting on the support's intro"
+        : stepCounts[0] ? `Stuck on ${stepCounts[0].label.toLowerCase()} (${stepCounts[0].count} ${stepCounts[0].count === 1 ? 'person' : 'people'})` : null;
       return {
         group,
         members,
         participantCount: members.length,
         readyCount,
-        completed: members.length > 0 && readyCount === members.length,
+        completed,
+        stuckOn,
       };
-    }), [groupCollator, cohortProgress]);
+    })
+    // Least ready first, so the groups that need a nudge lead; finished groups go last.
+    .sort((a, b) => Number(a.completed) - Number(b.completed)
+      || (a.participantCount ? a.readyCount / a.participantCount : 1) - (b.participantCount ? b.readyCount / b.participantCount : 1)
+      || groupCollator.compare(a.group.groupName || '', b.group.groupName || '')), [groupCollator, cohortProgress]);
 
   // Does this group fit one chosen choice of one filter group?
   const fits = (key: string, choice: string, s: (typeof groupSummaries)[number]): boolean => {
@@ -229,12 +244,13 @@ const AdminOnboardingContent: React.FC = () => {
             </div>
           ) : (
             <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-                {visibleGroupSummaries.map(({ group, members, participantCount, readyCount, completed }) => (
+                {visibleGroupSummaries.map(({ group, members, participantCount, readyCount, completed, stuckOn }) => (
                   <div key={group.groupId} className="surface-card p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="text-base font-bold text-gray-900">{group.groupName}</p>
                         <p className="mt-1 text-sm text-gray-500">{group.supportName || 'No support assigned'} • {participantCount} participant{participantCount === 1 ? '' : 's'}</p>
+                        {stuckOn && <p className="mt-1 text-sm font-semibold text-amber-700">{stuckOn}</p>}
                       </div>
                       <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${completed ? 'bg-emerald-100/80 text-emerald-700' : 'bg-amber-100/80 text-amber-700'}`}>
                         {readyCount} of {participantCount} ready

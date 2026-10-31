@@ -6,12 +6,13 @@ Date: 2026-10-30. FLOW_MAP rules 124 and 125. Follows the primer's "What could h
 - **Sunday-morning polling (rule 124).** From 7 am to 2 pm Lagos on Sundays, background checks that opt in
   (`sundaySlow`) wait twice as long:
   - the bells and the Community dot;
-  - the prayer signal;
   - the update check and the nudge card;
   - discussions and their unread dots;
   - Practice's background beat.
 
-  Participant Home, the meeting-live check, the Attendance pages and clocks keep their pace.
+  Participant Home, the meeting-live check, the Attendance pages, clocks and the corporate prayer signal keep their
+  pace. The prayer signal was in the slowed list at first; it was taken out on 31 Oct because it opens the "prayer
+  is live" pop-up.
 - **The build checks itself (rule 125).**
   - `npm run build` is now `tsc -b && vitest run && vite build`, and `npm test` runs the tests alone.
   - Vitest 3.2.4 added as a dev dependency. The tests are in `src/utils/__tests__/rules.test.ts`: 12 tests on

@@ -34,7 +34,8 @@ const PrayerSignalProvider: React.FC<{ audience: 'participant' | 'staff'; cohort
   }, [cohortId]);
 
   useEffect(() => { if (enabled) void refresh(); }, [enabled, refresh]);
-  usePolling(refresh, enabled ? 60000 : null, { sundaySlow: true });
+  // Never slowed on Sunday mornings (rule 124): this check opens the "prayer is live" pop-up.
+  usePolling(refresh, enabled ? 60000 : null);
 
   const markAnswered = useCallback(() => {
     ignoreUpTo.current = issued.current;
