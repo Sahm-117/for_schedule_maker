@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-31 | [Automatic move and duty reminders](2026-10-31_auto-move-and-duty-reminders.md) | Absent for classes 1-3 moves to the next cohort automatically at 4 pm on class 3's day (warning the day before, undo for 3 days). Morning reminders for hub reports, follow-ups, hub messages, tasks, faith projects, reflections and surveys. Two live migrations, `daily-checks` v21. |
 | 2026-10-31 | [Practice scripture day](2026-10-31_practice-scripture-day.md) | Support scripture card sat on Day 1 inside Practice (its calendar restarts daily); it now follows the real cohort. Also: the owner's unlinked Mac views linked in PostHog. Frontend only. |
 | 2026-10-31 | [PostHog visitors attributed](2026-10-31_posthog-visitors-attributed.md) | "Visitors (not signed in)" were mostly signed-in staff whose first page view went out before identify. Page views now wait for identity; the PostHog project reads current person roles; the 7 audience insights share one grouping. Frontend and PostHog settings only. |
 | 2026-10-31 | [Admin review: done and left](2026-10-31_admin-review-remaining-work.md) | **Start here to finish the admin review:** what shipped, about 45 suggestions left by page with file paths, owner-only decisions, and how to work here safely. |

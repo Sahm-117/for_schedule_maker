@@ -12,6 +12,14 @@
  *      - a group isn't fully onboarded: nudge the support near the deadline, then
  *        support + admin digest once it's late
  *      Each escalation is sent once (tracked in EscalationNotice), not every morning.
+ *   4. Duties nobody should have to chase (owner request 2026-10-31):
+ *      - supports: the group meeting report from the morning after the group's meeting day; the hub report (hub lead
+ *        and assistant lead) from the morning after the hub meets; absence follow-ups past due; hub messages not
+ *        acknowledged after a day; admin-set checklist tasks past their due day. Daily while outstanding.
+ *      - participants: the faith project (3 and 1 days before the deadline, on the day, then Mondays and Thursdays
+ *        while it isn't started, with their support told on those days); the week's reflection two days after its
+ *        recap reached them; an open survey they haven't answered (Mondays and Thursdays, from two days after it
+ *        opened). Each participant nudge goes once per key (EscalationNotice).
  *
  * Call it once a day from a scheduler (cron-job.org):
  *   POST /functions/v1/daily-checks       — send
@@ -27,8 +35,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 // @ts-ignore
 import webPush from 'https://esm.sh/web-push@3'
-import { sendToSubscriptions } from '../_shared/webpush.ts'
-import { insertNotifications, moduleViewerIds } from '../_shared/notifications.ts'
+import { sendToSubscriptions, PARTICIPANT_PUSH_STORE } from '../_shared/webpush.ts'
+import { insertNotifications, insertParticipantNotifications, moduleViewerIds } from '../_shared/notifications.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -84,6 +92,17 @@ const currentWeekFor = (startDate: string, weeks: ClassWeek[], today: string) =>
     : latest.week.weekNumber
 }
 
+// The programme week starts on its class day (day 0). Has something held on `weekday` (e.g. 'WEDNESDAY') already
+// happened this class week? With no weekday set, from day 5 as before.
+const DAY_INDEX: Record<string, number> = { SUNDAY: 0, MONDAY: 1, TUESDAY: 2, WEDNESDAY: 3, THURSDAY: 4, FRIDAY: 5, SATURDAY: 6 }
+const weekdayPassed = (classKey: string, daysIntoWeek: number, weekday: string | null | undefined) => {
+  const idx = DAY_INDEX[String(weekday ?? '').toUpperCase()]
+  if (idx === undefined) return daysIntoWeek >= 5
+  const classIdx = new Date(`${classKey}T00:00:00Z`).getUTCDay()
+  return daysIntoWeek > (idx - classIdx + 7) % 7
+}
+const addDaysKey = (key: string, n: number) => dayKey(new Date(Date.parse(`${key}T00:00:00Z`) + n * MS_PER_DAY))
+
 interface Planned { userId: string; title: string; body: string; path: string; type: string }
 
 Deno.serve(async (req) => {
@@ -132,18 +151,18 @@ Deno.serve(async (req) => {
       const dayOfWeek = latest.days // 0 = the class day
 
       const { data: groups } = await supabase
-        .from('Group').select('id, name, supportId, members:GroupParticipant(participantId)').eq('cohortId', cohort.id).eq('isTeenGroup', false)
+        .from('Group').select('id, name, supportId, meetingDay, members:GroupParticipant(participantId)').eq('cohortId', cohort.id).eq('isTeenGroup', false)
 
       for (const group of (groups ?? []) as any[]) {
         if (!group.supportId) continue
         const participantIds = (group.members ?? []).map((m: any) => m.participantId)
 
-        // 2. Meeting report still open near the end of the week
-        if (dayOfWeek >= 5) {
+        // 2. Meeting report still open: the support from the morning after their meeting day, operations from day 5.
+        if (dayOfWeek >= 5 || weekdayPassed(classDateKey(cohort.startDate, weekRow), dayOfWeek, group.meetingDay)) {
           const { data: status } = await supabase
             .from('GroupPrayerStatus').select('done').eq('groupId', group.id).eq('weekId', weekRow.id).maybeSingle()
           if (!status?.done) {
-            outstanding.push(group.name)
+            if (dayOfWeek >= 5) outstanding.push(group.name)
             add({
               userId: group.supportId,
               title: `Week ${weekRow.weekNumber} meeting report is still open`,
@@ -421,6 +440,204 @@ Deno.serve(async (req) => {
       }
     }
 
+
+    // ── 5. Duties nobody should have to chase (owner request 2026-10-31) ─────
+    const lagosWeekday = now.getUTCDay() // `now` is already Lagos time: 0 = Sunday
+    const participantPlanned: Array<{ participantId: string; title: string; body: string; path: string }> = []
+    const nudgeParticipant = (participantId: string, cohortId: string, key: string, title: string, body: string, path: string) => {
+      if (firstTime(key, cohortId)) participantPlanned.push({ participantId, title, body, path })
+    }
+    const plural = (n: number, one: string, many: string) => (n === 1 ? one : many)
+    const isoAgo = (days: number) => new Date(nowMs - days * MS_PER_DAY).toISOString()
+
+    for (const cohort of (cohorts ?? []) as any[]) {
+      if (!cohort.startDate) continue
+      const { data: cw } = await supabase.from('Week').select('id, weekNumber, classDate').eq('cohortId', cohort.id)
+      const cohortWeeks = (cw ?? []) as ClassWeek[]
+      const weekIds = cohortWeeks.map((w) => w.id)
+      const latest = latestClassWeek(cohort.startDate, cohortWeeks, today)
+      const thisWeek = latest && latest.days < 7 ? latest : null
+
+      const [{ data: hubs }, { data: memberships }, { data: allGroups }, { data: people }] = await Promise.all([
+        supabase.from('SupportHub').select('id, name, meetingDay, leadUserId, assistantLeadUserId').eq('cohortId', cohort.id),
+        supabase.from('HubMembership').select('hubId, userId').eq('cohortId', cohort.id),
+        supabase.from('Group').select('id, supportId, archivedAt, members:GroupParticipant(participantId)').eq('cohortId', cohort.id),
+        supabase.from('Participant').select('id, fullName, isTest').eq('cohortId', cohort.id).eq('status', 'ACTIVE'),
+      ])
+      const hubList = (hubs ?? []) as any[]
+      const hubIds = hubList.map((h) => h.id)
+
+      // Hub report: the hub lead and assistant lead, from the morning after the hub meets until the week ends.
+      if (thisWeek && hubIds.length > 0) {
+        const { data: hubReports } = await supabase.from('SupportSession').select('hubId')
+          .eq('type', 'SUNDAY_RECAP').eq('weekId', thisWeek.week.id).not('submittedAt', 'is', null).in('hubId', hubIds)
+        const submitted = new Set(((hubReports ?? []) as any[]).map((r) => r.hubId))
+        const classKey = classDateKey(cohort.startDate, thisWeek.week)
+        for (const hub of hubList) {
+          if (submitted.has(hub.id) || !weekdayPassed(classKey, thisWeek.days, hub.meetingDay)) continue
+          for (const userId of new Set([hub.leadUserId, hub.assistantLeadUserId].filter(Boolean))) {
+            add({
+              userId: userId as string,
+              title: `Week ${thisWeek.week.weekNumber} hub report is still open`,
+              body: `${hub.name}'s hub meeting report hasn't been submitted yet. Submit it from the Meeting tab on My Hub.`,
+              path: '/support/my-hub',
+              type: 'REMINDER',
+            })
+          }
+        }
+      }
+
+      // Hub messages from the lead not acknowledged after a day (messages from the last 10 days).
+      if (hubIds.length > 0) {
+        const { data: msgs } = await supabase.from('HubMessage').select('id, hubId, authorId')
+          .in('hubId', hubIds).lte('createdAt', isoAgo(1)).gte('createdAt', isoAgo(10))
+        const msgList = (msgs ?? []) as any[]
+        if (msgList.length > 0) {
+          const { data: acks } = await supabase.from('HubMessageAck').select('messageId, userId').in('messageId', msgList.map((m) => m.id))
+          const acked = new Set(((acks ?? []) as any[]).map((a) => `${a.messageId}:${a.userId}`))
+          for (const member of (memberships ?? []) as any[]) {
+            const waiting = msgList.filter((m) => m.hubId === member.hubId && m.authorId !== member.userId && !acked.has(`${m.id}:${member.userId}`)).length
+            if (waiting === 0) continue
+            add({
+              userId: member.userId,
+              title: 'Hub messages waiting',
+              body: `${waiting} ${plural(waiting, 'message from your hub lead is', 'messages from your hub lead are')} waiting for you to read and acknowledge.`,
+              path: '/support/my-hub',
+              type: 'REMINDER',
+            })
+          }
+        }
+      }
+
+      // Absence follow-ups past their due time, for people still in the cohort.
+      const activeIds = new Set(((people ?? []) as any[]).map((p) => p.id))
+      if (weekIds.length > 0) {
+        const { data: tasks } = await supabase.from('AttendanceFollowUpTask').select('supportId, participantId')
+          .eq('status', 'OPEN').lt('dueAt', new Date(nowMs).toISOString()).in('weekId', weekIds)
+        const bySupport = new Map<string, number>()
+        for (const t of (tasks ?? []) as any[]) {
+          if (!t.supportId || !activeIds.has(t.participantId)) continue
+          bySupport.set(t.supportId, (bySupport.get(t.supportId) ?? 0) + 1)
+        }
+        for (const [userId, n] of bySupport) {
+          add({
+            userId,
+            title: 'Absence follow-ups waiting',
+            body: `${n} ${plural(n, 'person who missed class still needs', 'people who missed class still need')} a call or message from you. Tick each one off on Schedule when done.`,
+            path: '/support/schedule',
+            type: 'REMINDER',
+          })
+        }
+      }
+
+      // Checklist tasks an admin set, past their due day.
+      if (weekIds.length > 0) {
+        const { data: items } = await supabase.from('SupportChecklistItem').select('userId, label, weekId, dueDay, dueDate')
+          .eq('done', false).not('taskGroupId', 'is', null).or(`weekId.in.(${weekIds.join(',')}),cohortId.eq.${cohort.id}`)
+        const byUser = new Map<string, string[]>()
+        for (const item of (items ?? []) as any[]) {
+          let due: string | null = item.dueDate ? String(item.dueDate).slice(0, 10) : null
+          const week = cohortWeeks.find((w) => w.id === item.weekId)
+          if (!due && week) {
+            const classKey = classDateKey(cohort.startDate, week)
+            const idx = DAY_INDEX[String(item.dueDay ?? 'SATURDAY').toUpperCase()] ?? 6
+            due = addDaysKey(classKey, (idx - new Date(`${classKey}T00:00:00Z`).getUTCDay() + 7) % 7)
+          }
+          if (!due || due >= today) continue
+          byUser.set(item.userId, [...(byUser.get(item.userId) ?? []), String(item.label)])
+        }
+        for (const [userId, labels] of byUser) {
+          add({
+            userId,
+            title: 'Tasks past their due date',
+            body: `${labels.length} ${plural(labels.length, 'task from the admins is', 'tasks from the admins are')} overdue: ${labels.slice(0, 3).join('; ')}${labels.length > 3 ? ` and ${labels.length - 3} more` : ''}.`,
+            path: '/support',
+            type: 'REMINDER',
+          })
+        }
+      }
+
+      // Participants: everyone active and in a group (teen groups too), not test people.
+      const groupList = ((allGroups ?? []) as any[]).filter((g) => !g.archivedAt)
+      const supportOf = new Map<string, string>()
+      for (const g of groupList) for (const m of g.members ?? []) if (g.supportId && !supportOf.has(m.participantId)) supportOf.set(m.participantId, g.supportId)
+      const inGroup = new Set(groupList.flatMap((g) => (g.members ?? []).map((m: any) => m.participantId)))
+      const learners = ((people ?? []) as any[]).filter((p) => !p.isTest && inGroup.has(p.id))
+      const learnerIds = learners.map((p) => p.id)
+      if (learnerIds.length === 0) continue
+
+      // Faith project: 3 and 1 days before the deadline, on the day, then Mondays and Thursdays while not started.
+      const { data: faithSetting } = await supabase.from('FaithProjectSetting').select('deadlineAt').eq('cohortId', cohort.id).maybeSingle()
+      if (faithSetting?.deadlineAt) {
+        const deadlineDay = dayKey(new Date(Date.parse(faithSetting.deadlineAt) + LAGOS_OFFSET_MS))
+        const daysLeft = Math.round((Date.parse(`${deadlineDay}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / MS_PER_DAY)
+        if (daysLeft === 3 || daysLeft === 1 || daysLeft === 0 || (daysLeft < 0 && (lagosWeekday === 1 || lagosWeekday === 4))) {
+          const { data: started } = await supabase.from('FaithProject').select('participantId').in('participantId', learnerIds)
+          const startedIds = new Set(((started ?? []) as any[]).map((r) => r.participantId))
+          const dueLabel = new Date(`${deadlineDay}T12:00:00Z`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' })
+          const notStartedBySupport = new Map<string, string[]>()
+          for (const p of learners) {
+            if (startedIds.has(p.id)) continue
+            nudgeParticipant(p.id, cohort.id, `faith-nudge:${p.id}:${today}`,
+              daysLeft < 0 ? 'Your faith project is overdue' : daysLeft === 0 ? 'Your faith project is due today' : 'Your faith project is due soon',
+              daysLeft < 0
+                ? 'Write it today so your group can pray with you. It only takes a few minutes, and your support can help.'
+                : `Write it by ${dueLabel}. It only takes a few minutes, and your support can help.`,
+              '/me/faith')
+            const supportId = supportOf.get(p.id)
+            if (supportId) notStartedBySupport.set(supportId, [...(notStartedBySupport.get(supportId) ?? []), p.fullName])
+          }
+          for (const [userId, names] of notStartedBySupport) {
+            add({
+              userId,
+              title: 'Faith projects not started',
+              body: `${names.slice(0, 6).join(', ')}${names.length > 6 ? ` and ${names.length - 6} more` : ''} ${plural(names.length, "hasn't", "haven't")} started ${plural(names.length, 'their faith project', 'their faith projects')}${daysLeft < 0 ? ' and the deadline has passed' : `, due ${dueLabel}`}. They've been reminded; a quick message from you helps.`,
+              path: '/support/participants',
+              type: 'REMINDER',
+            })
+          }
+        }
+      }
+
+      // Reflection: two days after "Week N recap is out" reached them, if they haven't written week N's.
+      const { data: recapNotes } = await supabase.from('ParticipantNotification').select('participantId, title')
+        .like('title', 'Week % recap is out').lte('createdAt', isoAgo(2)).gte('createdAt', isoAgo(7)).in('participantId', learnerIds)
+      const recapWeeks = new Map<string, number>()
+      for (const n of (recapNotes ?? []) as any[]) {
+        const num = Number(/^Week (\d+) recap/.exec(n.title)?.[1])
+        const week = cohortWeeks.find((w) => w.weekNumber === num)
+        if (week) recapWeeks.set(`${n.participantId}:${week.id}`, week.weekNumber)
+      }
+      if (recapWeeks.size > 0) {
+        const { data: written } = await supabase.from('Reflection').select('participantId, weekId')
+          .in('participantId', learnerIds).in('weekId', [...new Set([...recapWeeks.keys()].map((k) => Number(k.split(':')[1])))])
+        const done = new Set(((written ?? []) as any[]).map((r) => `${r.participantId}:${r.weekId}`))
+        for (const [key, weekNumber] of recapWeeks) {
+          if (done.has(key)) continue
+          const [participantId, weekId] = key.split(':')
+          nudgeParticipant(participantId, cohort.id, `reflect:${weekId}:${participantId}`,
+            `Your week ${weekNumber} reflection`,
+            'Two minutes: what stood out from class, and one goal for this week.',
+            `/me/week/${weekNumber}?reflect=1`)
+        }
+      }
+    }
+
+    // Surveys not answered: Mondays and Thursdays, from two days after the survey opened (survey_reminders_due).
+    if (lagosWeekday === 1 || lagosWeekday === 4) {
+      const { data: dueSurveys, error: surveyError } = await supabase.rpc('survey_reminders_due')
+      if (surveyError) console.error('daily-checks: survey reminders', surveyError.message)
+      for (const s of (dueSurveys ?? []) as any[]) {
+        for (const participantId of (s.participantIds ?? []) as string[]) {
+          nudgeParticipant(participantId, s.cohortId ?? (cohorts as any[])?.[0]?.id, `survey-nudge:${s.surveyId}:${participantId}:${today}`,
+            'A quick survey is waiting', `${s.title}: your answers help us make FOF better. It only takes a few minutes.`, '/me')
+        }
+        for (const userId of (s.userIds ?? []) as string[]) {
+          add({ userId, title: `Survey waiting: ${s.title}`, body: 'Your answers help us improve FOF. It only takes a few minutes.', path: '/support', type: 'REMINDER' })
+        }
+      }
+    }
+
     // ── Skip anyone who already got the same reminder today ──────────────────
     const since = new Date(Date.now() - 20 * 60 * 60 * 1000).toISOString()
     const { data: recent } = await supabase
@@ -428,14 +645,33 @@ Deno.serve(async (req) => {
     const alreadySent = new Set(((recent ?? []) as any[]).map((r) => `${r.userId}|${r.title}`))
     const toSend = planned.filter((p) => !alreadySent.has(`${p.userId}|${p.title}`))
 
-    if (dryRun) return json({ ok: true, dryRun: true, planned: planned.length, wouldSend: toSend.length, escalations: newKeys.length, leadsRetried, items: toSend })
+    if (dryRun) return json({ ok: true, dryRun: true, planned: planned.length, wouldSend: toSend.length, escalations: newKeys.length, leadsRetried, items: toSend, participants: participantPlanned })
 
     // Remember escalations so each is sent once.
     if (newKeys.length > 0) {
       const { error: keyError } = await supabase.from('EscalationNotice').upsert(newKeys, { onConflict: 'key', ignoreDuplicates: true })
       if (keyError) console.error('daily-checks: could not record escalations', keyError.message)
     }
-    if (toSend.length === 0) return json({ ok: true, sent: 0, skipped: planned.length, escalations: newKeys.length, leadsRetried })
+    // Participant nudges: a bell row each and a push to their devices, one send per distinct message.
+    let participantSent = 0
+    const byMessage = new Map<string, { title: string; body: string; path: string; ids: string[] }>()
+    for (const p of participantPlanned) {
+      const k = `${p.title}|${p.body}|${p.path}`
+      const entry = byMessage.get(k) ?? { title: p.title, body: p.body, path: p.path, ids: [] }
+      entry.ids.push(p.participantId)
+      byMessage.set(k, entry)
+    }
+    for (const m of byMessage.values()) {
+      await insertParticipantNotifications(supabase, m.ids.map((participantId) => ({ participantId, title: m.title, body: m.body, path: m.path, type: 'REMINDER' })))
+      const { data: psubs } = await supabase.from('ParticipantPushSubscription').select('participantId, endpoint, p256dh, auth').in('participantId', m.ids)
+      const rows = ((psubs ?? []) as any[]).map((r) => ({ userId: r.participantId, endpoint: r.endpoint, p256dh: r.p256dh, auth: r.auth }))
+      if (rows.length === 0) continue
+      const payload = JSON.stringify({ title: m.title, body: m.body, icon: '/icon-192.png', tag: `fof-nudge-${Date.now()}`, data: { path: m.path } })
+      const r = await sendToSubscriptions(webPush, supabase, rows, payload, undefined, PARTICIPANT_PUSH_STORE)
+      participantSent += r.sent
+    }
+
+    if (toSend.length === 0) return json({ ok: true, sent: 0, skipped: planned.length, escalations: newKeys.length, leadsRetried, participants: participantPlanned.length, participantSent })
 
     await insertNotifications(supabase, toSend)
 
@@ -452,7 +688,7 @@ Deno.serve(async (req) => {
       sent += result.sent
     }
 
-    return json({ ok: true, notified: toSend.length, sent, skipped: planned.length - toSend.length, escalations: newKeys.length, leadsRetried })
+    return json({ ok: true, notified: toSend.length, sent, skipped: planned.length - toSend.length, escalations: newKeys.length, leadsRetried, participants: participantPlanned.length, participantSent })
   } catch (error) {
     console.error('daily-checks error:', String(error))
     return json({ ok: false, error: String(error) }, 500)

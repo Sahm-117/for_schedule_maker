@@ -344,6 +344,10 @@ footer img { width: 28px; height: 28px }
       <p>Each one has a handoff note in <code>docs/handoffs/</code> with what is live and what is still open.</p>
     </div>
     <div class="news">
+      <div class="new"><span class="d">31 Oct</span><b>Three misses move automatically</b><p>Absent for classes 1, 2 and 3 moves a participant to the next cohort at 4 pm on class 3's day, once the register is final. The day before, they, their support and admins are warned. Admins can undo for three days.</p></div>
+      <div class="new"><span class="d">31 Oct</span><b>Reminders for what's left undone</b><p>Each morning: meeting reports from the day after the meeting, hub reports to hub leads, overdue absence follow-ups, unread hub messages and overdue admin tasks. Participants are reminded about their faith project, the week's reflection and open surveys.</p></div>
+      <div class="new"><span class="d">31 Oct</span><b>Analytics knows who's who</b><p>Page views wait until PostHog knows who is signed in, and charts read each person's current role, so staff no longer show as "Visitors".</p></div>
+      <div class="new"><span class="d">31 Oct</span><b>Scripture in Practice</b><p>Inside Practice the support Home scripture follows the real cohort's day instead of sitting on Day 1.</p></div>
       <div class="new"><span class="d">30 Oct</span><b>"This week" on Supports</b><p>Supports and Group meetings open with what to chase: meetings not marked done, groups with no meeting time or no support. Tap a name for WhatsApp, or remind them all in the app.</p></div>
       <div class="new"><span class="d">30 Oct</span><b>The counts agree</b><p>Cohorts, Supports and Hubs count supports the same way (49), and groups read "23 groups (+5 teen)" everywhere. Admins who are also supports now count.</p></div>
       <div class="new"><span class="d">30 Oct</span><b>What needs you, first</b><p>Once a cohort is running, the Dashboard's list of what needs you sits at the top. Groups shows its cards sooner and has a one-tap "overdue" filter.</p></div>
@@ -353,7 +357,7 @@ footer img { width: 28px; height: 28px }
       <div class="new"><span class="d">30 Oct</span><b>Late counts as attended</b><p>Late and Left early count as attended everywhere. Only Absent is a miss; Excused is left out of completion.</p></div>
       <div class="new"><span class="d">30 Oct</span><b>Check-ups after a cohort</b><p>In rest week 3 every group leader gets a task to check in with their people, then a reminder each month for three months.</p></div>
       <div class="new"><span class="d">30 Oct</span><b>Attendance locks after class</b><p>Once a class is over, only admins change its marks. Supports see a note to message an admin to dispute a mark.</p></div>
-      <div class="new"><span class="d">30 Oct</span><b>Two-absence review</b><p>The Saturday before class 3, admins review people absent for classes 1 and 2 and move them to the next cohort. Nothing moves by itself; same-day undo.</p></div>
+      <div class="new"><span class="d">30 Oct</span><b>Two-absence review</b><p>The Saturday before class 3, admins reviewed people absent for classes 1 and 2. Replaced on 31 Oct by the automatic move after three misses.</p></div>
       <div class="new"><span class="d">30 Oct</span><b>Quicker admin pages</b><p>Scriptures shows small previews (full design on tap), Users shows 25 at a time, and the dashboard says "Class 2 of 10 done · Class 3 on Sun 1 Nov".</p></div>
       <div class="new"><span class="d">30 Oct</span><b>Which groups are talking</b><p>The dashboard's discussions line opens Groups filtered to groups that posted this week, each with its count.</p></div>
       <div class="new"><span class="d">29 Oct</span><b>Public API for church apps</b><p>Other church apps read FOF with their own key. Admins make and switch off keys under Administration, Church app access. Teens need a separate permission.</p></div>
@@ -437,7 +441,7 @@ footer img { width: 28px; height: 28px }
         <div class="acct ok"><b>Server functions check the caller</b><p>Most need a valid app token; the reminders job only runs for the database's own schedule. The Telegram webhook checks its secret header, and the public API its key.</p></div>
         <div class="acct ok"><b>Only admins can send announcements</b><p>Since 30 October, an announcement needs an admin session or the server's own key, and one that would reach nobody is refused.</p></div>
         <div class="acct ok"><b>Church app keys</b><p>Stored only as fingerprints, limited to the areas an admin ticks, 60 requests a minute each, every request logged, and switched off in one tap.</p></div>
-        <div class="acct ok"><b>Attendance can't be rewritten</b><p>After class only admins change marks. Moves in the two-absence review are recorded and can be undone the same day.</p></div>
+        <div class="acct ok"><b>Attendance can't be rewritten</b><p>After class only admins change marks. Automatic moves after three misses are recorded and can be undone for three days.</p></div>
       </div>
     </div>
 

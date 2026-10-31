@@ -57,7 +57,7 @@ Frontend files are under `frontend/src/`. Keep to `AGENTS.md`'s UI rules: portal
 2. Show who hasn't done what, by support.
 
 **Planner** (`pages/AdminPlannerPage.tsx`, `utils/planner.ts`)
-1. Markers on the cohort bar for the two-absence review Saturday (`absence_review_saturday`, rule 119) and the
+1. Markers on the cohort bar for the Saturday warning and class 3's automatic move (`absence_review_saturday`, rule 119) and the
    check-up dates (rest week 3, then monthly; rule 121, `restWeeksAfter`).
 2. A "Plan cohort 11" button on the "2 cohorts start this year · aim is 3" line.
 3. Tapping a holiday dot names the holiday.
@@ -66,7 +66,7 @@ Frontend files are under `frontend/src/`. Keep to `AGENTS.md`'s UI rules: portal
 1. The people not in a group (8 today) at the top, with "Add to a group".
 2. "Remind everyone missing details" on the profile-completion card (an announcement to those participants:
    `announcementsApi.send` with participant targets).
-3. Keep the two-absence review card above the page's other cards (check it still is).
+3. Keep the missed-classes card (`AbsenceReviewCard`) above the page's other cards (check it still is).
 
 **Attendance** (`pages/AdminAttendancePage.tsx`)
 1. A small attendance trend line across weeks at the top.
