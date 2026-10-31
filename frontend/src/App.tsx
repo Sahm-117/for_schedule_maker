@@ -90,12 +90,16 @@ const RouteFallback: React.FC = () => (
 );
 
 // Tells PostHog who is signed in, by name: staff by app id, participants by their pseudonym (never the record id).
+// Not while the saved session is still being checked: "nobody" then would file the first page view under no one.
 const AnalyticsIdentity: React.FC = () => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const id = user?.id ?? null;
   const role = user?.role ?? null;
   const name = user?.name ?? '';
-  useEffect(() => { setAnalyticsUser(id && role ? { id, role, name } : null); }, [id, role, name]);
+  useEffect(() => {
+    if (loading && !id) return;
+    setAnalyticsUser(id && role ? { id, role, name } : null);
+  }, [id, role, name, loading]);
   return null;
 };
 

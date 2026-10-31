@@ -45,6 +45,7 @@ const cleanUrl = (value: unknown): string => {
 /** Last gate before anything leaves the browser: drops on-screen text and unnamed attributes, and strips ids from URLs. */
 const cleanEvent = (event: CaptureResult | null): CaptureResult | null => {
   if (!event) return null
+  if (holdForIdentity(event)) return null
   const props = event.properties as Record<string, unknown>
   // Every URL / path / referrer property, including the "session entry" and "previous page" ones.
   Object.keys(props).forEach((key) => {
@@ -81,6 +82,40 @@ const cleanEvent = (event: CaptureResult | null): CaptureResult | null => {
   return event
 }
 
+// A page view sent before PostHog knows who is signed in is filed under nobody, and stays there: with
+// identified-only profiles PostHog never links it to the person identified a second later. That is what filled
+// the dashboards' "Visitors (not signed in)" with supports and admins opening the app. So while the app has not
+// said who is signed in yet (startup, or a participant's pseudonym being worked out), page views wait here and
+// go out once it has, under that person. After HOLD_MS they go anyway, unidentified.
+const HOLD_MS = 10000
+const held: CaptureResult[] = []
+let holdTimer: ReturnType<typeof setTimeout> | null = null
+let releasing = false
+
+const holdForIdentity = (event: CaptureResult): boolean => {
+  if (releasing || event.event !== '$pageview' || wantedIdentity !== undefined) return false
+  held.push(event)
+  if (!holdTimer) holdTimer = setTimeout(releaseHeld, HOLD_MS)
+  return true
+}
+
+function releaseHeld() {
+  if (holdTimer) clearTimeout(holdTimer)
+  holdTimer = null
+  if (!client || held.length === 0) return
+  releasing = true
+  try {
+    held.splice(0).forEach((event) => {
+      // Sent again as the person now identified: PostHog fills in who it is, not the copy kept from before.
+      const props = { ...(event.properties as Record<string, unknown>) }
+      ;['distinct_id', '$is_identified', '$process_person_profile', 'token'].forEach((key) => delete props[key])
+      client?.capture(event.event, props, event.timestamp ? { timestamp: new Date(event.timestamp) } : undefined)
+    })
+  } finally {
+    releasing = false
+  }
+}
+
 export const startAnalytics = (): Promise<void> => {
   if (!KEY) return Promise.resolve()
   if (starting) return starting
@@ -97,6 +132,7 @@ export const startAnalytics = (): Promise<void> => {
     })
     client = posthog
     if (wantedIdentity !== undefined) applyIdentity(posthog, wantedIdentity)
+    releaseHeld()
     queued.splice(0).forEach(([event, props]) => posthog.capture(event, props))
   }).catch(() => { /* analytics must never break the app */ })
   return starting
@@ -122,8 +158,10 @@ const PSEUDONYM = /^[0-9a-f]{64}$/
 let identityRequest = 0
 
 /**
- * Tie events to whoever is signed in, by app id, role and name; pass null on sign-out. A participant is never sent
- * by record id: they are identified by `participantPseudonym` instead, or left anonymous where it cannot be worked out.
+ * Tie events to whoever is signed in, by app id, role and name; pass null when nobody is (signed out, or no saved
+ * session at startup). Call it only once that is known: until then page views are held (see holdForIdentity).
+ * A participant is never sent by record id: they are identified by `participantPseudonym` instead, or left anonymous
+ * where it cannot be worked out.
  */
 export const setAnalyticsUser = (user: AnalyticsUser | null): void => {
   const request = ++identityRequest
@@ -131,6 +169,7 @@ export const setAnalyticsUser = (user: AnalyticsUser | null): void => {
     if (request !== identityRequest) return
     wantedIdentity = resolved
     if (client) applyIdentity(client, resolved)
+    releaseHeld()
   }
   if (user?.role !== 'PARTICIPANT') { apply(user); return }
   // Hashing is async. Until it finishes, no event may land on a different person's profile, so drop any

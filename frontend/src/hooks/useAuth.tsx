@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import { authApi, setAuthToken, clearAuthToken, usersApi, getSessionToken, SESSION_TOKEN_KEY } from '../services/api';
 import { permissionsApi } from '../services/supabase-api';
 import { applyTheme } from '../utils/theme';
+import { setAnalyticsUser } from '../lib/analytics';
 import { ADMIN_PERMISSIONS, NO_MODULES, type MyPermissions } from '../utils/permissions';
 import { setLoginPassword } from '../utils/loginPassword';
 import type { Label, User } from '../types';
@@ -59,7 +60,12 @@ const isInactiveAuthError = (error: unknown) => {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, _setUser] = useState<User | null>(null);
-  const setUser = (u: User | null) => { _setUser(u); if (u) applyTheme(u.themeColor); };
+  // PostHog hears straight away too, so the page view of the screen a sign-in opens is already this person's.
+  const setUser = (u: User | null) => {
+    _setUser(u);
+    if (u) applyTheme(u.themeColor);
+    setAnalyticsUser(u?.id && u.role ? { id: u.id, role: u.role, name: u.name ?? '' } : null);
+  };
   const [loading, setLoading] = useState(true);
   const [userLabelIds, setUserLabelIds] = useState<string[]>([]);
   const [userLabels, setUserLabels] = useState<Label[]>([]);

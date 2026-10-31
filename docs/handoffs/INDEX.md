@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-31 | [PostHog visitors attributed](2026-10-31_posthog-visitors-attributed.md) | "Visitors (not signed in)" were mostly signed-in staff whose first page view went out before identify. Page views now wait for identity; the PostHog project reads current person roles; the 7 audience insights share one grouping. Frontend and PostHog settings only. |
 | 2026-10-31 | [Admin review: done and left](2026-10-31_admin-review-remaining-work.md) | **Start here to finish the admin review:** what shipped, about 45 suggestions left by page with file paths, owner-only decisions, and how to work here safely. |
 | 2026-10-31 | [Demo cohorts deleted](2026-10-31_demo-cohorts-deleted.md) | ZZ Demo Cohort and ZZ Resources QA deleted at the owner's request; the one Cohort 10 repair record copied here first. Live data only. |
 | 2026-10-30 | [Security hardening](2026-10-30_security-hardening.md) | Sign-in limits, storage needs a session, resource files private with 2-hour links, reminders job service-only, browser headers. Two live migrations; push-reminders v61, file-links v1, public-api v7. |
