@@ -3,6 +3,7 @@ import { DEFAULT_PROGRAMME_RULES, evaluateParticipants, sundayMarkAttended, sund
 import { describeMoment, type PlannerMoment } from '../planner';
 import { restWeeksAfter } from '../checklist';
 import { isSundayRush, pollWait } from '../../hooks/usePolling';
+import { scriptureCohortStart } from '../participantApp';
 import type { Cohort, Week } from '../../types';
 
 // The rules that have bitten before. Each block names its FLOW_MAP rule.
@@ -94,5 +95,26 @@ describe('Sunday-morning polling (rule 124)', () => {
     expect(pollWait(20000, true, at('2026-11-01T09:00:00Z'))).toBe(40000);
     expect(pollWait(60000, false, at('2026-11-01T09:00:00Z'))).toBe(60000);
     expect(pollWait(60000, true, at('2026-10-31T09:00:00Z'))).toBe(60000);
+  });
+});
+
+describe('daily scripture inside Practice', () => {
+  const c10 = { id: 'c10', isPractice: false, startDate: '2026-10-11', status: 'ACTIVE' } as const;
+  const c9 = { id: 'c9', isPractice: false, startDate: '2026-06-21', status: 'COMPLETED' } as const;
+  const practice = { id: 'p', isPractice: true, startDate: '2026-10-31', status: 'ACTIVE' } as const;
+  const all = [practice, c10, c9];
+
+  it('counts from the cohort being viewed when it is real', () => {
+    expect(scriptureCohortStart(c9, all, null)).toBe('2026-06-21');
+  });
+  it('follows the last real cohort inside Practice, not its restarted calendar', () => {
+    expect(scriptureCohortStart(practice, all, 'c9')).toBe('2026-06-21');
+  });
+  it('falls back to the newest unfinished real cohort', () => {
+    expect(scriptureCohortStart(practice, all, null)).toBe('2026-10-11');
+    expect(scriptureCohortStart(practice, all, 'gone')).toBe('2026-10-11');
+  });
+  it('shows nothing when there is no real cohort', () => {
+    expect(scriptureCohortStart(practice, [practice], null)).toBeUndefined();
   });
 });

@@ -11,7 +11,7 @@ import { announcementsApi, faithProjectsApi, groupsApi, meetingAttendanceApi, my
 import type { Announcement, FaithProject, Group, HubJob, MyHubPayload, Participant, ParticipantCheckIn, SupportActivityCompletion, SupportChecklistItem, SupportKind, User } from '../types';
 import { getCurrentProgramDayName, getProgramDayIndex } from '../utils/schedule';
 import { sortByText } from '../utils/sort';
-import { lagosTodayIso, nextClassWeek, weekDayDate } from '../utils/participantApp';
+import { lagosTodayIso, nextClassWeek, scriptureCohortStart, weekDayDate } from '../utils/participantApp';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
 import { normalizeLink } from '../utils/links';
 import SupportOnboardingSteps from '../components/groups/SupportOnboardingSteps';
@@ -86,7 +86,13 @@ const SupportHomePage: React.FC = () => {
 const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
   const practiceEntry = usePracticeEntry();
   const { userLabelIds, userCohortIds } = useAuth();
-  const { activeCohort, selectedWeek, weeks, liveRevision, myHub, myHubLoaded } = useAppData();
+  const { activeCohort, cohorts, selectedWeek, weeks, liveRevision, myHub, myHubLoaded } = useAppData();
+  // Inside Practice (whose calendar restarts daily) the scripture follows the real cohort, not Day 1.
+  const scriptureStartDate = useMemo(() => {
+    let lastReal: string | null = null;
+    try { lastReal = localStorage.getItem('fof_last_real_cohort'); } catch { /* ignore */ }
+    return scriptureCohortStart(activeCohort, cohorts, lastReal);
+  }, [activeCohort, cohorts]);
   const { ids: teenSupportIds } = useTeenSupportIds(true);
   const isTeenSupport = !!teenSupportIds?.has(user.id);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -622,7 +628,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
           )}
           <AppNudgeCard />
 
-          <SupportScriptures cohortStartDate={activeCohort?.startDate} />
+          <SupportScriptures cohortStartDate={scriptureStartDate} />
 
           {helpRequests.length > 0 && (
             <section className="rounded-[18px] bg-red-100/80 px-4 py-3.5">

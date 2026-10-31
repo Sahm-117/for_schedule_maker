@@ -556,7 +556,9 @@ duplicating the logic anywhere else is a bug waiting to happen.
     Supports read the images straight from the `Scripture` table and the two settings (`scriptures_enabled`,
     `scripture_start_day`), which any staff session may read, and follow the same switch: with scriptures off in Settings,
     neither participants nor supports see the card. The day follows the active cohort's start date (day N opens at 2:00 PM
-    Lagos time). Frontend only.
+    Lagos time). Inside Practice, whose calendar restarts today on every beat while it is on (`practice_pulse`), the
+    support card follows the real cohort last viewed (`fof_last_real_cohort`), else the newest unfinished one, so it never
+    sits on Day 1 (`scriptureCohortStart`). Frontend only.
 46. **A class's teacher can be tapped on the participant Journey, the support Classes page and the support Home next-class card.** A week with a teacher
     name set shows a small chip (`TeacherChip`) under its title; tapping it opens the same `TeacherSheet` as the home
     "Next class" card (photo or initials, name and role, bio, the class they teach), and does not open or close the week.

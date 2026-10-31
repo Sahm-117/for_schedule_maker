@@ -2,7 +2,7 @@
 // (UTC+1, no daylight saving), so every "which day / which week" question is
 // answered in Lagos time regardless of the device's zone.
 
-import type { FaithProjectStatus, ParticipantHome, ParticipantHomeWeek, ParticipantReflection } from '../types';
+import type { Cohort, FaithProjectStatus, ParticipantHome, ParticipantHomeWeek, ParticipantReflection } from '../types';
 import { participantAppApi } from '../services/api';
 import { normaliseRules, sundayMarkMissed, type PersonHealth } from './programmeRules';
 
@@ -192,6 +192,24 @@ export const scripturePosition = (fofDay: number | null, startDay: number, total
   if (fofDay === null || totalPosts < 1) return null;
   const position = fofDay - startDay + 1;
   return position >= 1 ? Math.min(position, totalPosts) : null;
+};
+
+/**
+ * The start date the daily scripture counts from. Practice's calendar restarts every day (practice_pulse), so inside
+ * Practice it would sit on Day 1: it follows the real cohort last looked at instead, else the newest unfinished one.
+ */
+type ScriptureCohort = Pick<Cohort, 'id' | 'isPractice' | 'startDate' | 'status'>;
+export const scriptureCohortStart = (
+  active: ScriptureCohort | null | undefined,
+  cohorts: ScriptureCohort[],
+  lastRealId: string | null,
+): string | null | undefined => {
+  if (!active?.isPractice) return active?.startDate;
+  const real = cohorts.filter((c) => !c.isPractice);
+  const pick = real.find((c) => c.id === lastRealId)
+    ?? real.filter((c) => c.status !== 'COMPLETED').sort((a, b) => String(b.startDate ?? '').localeCompare(String(a.startDate ?? '')))[0]
+    ?? real[0];
+  return pick?.startDate;
 };
 
 export const scriptureForDay = (scriptures: ParticipantHome['scriptures'], position: number) => {
