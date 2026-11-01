@@ -116,6 +116,9 @@ function releaseHeld() {
   }
 }
 
+/** The PostHog dashboard admins open from the engagement totals (likes, downloads, shares). */
+export const POSTHOG_DASHBOARD_URL = 'https://us.posthog.com/project/695154/dashboard/2275022'
+
 export const startAnalytics = (): Promise<void> => {
   if (!KEY) return Promise.resolve()
   if (starting) return starting

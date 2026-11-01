@@ -25,6 +25,7 @@ import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
 import { scriptureEngagementApi, scripturesApi, settingsApi } from '../services/api';
 import type { Scripture, ScriptureEngagementCounts } from '../types';
+import { POSTHOG_DASHBOARD_URL } from '../lib/analytics';
 
 // Daily Inspirational Scripture designs for the participant app. Posts show in
 // the order below, one per FOF day starting from "First post shows on day N".
@@ -445,6 +446,7 @@ const AdminScripturesPage: React.FC = () => {
             <div className="flex flex-wrap items-center gap-3">
               <div className="w-44"><AppSelect value={engagementCohort} onChange={setEngagementCohort} options={cohortOptions} placeholder="All cohorts" compact /></div>
               {Object.keys(engagement).length > 0 && <EngagementRow big counts={Object.values(engagement).reduce((t, r) => ({ likes: t.likes + r.likes, downloads: t.downloads + r.downloads, shares: t.shares + r.shares }), { likes: 0, downloads: 0, shares: 0 })} />}
+              {Object.keys(engagement).length > 0 && <a href={POSTHOG_DASHBOARD_URL} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-primary-dark hover:underline">More in PostHog ↗</a>}
             </div>
             <SaveStatus state={orderSaveState} />
           </div>
