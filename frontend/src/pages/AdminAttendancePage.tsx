@@ -7,6 +7,7 @@ import Spinner from '../components/Spinner';
 import FilterBar, { NO_CHOICES, type FilterGroup, type FilterValues } from '../components/filters/FilterBar';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import TrainingMarkersModal from '../components/TrainingMarkersModal';
+import AttendanceSupportPicker from '../components/AttendanceSupportPicker';
 import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
 import { useAppData } from '../context/AppDataContext';
@@ -88,6 +89,7 @@ const AdminAttendanceContent: React.FC = () => {
   const [startingWindow, setStartingWindow] = useState(false);
   const [followUpOpen, setFollowUpOpen] = useState(false);
   const [markersOpen, setMarkersOpen] = useState(false);
+  const [assignOpen, setAssignOpen] = useState(false);
 
   // Groups change per cohort, not per week — load once per cohort.
   useEffect(() => {
@@ -209,6 +211,10 @@ const AdminAttendanceContent: React.FC = () => {
   const doneFollowUps = followUpTasks.filter((task) => task.status === 'DONE').length;
   const absenceCount = [...records.values()].filter((record) => record.status === 'ABSENT').length;
   const unassignedAbsences = Math.max(0, absenceCount - followUpTasks.length);
+  // The absent people nobody is chasing yet, by name, for the "need a support assignment" button.
+  const taskedIds = new Set(followUpTasks.map((task) => task.participantId));
+  const needSupport = participants.filter((p) => records.get(p.id)?.status === 'ABSENT' && !taskedIds.has(p.id));
+  const needCount = needSupport.length || unassignedAbsences;
   const windowClosesAt = session?.closesAt ?? null;
   const now = useDeadlineClock(windowClosesAt);
   const windowOpen = !!session?.startedAt && !finalised && !!windowClosesAt && new Date(windowClosesAt).getTime() > now;
@@ -367,7 +373,7 @@ const AdminAttendanceContent: React.FC = () => {
 
           {finalised && <section className="mb-4 rounded-2xl border border-[#d9f2e2] bg-white px-4 py-3 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-bold text-gray-900">Attendance results</p><p className="text-sm font-semibold text-emerald-700">{summary.attended} attended · {absenceCount} absent</p></div>
-            {absenceCount > 0 && <p className="mt-1.5 text-[13px] text-gray-500">{openFollowUps} follow-up {openFollowUps === 1 ? 'task' : 'tasks'} assigned{doneFollowUps ? ` · ${doneFollowUps} complete` : ''}{unassignedAbsences ? ` · ${unassignedAbsences} need a support assignment` : ''}.</p>}
+            {absenceCount > 0 && <p className="mt-1.5 text-[13px] text-gray-500">{openFollowUps} follow-up {openFollowUps === 1 ? 'task' : 'tasks'} assigned{doneFollowUps ? ` · ${doneFollowUps} complete` : ''}{needCount > 0 && ' · '}{needCount > 0 && (needSupport.length > 0 && canEdit ? <button type="button" onClick={() => setAssignOpen(true)} className="font-semibold text-primary-dark underline underline-offset-2">{needCount} need a support assignment</button> : `${needCount} need a support assignment`)}.</p>}
             {followUpTasks.length > 0 && <div className="mt-3 border-t border-[#e7f5eb] pt-3">
               <button
                 type="button"
@@ -446,6 +452,19 @@ const AdminAttendanceContent: React.FC = () => {
         </>
       )}
       <TrainingMarkersModal isOpen={markersOpen} onClose={() => setMarkersOpen(false)} cohortId={activeCohort?.id ?? null} />
+      {activeCohort && (
+        <AttendanceSupportPicker
+          isOpen={assignOpen}
+          onClose={() => setAssignOpen(false)}
+          cohortId={activeCohort.id}
+          groups={groups}
+          people={needSupport}
+          onAssigned={() => {
+            void load();
+            void groupsApi.getAll({ cohortId: activeCohort.id }).then(({ groups: gs }) => setGroups(sortByText(gs, (group) => group.name))).catch(() => { /* ignore */ });
+          }}
+        />
+      )}
     </div>
   );
 };

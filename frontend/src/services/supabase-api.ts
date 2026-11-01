@@ -7967,6 +7967,13 @@ export const hubApi = {
     return dates.reduce((latest, d) => (new Date(d) > new Date(latest) ? d : latest));
   },
 
+  // Date of the newest topic (not comment), shown beside Community in the admin menu.
+  async getLatestTopicAt(): Promise<string | null> {
+    const { data, error } = await supabase.from('HubTopic').select('createdAt').order('createdAt', { ascending: false }).limit(1).maybeSingle();
+    if (error) throw new Error(error.message);
+    return data?.createdAt ?? null;
+  },
+
   async getTopics(status: 'OPEN' | 'CLOSED', currentUserId?: string): Promise<{ topics: import('../types').HubTopic[] }> {
     const { data, error } = await supabase
       .from('HubTopic')
@@ -8885,6 +8892,14 @@ export const participantPushApi = {
     try {
       await supabase.functions.invoke('notify-users', { body: { participantIds, title, body, path } });
     } catch { /* non-critical */ }
+  },
+
+  /** Like notify, but for a message an admin sends on purpose: a failure is thrown so the screen can say so. */
+  async notifyOrThrow(participantIds: string[], title: string, body: string, path: string): Promise<{ sent: number }> {
+    if (participantIds.length === 0) return { sent: 0 };
+    const { data, error } = await supabase.functions.invoke('notify-users', { body: { participantIds, title, body, path } });
+    if (error) throw new Error(error.message);
+    return { sent: Number((data as { sent?: number } | null)?.sent ?? 0) };
   },
 
   // participantIds with an active ParticipantAccount but no saved push

@@ -26,6 +26,8 @@ export interface PeopleBlock {
   reasons: Record<PendingReason, number>;
   /** Of loginSent: those who reported a problem with their login. */
   loginIssue: number;
+  /** Who the pending adults are (for "Resend login"): the same people the reasons above count. */
+  pendingPeople: Array<{ id: string; name: string; email: string | null; reason: PendingReason }>;
   /** On the follow-up list but not registered yet. */
   notRegistered: number;
   /** Marked as registered on the follow-up list but with no participant record to count. */
@@ -56,6 +58,8 @@ export interface RegistrationOverview {
   teens: TeenBlock;
   /** Everyone registered; logged in and still to log in are about adults only (teens get no login). */
   total: { registered: number; adultsLoggedIn: number; adultsPending: number };
+  /** The registered people counted in `wrongNumber` (adults and teens), so the warning can open each one. */
+  wrongNumberPeople: Array<{ id: string; name: string }>;
 }
 
 const emptyBlock = (): PeopleBlock => ({
@@ -64,6 +68,7 @@ const emptyBlock = (): PeopleBlock => ({
   pending: 0,
   reasons: { loginSent: 0, notSentYet: 0, handMarked: 0, parked: 0 },
   loginIssue: 0,
+  pendingPeople: [],
   notRegistered: 0,
   unlinked: 0,
   wrongNumber: 0,
@@ -110,6 +115,7 @@ export const computeRegistrationOverview = (
   const adults = emptyBlock();
   const teens: TeenBlock = { registered: 0, onboarded: 0, noResponse: 0, notOnboarded: 0, waitingForSupport: 0, notRegistered: 0, unlinked: 0, wrongNumber: 0 };
   const registeredContactIds = new Set<string>();
+  const wrongNumberPeople: Array<{ id: string; name: string }> = [];
 
   participants.forEach((p) => {
     if (p.isTest || p.status !== 'ACTIVE' || p.cohortId !== cohortId) return;
@@ -117,7 +123,7 @@ export const computeRegistrationOverview = (
     if (p.followUpContactId) registeredContactIds.add(p.followUpContactId);
     const wrongNumber = !!contact && computeFollowUpStatus(contact) === 'WRONG_NUMBER';
     if (isTeenPerson(p, contact)) {
-      if (wrongNumber) { teens.wrongNumber += 1; return; }
+      if (wrongNumber) { teens.wrongNumber += 1; wrongNumberPeople.push({ id: p.id, name: p.fullName }); return; }
       teens.registered += 1;
       if (contact && isParked(contact)) teens.noResponse += 1;
       else if (contact && computeFollowUpStatus(contact) === 'TEEN_ONBOARDED') teens.onboarded += 1;
@@ -128,12 +134,13 @@ export const computeRegistrationOverview = (
       return;
     }
     // Someone who signed in has reached the app, so a stale Wrong Number does not take them out.
-    if (wrongNumber && !signedInIds.has(p.id)) { adults.wrongNumber += 1; return; }
+    if (wrongNumber && !signedInIds.has(p.id)) { adults.wrongNumber += 1; wrongNumberPeople.push({ id: p.id, name: p.fullName }); return; }
     adults.registered += 1;
     if (signedInIds.has(p.id)) { adults.loggedIn += 1; return; }
     adults.pending += 1;
     const reason = pendingReason(contact);
     adults.reasons[reason] += 1;
+    adults.pendingPeople.push({ id: p.id, name: p.fullName, email: p.email ?? null, reason });
     if (reason === 'loginSent' && contact && computeFollowUpStatus(contact) === 'LOGIN_ISSUE') adults.loginIssue += 1;
   });
 
@@ -152,5 +159,6 @@ export const computeRegistrationOverview = (
     adults,
     teens,
     total: { registered: adults.registered + teens.registered, adultsLoggedIn: adults.loggedIn, adultsPending: adults.pending },
+    wrongNumberPeople,
   };
 };

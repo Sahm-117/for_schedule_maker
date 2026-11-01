@@ -143,6 +143,29 @@ const AdminPracticePage: React.FC = () => {
         </div>
       )}
 
+      {data && (() => {
+        const inNow = data.members.filter((m) => m.online);
+        return (
+          <div className={`${SURFACE} mb-5 px-4 py-3`} data-testid="practice-in-now">
+            {inNow.length === 0 ? (
+              <p className="text-sm text-gray-600">Nobody is in Practice right now{data.on ? ', so it is a quiet moment to switch it off.' : '.'}</p>
+            ) : (
+              <>
+                <p className="text-sm font-semibold text-gray-900">In Practice right now ({inNow.length}){data.on ? '' : ''}</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {inNow.map((m) => (
+                    <span key={m.userId} className="inline-flex items-center gap-2 rounded-full bg-emerald-100/80 py-1 pl-1 pr-3 text-xs font-semibold text-emerald-700">
+                      <Avatar name={m.name} avatarUrl={m.avatarUrl} size="sm" />
+                      {m.name}
+                    </span>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        );
+      })()}
+
       <SegmentedTabs
         className="mb-4"
         active={tab}

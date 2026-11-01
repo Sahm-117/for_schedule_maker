@@ -12,6 +12,7 @@ import AppSelect from './AppSelect';
 import AppMultiSelect from './AppMultiSelect';
 import type { AnnouncementAudience } from '../types';
 import Spinner from './Spinner';
+import AnnouncementResend from './AnnouncementResend';
 
 const EXTERNAL_LINK = '__external';
 const HUB_JOB_ORDER: HubJob[] = ['HUB_LEAD', 'ASSISTANT_HUB_LEAD', 'RECAP_LEAD', 'PRAYER_LEAD', 'IT_SUPPORT'];
@@ -861,6 +862,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
                     </div>
                     <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{a.body}</p>
                     {a.requirePopup && isAdmin && <PopupStatusRow announcementId={a.id} />}
+                    {isAdmin && canEdit && <div><AnnouncementResend announcement={a} /></div>}
                     {a.showOnHome && a.homeUntil && new Date(a.homeUntil).getTime() > Date.now() && (
                       <div className="mt-2 flex flex-wrap items-center gap-2">
                         <span className="rounded-full bg-red-100/80 px-2 py-0.5 text-[11px] font-semibold text-red-700">

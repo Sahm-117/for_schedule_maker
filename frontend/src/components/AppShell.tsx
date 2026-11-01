@@ -20,7 +20,7 @@ import ClassFeedbackModal from './ClassFeedbackModal';
 import HubRoleIntroModal from './hubs/HubRoleIntroModal';
 import RoleGuideModal from './hubs/RoleGuideModal';
 import { useSupportClassFeedbackPrompt } from '../hooks/useSupportClassFeedbackPrompt';
-import { classFeedbackApi, groupsApi, myHubApi, notificationsApi, supportKindApi } from '../services/api';
+import { classFeedbackApi, groupsApi, hubApi, myHubApi, notificationsApi, supportKindApi } from '../services/api';
 import { usePushTapRead } from '../hooks/usePushTapRead';
 import FollowUpCheckPrompt from './followups/FollowUpCheckPrompt';
 import MeetingTimeFixPrompt from './groups/MeetingTimeFixPrompt';
@@ -220,6 +220,19 @@ const MobileBadge: React.FC<{ count: number }> = ({ count }) => {
   );
 };
 
+// Admin menu: the date of the newest Community topic, so a quiet Community is visible at a glance.
+const CommunityLastPost: React.FC = () => {
+  const [at, setAt] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    hubApi.getLatestTopicAt().then((value) => { if (!cancelled) setAt(value); }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
+  if (!at) return null;
+  const label = new Date(at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  return <span className="ml-auto text-[11px] font-medium text-gray-400" title="Newest topic in Community">Last post {label}</span>;
+};
+
 const isNavActive = (pathname: string, to: string) => {
   if (to === '/support' || to === '/dashboard') {
     return pathname === to;
@@ -282,6 +295,7 @@ const NavItemLink: React.FC<{
       {item.icon}
       <span>{item.label}</span>
       {item.to === '/schedule' && <MobileBadge count={globalPendingCount} />}
+      {item.to === '/community' && <CommunityLastPost />}
       {item.to.includes('community') && hasNewHubActivity && <NavDot />}
       {isLive && <LiveNavDot className="ml-auto" ringClass="ring-transparent" />}
     </NavLink>

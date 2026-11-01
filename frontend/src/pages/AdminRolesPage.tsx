@@ -1,10 +1,13 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import PageHeader from '../components/PageHeader';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import ConfirmationModal from '../components/ConfirmationModal';
 import PageLoader from '../components/PageLoader';
 import { useToast } from '../components/Toast';
 import { permissionsApi } from '../services/supabase-api';
+import { usersApi } from '../services/api';
+import type { User } from '../types';
 import {
   MODULES,
   type ModuleKey,
@@ -66,6 +69,9 @@ const AdminRolesPage: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<PermissionRole | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [pendingSelect, setPendingSelect] = useState<string | null>(null);
+  // Who holds each role, for the "N people" popover on a role row. Active people only, like the counts.
+  const [activeUsers, setActiveUsers] = useState<User[]>([]);
+  const [assignments, setAssignments] = useState<Record<string, string[]>>({});
 
   const selectedRole = useMemo(() => roles.find((r) => r.id === selectedId) ?? null, [roles, selectedId]);
   const isAdminRow = selectedId === ADMIN_ID;
@@ -96,6 +102,21 @@ const AdminRolesPage: React.FC = () => {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    Promise.all([usersApi.getAll(), permissionsApi.userAssignments()])
+      .then(([{ users }, held]) => {
+        setActiveUsers(users);
+        setAssignments(Object.fromEntries(held.map((h) => [h.userId, h.roleIds])));
+      })
+      .catch(() => { /* the rows still show their counts; the popover just stays empty */ });
+  }, []);
+
+  const rolesOfUser = (u: User) => (u.roles && u.roles.length > 0 ? u.roles : [u.role]);
+  const membersOf = (roleId: string, isSystem: boolean): string[] => activeUsers
+    .filter((u) => (roleId === ADMIN_ID ? rolesOfUser(u).includes('ADMIN') : isSystem ? rolesOfUser(u).includes('SUPPORT') : (assignments[u.id] ?? []).includes(roleId)))
+    .map((u) => u.name)
+    .sort((a, b) => a.localeCompare(b));
 
   const openRole = useCallback((id: string, list: PermissionRole[]) => {
     setSelectedId(id);
@@ -210,12 +231,12 @@ const AdminRolesPage: React.FC = () => {
       ) : (
         <div className="grid gap-4 lg:grid-cols-[18rem_1fr]">
           <div className="surface-card self-start p-3" data-testid="roles-list">
-            <RoleRow label="Admin" sub="Everything, always" badge="Built-in" active={selectedId === ADMIN_ID} onClick={() => choose(ADMIN_ID)} />
+            <RoleRow label="Admin" sub="Everything, always" badge="Built-in" active={selectedId === ADMIN_ID} onClick={() => choose(ADMIN_ID)} members={membersOf(ADMIN_ID, false)} />
             {supportRole && (
-              <RoleRow label={supportRole.name} sub={`${supportRole.memberCount} ${supportRole.memberCount === 1 ? 'person' : 'people'}`} badge="Built-in" active={selectedId === supportRole.id} onClick={() => choose(supportRole.id)} />
+              <RoleRow label={supportRole.name} sub="" count={supportRole.memberCount} badge="Built-in" active={selectedId === supportRole.id} onClick={() => choose(supportRole.id)} members={membersOf(supportRole.id, true)} />
             )}
             {customRoles.map((r) => (
-              <RoleRow key={r.id} label={r.name} sub={`${r.memberCount} ${r.memberCount === 1 ? 'person' : 'people'}`} active={selectedId === r.id} onClick={() => choose(r.id)} />
+              <RoleRow key={r.id} label={r.name} sub="" count={r.memberCount} active={selectedId === r.id} onClick={() => choose(r.id)} members={membersOf(r.id, false)} />
             ))}
             {isNew && <RoleRow label={name.trim() || 'New role'} sub="Not saved yet" active onClick={() => undefined} />}
             {customRoles.length === 0 && !isNew && (
@@ -384,19 +405,84 @@ const AdminRolesPage: React.FC = () => {
   );
 };
 
-const RoleRow: React.FC<{ label: string; sub: string; badge?: string; active: boolean; onClick: () => void }> = ({ label, sub, badge, active, onClick }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    aria-current={active ? 'true' : undefined}
-    className={`mb-1 flex w-full items-center gap-2 rounded-2xl px-3 py-2.5 text-left transition last:mb-0 ${active ? 'bg-primary-50 text-primary' : 'text-gray-700 hover:bg-gray-50'}`}
-  >
-    <span className="min-w-0 flex-1">
-      <span className="block truncate text-sm font-semibold">{label}</span>
-      <span className="block text-xs text-gray-500">{sub}</span>
-    </span>
-    {badge && <span className="inline-flex rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600">{badge}</span>}
-  </button>
-);
+// "N people" under a role name: tap it to see who holds the role. A portal popover, so nothing clips it.
+const MembersPopover: React.FC<{ label: string; names: string[]; summary: string }> = ({ label, names, summary }) => {
+  const [open, setOpen] = useState(false);
+  const [style, setStyle] = useState<React.CSSProperties>({});
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const place = () => {
+      const rect = triggerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const width = 240;
+      const left = Math.min(Math.max(12, rect.left), window.innerWidth - width - 12);
+      const top = rect.bottom + 6;
+      setStyle({ position: 'fixed', top, left, width, maxHeight: Math.max(120, window.innerHeight - top - 12), zIndex: 110 });
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      if (triggerRef.current?.contains(event.target as Node) || menuRef.current?.contains(event.target as Node)) return;
+      setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setOpen(false); };
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        aria-expanded={open}
+        title={`Who has ${label}`}
+        className="mt-0.5 rounded-lg text-xs font-medium text-gray-500 underline decoration-dotted underline-offset-2 hover:text-primary"
+      >
+        {summary}
+      </button>
+      {open && createPortal(
+        <div ref={menuRef} style={style} className="overflow-y-auto rounded-2xl bg-white p-3 shadow-[0_12px_32px_-8px_rgba(17,24,39,0.25)]" role="dialog" aria-label={`People with ${label}`}>
+          <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400">{label}</p>
+          {names.length === 0 ? (
+            <p className="text-sm text-gray-500">No one yet.</p>
+          ) : (
+            <ul className="space-y-1">
+              {names.map((n, i) => <li key={`${n}-${i}`} className="text-sm text-gray-800">{n}</li>)}
+            </ul>
+          )}
+        </div>,
+        document.body,
+      )}
+    </>
+  );
+};
+
+const RoleRow: React.FC<{ label: string; sub: string; count?: number; members?: string[]; badge?: string; active: boolean; onClick: () => void }> = ({ label, sub, count, members, badge, active, onClick }) => {
+  const total = count ?? members?.length;
+  const summary = total === undefined ? '' : `${total} ${total === 1 ? 'person' : 'people'}`;
+  return (
+    <div className={`mb-1 flex w-full items-center gap-2 rounded-2xl px-3 py-2.5 transition last:mb-0 ${active ? 'bg-primary-50 text-primary' : 'text-gray-700 hover:bg-gray-50'}`}>
+      <button type="button" onClick={onClick} aria-current={active ? 'true' : undefined} className="min-w-0 flex-1 text-left">
+        <span className="block truncate text-sm font-semibold">{label}</span>
+        {sub && <span className="block text-xs text-gray-500">{sub}</span>}
+      </button>
+      {members && summary && <MembersPopover label={label} names={members} summary={summary} />}
+      {!members && summary && <span className="text-xs text-gray-500">{summary}</span>}
+      {badge && <span className="inline-flex rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600">{badge}</span>}
+    </div>
+  );
+};
 
 export default AdminRolesPage;

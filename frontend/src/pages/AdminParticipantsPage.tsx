@@ -22,6 +22,7 @@ import AppSelect from '../components/AppSelect';
 import FilterBar, { describeFilters, type FilterGroup, type FilterValues } from '../components/filters/FilterBar';
 import AppMultiSelect from '../components/AppMultiSelect';
 import ConfirmationModal from '../components/ConfirmationModal';
+import ConfirmReachModal from '../components/ConfirmReachModal';
 import { useToast } from '../components/Toast';
 import { REGISTRATION_STATUS_META } from '../utils/followUps';
 import { isTeenAgeRange, normaliseAgeRange, normaliseGender } from '../utils/groupingRules';
@@ -1089,6 +1090,43 @@ const AdminParticipantsContent: React.FC = () => {
     [counted]
   );
 
+  // Adults in no group, for the "Not in a group" card at the top. Teens are placed by their Teen Support's group.
+  const noGroupAdults = useMemo(
+    () => activeCounted.filter((p) => !p.groupId && !isTeen(p)),
+    [activeCounted, isTeen]
+  );
+  const noGroupTeens = useMemo(
+    () => activeCounted.filter((p) => !p.groupId && isTeen(p)).length,
+    [activeCounted, isTeen]
+  );
+  const [noGroupShowAll, setNoGroupShowAll] = useState(false);
+
+  // "Remind everyone missing details": adults whose profile is not complete. Teens have no login of their own, so they are left out.
+  const [remindOpen, setRemindOpen] = useState(false);
+  const [reminding, setReminding] = useState(false);
+  const remindTargets = useMemo(
+    () => activeCounted.filter((p) => !isTeen(p) && (completionById.get(p.id)?.percent ?? 0) < 100),
+    [activeCounted, isTeen, completionById]
+  );
+  const sendProfileReminder = async () => {
+    if (remindTargets.length === 0) return;
+    setReminding(true);
+    try {
+      await participantPushApi.notifyOrThrow(
+        remindTargets.map((p) => p.id),
+        'Please complete your profile',
+        'Some details are missing from your profile. Please open Profile and fill them in.',
+        '/me/profile',
+      );
+      toast({ message: `Reminder sent to ${remindTargets.length} ${remindTargets.length === 1 ? 'person' : 'people'}.` });
+      setRemindOpen(false);
+    } catch (err) {
+      toast({ tone: 'error', message: err instanceof Error && err.message ? `Could not send the reminder. ${err.message}` : 'Could not send the reminder. Please try again.' });
+    } finally {
+      setReminding(false);
+    }
+  };
+
   const handleArchive = async () => {
     if (!archiveTarget) return;
     const p = archiveTarget;
@@ -1263,12 +1301,40 @@ const AdminParticipantsContent: React.FC = () => {
         <p className="text-sm text-gray-500">Select or create a cohort first.</p>
       ) : (
         <>
+          {!loading && (noGroupAdults.length > 0 || noGroupTeens > 0) && (
+            <section data-wt="participants-no-group" className="surface-card mb-4 px-5 py-4 sm:px-6">
+              <h3 className="text-base font-semibold text-gray-900">Not in a group</h3>
+              <p className="mt-0.5 text-[13px] text-gray-600">
+                {noGroupAdults.length} {noGroupAdults.length === 1 ? 'person has' : 'people have'} no group yet{noGroupTeens > 0 ? `. ${noGroupTeens} ${noGroupTeens === 1 ? 'teen is' : 'teens are'} waiting for a Teen Support's group` : ''}.
+              </p>
+              {noGroupAdults.length > 0 && (
+                <ul className="mt-3 divide-y divide-gray-100">
+                  {(noGroupShowAll ? noGroupAdults : noGroupAdults.slice(0, 8)).map((p) => (
+                    <li key={p.id} className="flex items-center justify-between gap-3 py-2">
+                      <span className="min-w-0 truncate text-sm font-medium text-gray-900">{p.fullName}</span>
+                      {canEdit && (
+                        <button type="button" onClick={() => setAssigning(p)} className="flex-none rounded-2xl bg-primary px-3.5 py-1.5 text-xs font-semibold text-white active:scale-95">
+                          Add to a group
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {noGroupAdults.length > 8 && (
+                <button type="button" onClick={() => setNoGroupShowAll((v) => !v)} className="mt-2 text-xs font-semibold text-primary-dark hover:underline">
+                  {noGroupShowAll ? 'Show fewer' : `Show all ${noGroupAdults.length}`}
+                </button>
+              )}
+            </section>
+          )}
           {completionById.size > 0 && (
             <div data-wt="participants-completion" className="mb-4">
               <ProfileCompletionCard
                 participants={activeCounted}
                 completionById={completionById}
                 teenGroupIds={teenGroupIds}
+                onRemind={canEdit ? () => setRemindOpen(true) : undefined}
                 onShowIncomplete={(scope) => {
                   // The card counts active people, so land on the active list with the same adults / teens choice.
                   setShowArchived(false);
@@ -1502,6 +1568,17 @@ const AdminParticipantsContent: React.FC = () => {
       {exportOpen && (
         <ParticipantsExportPopup participants={displayed} cohortName={activeCohort?.name ?? 'Cohort'} subtitle={exportSubtitle} onClose={() => setExportOpen(false)} />
       )}
+
+      <ConfirmReachModal
+        isOpen={remindOpen}
+        onClose={() => setRemindOpen(false)}
+        onConfirm={() => void sendProfileReminder()}
+        title="Remind everyone missing details?"
+        message="They get a message in the app, and a phone alert if they have alerts on, asking them to complete their profile. Only adults with an incomplete profile are included; teens have no login of their own."
+        names={remindTargets.map((p) => p.fullName)}
+        confirmText="Send reminder"
+        busy={reminding}
+      />
 
       <AssignGroupModal
         participant={assigning}

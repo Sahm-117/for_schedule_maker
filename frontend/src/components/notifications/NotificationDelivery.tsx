@@ -215,6 +215,17 @@ const NotificationDelivery: React.FC = () => {
       && (!q || s.title.toLowerCase().includes(q) || s.body.toLowerCase().includes(q)));
   }, [sends, audience, query]);
 
+  // The list grouped by type (Reminder, Follow-up, Push...), the group with the newest send first.
+  const groups = useMemo(() => {
+    const byType = new Map<string, NotificationSend[]>();
+    shown.forEach((s) => {
+      const label = typeLabel(s);
+      byType.set(label, [...(byType.get(label) ?? []), s]);
+    });
+    const latest = (list: NotificationSend[]) => Math.max(...list.map((s) => new Date(s.sentAt).getTime()));
+    return [...byType.entries()].map(([label, list]) => ({ label, list })).sort((a, b) => latest(b.list) - latest(a.list));
+  }, [shown]);
+
   const totals = useMemo(() => {
     const tracked = shown.filter((s) => s.tracked);
     const sent = tracked.reduce((n, s) => n + s.recipients, 0);
@@ -276,24 +287,39 @@ const NotificationDelivery: React.FC = () => {
                 <p className="mx-auto mt-2 max-w-[34ch] text-[15px] leading-[1.55] text-gray-500">Nothing matches that in the last {days} days.</p>
               </section>
             ) : (
-              <ul className={`${SURFACE} divide-y divide-[#f0f0f2] overflow-hidden`}>
-                {shown.map((s) => (
-                  <li key={sendKey(s)}>
-                    <button type="button" onClick={() => setOpen(s)} className="flex w-full items-center gap-4 px-5 py-4 text-left transition hover:bg-[#fafafa] sm:px-6">
-                      <span className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-                      <span className="min-w-0 flex-1">
-                        <span className="line-clamp-2 block text-[16px] font-semibold leading-snug text-gray-900">{s.title}</span>
-                        <span className="mt-0.5 block text-[13px] text-gray-500">
-                          {typeLabel(s)} · {fmtWhen(s.sentAt)} · {s.recipients} {s.source === 'PARTICIPANT' ? (s.recipients === 1 ? 'participant' : 'participants') : s.recipients === 1 ? 'person' : 'people'}
-                        </span>
-                      </span>
-                      <span className="w-full max-w-[220px] flex-none sm:w-[132px]"><ReadMeter send={s} /></span>
-                      </span>
-                      <Chevron />
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <div className="flex flex-col gap-5">
+                {groups.map((g) => {
+                  const nobody = g.list.filter((s) => s.recipients === 0).length;
+                  return (
+                    <section key={g.label} aria-label={g.label}>
+                      <div className="mb-2 flex items-center gap-2 px-2">
+                        <h3 className="text-[13px] font-semibold uppercase tracking-wide text-gray-500">{g.label}</h3>
+                        <span className="rounded-full bg-[#f2f2f4] px-2 py-0.5 text-[11px] font-semibold tabular-nums text-gray-600">{g.list.length}</span>
+                        {nobody > 0 && <span className="rounded-full bg-amber-100/80 px-2 py-0.5 text-[11px] font-semibold text-amber-700">{nobody} sent to nobody</span>}
+                      </div>
+                      <ul className={`${SURFACE} divide-y divide-[#f0f0f2] overflow-hidden`}>
+                        {g.list.map((s) => (
+                          <li key={sendKey(s)}>
+                            <button type="button" onClick={() => setOpen(s)} className="flex w-full items-center gap-4 px-5 py-4 text-left transition hover:bg-[#fafafa] sm:px-6">
+                              <span className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+                              <span className="min-w-0 flex-1">
+                                <span className="line-clamp-2 block text-[16px] font-semibold leading-snug text-gray-900">{s.title}</span>
+                                <span className="mt-0.5 block text-[13px] text-gray-500">
+                                  {typeLabel(s)} · {fmtWhen(s.sentAt)} · {s.recipients} {s.source === 'PARTICIPANT' ? (s.recipients === 1 ? 'participant' : 'participants') : s.recipients === 1 ? 'person' : 'people'}
+                                  {s.recipients === 0 && <span className="ml-2 inline-flex rounded-full bg-amber-100/80 px-2 py-0.5 text-[11px] font-semibold text-amber-700">Sent to 0 people</span>}
+                                </span>
+                              </span>
+                              <span className="w-full max-w-[220px] flex-none sm:w-[132px]"><ReadMeter send={s} /></span>
+                              </span>
+                              <Chevron />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  );
+                })}
+              </div>
             )}
           </div>
         </>

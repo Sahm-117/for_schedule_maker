@@ -1,8 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { NavLink } from 'react-router-dom';
 import type { FollowUpContact, Participant } from '../../types';
 import { participantPushApi, participantsApi } from '../../services/api';
 import { computeRegistrationOverview, type PeopleBlock, type PendingReason, type RegistrationOverview, type TeenBlock } from '../../utils/registrationOverview';
 import { VitalTile } from '../dashboard/DashboardParts';
+import ModalShell from './ModalShell';
+import LoginDetailsCard from '../participants/LoginDetailsCard';
+import { firstNameOf } from '../../utils/people';
 
 // The registration numbers, adults and teens apart, counted from people (see utils/registrationOverview).
 // Shown on the admin Dashboard and on Follow-ups → Overview.
@@ -68,6 +72,49 @@ const Block: React.FC<{ title: string; block: PeopleBlock; reasons: PendingReaso
   </section>
 );
 
+// Adults registered but not signed in, each with "Resend login": opens their login message (the same card
+// as on their profile) to copy or send in WhatsApp or by email. Nothing is sent from here, and people who
+// cannot be reached (No response, next cohort, stopped) are left out.
+const ResendLoginList: React.FC<{ people: PeopleBlock['pendingPeople'] }> = ({ people }) => {
+  const [open, setOpen] = useState(false);
+  const [target, setTarget] = useState<PeopleBlock['pendingPeople'][number] | null>(null);
+  if (people.length === 0) return null;
+  return (
+    <section className="surface-card px-5 py-4" aria-label="Resend login">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-semibold text-gray-900">
+          {people.length} {people.length === 1 ? 'adult has' : 'adults have'} not signed in yet
+          <span className="ml-2 text-xs font-normal text-gray-500">Resend their login by WhatsApp or email</span>
+        </p>
+        <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="text-xs font-semibold text-primary-dark hover:underline">
+          {open ? 'Hide who' : 'Show who'}
+        </button>
+      </div>
+      {open && (
+        <ul className="mt-3 divide-y divide-gray-100">
+          {people.map((p) => (
+            <li key={p.id} className="flex items-center justify-between gap-3 py-2">
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-medium text-gray-900">{p.name}</span>
+                <span className="block text-[11px] text-gray-500">{REASON_LABEL[p.reason]}</span>
+              </span>
+              <button type="button" onClick={() => setTarget(p)} className="flex-none rounded-2xl bg-primary px-3.5 py-1.5 text-xs font-semibold text-white active:scale-95">Resend login</button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <ModalShell
+        isOpen={!!target}
+        onClose={() => setTarget(null)}
+        title="Resend login"
+        subtitle={target ? `Send ${firstNameOf(target.name)} their login details. Nothing goes out until you send it.` : undefined}
+      >
+        {target && <LoginDetailsCard participantId={target.id} email={target.email} defaultOpen />}
+      </ModalShell>
+    </section>
+  );
+};
+
 // Teens get no login details: they are Onboarded by their Teen Support, No response, or still being followed up.
 const TeenCards: React.FC<{ block: TeenBlock; notRegisteredLink?: string }> = ({ block, notRegisteredLink }) => (
   <section aria-label="Teens">
@@ -108,7 +155,9 @@ const RegistrationOverviewCards: React.FC<{
   target?: number | null;
   /** Called with the figures once they are known, and with null while they are loading or could not be loaded. */
   onOverview?: (overview: RegistrationOverview | null) => void;
-}> = ({ cohortId, contacts, target, onOverview }) => {
+  /** Lists the adults who have not signed in with "Resend login" (admin Follow-ups only). */
+  resendLogin?: boolean;
+}> = ({ cohortId, contacts, target, onOverview, resendLogin = false }) => {
   const [people, setPeople] = useState<{ participants: Participant[]; signedIn: Set<string> } | null>(null);
   const [failed, setFailed] = useState(false);
   const request = useRef(0);
@@ -160,7 +209,7 @@ const RegistrationOverviewCards: React.FC<{
   }
   if (!overview) return <div className="surface-card p-5 text-sm text-gray-500">Counting who has registered and signed in…</div>;
 
-  const { adults, teens, total } = overview;
+  const { adults, teens, total, wrongNumberPeople } = overview;
   const unlinked = adults.unlinked + teens.unlinked;
   const wrongNumber = adults.wrongNumber + teens.wrongNumber;
   // The contact list is not split by age, so each tile only links to it when the other tile is empty.
@@ -181,9 +230,17 @@ const RegistrationOverviewCards: React.FC<{
       {wrongNumber > 0 && (
         <p className="rounded-2xl bg-rose-100/80 px-3 py-2 text-[12px] text-rose-700">
           {wrongNumber} registered {wrongNumber === 1 ? 'person has' : 'people have'} a wrong number, so they are not counted above. They are counted again once a correct number is added.
+          {wrongNumberPeople.length > 0 && (
+            <span className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
+              {wrongNumberPeople.map((p) => (
+                <NavLink key={p.id} to={`/participants/${p.id}`} className="font-semibold underline underline-offset-2 hover:text-rose-900">{p.name}</NavLink>
+              ))}
+            </span>
+          )}
         </p>
       )}
       <Block title="Adults" block={adults} reasons={ADULT_REASONS} unit="adult" notRegisteredLink={teens.notRegistered === 0 ? link : undefined} />
+      {resendLogin && <ResendLoginList people={adults.pendingPeople.filter((p) => p.reason !== 'parked')} />}
       <TeenCards block={teens} notRegisteredLink={adults.notRegistered === 0 ? link : undefined} />
     </div>
   );

@@ -9,7 +9,7 @@ import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
 import { useToast } from '../components/Toast';
 import { useAppData } from '../context/AppDataContext';
-import { faithProjectsApi, faithProjectCategoriesApi, faithProjectSettingsApi, faithHelpRequestsApi, testimoniesApi, participantsApi, groupsApi } from '../services/api';
+import { announcementsApi, faithProjectsApi, faithProjectCategoriesApi, faithProjectSettingsApi, faithHelpRequestsApi, testimoniesApi, participantsApi, groupsApi } from '../services/api';
 import { FAITH_HELP_REASON_LABELS } from '../types';
 import type { FaithHelpRequest, FaithProject, FaithProjectCategory, FaithProjectSettings, FaithProjectStatus, FaithProjectVersion, Group, Participant, Testimony, TestimonyStatus } from '../types';
 import AppSelect from '../components/AppSelect';
@@ -21,6 +21,7 @@ import FaithProjectSettingsModal from '../components/faithProjects/FaithProjectS
 import { sortByText } from '../utils/sort';
 import { FAITH_PROJECT_STATUS_LABEL } from '../utils/participantApp';
 import Spinner from '../components/Spinner';
+import ConfirmationModal from '../components/ConfirmationModal';
 
 const STATUS_OPTIONS: Array<{ value: FaithProjectStatus; label: string; cls: string }> = [
   { value: 'NOT_DRAFTED', label: FAITH_PROJECT_STATUS_LABEL.NOT_DRAFTED, cls: 'bg-neutral-100 text-neutral-600' },
@@ -29,6 +30,8 @@ const STATUS_OPTIONS: Array<{ value: FaithProjectStatus; label: string; cls: str
 
 const statusLabel = (s: FaithProjectStatus) => STATUS_OPTIONS.find((o) => o.value === s)?.label ?? s;
 const statusCls = (s: FaithProjectStatus) => STATUS_OPTIONS.find((o) => o.value === s)?.cls ?? 'bg-neutral-100 text-neutral-600';
+
+const OVERDUE_CLS = 'bg-amber-100/80 text-amber-700';
 
 const formatReviewDate = (iso: string) =>
   new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(iso));
@@ -233,6 +236,8 @@ const AdminFaithProjectsPage: React.FC = () => {
 
 const AdminFaithProjectsContent: React.FC = () => {
   const { activeCohort, liveRevision } = useAppData();
+  const { user } = useAuth();
+  const showToast = useToast();
   const { can } = usePermissions();
   const canEdit = can('participants', 'edit');
   const [searchParams] = useSearchParams();
@@ -257,6 +262,10 @@ const AdminFaithProjectsContent: React.FC = () => {
   );
   const [testimonies, setTestimonies] = useState<Testimony[]>([]);
   const [openHelpRequests, setOpenHelpRequests] = useState<FaithHelpRequest[]>([]);
+  const [supportFilter, setSupportFilter] = useState('');
+  const [overdueOnly, setOverdueOnly] = useState(false);
+  const [remindOpen, setRemindOpen] = useState(false);
+  const [reminding, setReminding] = useState(false);
 
   const load = useCallback(async () => {
     if (!activeCohort) { setLoading(false); return; }
@@ -300,6 +309,16 @@ const AdminFaithProjectsContent: React.FC = () => {
     return map;
   }, [groups]);
 
+  // Past the write-by date with nothing saved yet.
+  const deadlinePassed = !!settings?.deadlineAt && new Date(settings.deadlineAt).getTime() < Date.now();
+  const isOverdue = (p: Participant) => deadlinePassed && (projectByParticipant.get(p.id)?.status ?? 'NOT_DRAFTED') === 'NOT_DRAFTED';
+  const supportOf = (p: Participant) => (p.groupId ? groupById.get(p.groupId) : undefined)?.supportId ?? null;
+  const supportOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    groups.forEach((g) => { if (g.supportId && g.supportName) seen.set(g.supportId, g.supportName); });
+    return [...seen.entries()].sort((a, b) => a[1].localeCompare(b[1])).map(([value, label]) => ({ value, label }));
+  }, [groups]);
+
   // Does this person fit one chosen choice of one filter group?
   const fits = (group: string, choice: string, p: Participant): boolean => {
     switch (group) {
@@ -311,13 +330,15 @@ const AdminFaithProjectsContent: React.FC = () => {
   };
   const displayed = useMemo(() => {
     let ps = participants.filter((p) => Object.entries(filters).every(([group, choices]) => choices.length === 0 || choices.some((c) => fits(group, c, p))));
+    if (supportFilter) ps = ps.filter((p) => supportOf(p) === supportFilter);
+    if (overdueOnly) ps = ps.filter(isOverdue);
     if (search.trim()) {
       const q = search.toLowerCase();
       ps = ps.filter((p) => p.fullName.toLowerCase().includes(q));
     }
     return sortByText(ps, (participant) => participant.fullName);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [participants, filters, search, projectByParticipant]);
+  }, [participants, filters, search, projectByParticipant, supportFilter, overdueOnly, deadlinePassed, groupById]);
   const filterGroups: FilterGroup[] = (() => {
     const opt = (group: string, value: string, label: string) => ({ value, label, count: participants.filter((p) => fits(group, value, p)).length });
     const out: FilterGroup[] = [{
@@ -344,6 +365,46 @@ const AdminFaithProjectsContent: React.FC = () => {
     });
     return c;
   }, [participants, projectByParticipant]);
+
+  const overdueCount = participants.filter((p) => isOverdue(p) && (!supportFilter || supportOf(p) === supportFilter)).length;
+
+  // Who "Remind supports" reaches: the support of every overdue person on screen (a group with no support has nobody to remind).
+  const remindTargets = (() => {
+    const byId = new Map<string, { name: string; people: number }>();
+    displayed.filter(isOverdue).forEach((p) => {
+      const g = p.groupId ? groupById.get(p.groupId) : undefined;
+      if (!g?.supportId) return;
+      const entry = byId.get(g.supportId) ?? { name: g.supportName ?? 'Support', people: 0 };
+      entry.people += 1;
+      byId.set(g.supportId, entry);
+    });
+    return [...byId.entries()].map(([id, v]) => ({ id, ...v })).sort((a, b) => a.name.localeCompare(b.name));
+  })();
+
+  const remindSupports = async () => {
+    if (!user || remindTargets.length === 0) return;
+    const ids = remindTargets.map((t) => t.id);
+    setReminding(true);
+    try {
+      await announcementsApi.send(
+        'Faith projects: a reminder',
+        `The write-it-by date${settings?.deadlineAt ? ` (${formatReviewDate(settings.deadlineAt)})` : ''} has passed and some people in your group have not written their faith project yet. Please check in with them this week.`,
+        user.id,
+        {
+          scope: activeCohort ? 'ACTIVE_COHORT' : 'ALL_USERS',
+          cohortId: activeCohort?.id ?? null,
+          audience: 'SUPPORTS',
+          ...(ids.length === 1 ? { targetUserId: ids[0] } : { targetUserIds: ids }),
+        },
+      );
+      showToast({ message: `Reminder sent to ${ids.length} support${ids.length === 1 ? '' : 's'}` });
+      setRemindOpen(false);
+    } catch (err) {
+      showToast({ tone: 'error', message: err instanceof Error ? err.message : 'Could not send the reminder.' });
+    } finally {
+      setReminding(false);
+    }
+  };
 
   const openProject = (p: Participant, fp: FaithProject | null) => setOpenTarget({ participant: p, project: fp });
 
@@ -374,7 +435,7 @@ const AdminFaithProjectsContent: React.FC = () => {
             <SegmentedTabs
               tabs={[
                 { key: 'projects', label: 'Faith projects' },
-                { key: 'testimonies', label: `Testimonies${testimonies.filter((t) => t.status === 'PENDING').length > 0 ? ` (${testimonies.filter((t) => t.status === 'PENDING').length})` : ''}` },
+                { key: 'testimonies', label: `Testimonies${testimonies.length > 0 ? ` (${testimonies.length})` : ''}` },
               ]}
               active={pageTab}
               onChange={(k) => setPageTab(k as typeof pageTab)}
@@ -404,6 +465,43 @@ const AdminFaithProjectsContent: React.FC = () => {
                   {opt.label} <span className="ml-1 opacity-70">{counts[opt.value] ?? 0}</span>
                 </button>
               ))}
+              {deadlinePassed && overdueCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setOverdueOnly((prev) => !prev)}
+                  aria-pressed={overdueOnly}
+                  className={`rounded-2xl px-4 py-2.5 text-sm font-semibold transition active:scale-95 ${
+                    overdueOnly ? OVERDUE_CLS + ' ring-2 ring-offset-1 ring-primary/30' : 'border border-gray-100 bg-white text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  Overdue <span className="ml-1 opacity-70">{overdueCount}</span>
+                </button>
+              )}
+            </div>
+          )}
+
+          {supportOptions.length > 0 && (
+            <div className="mb-4 max-w-xs">
+              <AppSelect
+                compact
+                value={supportFilter}
+                onChange={setSupportFilter}
+                options={[{ value: '', label: 'All supports' }, ...supportOptions]}
+                placeholder="All supports"
+              />
+            </div>
+          )}
+
+          {overdueOnly && (
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-amber-100/60 px-4 py-3">
+              <p className="text-sm font-medium text-amber-800">
+                {displayed.length} {displayed.length === 1 ? 'person has' : 'people have'} not started and the write-it-by date has passed.
+              </p>
+              {canEdit && remindTargets.length > 0 && (
+                <button type="button" onClick={() => setRemindOpen(true)} className="inline-flex h-9 items-center rounded-xl bg-primary px-3 text-xs font-semibold text-white hover:bg-primary-dark">
+                  Remind supports
+                </button>
+              )}
             </div>
           )}
 
@@ -458,8 +556,8 @@ const AdminFaithProjectsContent: React.FC = () => {
                         <span className="block line-clamp-2 text-[15px] font-semibold leading-tight text-gray-900">{p.fullName}</span>
                         <span className="block truncate text-[12.5px] text-gray-500">{p.groupName ?? 'No group yet'}</span>
                       </span>
-                      <span className={`inline-flex flex-none items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold ${statusCls(s)}`}>
-                        {statusLabel(s)}
+                      <span className={`inline-flex flex-none items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold ${isOverdue(p) ? OVERDUE_CLS : statusCls(s)}`}>
+                        {isOverdue(p) ? 'Overdue' : statusLabel(s)}
                       </span>
                       <svg className="h-4 w-4 flex-none text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
                     </button>
@@ -486,8 +584,8 @@ const AdminFaithProjectsContent: React.FC = () => {
                         <td className="px-4 py-3 font-medium text-gray-900">{p.fullName}</td>
                         <td className="px-4 py-3 text-gray-500">{p.groupName ?? '—'}</td>
                         <td className="px-4 py-3">
-                          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusCls(s)}`}>
-                            {statusLabel(s)}
+                          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${isOverdue(p) ? OVERDUE_CLS : statusCls(s)}`}>
+                            {isOverdue(p) ? 'Overdue' : statusLabel(s)}
                           </span>
                           {p.prayerConsent === 'OUT' && <span className="ml-1.5 rounded-full bg-amber-100/80 px-2 py-0.5 text-[11px] font-semibold text-amber-800">Opted out of prayers</span>}
                         </td>
@@ -527,6 +625,23 @@ const AdminFaithProjectsContent: React.FC = () => {
           }}
         />
       )}
+
+      <ConfirmationModal
+        isOpen={remindOpen}
+        onClose={() => { if (!reminding) setRemindOpen(false); }}
+        onConfirm={() => { void remindSupports(); }}
+        title="Remind supports about faith projects?"
+        message={`${remindTargets.length} support${remindTargets.length === 1 ? '' : 's'} will get a reminder on their bell and phone. It also shows under Announcements.`}
+        confirmText="Send reminder"
+        type="info"
+        confirmLoading={reminding}
+      >
+        <ul className="max-h-48 space-y-1 overflow-y-auto text-sm text-gray-700">
+          {remindTargets.map((t) => (
+            <li key={t.id}>{t.name} <span className="text-gray-400">· {t.people} not started</span></li>
+          ))}
+        </ul>
+      </ConfirmationModal>
 
       {showExportPopup && (
         <FaithProjectsExportPopup

@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { usersApi, authApi, labelsApi, pushSubscriptionsApi, practiceApi } from '../services/api';
+import { usersApi, authApi, labelsApi, pushSubscriptionsApi, practiceApi, cohortsApi } from '../services/api';
 import type { User, Label } from '../types';
 import AppSelect from './AppSelect';
 import ConfirmationModal from './ConfirmationModal';
 import LabelChip from './LabelChip';
-import { formatDate, formatDateTime } from '../utils/time';
+import { formatDateTime } from '../utils/time';
 import { sortByText } from '../utils/sort';
 import { selectedFirst } from '../utils/selectedFirst';
 import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
+import { useAppData } from '../context/AppDataContext';
 import { permissionsApi } from '../services/supabase-api';
 import type { PermissionRole } from '../utils/permissions';
 import Spinner from './Spinner';
@@ -41,6 +42,12 @@ const RoleBadges: React.FC<{ user: User; customNames?: string[]; align?: 'start'
     ))}
   </span>
 );
+// "Last active" is recorded to the hour; no record at all reads "Never".
+const formatLastActiveShort = (iso: string | null | undefined): string => {
+  if (iso === undefined) return '';
+  if (!iso) return 'Never';
+  return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', hour: 'numeric', hour12: true }).format(new Date(iso));
+};
 const ROLE_LABEL: Record<string, string> = {
   ADMIN: 'Admin',
   SUPPORT: 'Support',
@@ -72,6 +79,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
 }) => {
   const { user: currentUser, isRealAdmin } = useAuth();
   const { can } = usePermissions();
+  const { activeCohort } = useAppData();
   const canEdit = can('users', 'edit');
   const canDelete = can('users', 'delete');
   // The row menu would be empty without any of these, so it is not shown.
@@ -120,6 +128,9 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const [customLoaded, setCustomLoaded] = useState(false);
   const [roleChangeCustomIds, setRoleChangeCustomIds] = useState<string[]>([]);
   const [newUserCustomIds, setNewUserCustomIds] = useState<string[]>([]);
+  // Last active (undefined = still loading, null = never) and who is in the cohort being viewed.
+  const [lastActiveById, setLastActiveById] = useState<Record<string, string | null>>({});
+  const [cohortMemberIds, setCohortMemberIds] = useState<Set<string> | null>(null);
 
   const [newUser, setNewUser] = useState({
     name: '',
@@ -141,6 +152,25 @@ const UserManagement: React.FC<UserManagementProps> = ({
       void loadCustomRoles();
     }
   }, [shouldRender, showCreateForm, showUserList, isRealAdmin]);
+
+  const activeCohortId = activeCohort?.id ?? null;
+  useEffect(() => {
+    if (!shouldRender || !showUserList || users.length === 0) return undefined;
+    let cancelled = false;
+    usersApi.getLastActiveMany(users.map((u) => u.id))
+      .then((seen) => { if (!cancelled) setLastActiveById(seen); })
+      .catch(() => { /* the column just stays blank */ });
+    return () => { cancelled = true; };
+  }, [shouldRender, showUserList, users]);
+  useEffect(() => {
+    if (!shouldRender || !showUserList || !activeCohortId) { setCohortMemberIds(null); return undefined; }
+    let cancelled = false;
+    cohortsApi.getMembers(activeCohortId)
+      .then((res) => { if (!cancelled) setCohortMemberIds(new Set(res.users.map((m) => m.id))); })
+      .catch(() => { if (!cancelled) setCohortMemberIds(null); });
+    return () => { cancelled = true; };
+  }, [shouldRender, showUserList, activeCohortId]);
+  const inCohortLabel = (userId: string) => (cohortMemberIds ? (cohortMemberIds.has(userId) ? 'Yes' : 'No') : '');
 
   const loadCustomRoles = async () => {
     try {
@@ -786,7 +816,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
                           </div>
                           <p className="text-xs text-gray-500 truncate">{user.email || user.phone}</p>
                           <p className="text-xs text-gray-400 mt-0.5">
-                            {user.createdAt ? formatDate(user.createdAt) : ''}
+                            Last active {formatLastActiveShort(lastActiveById[user.id]) || '—'}
+                            {cohortMemberIds && activeCohort ? ` · ${cohortMemberIds.has(user.id) ? 'In' : 'Not in'} ${activeCohort.name}` : ''}
                           </p>
                           {/* Roles sit under the details so several of them never squeeze the name. */}
                           <div className="mt-2"><RoleBadges user={user} customNames={customNamesFor(user.id)} align="start" /></div>
@@ -837,7 +868,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last active</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{activeCohort ? `In ${activeCohort.name}` : 'In current cohort'}</th>
                         <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                       </tr>
                     </thead>
@@ -861,7 +893,10 @@ const UserManagement: React.FC<UserManagementProps> = ({
                             <RoleBadges user={user} customNames={customNamesFor(user.id)} />
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {user.createdAt ? formatDate(user.createdAt) : 'N/A'}
+                            {formatLastActiveShort(lastActiveById[user.id]) || '—'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {inCohortLabel(user.id) || '—'}
                           </td>
                           <td className="px-6 py-4 text-right text-sm">
                             {hasRowActions && (

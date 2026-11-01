@@ -135,7 +135,7 @@ const AdminSurveysPage: React.FC = () => {
                 <span className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100">
                   <span className="block h-full rounded-full bg-primary" style={{ width: `${s.eligible ? Math.min(100, (s.answered / s.eligible) * 100) : 0}%` }} />
                 </span>
-                <span className="flex-none text-right text-[12.5px] text-gray-500">{s.answered} of {s.eligible} answered</span>
+                <span className="flex-none text-right text-[12.5px] text-gray-500">{s.state === 'SCHEDULED' && s.opensAt ? `Opens ${formatDay(s.opensAt)}` : `${s.answered} of ${s.eligible} answered`}</span>
               </div>
               <div className="mt-3 flex flex-wrap gap-2 text-[13px] font-semibold">
                 <button type="button" onClick={() => navigate(`/surveys/${s.id}`)} className="rounded-xl bg-gray-100 px-3 py-1.5 text-gray-700 hover:bg-gray-200">Results</button>

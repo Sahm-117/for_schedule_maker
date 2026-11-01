@@ -10,6 +10,8 @@ interface Props {
   teenGroupIds: Set<string>;
   /** Filters the list below to incomplete profiles, for the people the card is showing. */
   onShowIncomplete?: (scope: CompletionScope) => void;
+  /** Asks the page to message the people whose profile is not complete (the page confirms who first). */
+  onRemind?: (scope: CompletionScope) => void;
 }
 
 const Row: React.FC<{ label: string; group: CompletionGroup; strong?: boolean }> = ({ label, group, strong = false }) => {
@@ -36,7 +38,7 @@ const Row: React.FC<{ label: string; group: CompletionGroup; strong?: boolean }>
 };
 
 /** How many participant profiles are complete, for those in a group and those not, at the top of the Participants page. */
-const ProfileCompletionCard: React.FC<Props> = ({ participants, completionById, teenGroupIds, onShowIncomplete }) => {
+const ProfileCompletionCard: React.FC<Props> = ({ participants, completionById, teenGroupIds, onShowIncomplete, onRemind }) => {
   const [scope, setScope] = useState<CompletionScope>('all');
   const summary = useMemo(
     () => summariseCompletion(participants, completionById, teenGroupIds, scope),
@@ -89,7 +91,12 @@ const ProfileCompletionCard: React.FC<Props> = ({ participants, completionById, 
               </div>
               <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
                 <span>Photo, gender, age range, date of birth, occupation and any required extra questions. Email is optional and not counted.</span>
-                {onShowIncomplete && <button type="button" onClick={() => onShowIncomplete(scope)} className="font-semibold text-primary-dark hover:underline">Show who is incomplete</button>}
+                {(onShowIncomplete || onRemind) && (
+                  <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                    {onShowIncomplete && <button type="button" onClick={() => onShowIncomplete(scope)} className="font-semibold text-primary-dark hover:underline">Show who is incomplete</button>}
+                    {onRemind && <button type="button" onClick={() => onRemind(scope)} className="font-semibold text-primary-dark hover:underline">Remind everyone missing details</button>}
+                  </span>
+                )}
               </div>
             </>
           )}

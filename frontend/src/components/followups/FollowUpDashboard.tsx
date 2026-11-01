@@ -181,6 +181,7 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
   const [expanded, setExpanded] = useState<string | null>(null);
   const [target, setTarget] = useState<number | null>(null);
   // Everyone registered (adults + teens), from the overview cards, so the target shows the same total.
+  const { can } = usePermissions();
   const [registeredTotal, setRegisteredTotal] = useState<number | null>(null);
   const priorContacts = reachable.filter((c) => !c.cohortId);
   const priorCohort = { total: priorContacts.length, unassigned: priorContacts.filter((c) => !c.ownerId).length };
@@ -234,7 +235,7 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
 
       {/* Registered and logged in, adults and teens apart, counted from people (not follow-up statuses). */}
       {cohortId
-        ? <RegistrationOverviewCards cohortId={cohortId} contacts={contacts} target={target} onOverview={(o) => setRegisteredTotal(o ? o.total.registered : null)} />
+        ? <RegistrationOverviewCards cohortId={cohortId} contacts={contacts} target={target} resendLogin={can('follow_ups', 'edit')} onOverview={(o) => setRegisteredTotal(o ? o.total.registered : null)} />
         : <div className="surface-card p-5 text-sm text-gray-500">Choose a cohort to see how many have registered and logged in.</div>}
 
       {/* Contacts with no cohort are prior-cohort follow-ups shown under the

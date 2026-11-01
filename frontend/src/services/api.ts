@@ -1073,6 +1073,7 @@ export const groupPrayerStatusApi = USE_SUPABASE ? supabaseGroupPrayerStatusApi 
 
 export const hubApi = USE_SUPABASE ? supabaseHubApi : {
   async getLatestActivityAt(): Promise<string | null> { return null; },
+  async getLatestTopicAt(): Promise<string | null> { return null; },
   async getTopics(_status: 'OPEN' | 'CLOSED', _currentUserId?: string): Promise<{ topics: import('../types').HubTopic[] }> { return { topics: [] }; },
   async toggleReaction(_topicId: string, _userId: string): Promise<{ liked: boolean }> { return peopleUnavailable(); },
   async createTopic(_input: any): Promise<never> { return peopleUnavailable(); },
@@ -1171,6 +1172,7 @@ export const followUpRelatedApi = supabaseFollowUpRelatedApi;
 
 export const participantPushApi = USE_SUPABASE ? supabaseParticipantPushApi : {
   async notify(_participantIds: string[], _title: string, _body: string, _path: string): Promise<void> { return; },
+  async notifyOrThrow(_participantIds: string[], _title: string, _body: string, _path: string): Promise<{ sent: number }> { return { sent: 0 }; },
   async getUnreachableIds(): Promise<string[]> { return []; },
   async getNotInstalledIds(): Promise<string[]> { return []; },
   async getSignedInIds(_cohortId: string): Promise<string[]> { return peopleUnavailable(); },
