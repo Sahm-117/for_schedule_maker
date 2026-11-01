@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import { useAuth } from '../hooks/useAuth';
@@ -529,7 +529,11 @@ const AdminHubsPage: React.FC = () => {
   // Supports in this cohort (rule 127), so the headline can say "48 of 49 in a hub".
   const [cohortSupportIds, setCohortSupportIds] = useState<string[] | null>(null);
 
+  // Bumped on every load, so a meeting-reports response from an earlier load (or another cohort) never overwrites the latest.
+  const loadSeq = useRef(0);
+
   const load = useCallback(async () => {
+    const seq = ++loadSeq.current;
     if (!activeCohort) { setLoading(false); return; }
     setLoading(true);
     try {
@@ -550,7 +554,9 @@ const AdminHubsPage: React.FC = () => {
       setNameById(new Map(users.map((u) => [u.id, u.name])));
       setGroups(gs);
       setKinds(ks);
-      void participantNotesApi.getMeetingReports(gs.map((g) => g.id)).then((res) => setMeetingReports(res.notes)).catch(() => setMeetingReports([]));
+      void participantNotesApi.getMeetingReports(gs.map((g) => g.id))
+        .then((res) => { if (loadSeq.current === seq) setMeetingReports(res.notes); })
+        .catch(() => { if (loadSeq.current === seq) setMeetingReports([]); });
       const itSupportEntries = await Promise.all(hs.map((h) => supportHubsApi.getItSupports(h.id).then((res) => res.itSupports).catch(() => [] as HubItSupportEntry[])));
       setItSupportsByHub(Object.fromEntries(hs.map((h, i) => [h.id, itSupportEntries[i]])));
       const notedEntries = await Promise.all(hs.map((h) => supportHubsApi.getMembersWithNotes(h.id).then((res) => res.userIds).catch(() => [] as string[])));
@@ -639,8 +645,9 @@ const AdminHubsPage: React.FC = () => {
     membersByHub.set(m.hubId, [...(membersByHub.get(m.hubId) ?? []), m.userId]);
   });
   const allHubUserIds = new Set(memberships.map((m) => m.userId));
-  // Group meeting reports for the latest week that has started: per hub, how many of the groups its supports lead have one in.
-  const reportWeek = reportWeeks.length > 0 ? reportWeeks[reportWeeks.length - 1] : null;
+  // Group meeting reports for the latest week that is over (not the in-progress one, which would show every hub behind at the start of a week):
+  // per hub, how many of the groups its supports lead have one in.
+  const reportWeek = summaryWeek;
   const reportedKeys = new Set(meetingReports.filter((n) => n.groupId && n.weekId != null).map((n) => `${n.groupId}:${n.weekId}`));
   const groupReportsByHub = (hubId: string) => {
     if (!reportWeek) return null;

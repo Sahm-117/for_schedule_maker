@@ -6,13 +6,13 @@ import Spinner from '../Spinner';
 // "Copy a standard week into every week": takes chosen activities from the week on screen (recap, check-ins,
 // group meeting and the like) and adds each to the same day of the weeks chosen, one activity at a time through
 // the same create call the single Cross-Week form uses, so it only ever touches the weeks listed here (the
-// cohort's own). An activity the target day already has (same description) is left alone, never doubled.
+// cohort's own). An activity the target day already has (same description, time and period) is left alone, never doubled.
 
 const dayOrder = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const QUICK_PICKS: Array<{ key: string; label: string; test: RegExp }> = [
   { key: 'recap', label: 'Recap', test: /recap/i },
-  { key: 'checkin', label: 'Check-ins', test: /check[\s-]?ins?/i },
+  { key: 'checkin', label: 'Check-ins', test: /\bcheck[\s-]?ins?\b/i },
   { key: 'group', label: 'Group meeting', test: /group\s+meeting/i },
 ];
 
@@ -66,8 +66,9 @@ const StandardWeekCopy: React.FC<Props> = ({ weeks, currentWeek, onClose, onSave
     picked.forEach((src) => {
       const day = week.days.find((d) => d.dayName === src.dayName);
       if (!day) { plan.noDay.push(src); return; }
-      const key = `${day.id}|${norm(src.description)}`;
-      if (seen.has(key) || day.activities.some((a) => norm(a.description) === norm(src.description))) { plan.already.push(src); return; }
+      const sameActivity = (a: Activity) => norm(a.description) === norm(src.description) && a.time === src.time && a.period === src.period;
+      const key = `${day.id}|${src.time}|${src.period}|${norm(src.description)}`;
+      if (seen.has(key) || day.activities.some(sameActivity)) { plan.already.push(src); return; }
       seen.add(key);
       plan.toAdd.push(src);
     });

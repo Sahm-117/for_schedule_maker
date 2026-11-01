@@ -316,6 +316,9 @@ const LandingPage: React.FC<{ previewContent?: unknown }> = ({ previewContent })
         class: info.landingImages?.class ?? null,
       });
       setContent(resolveLandingContent(previewContent ?? info.landingContent));
+    }).catch(() => {
+      // The page still renders on its defaults; an admin's unsaved preview draft is applied over them.
+      if (!cancelled && previewContent) setContent(resolveLandingContent(previewContent));
     });
     return () => {
       cancelled = true;

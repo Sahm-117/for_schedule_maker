@@ -75,7 +75,7 @@ const AdminPlannerPage: React.FC = () => {
   const { can } = usePermissions();
   const canAdd = can('planner', 'add');
   const canEdit = can('planner', 'edit');
-  const { cohorts, reloadCohorts } = useAppData();
+  const { cohorts, activeCohort, reloadCohorts } = useAppData();
   const today = plannerToday();
   const thisYear = Number(today.slice(0, 4));
   const [view, setView] = useState<PlannerView>('year');
@@ -240,6 +240,8 @@ const AdminPlannerPage: React.FC = () => {
   const nextPlanned = plan.find((c) => c.planned) ?? null;
   // The next real cohort that hasn't had its first class yet: the one whose sign-up target the admin sets.
   const targetCohort = plan.find((c) => !c.planned && !c.test && c.classDates[0] > today) ?? null;
+  // The current cohort, when it is not that one: its target can still be set or corrected.
+  const currentTargetCohort = activeCohort ? plan.find((c) => c.key === activeCohort.id && !c.planned && !c.test && c.key !== targetCohort?.key) ?? null : null;
 
   return (
     <div className="page-content">
@@ -304,6 +306,7 @@ const AdminPlannerPage: React.FC = () => {
             )}
           </div>
 
+          {currentTargetCohort && <SignUpTargetCard cohortId={currentTargetCohort.key} cohortName={currentTargetCohort.name} />}
           {targetCohort ? (
             <SignUpTargetCard cohortId={targetCohort.key} cohortName={targetCohort.name} />
           ) : nextPlanned ? (

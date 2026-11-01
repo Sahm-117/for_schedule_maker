@@ -22,12 +22,12 @@ export const MARKER_STYLE: Record<PlannerMarker['kind'], string> = {
 };
 
 /**
- * The markers a cohort's bar carries. Shown while the cohort still has one ahead: past cohorts never ran these
- * (rules 119 and 121 are not back-filled), so their bars stay clean.
+ * The markers a cohort's bar carries: only those dated today or later, since past runs never ran these
+ * (rules 119 and 121 are not back-filled), so past markers and past cohorts' bars stay clean.
  */
 export const cohortMarkers = (cohort: PlannerCohort, today: string): PlannerMarker[] => {
   const all = [...absenceMarkers(cohort), ...checkupMarkers(cohort)];
-  return all.some((m) => m.date >= today) ? all : [];
+  return all.filter((m) => m.date >= today);
 };
 
 /** Bar colours: one calm family, with red kept for "no FOF". */

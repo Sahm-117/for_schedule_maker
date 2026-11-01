@@ -159,7 +159,7 @@ const AdminSchedulePage: React.FC = () => {
           <span
             data-testid="schedule-draft-chip"
             title="Supports cannot see activities yet."
-            className="inline-flex h-10 items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 text-sm font-semibold text-amber-700"
+            className="inline-flex h-10 items-center gap-2 rounded-full bg-amber-100/80 px-4 text-sm font-semibold text-amber-700"
           >
             <span className="h-2 w-2 rounded-full bg-amber-500" />
             {draftText}

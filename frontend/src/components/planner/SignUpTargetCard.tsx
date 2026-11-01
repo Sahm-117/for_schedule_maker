@@ -22,7 +22,7 @@ const SignUpTargetCard: React.FC<{ cohortId: string; cohortName: string }> = ({ 
     ])
       .then(([people, signedIn, contacts]) => {
         if (cancelled) return;
-        const scoped = contacts.contacts.filter((c) => !c.isTest && contactInCohortScope(c, cohortId));
+        const scoped = contacts.contacts.filter((c) => !c.isTest && contactInCohortScope(c, cohortId, cohortId));
         setRegistered(computeRegistrationOverview(people.participants, scoped, new Set(signedIn), cohortId).total.registered);
       })
       .catch(() => { if (!cancelled) setRegistered(null); });
