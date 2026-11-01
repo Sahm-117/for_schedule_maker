@@ -66,7 +66,7 @@ const SupportBar: React.FC<{ row: OwnerBreakdownRow }> = ({ row }) => {
 
 // The cohort's sign-up goal, set by the admin, with how far along it is and
 // how many are still to go. Saved per cohort.
-const MobilisationTarget: React.FC<{ cohortId: string; cohortName?: string; signedUp: number | null; onTarget?: (target: number | null) => void }> = ({ cohortId, cohortName, signedUp, onTarget }) => {
+export const MobilisationTarget: React.FC<{ cohortId: string; cohortName?: string; signedUp: number | null; onTarget?: (target: number | null) => void }> = ({ cohortId, cohortName, signedUp, onTarget }) => {
   const { can } = usePermissions();
   const canEdit = can('follow_ups', 'edit');
   const [target, setTargetState] = useState<number | null>(null);
@@ -168,7 +168,7 @@ const MobilisationTarget: React.FC<{ cohortId: string; cohortName?: string; sign
   );
 };
 
-const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: string | null; cohortName?: string; onShowUnassigned?: () => void }> = ({ contacts, cohortId, cohortName, onShowUnassigned }) => {
+const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: string | null; cohortName?: string; onShowUnassigned?: () => void }> = ({ contacts, cohortId, onShowUnassigned }) => {
   const funnel = computeFollowUpFunnel(contacts);
   // A wrong number was never a prospect we could reach, so it's left out of the
   // prospect totals below. It still shows in the Dropped tile.
@@ -180,9 +180,16 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
   const totalMet = introducers.reduce((sum, row) => sum + row.met, 0);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [target, setTarget] = useState<number | null>(null);
-  // Everyone registered (adults + teens), from the overview cards, so the target shows the same total.
+  // The sign-up target is set on the Planner, for the next cohort; here it is only read, so the numbers below can measure against it.
+  useEffect(() => {
+    if (!cohortId) { setTarget(null); return undefined; }
+    let cancelled = false;
+    settingsApi.getMobilisationTarget(cohortId)
+      .then(({ target: t }) => { if (!cancelled) setTarget(t); })
+      .catch(() => { if (!cancelled) setTarget(null); });
+    return () => { cancelled = true; };
+  }, [cohortId]);
   const { can } = usePermissions();
-  const [registeredTotal, setRegisteredTotal] = useState<number | null>(null);
   const priorContacts = reachable.filter((c) => !c.cohortId);
   const priorCohort = { total: priorContacts.length, unassigned: priorContacts.filter((c) => !c.ownerId).length };
   const currentCohortCount = reachable.length - priorCohort.total;
@@ -231,11 +238,9 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
 
   return (
     <div className="space-y-6">
-      {cohortId && <MobilisationTarget cohortId={cohortId} cohortName={cohortName} signedUp={registeredTotal} onTarget={setTarget} />}
-
       {/* Registered and logged in, adults and teens apart, counted from people (not follow-up statuses). */}
       {cohortId
-        ? <RegistrationOverviewCards cohortId={cohortId} contacts={contacts} target={target} resendLogin={can('follow_ups', 'edit')} onOverview={(o) => setRegisteredTotal(o ? o.total.registered : null)} />
+        ? <RegistrationOverviewCards cohortId={cohortId} contacts={contacts} target={target} resendLogin={can('follow_ups', 'edit')} />
         : <div className="surface-card p-5 text-sm text-gray-500">Choose a cohort to see how many have registered and logged in.</div>}
 
       {/* Contacts with no cohort are prior-cohort follow-ups shown under the

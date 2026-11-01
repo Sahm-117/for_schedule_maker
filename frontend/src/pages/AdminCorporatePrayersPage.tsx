@@ -13,6 +13,8 @@ import VersesTab from '../components/corporatePrayers/VersesTab';
 import LivePrayerTab from '../components/corporatePrayers/LivePrayerTab';
 import CoverageTab from '../components/corporatePrayers/CoverageTab';
 import PreviewTab from '../components/corporatePrayers/PreviewTab';
+import AppOverflowMenu from '../components/AppOverflowMenu';
+import CopySlotsModal from '../components/corporatePrayers/CopySlotsModal';
 import SlotEditorModal from '../components/corporatePrayers/SlotEditorModal';
 import { Notice, PRIMARY_BTN } from '../components/corporatePrayers/ui';
 
@@ -71,6 +73,7 @@ const AdminCorporatePrayersPage: React.FC = () => {
   const [error, setError] = useState('');
   const [editing, setEditing] = useState<PrayerSlot | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [copyOpen, setCopyOpen] = useState(false);
   const cohortId = activeCohort?.id ?? null;
 
   // A background refresh that fails keeps what is on the page; only the first load shows an error.
@@ -101,7 +104,10 @@ const AdminCorporatePrayersPage: React.FC = () => {
         tourId="admin:corporate-prayers"
         subtitle={activeCohort ? 'When the cohort prays together, what is prayed, and who is prayed for.' : 'No active cohort'}
         action={cohortId && overview && canAdd && (
-          <button type="button" onClick={openAdd} className={PRIMARY_BTN}>Add slot</button>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={openAdd} className={PRIMARY_BTN}>Add slot</button>
+            <AppOverflowMenu items={[{ label: 'Copy last cohort’s slots', onClick: () => setCopyOpen(true) }]} />
+          </div>
         )}
       />
       {!cohortId ? (
@@ -122,6 +128,7 @@ const AdminCorporatePrayersPage: React.FC = () => {
           {tab === 'live' && <LivePrayerTab overview={overview} onEdit={openEdit} onAdd={openAdd} />}
           {tab === 'coverage' && <CoverageTab cohortId={cohortId} overview={overview} onReload={reload} />}
           {tab === 'preview' && <PreviewTab overview={overview} cohortId={cohortId} />}
+          <CopySlotsModal isOpen={copyOpen} onClose={() => setCopyOpen(false)} cohortId={cohortId} overview={overview} onCopied={reload} />
           <SlotEditorModal isOpen={editorOpen} onClose={() => setEditorOpen(false)} cohortId={cohortId} slot={editing} hubs={overview.hubs} onSaved={reload} />
         </>
       )}

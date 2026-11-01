@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import FilterBar, { NO_CHOICES, type FilterGroup, type FilterValues } from '../components/filters/FilterBar';
 import ActivityText from '../components/ActivityText';
 import LabelChip from '../components/LabelChip';
@@ -27,6 +27,7 @@ const ActivityOverviewPage: React.FC = () => {
   const selectedDayNames = filters.day ?? NO_CHOICES;
   const selectedGroupIds = filters.tag ?? NO_CHOICES;
   const selectedUserIds = filters.person ?? NO_CHOICES;
+  const [view, setView] = useState<'support' | 'activity'>('support');
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -138,6 +139,30 @@ const ActivityOverviewPage: React.FC = () => {
     }, {});
   }, [activitySummaries]);
 
+  // A support task is a schedule activity carrying an activity tag, which is what puts it on supports' lists.
+  const hasSupportTasks = useMemo(
+    () => weeks.some((week) => week.days.some((day) => day.activities.some((activity) => (activity.labels?.length ?? 0) > 0))),
+    [weeks]
+  );
+
+  // The same summaries turned round: for each support, what they have and have not done this week.
+  const bySupport = useMemo(() => {
+    const map = new Map<string, { member: User; pending: EnrichedActivity[]; done: number }>();
+    activitySummaries.forEach(({ activity, doneSupports, pendingSupports }) => {
+      pendingSupports.forEach((member) => {
+        const row = map.get(member.id) ?? { member, pending: [], done: 0 };
+        row.pending.push(activity);
+        map.set(member.id, row);
+      });
+      doneSupports.forEach((member) => {
+        const row = map.get(member.id) ?? { member, pending: [], done: 0 };
+        row.done += 1;
+        map.set(member.id, row);
+      });
+    });
+    return [...map.values()].sort((a, b) => b.pending.length - a.pending.length || a.member.name.localeCompare(b.member.name));
+  }, [activitySummaries]);
+
   const totalAssigned = activitySummaries.reduce((sum, item) => sum + item.assignedSupports.length, 0);
   const totalCompleted = activitySummaries.reduce((sum, item) => sum + item.doneSupports.length, 0);
   // The chip groups, each choice with how many of the week's activities it matches.
@@ -172,6 +197,18 @@ const ActivityOverviewPage: React.FC = () => {
         subtitle="See who has and hasn't done their activities this week."
       />
 
+      {!hasSupportTasks ? (
+        <div className="surface-card px-6 py-12 text-center" data-testid="activity-overview-empty">
+          <p className="text-base font-semibold text-gray-900">No support tasks yet</p>
+          <p className="mx-auto mt-1 max-w-md text-sm text-gray-500">
+            An activity becomes a support task once it has an activity tag. Tag some activities on the Schedule and this page will show who has and hasn't done them.
+          </p>
+          <Link to="/schedule" className="mt-4 inline-flex h-10 items-center rounded-full bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark">
+            Go to Schedule
+          </Link>
+        </div>
+      ) : (
+      <>
       <div className="mb-6 grid gap-4 xl:grid-cols-[1.15fr_0.85fr_0.85fr]">
         <WeekSelector
           weeks={weeks}
@@ -205,14 +242,61 @@ const ActivityOverviewPage: React.FC = () => {
         </div>
       </div>
 
+      <div className="mb-4 inline-flex rounded-full bg-gray-100 p-1" role="tablist" aria-label="Group the overview">
+        {([['support', 'By support'], ['activity', 'By activity']] as const).map(([key, text]) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={view === key}
+            onClick={() => setView(key)}
+            className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${view === key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            {text}
+          </button>
+        ))}
+      </div>
+
+      {view === 'support' && selectedWeek && (
+        <div className="space-y-3" data-testid="activity-overview-by-support">
+          {bySupport.length === 0 ? (
+            <div className="surface-card p-12 text-center text-sm text-gray-500">
+              No supports are assigned to the activities in this view.
+            </div>
+          ) : bySupport.map(({ member, pending, done }) => (
+            <article key={member.id} className="surface-card px-5 py-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-base font-semibold text-gray-900">{member.name}</h3>
+                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${pending.length === 0 ? 'bg-emerald-100/80 text-emerald-700' : 'bg-amber-100/80 text-amber-700'}`}>
+                  {pending.length === 0 ? `All ${done} done` : `${pending.length} not done · ${done} done`}
+                </span>
+              </div>
+              {pending.length > 0 && (
+                <ul className="mt-3 space-y-1.5">
+                  {pending.map((activity) => (
+                    <li key={activity.id} className="flex items-start gap-2 text-sm text-gray-700">
+                      <span className="mt-1.5 h-1.5 w-1.5 flex-none rounded-full bg-amber-500" />
+                      <span className="min-w-0">
+                        <span className="font-medium text-gray-900"><ActivityText text={activity.description} /></span>
+                        <span className="text-gray-500"> · {activity.dayName} {activity.time}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </article>
+          ))}
+        </div>
+      )}
+
       <div className="space-y-6">
-        {selectedWeek && activitySummaries.length === 0 && (
+        {view === 'activity' && selectedWeek && activitySummaries.length === 0 && (
           <div className="surface-card p-12 text-center text-sm text-gray-500">
             No activities matched the current week overview filters.
           </div>
         )}
 
-        {selectedWeek && Object.entries(groupedByDay).map(([dayName, items]) => (
+        {view === 'activity' && selectedWeek && Object.entries(groupedByDay).map(([dayName, items]) => (
           <section key={dayName} className="surface-card overflow-hidden">
             <div className="border-b border-orange-100 bg-orange-50/35 px-5 py-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -257,6 +341,8 @@ const ActivityOverviewPage: React.FC = () => {
           </section>
         ))}
       </div>
+      </>
+      )}
     </div>
   );
 };

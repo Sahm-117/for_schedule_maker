@@ -51,12 +51,20 @@ const LabelChips: React.FC<{ labels: string[] }> = ({ labels }) => {
   );
 };
 
-const SnapshotBlock: React.FC<{ title: string; snapshot?: ChangeSnapshot; tone: 'before' | 'after' }> = ({
+const SnapshotBlock: React.FC<{ title: string; snapshot?: ChangeSnapshot; tone: 'before' | 'after'; emptyText: string }> = ({
   title,
   snapshot,
   tone,
+  emptyText,
 }) => {
-  if (!snapshot) return null;
+  if (!snapshot) {
+    return (
+      <div className="rounded-md border border-dashed border-gray-200 bg-white/60 p-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">{title}</p>
+        <p className="text-sm text-gray-500">{emptyText}</p>
+      </div>
+    );
+  }
 
   const classes = tone === 'before'
     ? 'bg-red-50 border-red-200'
@@ -219,10 +227,10 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
               <button
                 onClick={() => setBulkApproveOpen(true)}
                 disabled={bulkLoading}
-                className="px-2 py-1 text-xs border border-green-300 text-green-700 bg-white rounded hover:bg-green-50 disabled:opacity-50"
+                className="px-3 py-1.5 text-xs font-semibold bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
                 title="Approve all pending changes (requires confirmation)"
               >
-                Approve All
+                Approve all ({visibleChanges.length})
               </button>
               <button
                 onClick={() => setBulkRejectOpen(true)}
@@ -274,8 +282,8 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <SnapshotBlock title="Before" snapshot={preview.before} tone="before" />
-                  <SnapshotBlock title="After" snapshot={preview.after} tone="after" />
+                  <SnapshotBlock title="Before" snapshot={preview.before} tone="before" emptyText={preview.type === 'ADD' ? 'Nothing: this is a new activity.' : 'What it was was not recorded with this request.'} />
+                  <SnapshotBlock title="After" snapshot={preview.after} tone="after" emptyText={preview.type === 'DELETE' ? 'Nothing: the activity is removed.' : 'What it becomes was not recorded with this request.'} />
                 </div>
               </div>
 
@@ -360,9 +368,9 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
         isOpen={bulkApproveOpen}
         onClose={() => setBulkApproveOpen(false)}
         onConfirm={handleApproveAll}
-        title="Approve All Changes"
-        message={`This will approve and apply ${visibleChanges.length} pending change(s). Continue?`}
-        confirmText={bulkLoading ? 'Approving...' : 'Approve All'}
+        title={`Approve all ${visibleChanges.length} change${visibleChanges.length === 1 ? '' : 's'}?`}
+        message={`This approves and applies ${visibleChanges.length} request${visibleChanges.length === 1 ? '' : 's'} to the schedule, one after another, without a second look. Continue?`}
+        confirmText={bulkLoading ? 'Approving...' : `Approve all ${visibleChanges.length}`}
         confirmLoading={bulkLoading}
         type="warning"
       />

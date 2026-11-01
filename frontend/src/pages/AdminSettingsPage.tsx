@@ -859,7 +859,29 @@ const RecapTimingsCard: React.FC = () => {
   );
 };
 
+/** One plain line under a rule card: what editing it changes, and for whom. */
+const EditNote: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <p className="mt-2 px-2 text-xs leading-snug text-gray-500"><span className="font-semibold text-gray-600">If you edit this: </span>{children}</p>
+);
+
+/** Cards are grouped by who they affect; the jump list at the top scrolls to a group. */
+const SETTINGS_GROUPS = [
+  { id: 'settings-participants', label: 'Participants', blurb: 'What participants see and when they hear from the app.' },
+  { id: 'settings-supports', label: 'Supports', blurb: 'How supports are given people and what they are allowed to set.' },
+  { id: 'settings-admins', label: 'Admins', blurb: 'Tools and switches for the admin team.' },
+] as const;
+
 const AdminSettingsPage: React.FC = () => {
+  const jumpTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const groupHeading = (group: (typeof SETTINGS_GROUPS)[number]) => (
+    <div id={group.id} className="mb-3 scroll-mt-4">
+      <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500">{group.label}</h2>
+      <p className="text-xs text-gray-400">{group.blurb}</p>
+    </div>
+  );
+  // Masonry: cards flow in order, down the first column then the next, each at
+  // its own height, so a short card never leaves a hole beside a tall one.
+  const columns = 'mb-6 columns-1 gap-4 xl:columns-2';
   return (
     <div>
       <PageHeader
@@ -868,25 +890,56 @@ const AdminSettingsPage: React.FC = () => {
         subtitle="Notification timings, the support contact, programme rules, church departments and AI help."
       />
 
-      <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Programme</h2>
-      {/* Masonry: cards flow in order, down the first column then the next, each at
-          its own height, so a short card never leaves a hole beside a tall one. */}
-      <div className="mb-6 columns-1 gap-4 xl:columns-2">
-        <div data-wt="settings-rules" className="mb-4 break-inside-avoid"><ProgrammeRulesCard /></div>
-        <div data-wt="settings-timings" className="mb-4 break-inside-avoid"><RecapTimingsCard /></div>
-        <div className="mb-4 break-inside-avoid"><ReminderPausesCard /></div>
-        <div data-wt="settings-group-call-limits" className="mb-4 break-inside-avoid"><GroupCallLimitsCard /></div>
-        <div className="mb-4 break-inside-avoid"><AddOnNumberCard /></div>
-        <div data-wt="settings-ai" className="mb-4 break-inside-avoid"><AiSettingsCard /></div>
-        <div data-wt="settings-departments" className="mb-4 break-inside-avoid"><ChurchDepartmentsCard /></div>
-        <div data-wt="settings-contact" className="mb-4 break-inside-avoid"><SupportContactCard /></div>
-        <div data-wt="settings-followup-assignment" className="mb-4 break-inside-avoid"><FollowUpAssignmentSettings /></div>
-        <div data-wt="settings-teens" className="mb-4 break-inside-avoid"><TeenSettingsCard /></div>
-        <div className="mb-4 break-inside-avoid"><PracticeModeCard /></div>
+      <nav aria-label="Jump to a settings group" className="mb-5 flex flex-wrap items-center gap-2">
+        <span className="text-xs font-semibold text-gray-500">Jump to</span>
+        {SETTINGS_GROUPS.map((group) => (
+          <button key={group.id} type="button" onClick={() => jumpTo(group.id)} className="rounded-full bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200 active:scale-95">{group.label}</button>
+        ))}
+      </nav>
+
+      {groupHeading(SETTINGS_GROUPS[0])}
+      <div className={columns}>
+        <div data-wt="settings-rules" className="mb-4 break-inside-avoid"><ProgrammeRulesCard />
+          <EditNote>The Dashboard and the Participants, Supports, Groups and Follow-ups pages judge people against the new numbers straight away. These rules also cap what supports are given (see Supports below).</EditNote>
+        </div>
+        <div data-wt="settings-timings" className="mb-4 break-inside-avoid"><RecapTimingsCard />
+          <EditNote>The recap, class manual, feedback and department question reach supports and participants at the new times from now on, and the class start time changes with them.</EditNote>
+        </div>
+        <div className="mb-4 break-inside-avoid"><ReminderPausesCard />
+          <EditNote>Takes effect at once: while a switch is on, that reminder is not sent to participants or supports.</EditNote>
+        </div>
+        <div className="mb-4 break-inside-avoid"><AddOnNumberCard />
+          <EditNote>Decides whether a participant can add a family member who shares their phone number, from their Profile.</EditNote>
+        </div>
+        <div data-wt="settings-departments" className="mb-4 break-inside-avoid"><ChurchDepartmentsCard />
+          <EditNote>Changes the choices in every department dropdown. People who already chose a department keep it.</EditNote>
+        </div>
+        <div data-wt="settings-contact" className="mb-4 break-inside-avoid"><SupportContactCard />
+          <EditNote>The Need Support button, for participants and staff, opens a WhatsApp chat with the new person.</EditNote>
+        </div>
+        <div data-wt="settings-teens" className="mb-4 break-inside-avoid"><TeenSettingsCard />
+          <EditNote>Switches on or off whether anyone signing up as under 18 becomes a Teenager looked after by a Teen Support.</EditNote>
+        </div>
       </div>
 
-      <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Just for you</h2>
-      <div className="mb-6 columns-1 gap-4 xl:columns-2">
+      {groupHeading(SETTINGS_GROUPS[1])}
+      <div className={columns}>
+        <div data-wt="settings-group-call-limits" className="mb-4 break-inside-avoid"><GroupCallLimitsCard />
+          <EditNote>Changes the days and times supports can pick for their group's weekly call. Admins are not held to them.</EditNote>
+        </div>
+        <div data-wt="settings-followup-assignment" className="mb-4 break-inside-avoid"><FollowUpAssignmentSettings />
+          <EditNote>Changes when, and to which supports, new and unattended follow-up contacts are handed over automatically.</EditNote>
+        </div>
+        <div className="mb-4 break-inside-avoid"><PracticeModeCard />
+          <EditNote>On lets supports practise the app in their own made-up cohort; off takes that away. Check "View activity" first to see who is in it.</EditNote>
+        </div>
+      </div>
+
+      {groupHeading(SETTINGS_GROUPS[2])}
+      <div className={columns}>
+        <div data-wt="settings-ai" className="mb-4 break-inside-avoid"><AiSettingsCard />
+          <EditNote>Switches the AI-written end-of-FOF summaries, recap drafts and feedback themes on or off, and changes which free models are tried.</EditNote>
+        </div>
         <div className="mb-4 break-inside-avoid"><AppStatusCard /></div>
         <div className="mb-4 break-inside-avoid"><TelegramCard /></div>
         <div data-wt="settings-notifications" className="mb-4 break-inside-avoid"><NotificationSettings isOpen onClose={() => {}} embedded /></div>

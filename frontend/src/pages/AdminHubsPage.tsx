@@ -6,8 +6,8 @@ import { usePermissions } from '../hooks/usePermissions';
 import { useTeenSupportIds } from '../hooks/useTeenSupportIds';
 import TeenSupportPill from '../components/supports/TeenSupportPill';
 import { useAppData } from '../context/AppDataContext';
-import { cohortsApi, groupsApi, myHubApi, supportHubsApi, supportKindApi, supportSessionsApi, usersApi } from '../services/api';
-import type { Group, HubItSupportEntry, HubJob, HubLeadsMeeting, HubMembership, SupportAttendanceStatus, SupportHub, SupportKind, User, Week } from '../types';
+import { cohortsApi, groupsApi, myHubApi, participantNotesApi, supportHubsApi, supportKindApi, supportSessionsApi, usersApi } from '../services/api';
+import type { Group, HubItSupportEntry, HubJob, HubLeadsMeeting, HubMembership, ParticipantNote, SupportAttendanceStatus, SupportHub, SupportKind, User, Week } from '../types';
 import { HUB_JOB_INFO, sortHubJobs } from '../components/hubs/hubJobs';
 import ModalShell from '../components/followups/ModalShell';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -520,6 +520,8 @@ const AdminHubsPage: React.FC = () => {
   // A support's kind for this cohort (missing entry = PARTICIPANT_SUPPORT) — used
   // to offer only operational supports as IT-support candidates.
   const [kinds, setKinds] = useState<Record<string, SupportKind>>({});
+  // The weekly group meeting reports (Meeting Mode), for "x of y groups reported" on each hub card.
+  const [meetingReports, setMeetingReports] = useState<ParticipantNote[]>([]);
   const [search, setSearch] = useState('');
   // Filter choices (see FilterBar): hub, lead, recap, teen.
   const [filters, setFilters] = useState<FilterValues>({});
@@ -548,6 +550,7 @@ const AdminHubsPage: React.FC = () => {
       setNameById(new Map(users.map((u) => [u.id, u.name])));
       setGroups(gs);
       setKinds(ks);
+      void participantNotesApi.getMeetingReports(gs.map((g) => g.id)).then((res) => setMeetingReports(res.notes)).catch(() => setMeetingReports([]));
       const itSupportEntries = await Promise.all(hs.map((h) => supportHubsApi.getItSupports(h.id).then((res) => res.itSupports).catch(() => [] as HubItSupportEntry[])));
       setItSupportsByHub(Object.fromEntries(hs.map((h, i) => [h.id, itSupportEntries[i]])));
       const notedEntries = await Promise.all(hs.map((h) => supportHubsApi.getMembersWithNotes(h.id).then((res) => res.userIds).catch(() => [] as string[])));
@@ -636,6 +639,19 @@ const AdminHubsPage: React.FC = () => {
     membersByHub.set(m.hubId, [...(membersByHub.get(m.hubId) ?? []), m.userId]);
   });
   const allHubUserIds = new Set(memberships.map((m) => m.userId));
+  // Group meeting reports for the latest week that has started: per hub, how many of the groups its supports lead have one in.
+  const reportWeek = reportWeeks.length > 0 ? reportWeeks[reportWeeks.length - 1] : null;
+  const reportedKeys = new Set(meetingReports.filter((n) => n.groupId && n.weekId != null).map((n) => `${n.groupId}:${n.weekId}`));
+  const groupReportsByHub = (hubId: string) => {
+    if (!reportWeek) return null;
+    const hubGroups = (membersByHub.get(hubId) ?? []).map((id) => groupBySupportId.get(id)).filter((g): g is Group => !!g);
+    if (hubGroups.length === 0) return null;
+    return { weekNumber: reportWeek.weekNumber, reported: hubGroups.filter((g) => reportedKeys.has(`${g.id}:${reportWeek.id}`)).length, total: hubGroups.length };
+  };
+  // Supports flagged to keep an eye on (the ★ on a hub card), counted per hub; the hub(s) with the most.
+  const flaggedByHub = hubs.map((h) => ({ hub: h, count: (notedIdsByHub[h.id] ?? []).length }));
+  const mostFlagged = Math.max(0, ...flaggedByHub.map((f) => f.count));
+  const mostFlaggedHubs = mostFlagged > 0 ? flaggedByHub.filter((f) => f.count === mostFlagged).map((f) => f.hub.name) : [];
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -770,6 +786,11 @@ const AdminHubsPage: React.FC = () => {
         </div>
       ) : (
         <>
+          {mostFlaggedHubs.length > 0 && (
+            <p className="mb-3 px-1 text-[13px] text-gray-500">
+              Most supports flagged to keep an eye on: <span className="font-semibold text-gray-800">{mostFlaggedHubs.join(', ')}</span> ({mostFlagged} {mostFlagged === 1 ? 'support' : 'supports'}{mostFlaggedHubs.length > 1 ? ' each' : ''})
+            </p>
+          )}
           <div className="mb-4">
             <FilterBar
               groups={filterGroups}
@@ -860,6 +881,17 @@ const AdminHubsPage: React.FC = () => {
                   return (
                     <p className={`inline-flex w-fit items-center rounded-full px-2.5 py-1 text-xs font-semibold ${behind ? 'bg-amber-100/80 text-amber-700' : 'bg-emerald-100/80 text-emerald-700'}`}>
                       Week {summary.weekNumber} recap: {summary.marked} of {summary.total} marked{summary.absent > 0 ? ` · ${summary.absent} absent` : ''}
+                    </p>
+                  );
+                })()}
+
+                {memberUsers.length > 0 && (() => {
+                  const gr = groupReportsByHub(h.id);
+                  if (!gr) return null;
+                  const behind = gr.reported < gr.total;
+                  return (
+                    <p className={`inline-flex w-fit items-center rounded-full px-2.5 py-1 text-xs font-semibold ${behind ? 'bg-amber-100/80 text-amber-700' : 'bg-emerald-100/80 text-emerald-700'}`}>
+                      Week {gr.weekNumber} group meeting reports: {gr.reported} of {gr.total}
                     </p>
                   );
                 })()}

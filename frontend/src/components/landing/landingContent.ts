@@ -242,3 +242,6 @@ export function deepMerge<T>(base: T, override: unknown): T {
 export function resolveLandingContent(saved: unknown): LandingContent {
   return deepMerge(DEFAULT_LANDING_CONTENT, saved);
 }
+
+/** The session-storage key Settings > Website writes the unsaved wording to, for the preview tab it opens to read. */
+export const WEBSITE_PREVIEW_KEY = 'fof-website-preview';

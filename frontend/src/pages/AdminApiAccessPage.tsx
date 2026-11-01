@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
@@ -7,6 +7,7 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import Spinner from '../components/Spinner';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../hooks/useAuth';
+import MiniLine from '../components/charts/MiniLine';
 import { apiAccessApi, type ApiClientRow, type ApiRequestRow } from '../services/apiAccess';
 
 // Church app access: keys for other church apps to read FOF through the API (FLOW_MAP rule 118).
@@ -187,6 +188,44 @@ const Activity: React.FC<{ app: ApiClientRow; onClose: () => void }> = ({ app, o
   );
 };
 
+// Requests per day for one app, from its latest 200 requests (the most the existing activity read returns).
+// If the log holds more than that, the line starts on the oldest day it covers instead of showing false zeros.
+const TREND_DAYS = 14;
+const RequestsTrend: React.FC<{ appId: string }> = ({ appId }) => {
+  const [rows, setRows] = useState<ApiRequestRow[] | null>(null);
+  useEffect(() => {
+    let alive = true;
+    apiAccessApi.activity(appId, 200).then((r) => { if (alive) setRows(r); }).catch(() => { if (alive) setRows([]); });
+    return () => { alive = false; };
+  }, [appId]);
+  const trend = useMemo(() => {
+    if (!rows || rows.length === 0) return null;
+    const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const earliest = new Date(today); earliest.setDate(earliest.getDate() - (TREND_DAYS - 1));
+    const oldest = new Date(rows[rows.length - 1].at); oldest.setHours(0, 0, 0, 0);
+    const truncated = rows.length >= 200;
+    const start = truncated && oldest > earliest ? oldest : earliest;
+    const counts = new Map<string, number>();
+    rows.forEach((r) => { const k = dayKey(new Date(r.at)); counts.set(k, (counts.get(k) ?? 0) + 1); });
+    const points: Array<{ label: string; value: number }> = [];
+    for (const d = new Date(start); d <= today; d.setDate(d.getDate() + 1)) {
+      points.push({ label: d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }), value: counts.get(dayKey(d)) ?? 0 });
+    }
+    return { points, truncated };
+  }, [rows]);
+  if (!trend || trend.points.length < 2) return null;
+  const total = trend.points.reduce((n, p) => n + p.value, 0);
+  return (
+    <div className="mt-3">
+      <p className="text-[13px] text-gray-600">
+        Requests per day · <span className="font-semibold tabular-nums text-gray-900">{total}</span> in the {trend.truncated ? `last ${trend.points.length} days covered by its latest 200 requests` : `last ${TREND_DAYS} days`}
+      </p>
+      <MiniLine className="mt-1.5" points={trend.points} min={0} height={48} ariaLabel="Requests per day" format={(v) => `${v} ${v === 1 ? 'request' : 'requests'}`} />
+    </div>
+  );
+};
+
 const AdminApiAccessPage: React.FC = () => {
   const { isRealAdmin } = useAuth();
   const toast = useToast();
@@ -297,6 +336,7 @@ const AdminApiAccessPage: React.FC = () => {
                   <span key={s} className={`rounded-full px-2.5 py-1 text-xs font-semibold ${s === TEEN_SCOPE ? 'bg-red-50 text-red-700' : 'bg-gray-100 text-gray-700'}`}>{labelOf(s)}</span>
                 ))}
               </div>
+              {app.lastUsedAt && <RequestsTrend appId={app.id} />}
               <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-[13px] text-gray-600">
                 <span><span className="font-semibold tabular-nums text-gray-900">{app.requests7d}</span> requests this week</span>
                 {app.refused7d > 0 && <span><span className="font-semibold tabular-nums text-red-700">{app.refused7d}</span> refused</span>}

@@ -64,6 +64,37 @@ export const addDays = (iso: string, days: number) =>
 const daysBetween = (from: string, to: string) =>
   Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / DAY_MS);
 
+/** `date` plus whole months, clamped to the month's last day (as the database's `+ make_interval(months => n)` does). */
+export const addMonthsIso = (iso: string, months: number) => {
+  const total = Number(iso.slice(5, 7)) - 1 + months;
+  const year = Number(iso.slice(0, 4)) + Math.floor(total / 12);
+  const month = ((total % 12) + 12) % 12;
+  const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  const day = Math.min(Number(iso.slice(8, 10)), lastDay);
+  return new Date(Date.UTC(year, month, day)).toISOString().slice(0, 10);
+};
+
+/** A dated event on a cohort's bar that isn't a phase: the missed-class warning and move, the group leaders' check-ups. */
+export interface PlannerMarker {
+  kind: 'warning' | 'move' | 'checkup';
+  date: string;
+  label: string;
+  detail: string;
+}
+
+/**
+ * Rule 119: the Saturday before class 3 (4 pm Lagos) warns people absent for classes 1 and 2; from 4 pm on class 3's day,
+ * once its register is final, anyone absent for all three moves to the next cohort automatically.
+ */
+export const absenceMarkers = (cohort: PlannerCohort): PlannerMarker[] => {
+  const third = cohort.classDates[2];
+  if (!third) return [];
+  return [
+    { kind: 'warning', date: addDays(third, -1), label: 'Missed-class warning', detail: 'Saturday 4 pm: anyone absent for classes 1 and 2 is warned' },
+    { kind: 'move', date: third, label: 'Automatic move', detail: 'After class 3: anyone absent for all three moves to the next cohort' },
+  ];
+};
+
 export type PlannerView = 'year' | 'quarter' | 'month';
 
 /** Visible dates for the selected planner scale. Cursor stays on the first of a month. */

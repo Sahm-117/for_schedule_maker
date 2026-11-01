@@ -12,7 +12,7 @@ import {
   type PlannerEvent,
 } from '../../utils/planner';
 import type { PublicHoliday } from '../../types';
-import { EXTENSION_STRIPES, KIND_BAR, SKIPPED_WEEK, segmentTip, useTip } from './PlannerBits';
+import { EXTENSION_STRIPES, KIND_BAR, MARKER_STYLE, SKIPPED_WEEK, cohortMarkers, segmentTip, useTip } from './PlannerBits';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const LABEL_COL = 96;
@@ -124,6 +124,21 @@ const YearTimeline: React.FC<YearTimelineProps> = ({ start, end, view, plan, eve
                     </button>
                   );
                 })}
+                {cohortMarkers(cohort, today).filter((m) => m.date >= start && m.date <= end).map((m) => {
+                  const lines = [`${cohort.name} · ${m.label}`, formatPlannerDate(m.date, true, today), m.detail];
+                  return (
+                    <button
+                      key={`${m.kind}-${m.date}`}
+                      type="button"
+                      aria-label={lines.join('. ')}
+                      {...bind(lines)}
+                      className="absolute top-full z-10 flex h-4 w-4 -translate-x-1/2 items-center justify-center"
+                      style={{ left: `${periodPercent(m.date, start, end)}%` }}
+                    >
+                      <span className={`h-2 w-2 rotate-45 ${MARKER_STYLE[m.kind]}`} aria-hidden="true" />
+                    </button>
+                  );
+                })}
                 {clashes.filter((cl) => cl.cohort.key === cohort.key && cl.cls.date >= start && cl.cls.date <= end).map((cl) => (
                   <button
                     key={`${cl.event.id}-${cl.cls.date}`}
@@ -174,9 +189,11 @@ const YearTimeline: React.FC<YearTimelineProps> = ({ start, end, view, plan, eve
                     type="button"
                     aria-label={`${formatPlannerDate(h.date, true, start)}, ${h.name}`}
                     {...bind([h.name + (h.isEstimate ? ' (estimate)' : ''), `${formatPlannerDate(h.date, true, start)} · doesn’t stop FOF`])}
-                    className="absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-sky-400"
+                    className="absolute top-1/2 flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center"
                     style={{ left: `${periodPercent(h.date, start, end)}%` }}
-                  />
+                  >
+                    <span className="h-2.5 w-2.5 rounded-full bg-sky-400" aria-hidden="true" />
+                  </button>
                 ))}
               </div>
             </div>

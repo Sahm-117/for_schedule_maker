@@ -48,6 +48,7 @@ const AdminSettingsPage = lazy(() => import('./pages/AdminSettingsPage'));
 const AdminApiAccessPage = lazy(() => import('./pages/AdminApiAccessPage'));
 const AdminPracticePage = lazy(() => import('./pages/AdminPracticePage'));
 const AdminWebsitePage = lazy(() => import('./pages/AdminWebsitePage'));
+const WebsitePreviewPage = lazy(() => import('./pages/WebsitePreviewPage'));
 const AnnouncementsFeedPage = lazy(() => import('./pages/AnnouncementsFeedPage'));
 const ActivityOverviewPage = lazy(() => import('./pages/ActivityOverviewPage'));
 const CohortsPage = lazy(() => import('./pages/CohortsPage'));
@@ -140,6 +141,8 @@ function App() {
             <Route path="/me/survey/:id" element={<Suspense fallback={<RouteFallback />}><ParticipantSurveyPage /></Suspense>} />
             <Route path="/me/complete" element={<Suspense fallback={<RouteFallback />}><ParticipantCompletePage /></Suspense>} />
           </Route>
+          {/* Admin-only: the homepage with unsaved Website edits (Settings > Website > Preview). */}
+          <Route path="/website-preview" element={<ErrorBoundary><ProtectedRoute><Suspense fallback={<RouteFallback />}><WebsitePreviewPage /></Suspense></ProtectedRoute></ErrorBoundary>} />
           <Route path="/me/welcome" element={<ErrorBoundary><ProtectedRoute audience="participant"><Suspense fallback={<RouteFallback />}><ParticipantWelcomePage /></Suspense></ProtectedRoute></ErrorBoundary>} />
           <Route path="/me/setup" element={<ErrorBoundary><ProtectedRoute audience="participant"><Suspense fallback={<RouteFallback />}><ParticipantSetupPage /></Suspense></ProtectedRoute></ErrorBoundary>} />
           <Route

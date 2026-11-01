@@ -11,10 +11,11 @@ import ClassDatesSheet from '../components/planner/ClassDatesSheet';
 import CohortCard from '../components/planner/CohortCard';
 import CohortSheet from '../components/planner/CohortSheet';
 import PushBackSheet from '../components/planner/PushBackSheet';
+import SignUpTargetCard from '../components/planner/SignUpTargetCard';
 import PullForwardSheet from '../components/planner/PullForwardSheet';
 import MonthCalendar from '../components/planner/MonthCalendar';
 import YearTimeline, { runsInYear } from '../components/planner/YearTimeline';
-import { EXTENSION_STRIPES, KIND_BAR, SKIPPED_WEEK } from '../components/planner/PlannerBits';
+import { EXTENSION_STRIPES, KIND_BAR, MARKER_STYLE, SKIPPED_WEEK } from '../components/planner/PlannerBits';
 import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
 import { useAppData } from '../context/AppDataContext';
@@ -61,6 +62,12 @@ const LEGEND: Array<{ label: string; cls: string; stripes?: boolean; sunday?: bo
   { label: 'Spare week', cls: KIND_BAR.spare },
   { label: 'Sunday skipped', cls: SKIPPED_WEEK, sunday: true },
   { label: 'Classes beyond original end', cls: KIND_BAR.classes, stripes: true },
+];
+
+const MARKER_LEGEND: Array<{ label: string; kind: 'warning' | 'move' | 'checkup' }> = [
+  { label: 'Missed-class warning (Saturday before class 3)', kind: 'warning' },
+  { label: 'Automatic move (class 3)', kind: 'move' },
+  { label: 'Group leader check-ups', kind: 'checkup' },
 ];
 
 const AdminPlannerPage: React.FC = () => {
@@ -231,6 +238,8 @@ const AdminPlannerPage: React.FC = () => {
 
   // The next cohort that isn't created yet: what "Add cohort" plans.
   const nextPlanned = plan.find((c) => c.planned) ?? null;
+  // The next real cohort that hasn't had its first class yet: the one whose sign-up target the admin sets.
+  const targetCohort = plan.find((c) => !c.planned && !c.test && c.classDates[0] > today) ?? null;
 
   return (
     <div className="page-content">
@@ -295,6 +304,12 @@ const AdminPlannerPage: React.FC = () => {
             )}
           </div>
 
+          {targetCohort ? (
+            <SignUpTargetCard cohortId={targetCohort.key} cohortName={targetCohort.name} />
+          ) : nextPlanned ? (
+            <p className={`${SURFACE} p-4 text-[13px] text-gray-500`}>Sign-up target: add {nextPlanned.name} first (use Add cohort), then set its target here.</p>
+          ) : null}
+
           <section className={`${SURFACE} p-4 sm:p-5`} aria-label="Planner calendar">
             <div className="mb-4 flex flex-col gap-3 border-b border-gray-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex min-w-0 items-center justify-between gap-1 sm:justify-start">
@@ -303,7 +318,12 @@ const AdminPlannerPage: React.FC = () => {
               </div>
               <SegmentedTabs tabs={[{ key: 'year', label: 'Year' }, { key: 'quarter', label: 'Quarter' }, { key: 'month', label: 'Month' }]} active={view} onChange={(key) => setView(key as PlannerView)} className="sm:w-64" />
             </div>
-            <p className="mb-4 text-xs text-gray-500">{startCount} cohort{startCount === 1 ? '' : 's'} start{startCount === 1 ? 's' : ''} this {view}{view === 'year' ? (startCount === 3 ? ' · on track for 3' : startCount < 3 ? ' · aim is 3' : ' · more than the usual 3') : ''}</p>
+            <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+              <p className="text-xs text-gray-500">{startCount} cohort{startCount === 1 ? '' : 's'} start{startCount === 1 ? 's' : ''} this {view}{view === 'year' ? (startCount === 3 ? ' · on track for 3' : startCount < 3 ? ' · aim is 3' : ' · more than the usual 3') : ''}</p>
+              {view === 'year' && startCount < 3 && canAdd && nextPlanned && (
+                <button type="button" onClick={() => setCohortSheet({ cohort: nextPlanned, adding: true })} className="rounded-xl bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/15 active:scale-95">Plan {nextPlanned.name}</button>
+              )}
+            </div>
             {view === 'month' ? <MonthCalendar
               key={`${period.start}-${todayRequest}`}
               start={period.start}
@@ -333,6 +353,9 @@ const AdminPlannerPage: React.FC = () => {
             {view !== 'month' && <><div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 border-t border-gray-100 pt-4 text-xs font-semibold text-gray-600">
               {LEGEND.map((item) => (
                 <span key={item.label} className="flex items-center gap-1.5"><i className={`relative h-3 w-5 overflow-hidden rounded ${item.cls}`} style={item.stripes ? EXTENSION_STRIPES : undefined}>{item.sunday && <b className={`absolute inset-y-0 right-0 w-1.5 ${KIND_BAR.gap}`} />}</i>{item.label}</span>
+              ))}
+              {MARKER_LEGEND.map((item) => (
+                <span key={item.label} className="flex items-center gap-1.5"><i className={`h-2 w-2 rotate-45 ${MARKER_STYLE[item.kind]}`} />{item.label}</span>
               ))}
               {todayInPeriod && <span className="flex items-center gap-1.5"><i className="h-3 w-0.5 rounded-full bg-primary" />Today</span>}
             </div>

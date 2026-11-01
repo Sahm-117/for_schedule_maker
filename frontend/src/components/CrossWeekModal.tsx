@@ -6,6 +6,7 @@ import AppSelect from './AppSelect';
 import ActivityDescriptionToolbar from './ActivityDescriptionToolbar';
 import ActivityLabelPicker from './ActivityLabelPicker';
 import Spinner from './Spinner';
+import StandardWeekCopy from './schedule/StandardWeekCopy';
 
 interface CrossWeekModalProps {
   isOpen: boolean;
@@ -34,6 +35,8 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
   const [labels, setLabels] = useState<Label[]>([]);
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
   const [labelsLoading, setLabelsLoading] = useState(false);
+  // "One activity" is the form below; "Copy a standard week" (admin only) copies chosen activities of this week into other weeks.
+  const [mode, setMode] = useState<'single' | 'standard'>('single');
 
   useEffect(() => {
     if (!isOpen) return;
@@ -151,7 +154,7 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
       <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden">
         <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-gray-200 flex justify-between items-center">
           <h2 className="text-lg sm:text-xl font-semibold">
-            Add Cross-Week Activity
+            {mode === 'standard' ? 'Copy a standard week' : 'Add Cross-Week Activity'}
           </h2>
           <button
             onClick={onClose}
@@ -164,6 +167,26 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
           </button>
         </div>
 
+        {user?.role === 'ADMIN' && (
+          <div className="flex gap-1 border-b border-gray-200 px-4 pt-2 sm:px-6" role="tablist">
+            {([['single', 'One activity'], ['standard', 'Copy a standard week']] as const).map(([key, text]) => (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={mode === key}
+                onClick={() => setMode(key)}
+                className={`-mb-px border-b-2 px-3 py-2 text-sm font-semibold ${mode === key ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+              >
+                {text}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {mode === 'standard' && user?.role === 'ADMIN' ? (
+          <StandardWeekCopy weeks={weeks} currentWeek={currentWeek} onClose={onClose} onSave={onSave} />
+        ) : (
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
           <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6 space-y-4">
             <div>
@@ -370,6 +393,7 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
             </div>
           </div>
         </form>
+        )}
       </div>
     </div>
   );

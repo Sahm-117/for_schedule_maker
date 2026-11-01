@@ -1,6 +1,6 @@
 import type { Cohort, SupportChecklistItem, Week } from '../types';
 import { classDateIso } from './participantApp';
-import { addDays, REST_WEEKS, SPARE_WEEKS } from './planner';
+import { addDays, REST_WEEKS, SPARE_WEEKS, addMonthsIso, type PlannerCohort, type PlannerMarker } from './planner';
 import { PROGRAM_DAY_ORDER } from './schedule';
 
 /** The programme week runs Sunday to Saturday; due days follow that order. */
@@ -46,7 +46,7 @@ export interface RestWeek { number: number; start: string; end: string }
  * The rest weeks that follow a cohort: the next cycle's rest starts the day after this cohort's cycle ends (its end date, or
  * a spare week after its last class), exactly as the Planner lays them out. Each runs Monday to Sunday.
  */
-export const restWeeksAfter = (cohort: Pick<Cohort, 'startDate' | 'endDate'>, weeks: Week[]): RestWeek[] => {
+export const restWeeksAfter = (cohort: Pick<Cohort, 'startDate' | 'endDate'>, weeks: Array<Pick<Week, 'weekNumber' | 'classDate'>>): RestWeek[] => {
   if (!cohort.startDate || weeks.length === 0) return [];
   const start = cohort.startDate.slice(0, 10);
   const last = weeks.map((w) => classDateIso(start, w)).sort().pop() as string;
@@ -56,6 +56,24 @@ export const restWeeksAfter = (cohort: Pick<Cohort, 'startDate' | 'endDate'>, we
     const from = addDays(cycleEnd, 1 + 7 * i);
     return { number: i + 1, start: from, end: addDays(from, 6) };
   });
+};
+
+/**
+ * The check-up dates the Planner marks (rule 121): the task due on the last day of rest week 3, then reminders 1, 2 and 3
+ * months after rest week 3 began. Rest weeks come from `restWeeksAfter`, so they always match the Planner's own layout.
+ */
+export const checkupMarkers = (cohort: PlannerCohort): PlannerMarker[] => {
+  if (cohort.classes.length === 0) return [];
+  const rest = restWeeksAfter(
+    { startDate: cohort.classDates[0], endDate: cohort.cycleEnd },
+    cohort.classes.map((c) => ({ weekNumber: c.weekNumber, classDate: c.date })),
+  );
+  const week3 = rest[REST_WEEKS - 1];
+  if (!week3) return [];
+  return [
+    { kind: 'checkup', date: week3.end, label: 'Check-up task due', detail: `Group leaders check in with each person (rest week 3: ${formatTaskRange(week3.start, week3.end)})` },
+    ...[1, 2, 3].map((n) => ({ kind: 'checkup' as const, date: addMonthsIso(week3.start, n), label: `Check-up ${n} of 3 reminder`, detail: 'Group leaders are reminded to check in again' })),
+  ];
 };
 
 /** "Friday" for a YYYY-MM-DD day. */

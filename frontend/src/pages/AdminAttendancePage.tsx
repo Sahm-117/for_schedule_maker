@@ -16,6 +16,7 @@ import type { AttendanceFollowUpTask, AttendanceRecord, AttendanceSession, Atten
 import { getIdealWeekForCohort } from '../utils/weekFocus';
 import { sortByText } from '../utils/sort';
 import { sundayMarkAttended } from '../utils/programmeRules';
+import MiniLine from '../components/charts/MiniLine';
 
 const STATUS_DOT: Record<AttendanceStatus, string> = {
   PRESENT: 'bg-emerald-500',
@@ -60,17 +61,24 @@ const AdminAttendanceContent: React.FC = () => {
 
   const [selectedWeekId, setSelectedWeekId] = useState<number | null>(null);
   const [allWeeks, setAllWeeks] = useState(false);
-  const [weekSummaries, setWeekSummaries] = useState<Array<{ id: number; number: number; present: number; absent: number; late: number; leftEarly: number; excused: number; sent: boolean }>>([]);
+  const [weekSummaries, setWeekSummaries] = useState<Array<{ id: number; number: number; present: number; absent: number; late: number; leftEarly: number; excused: number; attended: number; sent: boolean }>>([]);
+  // Loaded only for the "All weeks" view (two reads per week), which also shows the trend line.
   useEffect(() => {
     if (!allWeeks) return;
+    if (cohortWeeks.length === 0) { setWeekSummaries([]); return; }
     let cancelled = false;
     void Promise.all(cohortWeeks.map(async (week) => {
       const [{ records }, { session }] = await Promise.all([attendanceApi.getForWeek({ weekId: week.id }), attendanceApi.getSession(week.id)]);
       const count = (status: AttendanceStatus) => records.filter((record) => record.status === status).length;
-      return { id: week.id, number: week.weekNumber, present: count('PRESENT'), absent: count('ABSENT'), late: count('LATE'), leftEarly: count('LEFT_EARLY'), excused: count('EXCUSED'), sent: !!session?.finalizedAt };
-    })).then((rows) => { if (!cancelled) setWeekSummaries(rows); });
+      return { id: week.id, number: week.weekNumber, present: count('PRESENT'), absent: count('ABSENT'), late: count('LATE'), leftEarly: count('LEFT_EARLY'), excused: count('EXCUSED'), attended: records.filter(sundayMarkAttended).length, sent: !!session?.finalizedAt };
+    })).then((rows) => { if (!cancelled) setWeekSummaries(rows); }).catch(() => { /* the trend simply stays hidden */ });
     return () => { cancelled = true; };
   }, [allWeeks, cohortWeeks]);
+  // Attended % for each finished class week. Excused is left out, so it is attended / (attended + absent).
+  const trendPoints = useMemo(() => weekSummaries
+    .filter((w) => w.sent && w.attended + w.absent > 0)
+    .sort((a, b) => a.number - b.number)
+    .map((w) => ({ label: `Week ${w.number}`, value: Math.round((w.attended / (w.attended + w.absent)) * 100) })), [weekSummaries]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   // A failed load leaves participants empty; only a successful one may say the cohort has nobody.
   const [participantsLoaded, setParticipantsLoaded] = useState(false);
@@ -278,6 +286,16 @@ const AdminAttendanceContent: React.FC = () => {
         <p className="text-sm text-gray-500">No weeks in this cohort yet.</p>
       ) : (
         <>
+          {allWeeks && trendPoints.length >= 2 && (
+            <section className="mb-4 surface-card px-4 py-3" aria-label="Attendance across weeks">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Attendance by week</p>
+                <p className="text-xs text-gray-500">Latest <span className="font-semibold text-gray-900">{trendPoints[trendPoints.length - 1].value}%</span> · finished weeks only · excused not counted</p>
+              </div>
+              <MiniLine className="mt-2" points={trendPoints} min={Math.max(0, Math.floor((Math.min(...trendPoints.map((p) => p.value)) - 10) / 10) * 10)} max={100} format={(v) => `${v}%`} ariaLabel="Attendance by week" />
+            </section>
+          )}
+
           {/* Week selector + group filter */}
           <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>

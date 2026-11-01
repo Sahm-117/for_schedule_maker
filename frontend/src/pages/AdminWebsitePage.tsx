@@ -14,6 +14,7 @@ import {
   DEFAULT_LANDING_CONTENT,
   LANDING_ICON_OPTIONS,
   resolveLandingContent,
+  WEBSITE_PREVIEW_KEY,
   type LandingContent,
   type LandingIconKey,
 } from '../components/landing/landingContent';
@@ -221,6 +222,18 @@ const AdminWebsitePage: React.FC = () => {
   };
 
   const isLocal = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
+  // Opens the homepage in a new tab with what is typed here, saved or not. The draft goes through session storage
+  // (copied into the new tab), never the database.
+  const openPreview = () => {
+    try {
+      sessionStorage.setItem(WEBSITE_PREVIEW_KEY, JSON.stringify(content));
+    } catch {
+      toast({ message: 'Could not prepare the preview in this browser.', tone: 'error' });
+      return;
+    }
+    window.open('/website-preview', '_blank');
+  };
+
   const homepageUrl = isLocal ? '/' : 'https://fof.tcnikorodu.org';
 
   return (
@@ -229,12 +242,15 @@ const AdminWebsitePage: React.FC = () => {
         title="Website"
         subtitle="Edit the words shown on the public fof.tcnikorodu.org homepage."
         action={(
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={openPreview} disabled={loading} className="rounded-2xl bg-primary px-4 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-50">Preview</button>
           <AppOverflowMenu
             items={[
               { label: 'View homepage', onClick: () => window.open(homepageUrl, '_blank', 'noopener') },
               ...(canEdit ? [{ label: 'Reset all to default', onClick: () => setResetAllOpen(true), tone: 'danger' as const }] : []),
             ]}
           />
+          </div>
         )}
       />
 

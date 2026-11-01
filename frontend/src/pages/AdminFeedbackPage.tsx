@@ -11,6 +11,7 @@ import type { ClassFeedbackWeekResult, FeedbackAnswers, FeedbackRating, Feedback
 import Spinner from '../components/Spinner';
 import { getIdealWeekNumberForCohort } from '../utils/weekFocus';
 import SegmentedTabs from '../components/SegmentedTabs';
+import MiniBars from '../components/charts/MiniBars';
 
 // Anonymous feedback participants send from their app, for the active cohort.
 // The answers show once at least five have come in, so nobody can be picked out.
@@ -351,6 +352,21 @@ const AdminFeedbackPage: React.FC = () => {
         <p className={`${CARD} text-sm text-gray-500`}>No weeks yet for this cohort.</p>
       ) : (
         <section className={CARD}>
+          <div className="mb-5">
+            <p className="text-sm font-semibold text-gray-900">Participants' average by class</p>
+            <MiniBars
+              className="mt-2"
+              max={5}
+              ariaLabel="Average participant rating for each class"
+              rows={classFeedback.map((w) => ({
+                key: String(w.weekId),
+                label: `Week ${w.weekNumber}`,
+                value: w.participants.visible && w.participants.average != null ? w.participants.average : null,
+                valueLabel: `${w.participants.average}/5 · ${w.participants.count}`,
+                note: `${w.participants.count} of 5 needed`,
+              }))}
+            />
+          </div>
           <div className="max-w-xs">
             <AppSelect value={selectedWeekId} onChange={setSelectedWeekId} options={weekOptions} placeholder="Choose a week" compact />
           </div>

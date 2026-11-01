@@ -10,6 +10,7 @@ import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
 import { labelsApi, usersApi, cohortsApi } from '../services/api';
 import AppOverflowMenu from '../components/AppOverflowMenu';
+import AppSelect from '../components/AppSelect';
 import ConfirmationModal from '../components/ConfirmationModal';
 import AdminSupportTaskModal from '../components/schedule/AdminSupportTaskModal';
 import type { Day, Label, User } from '../types';
@@ -129,21 +130,49 @@ const AdminSchedulePage: React.FC = () => {
     { key: 'person', label: 'Support person', options: filteredSupportUsers.map((member) => ({ value: member.id, label: member.name })) },
   ].filter((g) => g.options.length > 0);
 
+  // The schedule is published or not as a whole (one switch on the cohort), so what is waiting to be published
+  // is every activity in the cohort's weeks while it is a draft.
+  const unpublishedCount = React.useMemo(
+    () => weeks.reduce((sum, week) => sum + week.days.reduce((n, day) => n + day.activities.length, 0), 0),
+    [weeks]
+  );
+  const draftText = unpublishedCount === 0
+    ? 'Draft · no activities yet'
+    : `Draft · ${unpublishedCount} ${unpublishedCount === 1 ? 'activity' : 'activities'} not published`;
+
   const headerAction = canManageSchedule ? (
     <div className="flex flex-wrap items-center justify-end gap-2">
-      {isAdmin && canEdit && (
+      {isAdmin && canEdit && schedulePublished && (
         <button
           type="button"
           onClick={() => setConfirmPublishOpen(true)}
           disabled={!activeCohort || publishing}
-          title={schedulePublished ? 'Supports can see their activities. Click to unpublish.' : 'Supports cannot see activities yet. Click to publish.'}
-          className={`inline-flex h-10 items-center gap-2 rounded-full px-4 text-sm font-semibold transition disabled:opacity-60 ${
-            schedulePublished ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
-          }`}
+          title="Supports can see their activities. Click to unpublish."
+          className="inline-flex h-10 items-center gap-2 rounded-full bg-emerald-100 px-4 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-200 disabled:opacity-60"
         >
-          <span className={`h-2 w-2 rounded-full ${schedulePublished ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-          {publishing ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : schedulePublished ? 'Published' : 'Draft'}
+          <span className="h-2 w-2 rounded-full bg-emerald-500" />
+          {publishing ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Published'}
         </button>
+      )}
+      {isAdmin && canEdit && !schedulePublished && (
+        <>
+          <span
+            data-testid="schedule-draft-chip"
+            title="Supports cannot see activities yet."
+            className="inline-flex h-10 items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 text-sm font-semibold text-amber-700"
+          >
+            <span className="h-2 w-2 rounded-full bg-amber-500" />
+            {draftText}
+          </span>
+          <button
+            type="button"
+            onClick={() => setConfirmPublishOpen(true)}
+            disabled={!activeCohort || publishing}
+            className="inline-flex h-10 items-center justify-center rounded-full border border-primary bg-white px-4 text-sm font-semibold text-primary transition hover:bg-primary/5 disabled:opacity-60"
+          >
+            {publishing ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Publish'}
+          </button>
+        </>
       )}
       {selectedWeek && (
         <>
@@ -189,29 +218,42 @@ const AdminSchedulePage: React.FC = () => {
         action={headerAction}
       />
 
-      <div className="mb-6 grid gap-4 xl:grid-cols-2">
-        <div data-wt="sched-week" className="relative z-30">
-        <WeekSelector
-          weeks={weeks}
-          selectedWeek={selectedWeek}
-          compact
-          className="relative z-30"
-          onWeekSelect={(weekId) => {
-            void handleWeekSelect(weekId);
-          }}
-        />
+      {isAdmin ? (
+        <div data-wt="sched-filters" className="surface-card relative z-30 mb-6 rounded-3xl border border-gray-100 p-4">
+          <p className="mb-3 text-sm font-semibold uppercase tracking-[0.12em] text-gray-500">Week focus and activity tags</p>
+          <FilterBar
+            groups={filterGroups}
+            value={filters}
+            onChange={setFilters}
+            shown={shownActivities}
+            total={weekActivities.length}
+            noun="activities"
+            search={(
+              <div data-wt="sched-week">
+                <AppSelect
+                  value={selectedWeek ? String(selectedWeek.id) : ''}
+                  onChange={(nextValue) => { void handleWeekSelect(parseInt(nextValue, 10)); }}
+                  options={weeks.map((week) => ({ value: String(week.id), label: `Week ${week.weekNumber}`, meta: `${week.days.length} days` }))}
+                  placeholder="Select a week"
+                  compact
+                />
+              </div>
+            )}
+          />
         </div>
-        {isAdmin && (
-          <div data-wt="sched-filters" className="surface-card relative z-20 rounded-3xl border border-gray-100 p-4">
-            <p className="text-sm font-semibold uppercase tracking-[0.12em] text-gray-500">Activity tags</p>
-            <p className="mt-1 text-sm font-semibold text-gray-900">Filter assignments fast</p>
-            <p className="mt-1 text-xs text-gray-500">Show only activities with these tags, or for these people.</p>
-            <div className="mt-4">
-              <FilterBar groups={filterGroups} value={filters} onChange={setFilters} shown={shownActivities} total={weekActivities.length} noun="activities" />
-            </div>
-          </div>
-        )}
-      </div>
+      ) : (
+        <div data-wt="sched-week" className="relative z-30 mb-6">
+          <WeekSelector
+            weeks={weeks}
+            selectedWeek={selectedWeek}
+            compact
+            className="relative z-30"
+            onWeekSelect={(weekId) => {
+              void handleWeekSelect(weekId);
+            }}
+          />
+        </div>
+      )}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)]">
         <div data-wt="sched-view" className="space-y-4">

@@ -1056,15 +1056,19 @@ const setActivityLabelsBulk = async (activityIds: number[], labelIds: string[]):
   }
 };
 
+// Week numbers repeat in every cohort, so a lookup by number must stay inside the originating week's cohort.
 const resolveWeekRowsByNumbers = async (
-  weekNumbers: number[]
+  weekNumbers: number[],
+  cohortId: string | null
 ): Promise<Array<{ id: number; weekNumber: number }>> => {
   const nums = uniqNumbers(weekNumbers);
   if (nums.length === 0) return [];
-  const { data, error } = await supabase
+  let query = supabase
     .from('Week')
     .select('id, weekNumber')
     .in('weekNumber', nums);
+  query = cohortId ? query.eq('cohortId', cohortId) : query.is('cohortId', null);
+  const { data, error } = await query;
   if (error) throw new Error(error.message);
   return ((data || []) as any[]).map((w) => ({ id: w.id as number, weekNumber: w.weekNumber as number }));
 };
@@ -1103,8 +1107,8 @@ const getMaxOrderIndexByDayId = async (dayIds: number[]): Promise<Record<number,
   return maxByDay;
 };
 
-const resolveDayIdsForWeekNumbers = async (dayName: string, weekNumbers: number[]): Promise<number[]> => {
-  const weeks = await resolveWeekRowsByNumbers(weekNumbers);
+const resolveDayIdsForWeekNumbers = async (dayName: string, weekNumbers: number[], cohortId: string | null): Promise<number[]> => {
+  const weeks = await resolveWeekRowsByNumbers(weekNumbers, cohortId);
   const weekIds = weeks.map((w) => w.id);
   const days = await resolveDayRowsForWeeks(dayName, weekIds);
   return days.map((d) => d.id);
@@ -1176,7 +1180,7 @@ export const activitiesApi = {
 
       const { data: originalWeek, error: originalWeekError } = await supabase
         .from('Week')
-        .select('weekNumber')
+        .select('weekNumber, cohortId')
         .eq('id', (originalDay as any).weekId)
         .single();
 
@@ -1190,7 +1194,8 @@ export const activitiesApi = {
       ]);
 
       // Fetch all target weeks + corresponding days in bulk
-      const weekRows = await resolveWeekRowsByNumbers(weeksToApply);
+      if (originalWeekError || !originalWeek) throw new Error('Week not found');
+      const weekRows = await resolveWeekRowsByNumbers(weeksToApply, ((originalWeek as any).cohortId ?? null) as string | null);
       const dayRows = await resolveDayRowsForWeeks((originalDay as any).dayName as string, weekRows.map((w) => w.id));
 
       const dayIds = dayRows.map((d) => d.id);
@@ -1397,7 +1402,7 @@ export const activitiesApi = {
 
       const { data: originalWeek, error: originalWeekError } = await supabase
         .from('Week')
-        .select('weekNumber')
+        .select('weekNumber, cohortId')
         .eq('id', (dayRow as any).weekId)
         .single();
 
@@ -1408,7 +1413,8 @@ export const activitiesApi = {
       const weeksToApply = uniqNumbers(updateData.applyToWeeks)
         .filter((w) => (typeof originalWeekNumber === 'number' ? w !== originalWeekNumber : true));
 
-      const targetDayIds = await resolveDayIdsForWeekNumbers(resolvedDayName, weeksToApply);
+      if (originalWeekError || !originalWeek) throw new Error('Week not found');
+      const targetDayIds = await resolveDayIdsForWeekNumbers(resolvedDayName, weeksToApply, ((originalWeek as any).cohortId ?? null) as string | null);
       if (targetDayIds.length > 0) {
         const { data: matches, error: matchesError } = await supabase
           .from('Activity')
@@ -1480,7 +1486,7 @@ export const activitiesApi = {
 
       const { data: originalWeek, error: originalWeekError } = await supabase
         .from('Week')
-        .select('weekNumber')
+        .select('weekNumber, cohortId')
         .eq('id', (dayRow as any).weekId)
         .single();
 
@@ -1493,7 +1499,8 @@ export const activitiesApi = {
         ...(typeof originalWeekNumber === 'number' ? [originalWeekNumber] : []),
       ]);
 
-      const targetDayIds = await resolveDayIdsForWeekNumbers((dayRow as any).dayName as string, weekNumbers);
+      if (originalWeekError || !originalWeek) throw new Error('Week not found');
+      const targetDayIds = await resolveDayIdsForWeekNumbers((dayRow as any).dayName as string, weekNumbers, ((originalWeek as any).cohortId ?? null) as string | null);
       if (targetDayIds.length === 0) {
         throw new Error('No target days found for selected weeks/day');
       }

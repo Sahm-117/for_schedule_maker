@@ -46,8 +46,8 @@ export const apiAccessApi = {
     });
     if (error) fail(error.message);
   },
-  async activity(id: string): Promise<ApiRequestRow[]> {
-    const { data, error } = await supabase.rpc('api_admin_client_activity', { p_token: getSessionToken(), p_id: id, p_limit: 100 });
+  async activity(id: string, limit = 100): Promise<ApiRequestRow[]> {
+    const { data, error } = await supabase.rpc('api_admin_client_activity', { p_token: getSessionToken(), p_id: id, p_limit: limit });
     if (error) fail(error.message);
     return (data ?? []) as ApiRequestRow[];
   },

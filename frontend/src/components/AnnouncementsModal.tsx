@@ -29,6 +29,7 @@ const HOME_LINK_OPTIONS = [
 import ConfirmationModal from './ConfirmationModal';
 import { pickableUsers } from '../utils/testUsers';
 import { hasSupportRole } from '../utils/people';
+import RateBar from './charts/RateBar';
 
 // Home-screen link targets inside the participant app.
 const PARTICIPANT_HOME_LINK_OPTIONS = [
@@ -71,8 +72,9 @@ const PopupStatusRow: React.FC<{ announcementId: string }> = ({ announcementId }
   return (
     <div className="mt-2">
       <button type="button" onClick={() => setOpen((v) => !v)} className="inline-flex items-center gap-1.5 rounded-full bg-violet-100/80 px-2 py-0.5 text-[11px] font-semibold text-violet-700">
-        Popup{status ? ` · ${status.acknowledged} of ${status.total} said Got it` : failed ? '' : ' · …'}
+        Popup{status ? '' : failed ? '' : ' · …'}
       </button>
+      {status && <RateBar className="mt-1.5 max-w-[240px]" count={status.acknowledged} total={status.total} noun="said Got it" />}
       {open && status && (
         <p className="mt-1.5 text-[11px] leading-snug text-gray-500">
           {status.waiting.length === 0 ? 'Everyone has seen it.' : `Still waiting: ${status.waiting.join(', ')}`}

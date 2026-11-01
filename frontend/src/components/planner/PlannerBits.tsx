@@ -2,14 +2,33 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   PHASE_LABEL,
+  absenceMarkers,
   formatPlannerDate,
   formatPlannerRange,
   weeksLabel,
   type PlannerCohort,
+  type PlannerMarker,
   type PlannerSegment,
   type PlannerWeek,
   type WeekKind,
 } from '../../utils/planner';
+import { checkupMarkers } from '../../utils/checklist';
+
+/** Marker colours, kept off the bar colours and red (red means a clash). */
+export const MARKER_STYLE: Record<PlannerMarker['kind'], string> = {
+  warning: 'bg-yellow-400',
+  move: 'bg-violet-500',
+  checkup: 'bg-teal-500',
+};
+
+/**
+ * The markers a cohort's bar carries. Shown while the cohort still has one ahead: past cohorts never ran these
+ * (rules 119 and 121 are not back-filled), so their bars stay clean.
+ */
+export const cohortMarkers = (cohort: PlannerCohort, today: string): PlannerMarker[] => {
+  const all = [...absenceMarkers(cohort), ...checkupMarkers(cohort)];
+  return all.some((m) => m.date >= today) ? all : [];
+};
 
 /** Bar colours: one calm family, with red kept for "no FOF". */
 export const KIND_BAR: Record<WeekKind, string> = {

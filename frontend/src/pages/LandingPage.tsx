@@ -238,7 +238,11 @@ function useLandingScene(rootRef: React.RefObject<HTMLDivElement | null>, reduce
   return { navScrolled, navHidden, mbarOn: pastHero && !ctaVisible, activeLesson, loaded };
 }
 
-const LandingPage: React.FC = () => {
+/**
+ * `previewContent` is the admin's unsaved website wording (Settings > Website > Preview): when given it is shown in place of
+ * the saved copy. Nothing is read from or written to the database for it.
+ */
+const LandingPage: React.FC<{ previewContent?: unknown }> = ({ previewContent }) => {
   const [registrationLink, setRegistrationLink] = useState(DEFAULT_REGISTRATION_LINK);
   const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => {
@@ -311,12 +315,12 @@ const LandingPage: React.FC = () => {
         group: info.landingImages?.group ?? null,
         class: info.landingImages?.class ?? null,
       });
-      setContent(resolveLandingContent(info.landingContent));
+      setContent(resolveLandingContent(previewContent ?? info.landingContent));
     });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [previewContent]);
 
   const smoothScrollTo = (id: string) => (e: React.MouseEvent) => {
     e.preventDefault();
