@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import HomeSheet from './participantApp/HomeSheet';
-import { BIRTHDAY_QUOTES, GRAPHIC_H, GRAPHIC_W, drawBirthdayGraphic, fileName, hashOf } from '../utils/birthdayGraphic';
+import { BIRTHDAY_QUOTES, GRAPHIC_H, GRAPHIC_W, downloadFromUrl, drawBirthdayGraphic, fileName, hashOf } from '../utils/birthdayGraphic';
 import type { BirthdayPerson } from '../types';
 
 // The birthday graphic for one person: their photo and name on a fixed template, with a quote bottom left.
@@ -36,12 +36,7 @@ const BirthdayGraphicSheet: React.FC<{ person: BirthdayPerson; roleLabel: string
     const blob = blobRef.current;
     if (!blob) { setError('The picture is not ready yet.'); return; }
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName(person.name);
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    downloadFromUrl(url, fileName(person.name));
     setTimeout(() => URL.revokeObjectURL(url), 2000);
   };
 

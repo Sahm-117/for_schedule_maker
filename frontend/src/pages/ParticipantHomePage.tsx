@@ -20,7 +20,7 @@ import { useManualContent } from '../components/classManual/manuals';
 import { useAuth } from '../hooks/useAuth';
 import { useTourState } from '../context/TourContext';
 import { FEEDBACK_PROMPT_KEY } from '../constants/tours';
-import { isTeenAgeRange } from '../utils/groupingRules';
+import { isTeenAgeRange, normaliseAgeRange } from '../utils/groupingRules';
 import { useParticipantApp } from '../context/ParticipantAppContext';
 import { participantAppApi, practiceApi } from '../services/api';
 import type { OnboardingState } from '../types';
@@ -34,8 +34,10 @@ import { normalizeLink } from '../utils/links';
 import { JOIN_LEAD_MINUTES, isCallJoinable } from '../utils/joinWindow';
 import {
   FAITH_PROJECT_STATUS_LABEL,
+  classDateIso,
   currentWeekNumber,
   formatTime,
+  lagosTodayIso,
   reflectionFor,
   titleCaseDay,
   weekDayDate,
@@ -161,8 +163,12 @@ const ParticipantHomePage: React.FC = () => {
   const week = home.weeks.find((w) => w.weekNumber === shownWeekNumber) ?? null;
   // After class 3: one nudge toward the feedback page, for adults of a running cohort, until they tap either button.
   // The feedback itself is anonymous, so "already answered" cannot be known; opening the page counts as answered.
-  const showFeedbackPrompt = weekNumber >= 3 && home.cohort?.status === 'ACTIVE' && !isPractice
-    && !isTeenAgeRange(home.profile.ageRange) && hintUnseen(FEEDBACK_PROMPT_KEY);
+  // Only once class 3's Lagos date is behind us, and only for a known adult age range (unknown is not assumed adult).
+  const class3 = home.weeks.find((w) => w.weekNumber === 3);
+  const class3Over = !!class3 && !!home.cohort?.startDate && classDateIso(home.cohort.startDate, class3) < lagosTodayIso(now);
+  const ageRange = normaliseAgeRange(home.profile.ageRange);
+  const showFeedbackPrompt = class3Over && home.cohort?.status === 'ACTIVE' && !isPractice
+    && !!ageRange && !isTeenAgeRange(ageRange) && hintUnseen(FEEDBACK_PROMPT_KEY);
   const reflection = week ? reflectionFor(home.reflections, week.id) : null;
 
   // The Get ready and Still to do lists already carry "Finish your profile"; this row covers every other time.

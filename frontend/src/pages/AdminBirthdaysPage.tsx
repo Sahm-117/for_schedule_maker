@@ -164,7 +164,7 @@ const AdminBirthdaysPage: React.FC = () => {
                     <div className="mb-1.5 flex items-center justify-between gap-3 px-1">
                       <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">{group.label}</p>
                       {group.label === 'This week' && (
-                        <button type="button" onClick={() => setBatchFor(rows)} className="rounded-full bg-[#fff1e6] px-3 py-1 text-[12px] font-semibold text-[#9a4a12]">Make all this week&apos;s graphics</button>
+                        <button type="button" onClick={() => setBatchFor(all.filter((p) => group.test(p.daysUntil)))} className="rounded-full bg-[#fff1e6] px-3 py-1 text-[12px] font-semibold text-[#9a4a12]">Make all this week&apos;s graphics</button>
                       )}
                     </div>
                     <ul className="divide-y divide-gray-100 overflow-hidden rounded-2xl bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04),0_8px_24px_-12px_rgba(17,24,39,0.12)]">

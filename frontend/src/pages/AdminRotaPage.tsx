@@ -15,6 +15,7 @@ import {
   describeOwners,
   isGroupSupportLabel,
   type LabelOwners,
+  type RotaCell,
 } from '../utils/rotaGrid';
 import AppSelect from '../components/AppSelect';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -42,6 +43,7 @@ const AdminRotaPage: React.FC = () => {
   const [fillDutyId, setFillDutyId] = useState('');
   const [fillLabelId, setFillLabelId] = useState('');
   const [fillConfirmOpen, setFillConfirmOpen] = useState(false);
+  const [fillProgress, setFillProgress] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -144,44 +146,64 @@ const AdminRotaPage: React.FC = () => {
     }
   };
 
-  // Every week's cell for the chosen duty that has a matching activity and isn't already that person's alone.
-  const fillTargets = useMemo(() => {
-    if (!fillDutyId || !fillLabelId) return [];
-    return sortedWeeks
-      .map((week) => grid.get(cellKey(fillDutyId, week.id)))
-      .filter((cell): cell is NonNullable<typeof cell> => {
-        if (!cell || cell.state === 'empty') return false;
+  // Every week's cell for the chosen duty that has a matching activity, split into those that still need
+  // writing and those already that person's alone (nothing to write, but any staged edit there is moot).
+  const { fillTargets, fillAlreadyDone, fillSkipped } = useMemo(() => {
+    const targets: RotaCell[] = [];
+    const already: RotaCell[] = [];
+    // A week whose activities also carry other (non-group) labels is left for Review & apply, which warns about them;
+    // a bulk write would either drop those labels or copy them onto activities that never had them.
+    const skipped: RotaCell[] = [];
+    if (fillDutyId && fillLabelId) {
+      for (const week of sortedWeeks) {
+        const cell = grid.get(cellKey(fillDutyId, week.id));
+        if (!cell || cell.state === 'empty') continue;
         const alreadyThem =
           cell.state === 'assigned' && cell.groupLabels.length === 1 && cell.groupLabels[0].label.id === fillLabelId;
-        return !alreadyThem;
-      });
+        if (alreadyThem) already.push(cell);
+        else if (cell.foreignLabels.length > 0) skipped.push(cell);
+        else targets.push(cell);
+      }
+    }
+    return { fillTargets: targets, fillAlreadyDone: already, fillSkipped: skipped };
   }, [fillDutyId, fillLabelId, sortedWeeks, grid]);
 
   const handleFillEveryWeek = async () => {
+    // The confirm box closes itself the moment it is clicked, so progress shows on the page instead.
     setApplying(true);
     setError('');
+    setNotice('');
     const failed: string[] = [];
-    let done = 0;
-    // Same save call and same one-by-one loop as the review flow above.
-    for (const cell of fillTargets) {
-      try {
-        await activitiesApi.setLabelsForActivities(cell.activityIds, [fillLabelId]);
-        done++;
-      } catch (err) {
-        failed.push(`Week ${cell.weekNumber}: ${err instanceof Error ? err.message : 'failed'}`);
+    const written: RotaCell[] = [];
+    try {
+      // Same save call and same one-by-one loop as the review flow above. Non-duty labels on a cell are kept.
+      for (const [i, cell] of fillTargets.entries()) {
+        setFillProgress(`Filling week ${cell.weekNumber} (${i + 1} of ${fillTargets.length})...`);
+        try {
+          await activitiesApi.setLabelsForActivities(cell.activityIds, [fillLabelId]);
+          written.push(cell);
+        } catch (err) {
+          failed.push(`Week ${cell.weekNumber}: ${err instanceof Error ? err.message : 'failed'}`);
+        }
       }
+      try {
+        await reloadWeeks();
+      } catch (err) {
+        failed.push(`Could not refresh the grid: ${err instanceof Error ? err.message : 'failed'}`);
+      }
+      // Anything staged for cells just written, or already that person's, is now out of date.
+      setStaged((prev) => {
+        const next = new Map(prev);
+        for (const cell of [...written, ...fillAlreadyDone]) next.delete(cellKey(cell.dutyId, cell.weekId));
+        return next;
+      });
+      if (failed.length > 0) setError(`${written.length} weeks filled, ${failed.length} failed. ${failed.join('; ')}`);
+      else setNotice(`${written.length} ${written.length === 1 ? 'week' : 'weeks'} filled.`);
+    } finally {
+      setFillProgress('');
+      setApplying(false);
+      setFillConfirmOpen(false);
     }
-    await reloadWeeks();
-    // Anything staged for the cells just written is now out of date.
-    setStaged((prev) => {
-      const next = new Map(prev);
-      for (const cell of fillTargets) next.delete(cellKey(cell.dutyId, cell.weekId));
-      return next;
-    });
-    setApplying(false);
-    setFillConfirmOpen(false);
-    if (failed.length > 0) setError(`${done} weeks filled, ${failed.length} failed. ${failed.join('; ')}`);
-    else setNotice(`${done} ${done === 1 ? 'week' : 'weeks'} filled.`);
   };
 
   const fillDutyName = ROTA_DUTIES.find((d) => d.id === fillDutyId)?.name || '';
@@ -255,9 +277,10 @@ const AdminRotaPage: React.FC = () => {
                   onClick={() => setFillConfirmOpen(true)}
                   className="rounded-xl bg-[var(--color-primary,#f97316)] px-4 py-2 text-[13px] font-semibold text-white disabled:opacity-40"
                 >
-                  Fill every week
+                  {fillProgress ? 'Filling...' : 'Fill every week'}
                 </button>
               </div>
+              {fillProgress && <p className="mt-2 text-[12px] font-medium text-gray-600">{fillProgress}</p>}
             </div>
           )}
 
@@ -307,7 +330,7 @@ const AdminRotaPage: React.FC = () => {
         onClose={() => setFillConfirmOpen(false)}
         onConfirm={handleFillEveryWeek}
         title="Same person every week?"
-        message={`${fillLabelName} will be set as the only owner of "${fillDutyName}" in ${fillTargets.length} ${fillTargets.length === 1 ? 'week' : 'weeks'}, replacing whoever is there now. Their reminders start straight away.`}
+        message={`${fillLabelName} will be set as the only owner of "${fillDutyName}" in ${fillTargets.length} ${fillTargets.length === 1 ? 'week' : 'weeks'}, replacing whoever is there now.${fillSkipped.length ? ` Left alone because they carry other labels (use Review & apply): week ${fillSkipped.map((c) => c.weekNumber).join(', ')}.` : ''} Their reminders start straight away.`}
         confirmText="Fill every week"
         type="warning"
         confirmLoading={applying}
