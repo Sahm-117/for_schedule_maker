@@ -9,9 +9,9 @@ import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
 import { useToast } from '../components/Toast';
 import { useAppData } from '../context/AppDataContext';
-import { announcementsApi, faithProjectsApi, faithProjectCategoriesApi, faithProjectSettingsApi, faithHelpRequestsApi, testimoniesApi, participantsApi, groupsApi } from '../services/api';
+import { announcementsApi, faithProjectsApi, faithProjectCategoriesApi, faithProjectSettingsApi, faithHelpRequestsApi, testimoniesApi, participantsApi, groupsApi, supportHubsApi } from '../services/api';
 import { FAITH_HELP_REASON_LABELS } from '../types';
-import type { FaithHelpRequest, FaithProject, FaithProjectCategory, FaithProjectSettings, FaithProjectStatus, FaithProjectVersion, Group, Participant, Testimony, TestimonyStatus } from '../types';
+import type { FaithHelpRequest, FaithProject, FaithProjectCategory, FaithProjectSettings, FaithProjectStatus, FaithProjectVersion, Group, HubMembership, Participant, SupportHub, Testimony, TestimonyStatus } from '../types';
 import AppSelect from '../components/AppSelect';
 import FaithProjectHistory from '../components/faithProjects/FaithProjectHistory';
 import ModalShell from '../components/followups/ModalShell';
@@ -226,6 +226,67 @@ const TestimoniesPanel: React.FC<{
   );
 };
 
+// ── Hub > group > participant list ────────────────────────────────────────────
+
+const naturalCompare = new Intl.Collator(undefined, { numeric: true }).compare;
+
+interface RemindTarget { id: string; name: string; people: number }
+
+/** One group inside a section. `all` is everyone in it (for the counts), `shown` the people the filters let through. */
+interface GroupBlock {
+  key: string;
+  label: string;
+  total: number;
+  written: number;
+  overdue: number;
+  shown: Participant[];
+  supportId: string | null;
+  supportName: string | null;
+}
+
+/** One top-level section: a hub, "No hub", Teens or "Not in a group". */
+interface TopBlock {
+  key: string;
+  title: string;
+  written: number;
+  overdue: number;
+  groups: GroupBlock[];
+  /** People listed straight under the section (only "Not in a group"). */
+  rows: Participant[];
+  /** Only hubs have a Remind button; an empty list disables it. */
+  remindTargets: RemindTarget[] | null;
+}
+
+const Chevron: React.FC<{ open: boolean }> = ({ open }) => (
+  <span className={`inline-flex h-8 w-8 flex-none items-center justify-center text-gray-500 transition-transform ${open ? 'rotate-90' : ''}`} aria-hidden="true">
+    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m9 5 7 7-7 7" />
+    </svg>
+  </span>
+);
+
+const ParticipantRow: React.FC<{
+  participant: Participant;
+  project: FaithProject | null;
+  overdue: boolean;
+  onOpen: () => void;
+}> = ({ participant, project, overdue, onOpen }) => {
+  const s: FaithProjectStatus = project?.status ?? 'NOT_DRAFTED';
+  return (
+    <li className="flex items-center gap-3 py-2.5 pl-4 pr-3 sm:pl-5 sm:pr-4">
+      <Avatar name={participant.fullName} avatarUrl={participant.avatarUrl} size="md" />
+      <span className="min-w-0 flex-1 line-clamp-2 text-[15px] font-semibold leading-tight text-gray-900">{participant.fullName}</span>
+      {participant.prayerConsent === 'OUT' && <span className="hidden flex-none rounded-full bg-amber-100/80 px-2 py-0.5 text-[11px] font-semibold text-amber-800 sm:inline">Opted out of prayers</span>}
+      <span className={`inline-flex flex-none items-center whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold sm:px-2.5 sm:text-xs ${overdue ? OVERDUE_CLS : statusCls(s)}`}>
+        {overdue ? 'Overdue' : statusLabel(s)}
+      </span>
+      <button type="button" onClick={onOpen} className="flex-none rounded-xl bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-200 active:scale-95">
+        Open
+      </button>
+    </li>
+  );
+};
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 const AdminFaithProjectsPage: React.FC = () => {
@@ -247,6 +308,11 @@ const AdminFaithProjectsContent: React.FC = () => {
   const [participantsLoaded, setParticipantsLoaded] = useState(false);
   const [projects, setProjects] = useState<FaithProject[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
+  // Teen Supports' groups, kept apart from `groups` (rule 22): only the grouped list below uses them.
+  const [teenGroups, setTeenGroups] = useState<Group[]>([]);
+  const [hubs, setHubs] = useState<SupportHub[]>([]);
+  const [hubMemberships, setHubMemberships] = useState<HubMembership[]>([]);
+  const [openKeys, setOpenKeys] = useState<Set<string>>(() => new Set());
   const [loading, setLoading] = useState(true);
   // Filter choices (see FilterBar): status (the chips above), group ('__UNASSIGNED__' = no group) and category; several of each at once.
   const [filters, setFilters] = useState<FilterValues>({});
@@ -265,19 +331,25 @@ const AdminFaithProjectsContent: React.FC = () => {
   const [supportFilter, setSupportFilter] = useState('');
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [remindOpen, setRemindOpen] = useState(false);
+  // Set when the Remind button on a hub opened the confirmation: it then lists that hub's supports instead of the page's.
+  const [remindHub, setRemindHub] = useState<{ name: string; targets: RemindTarget[] } | null>(null);
   const [reminding, setReminding] = useState(false);
 
   const load = useCallback(async () => {
     if (!activeCohort) { setLoading(false); return; }
     setLoading(true);
     try {
-      const [{ participants: ps }, { projects: fps }, { groups: gs }, { categories: cs }, { settings: projectSettings }] = await Promise.all([
+      const [{ participants: ps }, { projects: fps }, { groups: allGroups }, { categories: cs }, { settings: projectSettings }, hubList, hubMembers] = await Promise.all([
         participantsApi.getAll({ cohortId: activeCohort.id }),
         faithProjectsApi.getAll({ cohortId: activeCohort.id }),
-        groupsApi.getAll({ cohortId: activeCohort.id }),
+        groupsApi.getAll({ cohortId: activeCohort.id, includeTeenGroups: true }),
         faithProjectCategoriesApi.getAll(activeCohort.id),
         faithProjectSettingsApi.get(activeCohort.id),
+        // Same two reads the Groups page makes for a group's hub; a failure just leaves every group under "No hub".
+        supportHubsApi.getAll(activeCohort.id).then((r) => r.hubs).catch(() => [] as SupportHub[]),
+        supportHubsApi.getMembershipsForCohort(activeCohort.id).then((r) => r.memberships).catch(() => [] as HubMembership[]),
       ]);
+      const gs = allGroups.filter((g) => !g.isTeenGroup);
       setParticipants(sortByText(ps.filter((p) => p.status === 'ACTIVE'), (participant) => participant.fullName));
       setParticipantsLoaded(true);
       const ids = ps.filter((p) => p.status === 'ACTIVE').map((p) => p.id);
@@ -287,6 +359,9 @@ const AdminFaithProjectsContent: React.FC = () => {
       ]);
       setProjects(sortByText(fps, (project) => project.title || project.participantName));
       setGroups(sortByText(gs, (group) => group.name));
+      setTeenGroups(allGroups.filter((g) => g.isTeenGroup));
+      setHubs(hubList);
+      setHubMemberships(hubMembers);
       setCategories(cs);
       setSettings(projectSettings);
       setTestimonies(testimoniesRes.testimonies);
@@ -381,9 +456,12 @@ const AdminFaithProjectsContent: React.FC = () => {
     return [...byId.entries()].map(([id, v]) => ({ id, ...v })).sort((a, b) => a.name.localeCompare(b.name));
   })();
 
+  const activeRemindTargets = remindHub?.targets ?? remindTargets;
+  const closeRemind = () => { setRemindOpen(false); setRemindHub(null); };
+
   const remindSupports = async () => {
-    if (!user || remindTargets.length === 0) return;
-    const ids = remindTargets.map((t) => t.id);
+    if (!user || activeRemindTargets.length === 0) return;
+    const ids = activeRemindTargets.map((t) => t.id);
     setReminding(true);
     try {
       await announcementsApi.send(
@@ -398,7 +476,7 @@ const AdminFaithProjectsContent: React.FC = () => {
         },
       );
       showToast({ message: `Reminder sent to ${ids.length} support${ids.length === 1 ? '' : 's'}` });
-      setRemindOpen(false);
+      closeRemind();
     } catch (err) {
       showToast({ tone: 'error', message: err instanceof Error ? err.message : 'Could not send the reminder.' });
     } finally {
@@ -407,6 +485,111 @@ const AdminFaithProjectsContent: React.FC = () => {
   };
 
   const openProject = (p: Participant, fp: FaithProject | null) => setOpenTarget({ participant: p, project: fp });
+
+  // ── Grouped list: hub > group > person ──
+  // A group's hub is its support's hub (rule 53), read the way the Groups page does: HubMembership by the support's user id.
+  // A support who sits in several hubs is listed under the first one by name.
+  const hubIdBySupport = useMemo(() => {
+    const nameById = new Map(hubs.map((h) => [h.id, h.name]));
+    const idsBySupport = new Map<string, string[]>();
+    hubMemberships.forEach((m) => { if (nameById.has(m.hubId)) idsBySupport.set(m.userId, [...(idsBySupport.get(m.userId) ?? []), m.hubId]); });
+    const out = new Map<string, string>();
+    idsBySupport.forEach((ids, supportId) => {
+      out.set(supportId, [...ids].sort((a, b) => naturalCompare(nameById.get(a) ?? '', nameById.get(b) ?? ''))[0]);
+    });
+    return out;
+  }, [hubs, hubMemberships]);
+
+  const blocks: TopBlock[] = (() => {
+    const isWritten = (p: Participant) => (projectByParticipant.get(p.id)?.status ?? 'NOT_DRAFTED') === 'SAVED';
+    // Counts are over everyone in the section (the support filter still scopes them); the filters and search only pick who is listed.
+    const scoped = supportFilter ? participants.filter((p) => supportOf(p) === supportFilter) : participants;
+    const shownIds = new Set(displayed.map((p) => p.id));
+    const byGroup = new Map<string, Participant[]>();
+    scoped.forEach((p) => { if (p.groupId) byGroup.set(p.groupId, [...(byGroup.get(p.groupId) ?? []), p]); });
+
+    const groupBlock = (g: Group, label: string): GroupBlock | null => {
+      const members = byGroup.get(g.id) ?? [];
+      if (members.length === 0) return null;
+      return {
+        key: `group:${g.id}`,
+        label,
+        total: members.length,
+        written: members.filter(isWritten).length,
+        overdue: members.filter(isOverdue).length,
+        shown: members.filter((p) => shownIds.has(p.id)),
+        supportId: g.supportId ?? null,
+        supportName: g.supportName ?? null,
+      };
+    };
+    const labelFor = (g: Group, prefix: string) => `${prefix}${g.supportName ? ` · Support: ${g.supportName}` : ' · No support yet'}`;
+    const byWrittenThenName = (a: GroupBlock, b: GroupBlock) => a.written - b.written || naturalCompare(a.label, b.label);
+    const topBlock = (key: string, title: string, list: GroupBlock[], withRemind: boolean): TopBlock | null => {
+      const visible = list.filter((g) => g.shown.length > 0).sort(byWrittenThenName);
+      if (visible.length === 0) return null;
+      let remindTargets: RemindTarget[] | null = null;
+      if (withRemind) {
+        const byId = new Map<string, RemindTarget>();
+        list.forEach((g) => {
+          if (!g.supportId || g.overdue === 0) return;
+          const entry = byId.get(g.supportId) ?? { id: g.supportId, name: g.supportName ?? 'Support', people: 0 };
+          entry.people += g.overdue;
+          byId.set(g.supportId, entry);
+        });
+        remindTargets = [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
+      }
+      return { key, title, written: list.reduce((n, g) => n + g.written, 0), overdue: list.reduce((n, g) => n + g.overdue, 0), groups: visible, rows: [], remindTargets };
+    };
+
+    const perHub = new Map<string, GroupBlock[]>();
+    const noHub: GroupBlock[] = [];
+    groups.forEach((g) => {
+      const block = groupBlock(g, labelFor(g, g.name));
+      if (!block) return;
+      const hubId = g.supportId ? hubIdBySupport.get(g.supportId) : undefined;
+      if (hubId) perHub.set(hubId, [...(perHub.get(hubId) ?? []), block]);
+      else noHub.push(block);
+    });
+    const hubBlocks = hubs
+      .map((h) => topBlock(`hub:${h.id}`, h.name, perHub.get(h.id) ?? [], true))
+      .filter((b): b is TopBlock => !!b)
+      .sort((a, b) => b.overdue - a.overdue || naturalCompare(a.title, b.title));
+    const out = [...hubBlocks];
+    const noHubBlock = topBlock('hub:none', 'No hub', noHub, true);
+    if (noHubBlock) out.push(noHubBlock);
+    const teenBlocks = teenGroups.map((g) => groupBlock(g, g.supportName ? `Teen Support: ${g.supportName}` : g.name)).filter((b): b is GroupBlock => !!b);
+    const teensBlock = topBlock('teens', 'Teens', teenBlocks, false);
+    if (teensBlock) out.push(teensBlock);
+    const groupIds = new Set([...groups, ...teenGroups].map((g) => g.id));
+    const loose = scoped.filter((p) => !p.groupId || !groupIds.has(p.groupId));
+    const looseShown = loose.filter((p) => shownIds.has(p.id));
+    if (looseShown.length > 0) {
+      out.push({ key: 'nogroup', title: 'Not in a group', written: loose.filter(isWritten).length, overdue: loose.filter(isOverdue).length, groups: [], rows: looseShown, remindTargets: null });
+    }
+    return out;
+  })();
+
+  // Typing in the search box opens every section with a match.
+  useEffect(() => {
+    if (!search.trim()) return;
+    setOpenKeys((prev) => {
+      const next = new Set(prev);
+      blocks.forEach((b) => { next.add(b.key); b.groups.forEach((g) => next.add(g.key)); });
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
+  const toggleKey = (key: string) => setOpenKeys((prev) => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
+  const countsLine = (written: number, overdue: number) => (
+    <>
+      {written} written
+      {deadlinePassed && overdue > 0 && <span className="text-amber-700"> · {overdue} overdue</span>}
+    </>
+  );
 
   return (
     <div className="page-content">
@@ -542,69 +725,69 @@ const AdminFaithProjectsContent: React.FC = () => {
               <p className="text-sm text-gray-500">{participantsLoaded && participants.length === 0 ? 'No participants in this cohort yet.' : 'No participants match your filter.'}</p>
             </div>
           ) : (
-            <>
-            {/* Phones: one card per person. From tablet size up, the table below. */}
-            <ul className="divide-y divide-gray-100 overflow-hidden rounded-[22px] bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04),0_8px_24px_-14px_rgba(17,24,39,0.18)] md:hidden">
-              {displayed.map((p) => {
-                const fp = projectByParticipant.get(p.id) ?? null;
-                const s: FaithProjectStatus = fp?.status ?? 'NOT_DRAFTED';
+            <div className="flex flex-col gap-3" data-testid="faith-groups">
+              {blocks.map((block) => {
+                const open = openKeys.has(block.key);
+                const bodyId = `faith-${block.key.replace(/[^a-z0-9]/gi, '-')}`;
+                const renderRows = (list: Participant[]) => (
+                  <ul className="divide-y divide-gray-100">
+                    {list.map((p) => {
+                      const fp = projectByParticipant.get(p.id) ?? null;
+                      return <ParticipantRow key={p.id} participant={p} project={fp} overdue={isOverdue(p)} onOpen={() => openProject(p, fp)} />;
+                    })}
+                  </ul>
+                );
                 return (
-                  <li key={p.id}>
-                    <button type="button" onClick={() => openProject(p, fp)} className="flex w-full items-center gap-3 py-2.5 pl-4 pr-3 text-left active:bg-gray-50">
-                      <Avatar name={p.fullName} avatarUrl={p.avatarUrl} size="md" />
-                      <span className="min-w-0 flex-1">
-                        <span className="block line-clamp-2 text-[15px] font-semibold leading-tight text-gray-900">{p.fullName}</span>
-                        <span className="block truncate text-[12.5px] text-gray-500">{p.groupName ?? 'No group yet'}</span>
-                      </span>
-                      <span className={`inline-flex flex-none items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold ${isOverdue(p) ? OVERDUE_CLS : statusCls(s)}`}>
-                        {isOverdue(p) ? 'Overdue' : statusLabel(s)}
-                      </span>
-                      <svg className="h-4 w-4 flex-none text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
-                    </button>
-                  </li>
+                  <section key={block.key} className="surface-card min-w-0 overflow-hidden">
+                    <div className="flex items-center gap-2 pr-4 sm:pr-5">
+                      <button type="button" onClick={() => toggleKey(block.key)} aria-expanded={open} aria-controls={bodyId} className="flex min-w-0 flex-1 items-center gap-3 py-3.5 pl-4 text-left sm:pl-5">
+                        <Chevron open={open} />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-base font-semibold text-gray-900">{block.title}</span>
+                          <span className="block text-[13px] text-gray-600 tabular-nums">{countsLine(block.written, block.overdue)}</span>
+                        </span>
+                      </button>
+                      {canEdit && block.remindTargets && (
+                        <button
+                          type="button"
+                          disabled={block.remindTargets.length === 0}
+                          onClick={() => { setRemindHub({ name: block.title, targets: block.remindTargets ?? [] }); setRemindOpen(true); }}
+                          aria-label={`Remind supports in ${block.title}`}
+                          className="inline-flex h-9 flex-none items-center rounded-xl bg-primary px-3 text-xs font-semibold text-white hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          Remind
+                        </button>
+                      )}
+                    </div>
+                    {open && (
+                      <div id={bodyId} className="border-t border-gray-100">
+                        {block.groups.length === 0 ? renderRows(block.rows) : (
+                          <div className="divide-y divide-gray-100">
+                            {block.groups.map((g) => {
+                              const gOpen = openKeys.has(g.key);
+                              const gBodyId = `faith-${g.key.replace(/[^a-z0-9]/gi, '-')}`;
+                              const allWritten = g.total > 0 && g.written === g.total;
+                              return (
+                                <div key={g.key}>
+                                  <button type="button" onClick={() => toggleKey(g.key)} aria-expanded={gOpen} aria-controls={gBodyId} className="flex w-full items-center gap-2 bg-gray-50/70 py-2.5 pl-6 pr-4 text-left sm:pl-8 sm:pr-5">
+                                    <Chevron open={gOpen} />
+                                    <span className="min-w-0 flex-1 text-sm font-semibold text-gray-900">{g.label}</span>
+                                    <span className={`flex-none text-xs tabular-nums ${allWritten ? 'font-semibold text-emerald-700' : 'text-gray-600'}`}>
+                                      {g.written} of {g.total} written{allWritten ? ' ✓' : ''}
+                                    </span>
+                                  </button>
+                                  {gOpen && <div id={gBodyId}>{renderRows(g.shown)}</div>}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </section>
                 );
               })}
-            </ul>
-            <div className="hidden overflow-x-auto surface-card md:block">
-              <table className="min-w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100 bg-primary/5">
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Participant</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Group</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Status</th>
-                    <th className="sticky right-0 bg-primary/5 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {displayed.map((p) => {
-                    const fp = projectByParticipant.get(p.id) ?? null;
-                    const s: FaithProjectStatus = fp?.status ?? 'NOT_DRAFTED';
-                    return (
-                      <tr key={p.id} className="hover:bg-gray-50/30">
-                        <td className="px-4 py-3 font-medium text-gray-900">{p.fullName}</td>
-                        <td className="px-4 py-3 text-gray-500">{p.groupName ?? '—'}</td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${isOverdue(p) ? OVERDUE_CLS : statusCls(s)}`}>
-                            {isOverdue(p) ? 'Overdue' : statusLabel(s)}
-                          </span>
-                          {p.prayerConsent === 'OUT' && <span className="ml-1.5 rounded-full bg-amber-100/80 px-2 py-0.5 text-[11px] font-semibold text-amber-800">Opted out of prayers</span>}
-                        </td>
-                        <td className="sticky right-0 bg-white px-4 py-3 text-right">
-                          <button
-                            type="button"
-                            onClick={() => openProject(p, fp)}
-                            className="rounded-xl bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-200 active:scale-95"
-                          >
-                            Open
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
             </div>
-            </>
           )}
           </>
           )}
@@ -628,16 +811,16 @@ const AdminFaithProjectsContent: React.FC = () => {
 
       <ConfirmationModal
         isOpen={remindOpen}
-        onClose={() => { if (!reminding) setRemindOpen(false); }}
+        onClose={() => { if (!reminding) closeRemind(); }}
         onConfirm={() => { void remindSupports(); }}
-        title="Remind supports about faith projects?"
-        message={`${remindTargets.length} support${remindTargets.length === 1 ? '' : 's'} will get a reminder on their bell and phone. It also shows under Announcements.`}
+        title={remindHub ? `Remind ${remindHub.name} supports about faith projects?` : 'Remind supports about faith projects?'}
+        message={`${activeRemindTargets.length} support${activeRemindTargets.length === 1 ? '' : 's'} will get a reminder on their bell and phone. It also shows under Announcements.`}
         confirmText="Send reminder"
         type="info"
         confirmLoading={reminding}
       >
         <ul className="max-h-48 space-y-1 overflow-y-auto text-sm text-gray-700">
-          {remindTargets.map((t) => (
+          {activeRemindTargets.map((t) => (
             <li key={t.id}>{t.name} <span className="text-gray-400">· {t.people} not started</span></li>
           ))}
         </ul>
