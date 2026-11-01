@@ -13,6 +13,7 @@
   - "Admin User" (admin@fof.com) and "System Admin" are to be left alone.
 - Built the 31 Oct admin pick-up list in six batches. Cheaper agents built each batch in its own worktree. Each batch was then reviewed, browser-tested as admin with every write blocked, code-reviewed with fixes applied, and pushed. Handoffs: `docs/handoffs/2026-11-01_admin-review-batch-3.md`, `-batch-4.md`, `-batch-6.md` (batch 6's handoff also covers batch 5).
 - Fixed the cross-week add, edit and delete so they stay in the activity's own cohort. They used to match week numbers in every cohort. Live data showed no stray copies.
+- After batch 6, the Scriptures admin engagement totals got a "More in PostHog ↗" link to https://us.posthog.com/project/695154/dashboard/2275022 (`POSTHOG_DASHBOARD_URL` in `lib/analytics.ts`). The Resources page has no totals, so nothing was linked there.
 - Batch 6 put four live migrations in place (reopen reason, private survey uploads, website change history, Supports overview RPC) and deployed `file-links` v2. Olamide ran the go-live script himself, because the safety check blocks Claude from production deploys.
 
 ## Files Changed
@@ -27,8 +28,7 @@
 - Migrations are dry-run in a rolled-back transaction, with the new RPCs called as admin, before they are applied.
 
 ## Pending Tasks
-- Birthday graphic to a group or hub chat: needs a DB change, because only the group's own support can post.
-- PostHog dashboard link: needs the dashboard URL.
+- The admin review list is finished. Olamide dropped the birthday-graphic-to-chat item and the rota Dashboard warning.
 - Participant-side checks, which had no participant login: the feedback prompt after class 3, and a participant uploading a survey file.
 - The church app keys page fires one read per key. There are 0 keys today, so this is deferred.
 - `checkDuplicates` still matches across cohorts. It is read-only and only drives a warning.
