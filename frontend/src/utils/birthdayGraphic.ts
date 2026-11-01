@@ -10,6 +10,10 @@ export const BIRTHDAY_QUOTES: Array<{ text: string; ref: string }> = [
   { text: 'I will bless you, and you will be a blessing.', ref: 'Genesis 12:2' },
 ];
 
+// Which quote a person gets by default, and the name of their downloaded picture.
+export const hashOf = (s: string): number => { let h = 0; for (let i = 0; i < s.length; i += 1) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; };
+export const fileName = (name: string) => `birthday-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'graphic'}.png`;
+
 export const GRAPHIC_W = 1080;
 export const GRAPHIC_H = 1350;
 

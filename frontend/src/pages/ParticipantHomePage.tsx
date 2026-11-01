@@ -18,6 +18,9 @@ import Spinner from '../components/Spinner';
 import ClassManualReader from '../components/classManual/ClassManualReader';
 import { useManualContent } from '../components/classManual/manuals';
 import { useAuth } from '../hooks/useAuth';
+import { useTourState } from '../context/TourContext';
+import { FEEDBACK_PROMPT_KEY } from '../constants/tours';
+import { isTeenAgeRange } from '../utils/groupingRules';
 import { useParticipantApp } from '../context/ParticipantAppContext';
 import { participantAppApi, practiceApi } from '../services/api';
 import type { OnboardingState } from '../types';
@@ -63,6 +66,7 @@ const ParticipantHomePage: React.FC = () => {
   const openHelp = useShellHelp();
   const [goalSaving, setGoalSaving] = useState(false);
   const { streak } = usePrayerStreak();
+  const { hintUnseen, dismissHint } = useTourState();
   const [introOpen, setIntroOpen] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   // Above the early returns below, so every render calls the same hooks.
@@ -155,6 +159,10 @@ const ParticipantHomePage: React.FC = () => {
   const finished = totalWeeks > 0 && weekNumber > totalWeeks;
   const shownWeekNumber = Math.min(Math.max(weekNumber, 1), Math.max(totalWeeks, 1));
   const week = home.weeks.find((w) => w.weekNumber === shownWeekNumber) ?? null;
+  // After class 3: one nudge toward the feedback page, for adults of a running cohort, until they tap either button.
+  // The feedback itself is anonymous, so "already answered" cannot be known; opening the page counts as answered.
+  const showFeedbackPrompt = weekNumber >= 3 && home.cohort?.status === 'ACTIVE' && !isPractice
+    && !isTeenAgeRange(home.profile.ageRange) && hintUnseen(FEEDBACK_PROMPT_KEY);
   const reflection = week ? reflectionFor(home.reflections, week.id) : null;
 
   // The Get ready and Still to do lists already carry "Finish your profile"; this row covers every other time.
@@ -436,6 +444,14 @@ const ParticipantHomePage: React.FC = () => {
             </section>
           );
         })()}
+
+        {showFeedbackPrompt && (
+          <section data-wt="ph-feedback-prompt" className="flex items-center gap-3 rounded-[20px] border border-[#eef0f4] bg-white px-[18px] py-3 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
+            <p className="min-w-0 flex-1 text-[13.5px] font-semibold text-gray-900">How is the programme going for you? Tell us in one minute.</p>
+            <NavLink to="/me/feedback" onClick={() => dismissHint(FEEDBACK_PROMPT_KEY)} className="flex-none rounded-xl bg-primary px-3.5 py-2 text-[13px] font-semibold text-white">Give feedback</NavLink>
+            <button type="button" onClick={() => dismissHint(FEEDBACK_PROMPT_KEY)} aria-label="Dismiss" className="flex-none text-[12px] font-semibold text-gray-500">Not now</button>
+          </section>
+        )}
 
         {week && !finished && <ThisWeekCard home={home} week={week} label={started ? undefined : 'First class'} canReflect={!isPractice || !!onboarding?.readyConfirmed || !!onboarding?.completed} />}
 

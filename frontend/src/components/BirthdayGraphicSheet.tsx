@@ -1,13 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import HomeSheet from './participantApp/HomeSheet';
-import { BIRTHDAY_QUOTES, GRAPHIC_H, GRAPHIC_W, drawBirthdayGraphic } from '../utils/birthdayGraphic';
+import { BIRTHDAY_QUOTES, GRAPHIC_H, GRAPHIC_W, drawBirthdayGraphic, fileName, hashOf } from '../utils/birthdayGraphic';
 import type { BirthdayPerson } from '../types';
 
 // The birthday graphic for one person: their photo and name on a fixed template, with a quote bottom left.
 // Admins can swap the quote, then download the picture or share it straight to WhatsApp and the like.
 
-const hashOf = (s: string): number => { let h = 0; for (let i = 0; i < s.length; i += 1) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; };
-const fileName = (name: string) => `birthday-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'graphic'}.png`;
 
 const BirthdayGraphicSheet: React.FC<{ person: BirthdayPerson; roleLabel: string; onClose: () => void }> = ({ person, roleLabel, onClose }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);

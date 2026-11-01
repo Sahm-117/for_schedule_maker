@@ -7,13 +7,17 @@ import { usePermissions } from '../hooks/usePermissions';
 import { useAppData } from '../context/AppDataContext';
 import { activitiesApi, labelsApi, usersApi } from '../services/api';
 import type { Label, User } from '../types';
-import { findDutyOverlaps } from '../config/rotaDuties';
+import { findDutyOverlaps, ROTA_DUTIES } from '../config/rotaDuties';
 import {
   buildRotaGrid,
+  cellKey,
   findUnmatchedActivities,
+  describeOwners,
   isGroupSupportLabel,
   type LabelOwners,
 } from '../utils/rotaGrid';
+import AppSelect from '../components/AppSelect';
+import ConfirmationModal from '../components/ConfirmationModal';
 import RotaGrid from '../components/rota/RotaGrid';
 import RotaApplyModal, { type StagedChange } from '../components/rota/RotaApplyModal';
 import UnmatchedActivitiesPanel from '../components/rota/UnmatchedActivitiesPanel';
@@ -35,6 +39,9 @@ const AdminRotaPage: React.FC = () => {
   const [applying, setApplying] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [fillDutyId, setFillDutyId] = useState('');
+  const [fillLabelId, setFillLabelId] = useState('');
+  const [fillConfirmOpen, setFillConfirmOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -137,6 +144,49 @@ const AdminRotaPage: React.FC = () => {
     }
   };
 
+  // Every week's cell for the chosen duty that has a matching activity and isn't already that person's alone.
+  const fillTargets = useMemo(() => {
+    if (!fillDutyId || !fillLabelId) return [];
+    return sortedWeeks
+      .map((week) => grid.get(cellKey(fillDutyId, week.id)))
+      .filter((cell): cell is NonNullable<typeof cell> => {
+        if (!cell || cell.state === 'empty') return false;
+        const alreadyThem =
+          cell.state === 'assigned' && cell.groupLabels.length === 1 && cell.groupLabels[0].label.id === fillLabelId;
+        return !alreadyThem;
+      });
+  }, [fillDutyId, fillLabelId, sortedWeeks, grid]);
+
+  const handleFillEveryWeek = async () => {
+    setApplying(true);
+    setError('');
+    const failed: string[] = [];
+    let done = 0;
+    // Same save call and same one-by-one loop as the review flow above.
+    for (const cell of fillTargets) {
+      try {
+        await activitiesApi.setLabelsForActivities(cell.activityIds, [fillLabelId]);
+        done++;
+      } catch (err) {
+        failed.push(`Week ${cell.weekNumber}: ${err instanceof Error ? err.message : 'failed'}`);
+      }
+    }
+    await reloadWeeks();
+    // Anything staged for the cells just written is now out of date.
+    setStaged((prev) => {
+      const next = new Map(prev);
+      for (const cell of fillTargets) next.delete(cellKey(cell.dutyId, cell.weekId));
+      return next;
+    });
+    setApplying(false);
+    setFillConfirmOpen(false);
+    if (failed.length > 0) setError(`${done} weeks filled, ${failed.length} failed. ${failed.join('; ')}`);
+    else setNotice(`${done} ${done === 1 ? 'week' : 'weeks'} filled.`);
+  };
+
+  const fillDutyName = ROTA_DUTIES.find((d) => d.id === fillDutyId)?.name || '';
+  const fillLabelName = groupLabels.find((l) => l.id === fillLabelId)?.name || '';
+
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
   if (loading && weeks.length === 0) return <PageLoader />;
 
@@ -164,6 +214,51 @@ const AdminRotaPage: React.FC = () => {
           )}
           {error && !reviewOpen && (
             <p className="rounded-xl bg-red-100/80 px-3 py-2 text-[13px] font-medium text-red-700">{error}</p>
+          )}
+
+          {canEdit && (
+            <div className="rounded-2xl bg-white p-4 shadow-sm">
+              <p className="text-[13px] font-semibold text-gray-900">Same person every week</p>
+              <p className="mt-0.5 text-[12px] text-gray-500">
+                Pick a duty and a support, and every week of this cohort gets that person for it.
+              </p>
+              <div className="mt-3 flex flex-col gap-2 md:flex-row md:items-center">
+                <div className="md:w-64">
+                  <AppSelect
+                    value={fillDutyId}
+                    onChange={setFillDutyId}
+                    placeholder="Choose a duty"
+                    compact
+                    options={ROTA_DUTIES.filter((d) => !blockedDutyIds.has(d.id)).map((d) => ({
+                      value: d.id,
+                      label: d.name,
+                      meta: d.subLabel,
+                    }))}
+                  />
+                </div>
+                <div className="md:w-64">
+                  <AppSelect
+                    value={fillLabelId}
+                    onChange={setFillLabelId}
+                    placeholder="Choose a support"
+                    compact
+                    options={groupLabels.map((l) => ({
+                      value: l.id,
+                      label: l.name,
+                      meta: describeOwners(labelOwners.get(l.id)),
+                    }))}
+                  />
+                </div>
+                <button
+                  type="button"
+                  disabled={applying || fillTargets.length === 0}
+                  onClick={() => setFillConfirmOpen(true)}
+                  className="rounded-xl bg-[var(--color-primary,#f97316)] px-4 py-2 text-[13px] font-semibold text-white disabled:opacity-40"
+                >
+                  Fill every week
+                </button>
+              </div>
+            </div>
           )}
 
           <RotaGrid
@@ -206,6 +301,17 @@ const AdminRotaPage: React.FC = () => {
           )}
         </>
       )}
+
+      <ConfirmationModal
+        isOpen={fillConfirmOpen}
+        onClose={() => setFillConfirmOpen(false)}
+        onConfirm={handleFillEveryWeek}
+        title="Same person every week?"
+        message={`${fillLabelName} will be set as the only owner of "${fillDutyName}" in ${fillTargets.length} ${fillTargets.length === 1 ? 'week' : 'weeks'}, replacing whoever is there now. Their reminders start straight away.`}
+        confirmText="Fill every week"
+        type="warning"
+        confirmLoading={applying}
+      />
 
       <RotaApplyModal
         isOpen={reviewOpen}

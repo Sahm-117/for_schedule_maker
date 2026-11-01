@@ -6,6 +6,7 @@ import AppSelect from '../components/AppSelect';
 import FilterBar, { type FilterGroup, type FilterValues } from '../components/filters/FilterBar';
 import Spinner from '../components/Spinner';
 import BirthdayGraphicSheet from '../components/BirthdayGraphicSheet';
+import BirthdayGraphicsBatchSheet from '../components/BirthdayGraphicsBatchSheet';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import { birthdaysApi } from '../services/api';
@@ -55,6 +56,7 @@ const AdminBirthdaysPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [graphicFor, setGraphicFor] = useState<BirthdayPerson | null>(null);
+  const [batchFor, setBatchFor] = useState<BirthdayPerson[] | null>(null);
 
   // Start on the cohort being worked in; "All cohorts" is one tap away.
   useEffect(() => { if (activeCohort?.id) setCohortId((prev) => prev || activeCohort.id); }, [activeCohort?.id]);
@@ -159,7 +161,12 @@ const AdminBirthdaysPage: React.FC = () => {
                 if (rows.length === 0) return null;
                 return (
                   <section key={group.label}>
-                    <p className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">{group.label}</p>
+                    <div className="mb-1.5 flex items-center justify-between gap-3 px-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">{group.label}</p>
+                      {group.label === 'This week' && (
+                        <button type="button" onClick={() => setBatchFor(rows)} className="rounded-full bg-[#fff1e6] px-3 py-1 text-[12px] font-semibold text-[#9a4a12]">Make all this week&apos;s graphics</button>
+                      )}
+                    </div>
                     <ul className="divide-y divide-gray-100 overflow-hidden rounded-2xl bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04),0_8px_24px_-12px_rgba(17,24,39,0.12)]">
                       {rows.map((p) => (
                         <li key={`${tab}-${p.id}`} className="flex items-center gap-3 px-4 py-3">
@@ -186,6 +193,7 @@ const AdminBirthdaysPage: React.FC = () => {
           )}
         </>
       )}
+      {batchFor && <BirthdayGraphicsBatchSheet people={batchFor} roleLabel={tab === 'supports' ? 'Support' : 'Participant'} onClose={() => setBatchFor(null)} />}
       {graphicFor && <BirthdayGraphicSheet person={graphicFor} roleLabel={tab === 'supports' ? 'Support' : 'Participant'} onClose={() => setGraphicFor(null)} />}
     </div>
   );

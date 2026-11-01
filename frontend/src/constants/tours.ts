@@ -31,6 +31,8 @@ export interface WelcomeContent {
 
 /** Bump the version to show the Welcome again after a future big release. */
 export const WELCOME_KEY = 'welcome:v2';
+/** One-off Home prompt asking an adult participant for programme feedback once class 3 has happened. */
+export const FEEDBACK_PROMPT_KEY = 'hint:feedback-class3';
 export const pageTourKey = (pageId: string) => `page:${pageId}`;
 
 export const tourAudienceFor = (role: User['role']): TourAudience =>
