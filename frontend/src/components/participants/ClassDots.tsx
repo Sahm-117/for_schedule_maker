@@ -41,3 +41,13 @@ const ClassDots: React.FC<ClassDotsProps> = ({ record, dotsOnly }) => {
 };
 
 export default ClassDots;
+
+/** Key for the class dots, shown beside the participant count. */
+export const ClassDotsLegend: React.FC = () => (
+  <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500" aria-label="Class dots key">
+    {([['attended', 'Attended (incl. late, left early)'], ['absent', 'Absent'], ['excused', 'Excused'], ['none', 'No mark']] as const).map(([k, label]) => (
+      <span key={k} className="inline-flex items-center gap-1.5"><span className={`inline-block h-2.5 w-2.5 rounded-full ${DOT[k]}`} />{label}</span>
+    ))}
+    <span className="inline-flex items-center gap-1 text-amber-700"><Glyph name="warning" className="h-3.5 w-3.5" />Missed 2 in a row</span>
+  </p>
+);

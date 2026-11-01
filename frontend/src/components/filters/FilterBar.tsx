@@ -68,6 +68,8 @@ const FilterBar: React.FC<{
   toggles?: FilterToggle[];
   /** The search box, if the page has one; it sits on the same row as the Filters button. */
   search?: React.ReactNode;
+  /** Shown on the same line as the result count, on the right (e.g. a legend for the list below). */
+  countAside?: React.ReactNode;
   /** Whether a search is typed, so the count line shows "Showing …" for it too. */
   searching?: boolean;
   /** Extra buttons on the same row. */
@@ -79,7 +81,7 @@ const FilterBar: React.FC<{
   /** Called after Clear, for anything the page keeps outside the groups (e.g. a search box). */
   onClear?: () => void;
   title?: string;
-}> = ({ groups, value, onChange, toggles = [], search, searching = false, extra, shown, total, noun, onClear, title = 'Filters' }) => {
+}> = ({ groups, value, onChange, toggles = [], search, countAside, searching = false, extra, shown, total, noun, onClear, title = 'Filters' }) => {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<FilterValues>(value);
   const [draftToggles, setDraftToggles] = useState<Record<string, boolean>>({});
@@ -177,11 +179,14 @@ const FilterBar: React.FC<{
         </div>
       )}
 
-      <p className="mt-2 px-0.5 text-xs text-gray-500" aria-live="polite">
-        {filtered
-          ? <>Showing <b className="font-semibold text-gray-800">{shown}</b> of {total} {noun}</>
-          : <>{total} {noun}</>}
-      </p>
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-0.5">
+        <p className="text-xs text-gray-500" aria-live="polite">
+          {filtered
+            ? <>Showing <b className="font-semibold text-gray-800">{shown}</b> of {total} {noun}</>
+            : <>{total} {noun}</>}
+        </p>
+        {countAside}
+      </div>
 
       {open && createPortal(
         <div className="fixed inset-0 z-[120] flex items-end justify-center sm:items-center">

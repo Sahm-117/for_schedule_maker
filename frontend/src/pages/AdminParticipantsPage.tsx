@@ -30,7 +30,7 @@ import ProfileCompletionCard from '../components/dashboard/ProfileCompletionCard
 import HealthReasonModal from '../components/participants/HealthReasonModal';
 import { buildMissDetails, type MissDetail } from '../utils/participantHealthReason';
 import { buildClassRecords, type ClassRecord } from '../utils/participantClassDots';
-import ClassDots from '../components/participants/ClassDots';
+import ClassDots, { ClassDotsLegend } from '../components/participants/ClassDots';
 import ParticipantSidePanel from '../components/participants/ParticipantSidePanel';
 import { isTeenParticipant } from '../utils/profileCompletionSummary';
 import ParticipantsExportPopup from '../components/participants/ParticipantsExportPopup';
@@ -1450,6 +1450,7 @@ const AdminParticipantsContent: React.FC = () => {
               groups={filterGroups}
               value={filters}
               onChange={setFilters}
+              countAside={classRecords.size > 0 ? <ClassDotsLegend /> : undefined}
               toggles={[
                 { key: 'archived', label: 'Show archived', value: showArchived, onChange: setShowArchived, hint: 'Look at archived participants instead of active ones.' },
                 { key: 'notJoining', label: 'Hide no response and next cohort', value: hideNotJoining, onChange: setHideNotJoining, hint: 'Leave out people whose sign-up status is No Response or Will Join Next Cohort.' },
