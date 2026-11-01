@@ -2423,6 +2423,14 @@ export const settingsApi = {
     if (error) throw new Error(error.message);
     return content;
   },
+
+  // When each website section was last changed and by whom, keyed by section (hero, about, ... and photos).
+  // Only sections changed since this was added appear.
+  async getWebsiteSectionChanges(): Promise<Record<string, { at: string; by: string | null }>> {
+    const { data, error } = await supabase.rpc('website_section_changes');
+    if (error) throw new Error(error.message);
+    return (data as Record<string, { at: string; by: string | null }> | null) ?? {};
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -6383,6 +6391,7 @@ const mapAttendanceSession = (row: any): import('../types').AttendanceSession =>
   finalizedById: row.finalizedById ?? null,
   finalizationMethod: row.finalizationMethod ?? null,
   reopenedAt: row.reopenedAt ?? null,
+  reopenReason: row.reopenReason ?? null,
 });
 
 const mapAttendanceExcusal = (row: any): import('../types').AttendanceExcusal => ({
@@ -6468,8 +6477,8 @@ export const attendanceApi = {
     return { session: mapAttendanceSession(data) };
   },
 
-  async reopen(weekId: number): Promise<{ session: import('../types').AttendanceSession }> {
-    const { data, error } = await supabase.rpc('reopen_shared_attendance', { p_week_id: weekId });
+  async reopen(weekId: number, reason: string): Promise<{ session: import('../types').AttendanceSession }> {
+    const { data, error } = await supabase.rpc('reopen_shared_attendance', { p_week_id: weekId, p_reason: reason });
     if (error || !data) throw new Error(error?.message || 'Failed to reopen attendance');
     return { session: mapAttendanceSession(data) };
   },
@@ -7212,6 +7221,27 @@ export const supportKindApi = {
     const { data, error } = await supabase.rpc('set_support_kind', { p_user_id: userId, p_cohort_id: cohortId, p_kind: kind });
     if (error || !data) throw new Error(error?.message || 'Failed to set support kind');
     return data as { userId: string; cohortId: string; supportKind: import('../types').SupportKind };
+  },
+};
+
+// The admin Supports page's people, hubs, kinds, notes, follow-up load, last active and meeting reports in one call.
+// Rows come back shaped like the separate reads they replace (see admin_supports_overview).
+export const supportsOverviewApi = {
+  async get(cohortId: string): Promise<import('../types').SupportsOverview> {
+    const { data, error } = await supabase.rpc('admin_supports_overview', { p_cohort_id: cohortId });
+    if (error || !data) throw new Error(error?.message || 'Failed to load supports');
+    const d = data as any;
+    return {
+      users: (d.users ?? []) as User[],
+      memberIds: (d.memberIds ?? []) as string[],
+      hubs: ((d.hubs ?? []) as any[]).map(mapSupportHub),
+      memberships: (d.memberships ?? []) as import('../types').HubMembership[],
+      kinds: (d.kinds ?? {}) as Record<string, import('../types').SupportKind>,
+      notedIds: (d.notedIds ?? []) as string[],
+      followUpLoad: new Map(Object.entries((d.followUpLoad ?? {}) as Record<string, number>).map(([id, n]) => [id, Number(n)] as [string, number])),
+      lastActive: (d.lastActive ?? {}) as Record<string, string | null>,
+      reports: ((d.reports ?? []) as any[]).map(mapParticipantNote),
+    };
   },
 };
 
@@ -9045,6 +9075,26 @@ const surveyError = (message: string): Error => {
 
 export const SURVEY_FILE_MAX_BYTES = 5 * 1024 * 1024;
 
+// Uploaded survey files that are private ("fof-private:<path>") get two-hour signed links for the admin results page
+// (admins may read private-files). A file that can't be signed shows no link rather than a broken one.
+const signSurveyFiles = async (results: import('../types').SurveyResults): Promise<import('../types').SurveyResults> => {
+  const isPrivate = (v: unknown): v is { url: string; name?: string } =>
+    !!v && typeof v === 'object' && typeof (v as { url?: unknown }).url === 'string' && (v as { url: string }).url.startsWith(PRIVATE_FILE_PREFIX);
+  const paths = new Set<string>();
+  for (const a of results.answers ?? []) for (const v of Object.values(a.answers)) if (isPrivate(v)) paths.add(v.url.slice(PRIVATE_FILE_PREFIX.length));
+  if (paths.size === 0) return results;
+  const { data } = await supabase.storage.from('private-files').createSignedUrls([...paths], 2 * 60 * 60);
+  const links = new Map<string, string>();
+  (data ?? []).forEach((row) => { if (row.path && row.signedUrl) links.set(row.path, row.signedUrl); });
+  return {
+    ...results,
+    answers: (results.answers ?? []).map((a) => ({
+      ...a,
+      answers: Object.fromEntries(Object.entries(a.answers).map(([key, v]) => [key, isPrivate(v) ? { ...v, url: links.get(v.url.slice(PRIVATE_FILE_PREFIX.length)) ?? '' } : v])),
+    })),
+  };
+};
+
 export const surveyApi = {
   async pending(): Promise<import('../types').PendingSurvey[]> {
     const { data, error } = await supabase.rpc('survey_pending', { p_token: getSessionToken() });
@@ -9074,15 +9124,15 @@ export const surveyApi = {
     }
   },
 
-  // A photo or file for a FILE question. Stored with the other app files.
+  // A photo or file for a FILE question. Stored in the private bucket (FLOW_MAP rule 129): the answer's url is
+  // "fof-private:<path>", and the admin results page turns it into a signed link. Older answers keep public links.
   async uploadFile(surveyId: string, file: File): Promise<{ url: string; name: string }> {
     if (file.size > SURVEY_FILE_MAX_BYTES) throw new Error('That file is over 5 MB. Choose a smaller one.');
     const safe = file.name.replace(/[^a-zA-Z0-9._-]+/g, '-').slice(-60) || 'file';
     const path = `survey-files/${surveyId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${safe}`;
-    const { error } = await supabase.storage.from('resources').upload(path, file, { cacheControl: '31536000', upsert: false, contentType: file.type || undefined });
+    const { error } = await supabase.storage.from('private-files').upload(path, file, { upsert: false, contentType: file.type || undefined });
     if (error) throw new Error('Could not upload that file. Please try again.');
-    const { data } = supabase.storage.from('resources').getPublicUrl(path);
-    return { url: data.publicUrl, name: file.name };
+    return { url: `${PRIVATE_FILE_PREFIX}${path}`, name: file.name };
   },
 
   async adminList(cohortId: string): Promise<import('../types').SurveyListItem[]> {
@@ -9111,7 +9161,7 @@ export const surveyApi = {
   async adminResults(id: string, cohortId: string | null): Promise<import('../types').SurveyResults> {
     const { data, error } = await supabase.rpc('survey_admin_results', { p_token: getSessionToken(), p_id: id, p_cohort_id: cohortId });
     if (error) throw surveyError(error.message);
-    return data as import('../types').SurveyResults;
+    return signSurveyFiles(data as import('../types').SurveyResults);
   },
 
   async summarise(id: string, cohortId: string | null): Promise<{ summary: string; createdAt: string }> {

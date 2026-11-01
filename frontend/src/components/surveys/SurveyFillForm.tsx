@@ -154,7 +154,7 @@ const SurveyFillForm: React.FC<Props> = ({ surveyId, participantName, onSubmitte
                     {uploading === q.id ? <Spinner className="h-4 w-4" /> : <Glyph name="clip" className="h-4 w-4 flex-none" />}
                     <span className="min-w-0 truncate">{uploading === q.id ? 'Uploading…' : v && typeof v === 'object' ? v.name || 'File added' : 'Choose a photo or file (5 MB max)'}</span>
                   </button>
-                  {v && typeof v === 'object' && /\.(png|jpe?g|gif|webp)$/i.test(v.url) && <img src={v.url} alt="" className="mt-2 max-h-40 rounded-xl" />}
+                  {v && typeof v === 'object' && /^https:/.test(v.url) && /\.(png|jpe?g|gif|webp)$/i.test(v.url) && <img src={v.url} alt="" className="mt-2 max-h-40 rounded-xl" />}
                 </div>
               )}
             </div>

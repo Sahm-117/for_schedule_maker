@@ -130,7 +130,7 @@ const AdminSurveyResultsPage: React.FC = () => {
       );
     }
     if (q.kind === 'FILE') {
-      const files = (results.answers ?? []).map((a) => (q.id ? a.answers[q.id] : undefined)).filter((v): v is { url: string; name?: string } => !!v && typeof v === 'object');
+      const files = (results.answers ?? []).map((a) => (q.id ? a.answers[q.id] : undefined)).filter((v): v is { url: string; name?: string } => !!v && typeof v === 'object' && !!v.url);
       return (
         <div key={q.id}>{header}
           {files.length === 0 ? <p className="mt-1 text-sm text-gray-500">No files yet.</p> : (

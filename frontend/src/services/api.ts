@@ -44,6 +44,7 @@ import {
   myHubApi as supabaseMyHubApi,
   groupDiscussionApi as supabaseGroupDiscussionApi,
   supportKindApi as supabaseSupportKindApi,
+  supportsOverviewApi as supabaseSupportsOverviewApi,
   supportTagsApi as supabaseSupportTagsApi,
   supportRecapsApi as supabaseSupportRecapsApi,
   notificationDeliveryApi as supabaseNotificationDeliveryApi,
@@ -628,6 +629,9 @@ export const settingsApi = USE_SUPABASE ? supabaseSettingsApi : {
   async setLandingContent(content: Record<string, unknown>): Promise<Record<string, unknown>> {
     return content;
   },
+  async getWebsiteSectionChanges(): Promise<Record<string, { at: string; by: string | null }>> {
+    return {};
+  },
 };
 
 export const pushSubscriptionsApi = USE_SUPABASE ? supabasePushSubscriptionsApi : {
@@ -775,7 +779,7 @@ export const attendanceApi = USE_SUPABASE ? supabaseAttendanceApi : {
   async bulkMark(_entries: any[]): Promise<never> { return peopleUnavailable(); },
   async finalize(_weekId: number): Promise<never> { return peopleUnavailable(); },
   async setAutoFinalize(_weekId: number, _enabled: boolean): Promise<never> { return peopleUnavailable(); },
-  async reopen(_weekId: number): Promise<never> { return peopleUnavailable(); },
+  async reopen(_weekId: number, _reason: string): Promise<never> { return peopleUnavailable(); },
   async startWindow(_weekId: number): Promise<never> { return peopleUnavailable(); },
   async excuseLateness(_recordId: string, _note: string): Promise<never> { return peopleUnavailable(); },
 };
@@ -874,6 +878,10 @@ export const supportTagsApi = USE_SUPABASE ? supabaseSupportTagsApi : {
 export const supportKindApi = USE_SUPABASE ? supabaseSupportKindApi : {
   async getForCohort(_cohortId: string): Promise<{ kinds: Record<string, import('../types').SupportKind> }> { return { kinds: {} }; },
   async set(_userId: string, _cohortId: string, _kind: import('../types').SupportKind): Promise<never> { return peopleUnavailable(); },
+};
+
+export const supportsOverviewApi = USE_SUPABASE ? supabaseSupportsOverviewApi : {
+  async get(_cohortId: string): Promise<never> { return peopleUnavailable(); },
 };
 
 export const followUpChecksApi = USE_SUPABASE ? supabaseFollowUpChecksApi : {

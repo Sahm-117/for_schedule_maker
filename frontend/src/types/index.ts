@@ -847,6 +847,7 @@ export interface AttendanceSession {
   finalizedById?: string | null;
   finalizationMethod?: 'MANUAL' | 'AUTO' | null;
   reopenedAt?: string | null;
+  reopenReason?: string | null;
 }
 
 export type AttendanceFollowUpTaskStatus = 'OPEN' | 'DONE' | 'CANCELLED';
@@ -1518,6 +1519,19 @@ export interface SupportTag {
   name: string;
   userIds: string[];
   systemKey?: string | null;
+}
+
+/** What the admin Supports page reads in one call (admin_supports_overview), shaped like its separate reads. */
+export interface SupportsOverview {
+  users: User[];
+  memberIds: string[];
+  hubs: SupportHub[];
+  memberships: HubMembership[];
+  kinds: Record<string, SupportKind>;
+  notedIds: string[];
+  followUpLoad: Map<string, number>;
+  lastActive: Record<string, string | null>;
+  reports: ParticipantNote[];
 }
 
 export interface HubMembership {

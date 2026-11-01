@@ -20,7 +20,7 @@ import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
 import { useAppData } from '../context/AppDataContext';
 import { buildOnboardingReadiness, participantFinished, participantStepDone, type OnboardingReadiness } from '../utils/supportOnboarding';
-import { cohortsApi, followUpContactsApi, groupDiscussionApi, groupsApi, participantNotesApi, settingsApi, supportHubsApi, supportKindApi, supportNotesApi, supportSessionsApi, usersApi } from '../services/api';
+import { cohortsApi, followUpContactsApi, groupDiscussionApi, groupsApi, participantNotesApi, settingsApi, supportHubsApi, supportKindApi, supportNotesApi, supportSessionsApi, supportsOverviewApi, usersApi } from '../services/api';
 import type { HubMembership, OnboardingProgressParticipant, ParticipantNote, SupportHub, SupportKind, SupportNote, SupportSession, User } from '../types';
 import AppSelect from '../components/AppSelect';
 import AppOverflowMenu from '../components/AppOverflowMenu';
@@ -141,19 +141,31 @@ const AdminSupportsPage: React.FC = () => {
     if (!activeCohort?.id) { setLoading(false); return; }
     try {
       setError('');
-      const [h, p, r, u, hb, ms, ts, k, cm, ob, gs] = await Promise.all([
+      // One database call for the people, hubs, kinds, notes, follow-up load, last active and meeting reports. The
+      // separate reads below only run if that call fails.
+      const [h, p, r, ts, ob, gs, overview] = await Promise.all([
         cohortsApi.getHealth(activeCohort.id),
         cohortsApi.getPeople(activeCohort.id),
         settingsApi.getProgrammeRules(),
-        usersApi.getAll().then((res) => res.users).catch(() => [] as User[]),
-        supportHubsApi.getAll(activeCohort.id).then((res) => res.hubs).catch(() => [] as SupportHub[]),
-        supportHubsApi.getMembershipsForCohort(activeCohort.id).then((res) => res.memberships).catch(() => [] as HubMembership[]),
         supportSessionsApi.getForCohort(activeCohort.id, ['PRE_COHORT_TRAINING']).catch(() => ({ sessions: [] as SupportSession[], attendance: [] as Array<{ sessionId: string; userId: string; status: string }> })),
-        supportKindApi.getForCohort(activeCohort.id).then((res) => res.kinds).catch(() => ({} as Record<string, SupportKind>)),
-        cohortsApi.getMembers(activeCohort.id).then((res) => res.users.map((x) => x.id)).catch(() => [] as string[]),
         groupDiscussionApi.cohortOnboardingProgress(activeCohort.id).catch(() => null),
         groupsApi.getAll({ cohortId: activeCohort.id }).then((res) => res.groups).catch(() => null),
+        supportsOverviewApi.get(activeCohort.id).catch(() => null),
       ]);
+      const [u, hb, ms, k, cm] = overview
+        ? [overview.users, overview.hubs, overview.memberships, overview.kinds, overview.memberIds] as const
+        : await Promise.all([
+          usersApi.getAll().then((res) => res.users).catch(() => [] as User[]),
+          supportHubsApi.getAll(activeCohort.id).then((res) => res.hubs).catch(() => [] as SupportHub[]),
+          supportHubsApi.getMembershipsForCohort(activeCohort.id).then((res) => res.memberships).catch(() => [] as HubMembership[]),
+          supportKindApi.getForCohort(activeCohort.id).then((res) => res.kinds).catch(() => ({} as Record<string, SupportKind>)),
+          cohortsApi.getMembers(activeCohort.id).then((res) => res.users.map((x) => x.id)).catch(() => [] as string[]),
+        ]);
+      // Last active came with the overview: keep it as fresh, so the lookup below only asks for anyone it missed.
+      if (overview) {
+        const now = Date.now();
+        Object.entries(overview.lastActive).forEach(([id, seen]) => lastSeenCache.current.set(id, { seen: seen ?? null, at: now }));
+      }
       setMeetingSetByGroup(gs ? Object.fromEntries(gs.map((g) => [g.id, !!(g.meetingDay && g.meetingTime)])) : {});
       // Who counts as onboarded now (attended + profile, the support's steps, admin marks); null if unknown.
       setReadiness(ob && gs ? buildOnboardingReadiness(ob, gs) : null);
@@ -184,10 +196,16 @@ const AdminSupportsPage: React.FC = () => {
       readyOverride.forEach((groupId) => { if (!readyMap[groupId]) readyMap[groupId] = { ready: 0, override: true }; });
       setReadyByGroup(readyMap);
       // Only open contacts count towards a support's load, so archived ones (most of them) are not fetched.
-      followUpContactsApi.getAll({ archived: false }).then((res) => setFollowUpLoad(openLoadByOwner(res.contacts, activeCohort.id))).catch(() => {});
-      setNotedIds(new Set(await supportNotesApi.getSupportIdsWithNotes(hb.map((x) => x.id)).then((res) => res.supportIds).catch(() => [] as string[])));
-      const groupIds = h.groups.map((g) => g.id);
-      setReports(await participantNotesApi.getMeetingReports(groupIds).then((res) => res.notes).catch(() => [] as ParticipantNote[]));
+      if (overview) {
+        setFollowUpLoad(overview.followUpLoad);
+        setNotedIds(new Set(overview.notedIds));
+        setReports(overview.reports);
+      } else {
+        followUpContactsApi.getAll({ archived: false }).then((res) => setFollowUpLoad(openLoadByOwner(res.contacts, activeCohort.id))).catch(() => {});
+        setNotedIds(new Set(await supportNotesApi.getSupportIdsWithNotes(hb.map((x) => x.id)).then((res) => res.supportIds).catch(() => [] as string[])));
+        const groupIds = h.groups.map((g) => g.id);
+        setReports(await participantNotesApi.getMeetingReports(groupIds).then((res) => res.notes).catch(() => [] as ParticipantNote[]));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load supports.');
     } finally {

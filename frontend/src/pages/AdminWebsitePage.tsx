@@ -160,6 +160,11 @@ const AdminWebsitePage: React.FC = () => {
   const [savedContent, setSavedContent] = useState<LandingContent>(DEFAULT_LANDING_CONTENT);
   const [saving, setSaving] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
+  const [changes, setChanges] = useState<Record<string, { at: string; by: string | null }>>({});
+  const loadChanges = () => {
+    settingsApi.getWebsiteSectionChanges().then(setChanges).catch(() => { /* the line simply stays hidden */ });
+  };
+  useEffect(loadChanges, []);
   const [resetAllOpen, setResetAllOpen] = useState(false);
   const [resettingAll, setResettingAll] = useState(false);
 
@@ -195,6 +200,7 @@ const AdminWebsitePage: React.FC = () => {
     try {
       await settingsApi.setLandingContent(content as unknown as Record<string, unknown>);
       setSavedContent(content);
+      loadChanges();
       setSavedFlash(true);
       setTimeout(() => setSavedFlash(false), 2500);
     } catch (err) {
@@ -212,6 +218,7 @@ const AdminWebsitePage: React.FC = () => {
       await settingsApi.setLandingContent(defaults as unknown as Record<string, unknown>);
       setContent(defaults);
       setSavedContent(defaults);
+      loadChanges();
       setResetAllOpen(false);
       toast({ message: 'Website reset to default.', tone: 'success' });
     } catch (err) {
@@ -261,6 +268,12 @@ const AdminWebsitePage: React.FC = () => {
       ) : (
         <>
           <SegmentedTabs tabs={TABS.map((t) => ({ key: t.key, label: t.label }))} active={tab} onChange={setTab} />
+          {changes[tab] && (
+            <p className="mt-3 text-xs text-gray-500">
+              Changed {new Date(changes[tab].at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'Africa/Lagos' })}
+              {changes[tab].by ? ` by ${changes[tab].by}` : ''}
+            </p>
+          )}
 
           <fieldset disabled={!canEdit} className="mt-4 min-w-0 space-y-4 pb-8">
             {tab === 'hero' && (

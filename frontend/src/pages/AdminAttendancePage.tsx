@@ -6,6 +6,7 @@ import { countdownLabel, useDeadlineClock } from '../hooks/useDeadlineClock';
 import Spinner from '../components/Spinner';
 import FilterBar, { NO_CHOICES, type FilterGroup, type FilterValues } from '../components/filters/FilterBar';
 import AppOverflowMenu from '../components/AppOverflowMenu';
+import ConfirmationModal from '../components/ConfirmationModal';
 import TrainingMarkersModal from '../components/TrainingMarkersModal';
 import AttendanceSupportPicker from '../components/AttendanceSupportPicker';
 import { useAuth } from '../hooks/useAuth';
@@ -98,6 +99,8 @@ const AdminAttendanceContent: React.FC = () => {
   const [followUpOpen, setFollowUpOpen] = useState(false);
   const [markersOpen, setMarkersOpen] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
+  const [reopenOpen, setReopenOpen] = useState(false);
+  const [reopenReason, setReopenReason] = useState('');
 
   // Groups change per cohort, not per week — load once per cohort.
   useEffect(() => {
@@ -249,10 +252,10 @@ const AdminAttendanceContent: React.FC = () => {
   };
 
   const reopen = async () => {
-    if (selectedWeekId === null || !finalised) return;
+    if (selectedWeekId === null || !finalised || !reopenReason.trim()) return;
     setSessionSaving(true);
     try {
-      const { session: saved } = await attendanceApi.reopen(selectedWeekId);
+      const { session: saved } = await attendanceApi.reopen(selectedWeekId, reopenReason.trim());
       setSession(saved);
     } catch { /* keep the finalised state if reopening was rejected */ }
     finally { setSessionSaving(false); }
@@ -362,7 +365,7 @@ const AdminAttendanceContent: React.FC = () => {
               <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-xs font-bold text-neutral-600">Register closed</span>
             ) : null}
             {canEdit && <button type="button" onClick={() => void setAutoFinalize(!autoFinalizeAtNoon)} disabled={sessionSaving || finalised} className="rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-50">Auto-finalise at noon: {autoFinalizeAtNoon ? 'On' : 'Off'}</button>}
-            {finalised ? canEdit && <button type="button" onClick={() => void reopen()} disabled={sessionSaving} className="ml-auto rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-50">Reopen</button> : !autoFinalizeAtNoon ? canEdit && <button type="button" onClick={() => void finalise()} disabled={!allMarked || sessionSaving} className="ml-auto rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white disabled:opacity-40">Send report</button> : <p className="ml-auto text-xs font-medium text-gray-500">Sends automatically at noon Sunday</p>}
+            {finalised ? canEdit && <button type="button" onClick={() => setReopenOpen(true)} disabled={sessionSaving} className="ml-auto rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-50">Reopen</button> : !autoFinalizeAtNoon ? canEdit && <button type="button" onClick={() => void finalise()} disabled={!allMarked || sessionSaving} className="ml-auto rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white disabled:opacity-40">Send report</button> : <p className="ml-auto text-xs font-medium text-gray-500">Sends automatically at noon Sunday</p>}
           </section>
           {/* Summary: one calm card, the rate first and the counts beside it. */}
           {!loading && (
@@ -483,6 +486,26 @@ const AdminAttendanceContent: React.FC = () => {
           }}
         />
       )}
+      <ConfirmationModal
+        isOpen={reopenOpen}
+        onClose={() => { setReopenOpen(false); setReopenReason(''); }}
+        onConfirm={() => void reopen()}
+        title="Reopen this class?"
+        message="Supports for this cohort are told the class is open again. Say why you are reopening it."
+        confirmText="Reopen"
+        type="warning"
+        confirmDisabled={!reopenReason.trim()}
+      >
+        <textarea
+          value={reopenReason}
+          onChange={(e) => setReopenReason(e.target.value)}
+          rows={3}
+          maxLength={500}
+          placeholder="For example: a mark was entered on the wrong person"
+          aria-label="Reason for reopening"
+          className="w-full rounded-xl border border-gray-200 px-3.5 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+        />
+      </ConfirmationModal>
     </div>
   );
 };
