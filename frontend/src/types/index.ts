@@ -2137,7 +2137,10 @@ export interface SurveyDetail {
   questions: SurveyQuestion[];
 }
 
-export type SurveyAnswerValue = string | number | { url: string; name?: string } | null | undefined;
+// A FILE answer. A private upload ("fof-private:<path>" in the database) arrives with `private` set and its url swapped
+// for a two-hour signed link; `unavailable` means no link could be made for it (url is then empty).
+export type SurveyFileAnswer = { url: string; name?: string; private?: boolean; unavailable?: boolean };
+export type SurveyAnswerValue = string | number | SurveyFileAnswer | null | undefined;
 
 export interface SurveyResults extends SurveyDetail {
   eligible: number;

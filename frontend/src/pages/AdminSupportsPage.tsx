@@ -141,26 +141,36 @@ const AdminSupportsPage: React.FC = () => {
     if (!activeCohort?.id) { setLoading(false); return; }
     try {
       setError('');
-      // One database call for the people, hubs, kinds, notes, follow-up load, last active and meeting reports. The
-      // separate reads below only run if that call fails.
-      const [h, p, r, ts, ob, gs, overview] = await Promise.all([
+      // One database call for the people, hubs, kinds, notes, follow-up load, last active and meeting reports. If it
+      // fails, the separate reads start the moment it does (alongside the other reads still running), so a failure
+      // costs at most one extra round trip.
+      const overviewOrFallback = supportsOverviewApi.get(activeCohort.id)
+        .then((overview) => ({ overview, fallback: null }))
+        .catch((err: unknown) => {
+          console.warn('Supports overview failed; falling back to separate reads', err);
+          return {
+            overview: null,
+            fallback: Promise.all([
+              usersApi.getAll().then((res) => res.users).catch(() => [] as User[]),
+              supportHubsApi.getAll(activeCohort.id).then((res) => res.hubs).catch(() => [] as SupportHub[]),
+              supportHubsApi.getMembershipsForCohort(activeCohort.id).then((res) => res.memberships).catch(() => [] as HubMembership[]),
+              supportKindApi.getForCohort(activeCohort.id).then((res) => res.kinds).catch(() => ({} as Record<string, SupportKind>)),
+              cohortsApi.getMembers(activeCohort.id).then((res) => res.users.map((x) => x.id)).catch(() => [] as string[]),
+            ]),
+          };
+        });
+      const [h, p, r, ts, ob, gs, { overview, fallback }] = await Promise.all([
         cohortsApi.getHealth(activeCohort.id),
         cohortsApi.getPeople(activeCohort.id),
         settingsApi.getProgrammeRules(),
         supportSessionsApi.getForCohort(activeCohort.id, ['PRE_COHORT_TRAINING']).catch(() => ({ sessions: [] as SupportSession[], attendance: [] as Array<{ sessionId: string; userId: string; status: string }> })),
         groupDiscussionApi.cohortOnboardingProgress(activeCohort.id).catch(() => null),
         groupsApi.getAll({ cohortId: activeCohort.id }).then((res) => res.groups).catch(() => null),
-        supportsOverviewApi.get(activeCohort.id).catch(() => null),
+        overviewOrFallback,
       ]);
       const [u, hb, ms, k, cm] = overview
         ? [overview.users, overview.hubs, overview.memberships, overview.kinds, overview.memberIds] as const
-        : await Promise.all([
-          usersApi.getAll().then((res) => res.users).catch(() => [] as User[]),
-          supportHubsApi.getAll(activeCohort.id).then((res) => res.hubs).catch(() => [] as SupportHub[]),
-          supportHubsApi.getMembershipsForCohort(activeCohort.id).then((res) => res.memberships).catch(() => [] as HubMembership[]),
-          supportKindApi.getForCohort(activeCohort.id).then((res) => res.kinds).catch(() => ({} as Record<string, SupportKind>)),
-          cohortsApi.getMembers(activeCohort.id).then((res) => res.users.map((x) => x.id)).catch(() => [] as string[]),
-        ]);
+        : await (fallback as NonNullable<typeof fallback>);
       // Last active came with the overview: keep it as fresh, so the lookup below only asks for anyone it missed.
       if (overview) {
         const now = Date.now();

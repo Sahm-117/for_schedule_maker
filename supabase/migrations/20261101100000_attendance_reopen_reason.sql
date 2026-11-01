@@ -3,7 +3,8 @@
 -- only admins can call it, as before. Admins were never held by attendance_week_locked, so nothing about the lock
 -- changes: it still lets supports in only while the fresh window runs.
 --   * AttendanceSession."reopenReason" holds the latest reason (who and when are the existing reopenedById and reopenedAt).
---   * reopen_shared_attendance(week, reason) is the new action. It rejects an empty reason.
+--   * reopen_shared_attendance(week, reason) is the new action. It rejects an empty reason, and refuses a register that is
+--     not finalised ('Attendance is already open'), so a double click or a stale page can't cancel tasks or notify twice.
 --   * The old one-argument reopen_shared_attendance(week) is kept for app tabs opened before this release; it reopens
 --     with a placeholder reason. The current app always sends a reason.
 --   * The notice goes to the cohort's group supports (the same people as the attendance report; test accounts left out),
@@ -43,6 +44,11 @@ BEGIN
   FROM public."AppSetting" WHERE "settingKey" = 'programme_rules';
   v_window_minutes := GREATEST(1, COALESCE(v_window_minutes, 15));
 
+  -- Only a finalised register can be reopened; checked on the locked row before anything is changed or sent.
+  SELECT * INTO v_session FROM public."AttendanceSession" WHERE "weekId" = p_week_id FOR UPDATE;
+  IF v_session.id IS NULL THEN RAISE EXCEPTION 'Attendance session was not found'; END IF;
+  IF v_session."finalizedAt" IS NULL THEN RAISE EXCEPTION 'Attendance is already open'; END IF;
+
   UPDATE public."AttendanceSession"
   SET "finalizedAt" = NULL,
       "finalizedById" = NULL,
@@ -55,7 +61,6 @@ BEGIN
       "updatedAt" = NOW()
   WHERE "weekId" = p_week_id
   RETURNING * INTO v_session;
-  IF v_session.id IS NULL THEN RAISE EXCEPTION 'Attendance session was not found'; END IF;
 
   UPDATE public."AttendanceFollowUpTask"
   SET status = 'CANCELLED', "updatedAt" = NOW()

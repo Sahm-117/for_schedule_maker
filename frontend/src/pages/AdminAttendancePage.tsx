@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
@@ -7,6 +7,7 @@ import Spinner from '../components/Spinner';
 import FilterBar, { NO_CHOICES, type FilterGroup, type FilterValues } from '../components/filters/FilterBar';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import ConfirmationModal from '../components/ConfirmationModal';
+import { useToast } from '../components/Toast';
 import TrainingMarkersModal from '../components/TrainingMarkersModal';
 import AttendanceSupportPicker from '../components/AttendanceSupportPicker';
 import { useAuth } from '../hooks/useAuth';
@@ -101,6 +102,9 @@ const AdminAttendanceContent: React.FC = () => {
   const [assignOpen, setAssignOpen] = useState(false);
   const [reopenOpen, setReopenOpen] = useState(false);
   const [reopenReason, setReopenReason] = useState('');
+  // The confirm button closes its dialog straight away; this tells the close handler to keep the typed reason.
+  const reopenConfirming = useRef(false);
+  const toast = useToast();
 
   // Groups change per cohort, not per week — load once per cohort.
   useEffect(() => {
@@ -257,8 +261,12 @@ const AdminAttendanceContent: React.FC = () => {
     try {
       const { session: saved } = await attendanceApi.reopen(selectedWeekId, reopenReason.trim());
       setSession(saved);
-    } catch { /* keep the finalised state if reopening was rejected */ }
-    finally { setSessionSaving(false); }
+      setReopenReason('');
+    } catch (err) {
+      // Keep the typed reason and put the dialog back so the admin can retry.
+      toast({ message: err instanceof Error ? err.message : 'Could not reopen attendance.', tone: 'error' });
+      setReopenOpen(true);
+    } finally { setSessionSaving(false); }
   };
 
   // With exactly one group chosen, say who supports it.
@@ -488,8 +496,12 @@ const AdminAttendanceContent: React.FC = () => {
       )}
       <ConfirmationModal
         isOpen={reopenOpen}
-        onClose={() => { setReopenOpen(false); setReopenReason(''); }}
-        onConfirm={() => void reopen()}
+        onClose={() => {
+          setReopenOpen(false);
+          if (!reopenConfirming.current) setReopenReason('');
+          reopenConfirming.current = false;
+        }}
+        onConfirm={() => { reopenConfirming.current = true; void reopen(); }}
         title="Reopen this class?"
         message="Supports for this cohort are told the class is open again. Say why you are reopening it."
         confirmText="Reopen"

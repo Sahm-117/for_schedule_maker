@@ -1,17 +1,55 @@
 -- Survey file uploads go to the private bucket (FLOW_MAP rule 129; the open item from 30 Oct).
---   * New uploads are stored in "private-files" under survey-files/<survey id>/…, and the answer's url is
---     "fof-private:<path>", like a private Resource file. Old answers keep their public https links, which still work.
---   * Any signed-in session (a participant or staff, storage_signed_in) may add a file under survey-files/ only. Reading
---     stays admin-only (the existing "private-files: admin read" policy); the results page signs the links for admins.
---   * survey_submit (copied from 20261002200000_surveys.sql, one change) also accepts a private link, but only one
---     inside this survey's own folder; other private paths are refused.
+--   * New uploads are stored in "private-files" under survey-files/<survey id>/<respondent id>/<file>, where the respondent
+--     id is the signed-in participant's id or the staff member's user id. The answer's url is "fof-private:<path>", like a
+--     private Resource file. Old answers keep their public https links, which still work.
+--   * A signed-in session (storage_signed_in's rule) may add a file only under its own folder of an existing survey:
+--     storage_survey_upload_ok(name) checks the shape, that the survey exists and that the third part is the caller's own
+--     id. Reading stays admin-only (the existing "private-files: admin read" policy); the results page gets signed links
+--     for admins through the file-links function (kind 'survey').
+--   * survey_respondent_id(token) tells the app which id to put in the path.
+--   * survey_submit (copied from 20261002200000_surveys.sql) reads a FILE answer as the {url, name} object the app sends
+--     (a plain string from an older client still works) and accepts a private link only inside
+--     survey-files/<this survey>/<this respondent>/; other private paths are refused.
 --
--- Rollback: DROP POLICY "private-files: survey upload" ON storage.objects; then re-run survey_submit from
--- 20261002200000_surveys.sql (answers already stored with a fof-private: url keep working for admins either way).
+-- Rollback: DROP POLICY "private-files: survey upload" ON storage.objects;
+-- DROP FUNCTION public.storage_survey_upload_ok(TEXT); DROP FUNCTION public.survey_respondent_id(TEXT);
+-- then re-run survey_submit from 20261002200000_surveys.sql (answers already stored with a fof-private: url keep working
+-- for admins either way).
+
+-- The caller's own id as a path part: a participant's id, or a staff member's user id. Storage policies can't call
+-- app_participant_id directly (closed to the app's roles), so this is the wrapper, like storage_signed_in.
+CREATE OR REPLACE FUNCTION public.storage_survey_upload_ok(p_name TEXT)
+ RETURNS BOOLEAN
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  SELECT p_name IS NOT NULL
+    AND position('..' IN p_name) = 0
+    AND split_part(p_name, '/', 1) = 'survey-files'
+    AND split_part(p_name, '/', 4) <> ''
+    AND EXISTS (SELECT 1 FROM public."Survey" s WHERE s.id::TEXT = split_part(p_name, '/', 2))
+    AND split_part(p_name, '/', 3) = COALESCE(
+      public.app_participant_id(public.app_current_token())::TEXT,
+      public.app_current_user_id()::TEXT);
+$function$;
+REVOKE ALL ON FUNCTION public.storage_survey_upload_ok(TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.storage_survey_upload_ok(TEXT) TO anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.survey_respondent_id(p_token TEXT)
+ RETURNS UUID
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path = public, extensions
+AS $function$
+  SELECT COALESCE(public.app_participant_id(p_token), (public.app_staff(p_token)).id);
+$function$;
+REVOKE ALL ON FUNCTION public.survey_respondent_id(TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.survey_respondent_id(TEXT) TO anon, authenticated;
 
 DROP POLICY IF EXISTS "private-files: survey upload" ON storage.objects;
 CREATE POLICY "private-files: survey upload" ON storage.objects FOR INSERT TO public
-  WITH CHECK (bucket_id = 'private-files' AND name LIKE 'survey-files/%' AND (SELECT public.storage_signed_in()));
+  WITH CHECK (bucket_id = 'private-files' AND (SELECT public.storage_survey_upload_ok(name)));
 
 CREATE OR REPLACE FUNCTION public.survey_submit(p_token TEXT, p_id UUID, p_answers JSONB)
 RETURNS JSON
@@ -22,6 +60,7 @@ AS $$
 DECLARE
   pid UUID := public.app_participant_id(p_token);
   staff "User" := public.app_staff(p_token);
+  rid UUID;
   person "Participant";
   c "Cohort";
   s "Survey";
@@ -38,6 +77,7 @@ DECLARE
   wrap JSON;
 BEGIN
   IF pid IS NULL AND staff.id IS NULL THEN RAISE EXCEPTION 'SESSION_EXPIRED'; END IF;
+  rid := COALESCE(pid, staff.id);
   SELECT * INTO s FROM "Survey" WHERE id = p_id;
   IF s.id IS NULL THEN RAISE EXCEPTION 'SURVEY_NOT_AVAILABLE'; END IF;
   IF pid IS NOT NULL THEN
@@ -54,7 +94,12 @@ BEGIN
   IF p_answers IS NULL OR jsonb_typeof(p_answers) <> 'object' THEN RAISE EXCEPTION 'ANSWERS_INVALID'; END IF;
 
   FOR q IN SELECT * FROM "SurveyQuestion" WHERE "surveyId" = s.id ORDER BY position LOOP
-    val := NULLIF(trim(COALESCE(p_answers ->> q.id::TEXT, '')), '');
+    -- A FILE answer is the {url, name} object the app sends; an older client may send the link as a plain string.
+    IF q.kind = 'FILE' AND jsonb_typeof(p_answers -> q.id::TEXT) = 'object' THEN
+      val := NULLIF(trim(COALESCE(p_answers -> q.id::TEXT ->> 'url', '')), '');
+    ELSE
+      val := NULLIF(trim(COALESCE(p_answers ->> q.id::TEXT, '')), '');
+    END IF;
     IF val IS NULL THEN
       IF q.required THEN RAISE EXCEPTION 'ANSWER_REQUIRED: %', q.prompt; END IF;
       CONTINUE;
@@ -73,8 +118,8 @@ BEGIN
       IF val NOT IN ('Yes', 'No') THEN RAISE EXCEPTION 'ANSWER_INVALID: %', q.prompt; END IF;
       clean := clean || jsonb_build_object(q.id::TEXT, val);
     ELSIF q.kind = 'FILE' THEN
-      -- A new upload is a private file of this survey ("fof-private:survey-files/<survey id>/…"); an old answer is a public https link.
-      IF length(val) > 1000 OR position('..' IN val) > 0 OR NOT (val ~ '^https://' OR val LIKE 'fof-private:survey-files/' || s.id::TEXT || '/%') THEN
+      -- A new upload is this respondent's own private file ("fof-private:survey-files/<survey id>/<respondent id>/…"); an old answer is a public https link.
+      IF length(val) > 1000 OR position('..' IN val) > 0 OR NOT (val ~ '^https://' OR val LIKE 'fof-private:survey-files/' || s.id::TEXT || '/' || rid::TEXT || '/%') THEN
         RAISE EXCEPTION 'ANSWER_INVALID: %', q.prompt;
       END IF;
       clean := clean || jsonb_build_object(q.id::TEXT, jsonb_build_object('url', val, 'name', left(COALESCE(p_answers -> q.id::TEXT ->> 'name', ''), 200)));

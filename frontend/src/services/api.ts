@@ -697,7 +697,7 @@ export const practiceApi = USE_SUPABASE ? supabasePracticeApi : {
 };
 
 export const privateFilesApi = USE_SUPABASE ? supabasePrivateFilesApi : {
-  async sign(_kind: 'resource' | 'version', _ids: string[]): Promise<Record<string, string>> { return {}; },
+  async sign(_kind: 'resource' | 'version' | 'survey', _ids: string[]): Promise<Record<string, string>> { return {}; },
 };
 
 export const resourcesApi = USE_SUPABASE ? supabaseResourcesApi : {

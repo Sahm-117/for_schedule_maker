@@ -7,6 +7,9 @@
  * (private_file_paths: the same rules as the Resources lists), and this function signs only those, for two hours.
  *
  * POST { kind: 'resource' | 'version', ids: string[] }  ->  { urls: { [id]: signedUrl } }
+ *
+ * Survey uploads (survey-files/<survey id>/<respondent id>/…) are signed the same way for admins only, the people who
+ * can open survey results: POST { kind: 'survey', ids: string[] of paths }  ->  { urls: { [path]: signedUrl } }
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -33,7 +36,7 @@ Deno.serve(async (req) => {
   let ids: string[]
   try {
     const body = await req.json() as { kind?: string; ids?: unknown }
-    kind = body.kind === 'version' ? 'version' : 'resource'
+    kind = body.kind === 'version' ? 'version' : body.kind === 'survey' ? 'survey' : 'resource'
     ids = Array.isArray(body.ids) ? body.ids.filter((id): id is string => typeof id === 'string').slice(0, 200) : []
   } catch {
     return json({ ok: false, error: 'Bad request' }, 400)
@@ -44,6 +47,19 @@ Deno.serve(async (req) => {
   const asCaller = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_ANON_KEY')!, {
     global: { headers: { 'x-session-token': token } },
   })
+  if (kind === 'survey') {
+    const { data: isAdmin, error: adminError } = await asCaller.rpc('app_is_admin')
+    if (adminError) return json({ ok: false, error: 'Could not check access' }, 500)
+    if (isAdmin !== true) return json({ ok: true, urls: {} })
+    const paths = ids.filter((p) => p.startsWith('survey-files/') && !p.includes('..'))
+    if (paths.length === 0) return json({ ok: true, urls: {} })
+    const { data: signedSurvey, error: surveyError } = await service.storage.from('private-files').createSignedUrls(paths, LINK_SECONDS)
+    if (surveyError || !signedSurvey) return json({ ok: false, error: 'Could not create links' }, 500)
+    const surveyUrls: Record<string, string> = {}
+    paths.forEach((p, i) => { if (signedSurvey[i]?.signedUrl) surveyUrls[p] = signedSurvey[i].signedUrl })
+    return json({ ok: true, urls: surveyUrls })
+  }
+
   const { data: rows, error } = await asCaller.rpc('private_file_paths', { p_kind: kind, p_ids: ids })
   if (error) return json({ ok: false, error: 'Could not check access' }, 500)
   const allowed = (rows ?? []) as Array<{ id: string; path: string }>

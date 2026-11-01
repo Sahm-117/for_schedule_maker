@@ -10,7 +10,7 @@ import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
 import { useAppData } from '../context/AppDataContext';
 import { surveyApi } from '../services/api';
-import type { SurveyQuestion, SurveyResults } from '../types';
+import type { SurveyFileAnswer, SurveyQuestion, SurveyResults } from '../types';
 import {
   AUDIENCE_LABEL, answerText, buildCsv, downloadFile, exportSurveyPdf, formatDay, safeFileName,
   summariseChoice, summariseNumber, summariseRating,
@@ -130,16 +130,23 @@ const AdminSurveyResultsPage: React.FC = () => {
       );
     }
     if (q.kind === 'FILE') {
-      const files = (results.answers ?? []).map((a) => (q.id ? a.answers[q.id] : undefined)).filter((v): v is { url: string; name?: string } => !!v && typeof v === 'object' && !!v.url);
+      const files = (results.answers ?? []).map((a) => (q.id ? a.answers[q.id] : undefined)).filter((v): v is SurveyFileAnswer => !!v && typeof v === 'object' && (!!v.url || !!v.unavailable));
       return (
         <div key={q.id}>{header}
           {files.length === 0 ? <p className="mt-1 text-sm text-gray-500">No files yet.</p> : (
             <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
-              {files.map((f, i) => (
-                <a key={i} href={f.url} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-xl border border-gray-200 bg-gray-50 text-center text-[11px] text-gray-600">
-                  {/\.(png|jpe?g|gif|webp|heic)$/i.test(f.url) ? <img src={f.url} alt={f.name || 'Upload'} className="h-24 w-full object-cover" loading="lazy" /> : <span className="grid h-24 place-items-center px-2"><Glyph name="clip" className="h-6 w-6" /><span className="line-clamp-2">{f.name || 'File'}</span></span>}
-                </a>
-              ))}
+              {files.map((f, i) => {
+                if (!f.url) {
+                  return <span key={i} className="grid h-24 place-items-center rounded-xl border border-gray-200 bg-gray-50 px-2 text-center text-[11px] text-gray-600"><span className="line-clamp-2 font-medium">{f.name || 'File'}</span><span>Couldn't open the link, try again</span></span>;
+                }
+                // The signed link carries a query string, so the picture test looks at the file's name, or the path before the "?".
+                const isImage = [f.name ?? '', f.url.split('?')[0]].some((x) => /\.(png|jpe?g|gif|webp|heic)$/i.test(x));
+                return (
+                  <a key={i} href={f.url} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-xl border border-gray-200 bg-gray-50 text-center text-[11px] text-gray-600">
+                    {isImage ? <img src={f.url} alt={f.name || 'Upload'} className="h-24 w-full object-cover" loading="lazy" /> : <span className="grid h-24 place-items-center px-2"><Glyph name="clip" className="h-6 w-6" /><span className="line-clamp-2">{f.name || 'File'}</span></span>}
+                  </a>
+                );
+              })}
             </div>
           )}
         </div>

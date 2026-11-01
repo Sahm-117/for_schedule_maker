@@ -3393,8 +3393,9 @@ export const announcementsApi = {
 export const PRIVATE_FILE_PREFIX = 'fof-private:';
 
 export const privateFilesApi = {
-  /** Links that work for two hours, for the private files among these ids that this person may open. */
-  async sign(kind: 'resource' | 'version', ids: string[]): Promise<Record<string, string>> {
+  /** Links that work for two hours, for the private files among these ids that this person may open.
+   *  For kind 'survey' the ids are survey file paths ("survey-files/…") and only admins get links, keyed by path. */
+  async sign(kind: 'resource' | 'version' | 'survey', ids: string[]): Promise<Record<string, string>> {
     if (ids.length === 0) return {};
     const { data, error } = await supabase.functions.invoke('file-links', { body: { kind, ids } });
     if (error) throw new Error('Could not open the file. Please try again.');
@@ -9075,22 +9076,29 @@ const surveyError = (message: string): Error => {
 
 export const SURVEY_FILE_MAX_BYTES = 5 * 1024 * 1024;
 
-// Uploaded survey files that are private ("fof-private:<path>") get two-hour signed links for the admin results page
-// (admins may read private-files). A file that can't be signed shows no link rather than a broken one.
+// Uploaded survey files that are private ("fof-private:<path>") get two-hour signed links for the admin results page,
+// through the same route as other private files (privateFilesApi.sign -> file-links, FLOW_MAP rule 129). A file that
+// can't be signed stays in the list, marked unavailable (empty url), so the page can say so instead of dropping it.
 const signSurveyFiles = async (results: import('../types').SurveyResults): Promise<import('../types').SurveyResults> => {
-  const isPrivate = (v: unknown): v is { url: string; name?: string } =>
+  const isPrivate = (v: unknown): v is import('../types').SurveyFileAnswer =>
     !!v && typeof v === 'object' && typeof (v as { url?: unknown }).url === 'string' && (v as { url: string }).url.startsWith(PRIVATE_FILE_PREFIX);
   const paths = new Set<string>();
   for (const a of results.answers ?? []) for (const v of Object.values(a.answers)) if (isPrivate(v)) paths.add(v.url.slice(PRIVATE_FILE_PREFIX.length));
   if (paths.size === 0) return results;
-  const { data } = await supabase.storage.from('private-files').createSignedUrls([...paths], 2 * 60 * 60);
-  const links = new Map<string, string>();
-  (data ?? []).forEach((row) => { if (row.path && row.signedUrl) links.set(row.path, row.signedUrl); });
+  const links: Record<string, string> = {};
+  const all = [...paths];
+  for (let i = 0; i < all.length; i += 200) {
+    try { Object.assign(links, await privateFilesApi.sign('survey', all.slice(i, i + 200))); } catch { /* those files show as unavailable */ }
+  }
   return {
     ...results,
     answers: (results.answers ?? []).map((a) => ({
       ...a,
-      answers: Object.fromEntries(Object.entries(a.answers).map(([key, v]) => [key, isPrivate(v) ? { ...v, url: links.get(v.url.slice(PRIVATE_FILE_PREFIX.length)) ?? '' } : v])),
+      answers: Object.fromEntries(Object.entries(a.answers).map(([key, v]) => {
+        if (!isPrivate(v)) return [key, v];
+        const link = links[v.url.slice(PRIVATE_FILE_PREFIX.length)];
+        return [key, { ...v, private: true, url: link ?? '', unavailable: !link }];
+      })),
     })),
   };
 };
@@ -9129,7 +9137,11 @@ export const surveyApi = {
   async uploadFile(surveyId: string, file: File): Promise<{ url: string; name: string }> {
     if (file.size > SURVEY_FILE_MAX_BYTES) throw new Error('That file is over 5 MB. Choose a smaller one.');
     const safe = file.name.replace(/[^a-zA-Z0-9._-]+/g, '-').slice(-60) || 'file';
-    const path = `survey-files/${surveyId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${safe}`;
+    // The path is tied to the signed-in person (a participant's or staff member's id): storage only accepts files in
+    // the sender's own folder, and survey_submit only accepts a private file from it.
+    const { data: respondentId, error: idError } = await supabase.rpc('survey_respondent_id', { p_token: getSessionToken() });
+    if (idError || !respondentId) throw new Error('Could not upload that file. Please sign in again.');
+    const path = `survey-files/${surveyId}/${respondentId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${safe}`;
     const { error } = await supabase.storage.from('private-files').upload(path, file, { upsert: false, contentType: file.type || undefined });
     if (error) throw new Error('Could not upload that file. Please try again.');
     return { url: `${PRIVATE_FILE_PREFIX}${path}`, name: file.name };

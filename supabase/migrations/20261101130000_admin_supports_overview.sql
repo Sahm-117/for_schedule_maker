@@ -81,9 +81,9 @@ BEGIN
           -- Not a teen, and not closed: closed is Access confirmed, Attended, Not interested (and its two variants), No
           -- response, or a wrong number (a wrong-number reply or call only counts when the status itself is not one of
           -- the stages that win over it).
-          AND COALESCE(c."registrationStatus", '') NOT IN ('ACCESS_CONFIRMED', 'ATTENDED', 'TEENAGER', 'TEEN_ONBOARDED',
+          AND COALESCE(c."registrationStatus"::text, '') NOT IN ('ACCESS_CONFIRMED', 'ATTENDED', 'TEENAGER', 'TEEN_ONBOARDED',
                                                            'NOT_INTERESTED', 'NOT_A_GOOD_TIME', 'NOT_A_TCN_MEMBER', 'NO_RESPONSE')
-          AND NOT (COALESCE(c."registrationStatus", '') NOT IN ('LOGIN_ISSUE', 'LOGIN_SHARED', 'REGISTERED', 'NEXT_COHORT')
+          AND NOT (COALESCE(c."registrationStatus"::text, '') NOT IN ('LOGIN_ISSUE', 'LOGIN_SHARED', 'REGISTERED', 'NEXT_COHORT')
                    AND (c."replyStatus" = 'INCORRECT_NUMBER' OR c."callStatus" = 'INCORRECT_NUMBER'))
         GROUP BY c."ownerId"
       ) t), '{}'::jsonb),

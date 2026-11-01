@@ -49,9 +49,18 @@ export const lagosEnd = (day: string): string => new Date(`${day}T23:59:59+01:00
 export const toLagosDay = (iso: string | null | undefined): string =>
   iso ? new Date(iso).toLocaleDateString('en-CA', { timeZone: LAGOS }) : '';
 
-export const answerText = (q: SurveyQuestion, value: SurveyAnswerValue): string => {
+// Exports (CSV, PDF) never carry a private upload's signed link, which expires: they name the file instead.
+// On screen a private file shows its current link, or says it could not be opened.
+export const answerText = (q: SurveyQuestion, value: SurveyAnswerValue, forExport = false): string => {
   if (value === undefined || value === null || value === '') return '';
-  if (q.kind === 'FILE' && typeof value === 'object') return value.url;
+  if (q.kind === 'FILE' && typeof value === 'object') {
+    const label = value.name || 'File';
+    if (value.private || value.unavailable) {
+      if (forExport) return `${label} (private file, open it in the app)`;
+      if (value.unavailable || !value.url) return `${label} (Couldn't open the link, try again)`;
+    }
+    return value.url;
+  }
   return String(value);
 };
 
@@ -62,7 +71,7 @@ export const buildCsv = (results: SurveyResults): string => {
   const header = [...(named ? ['Name', 'Submitted'] : []), ...results.questions.map((q) => q.prompt)];
   const rows = (results.answers ?? []).map((a) => [
     ...(named ? [a.name ?? '', a.submittedAt ? new Date(a.submittedAt).toLocaleString('en-GB', { timeZone: LAGOS }) : ''] : []),
-    ...results.questions.map((q) => answerText(q, q.id ? a.answers[q.id] : undefined)),
+    ...results.questions.map((q) => answerText(q, q.id ? a.answers[q.id] : undefined, true)),
   ]);
   return [header, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n');
 };
@@ -106,7 +115,7 @@ export const summariseNumber = (q: SurveyQuestion, results: SurveyResults): { av
 export const summariseChoice = (q: SurveyQuestion, results: SurveyResults): Array<{ label: string; count: number }> => {
   const tally = new Map<string, number>();
   for (const a of results.answers ?? []) {
-    const v = answerText(q, q.id ? a.answers[q.id] : undefined);
+    const v = answerText(q, q.id ? a.answers[q.id] : undefined, true);
     if (v) tally.set(v, (tally.get(v) ?? 0) + 1);
   }
   return [...tally.entries()].map(([label, count]) => ({ label, count })).sort((x, y) => y.count - x.count);
@@ -153,7 +162,7 @@ export const exportSurveyPdf = async (results: SurveyResults, cohortName: string
     } else if (q.kind === 'YESNO' || q.kind === 'DEPARTMENT') {
       line(summariseChoice(q, results).map((c) => `${c.label}: ${c.count}`).join('   ') || 'No answers', 10, false, 10);
     } else {
-      const texts = (results.answers ?? []).map((a) => answerText(q, q.id ? a.answers[q.id] : undefined)).filter(Boolean);
+      const texts = (results.answers ?? []).map((a) => answerText(q, q.id ? a.answers[q.id] : undefined, true)).filter(Boolean);
       if (texts.length === 0) line('No answers', 10, false, 10, [107, 114, 128]);
       texts.forEach((t) => line(`• ${t}`, 10, false, 2));
       y += 8;
