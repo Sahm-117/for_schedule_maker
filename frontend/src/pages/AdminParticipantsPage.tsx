@@ -53,13 +53,6 @@ const NOT_JOINING_STATUSES = new Set<string>(['NO_RESPONSE', 'NEXT_COHORT']);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const SOURCE_LABEL: Record<string, string> = {
-  FOLLOW_UP: 'Follow-up',
-  FORM: 'Reg form',
-  MANUAL: 'Manual',
-  IMPORT: 'Import',
-};
-
 // ── Add/Edit Modal ────────────────────────────────────────────────────────────
 
 interface ParticipantModalProps {
@@ -1426,7 +1419,6 @@ const AdminParticipantsContent: React.FC = () => {
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Group</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Gender</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Age range</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Source</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Support</th>
                     <th className="sticky right-0 bg-primary/5 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Actions</th>
                   </tr>
@@ -1448,11 +1440,6 @@ const AdminParticipantsContent: React.FC = () => {
                       </td>
                       <td className="px-4 py-3 text-gray-600">
                         {normaliseAgeRange(p.ageRange) ?? p.ageRange ?? <span className="text-gray-400">—</span>}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="rounded-full bg-sky-100/80 px-2.5 py-0.5 text-xs font-semibold text-sky-700">
-                          {SOURCE_LABEL[p.source] ?? p.source}
-                        </span>
                       </td>
                       <td className="px-4 py-3">
                         {p.groupId && supportByGroupId.get(p.groupId) ? (
