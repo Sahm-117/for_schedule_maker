@@ -1100,6 +1100,7 @@ const AdminParticipantsContent: React.FC = () => {
     [activeCounted, isTeen]
   );
   const [noGroupShowAll, setNoGroupShowAll] = useState(false);
+  const [noGroupOpen, setNoGroupOpen] = useState(false);
 
   // "Remind everyone missing details": adults whose profile is not complete. Teens have no login of their own, so they are left out.
   const [remindOpen, setRemindOpen] = useState(false);
@@ -1302,13 +1303,24 @@ const AdminParticipantsContent: React.FC = () => {
       ) : (
         <>
           {!loading && (noGroupAdults.length > 0 || noGroupTeens > 0) && (
-            <section data-wt="participants-no-group" className="surface-card mb-4 px-5 py-4 sm:px-6">
-              <h3 className="text-base font-semibold text-gray-900">Not in a group</h3>
-              <p className="mt-0.5 text-[13px] text-gray-600">
-                {noGroupAdults.length} {noGroupAdults.length === 1 ? 'person has' : 'people have'} no group yet{noGroupTeens > 0 ? `. ${noGroupTeens} ${noGroupTeens === 1 ? 'teen is' : 'teens are'} waiting for a Teen Support's group` : ''}.
-              </p>
+            <section data-wt="participants-no-group" className="surface-card mb-4 min-w-0 overflow-hidden">
+              <button type="button" onClick={() => setNoGroupOpen((v) => !v)} aria-expanded={noGroupOpen} aria-controls="participants-no-group-body" className="flex w-full items-center gap-3 px-5 py-4 text-left sm:px-6">
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-base font-semibold text-gray-900">Not in a group</h3>
+                  <p className="mt-0.5 text-[13px] text-gray-600">
+                    {noGroupAdults.length} {noGroupAdults.length === 1 ? 'person has' : 'people have'} no group yet{noGroupTeens > 0 ? `. ${noGroupTeens} ${noGroupTeens === 1 ? 'teen is' : 'teens are'} waiting for a Teen Support's group` : ''}.
+                  </p>
+                </div>
+                <span className={`inline-flex h-8 w-8 flex-none items-center justify-center text-gray-500 transition-transform ${noGroupOpen ? 'rotate-90' : ''}`} aria-hidden="true">
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m9 5 7 7-7 7" />
+                  </svg>
+                </span>
+              </button>
+              {noGroupOpen && (
+              <div id="participants-no-group-body" className="px-5 pb-4 sm:px-6">
               {noGroupAdults.length > 0 && (
-                <ul className="mt-3 divide-y divide-gray-100">
+                <ul className="divide-y divide-gray-100">
                   {(noGroupShowAll ? noGroupAdults : noGroupAdults.slice(0, 8)).map((p) => (
                     <li key={p.id} className="flex items-center justify-between gap-3 py-2">
                       <span className="min-w-0 truncate text-sm font-medium text-gray-900">{p.fullName}</span>
@@ -1325,6 +1337,8 @@ const AdminParticipantsContent: React.FC = () => {
                 <button type="button" onClick={() => setNoGroupShowAll((v) => !v)} className="mt-2 text-xs font-semibold text-primary-dark hover:underline">
                   {noGroupShowAll ? 'Show fewer' : `Show all ${noGroupAdults.length}`}
                 </button>
+              )}
+              </div>
               )}
             </section>
           )}
