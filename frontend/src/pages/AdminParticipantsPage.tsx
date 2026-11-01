@@ -1,7 +1,7 @@
 import Glyph from '../components/Glyph';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import SegmentedTabs from '../components/SegmentedTabs';
-import { Navigate, NavLink, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import Avatar from '../components/Avatar';
 import PageHeader from '../components/PageHeader';
 import AbsenceReviewCard from '../components/participants/AbsenceReviewCard';
@@ -29,6 +29,9 @@ import { isTeenAgeRange, normaliseAgeRange, normaliseGender } from '../utils/gro
 import ProfileCompletionCard from '../components/dashboard/ProfileCompletionCard';
 import HealthReasonModal from '../components/participants/HealthReasonModal';
 import { buildMissDetails, type MissDetail } from '../utils/participantHealthReason';
+import { buildClassRecords, type ClassRecord } from '../utils/participantClassDots';
+import ClassDots from '../components/participants/ClassDots';
+import ParticipantSidePanel from '../components/participants/ParticipantSidePanel';
 import { isTeenParticipant } from '../utils/profileCompletionSummary';
 import ParticipantsExportPopup from '../components/participants/ParticipantsExportPopup';
 import {
@@ -50,6 +53,17 @@ import RequestInfoModal from '../components/participants/RequestInfoModal';
 
 // Sign-up statuses of people who are not joining this cohort; "Hide no response and next cohort" leaves them out.
 const NOT_JOINING_STATUSES = new Set<string>(['NO_RESPONSE', 'NEXT_COHORT']);
+
+// One-tap filters above the search box. Tap one to use it, tap it again to clear it. These two exist only as chips;
+// the other chips (Never signed in, Alerts off, Profile incomplete) are shortcuts that set the same choices as the Filters sheet.
+type QuickFilter = 'missedLast' | 'missedTwo';
+const QUICK_LABEL: Record<QuickFilter, string> = { missedLast: 'Missed last class', missedTwo: 'Missed 2 in a row' };
+// Chips that set a Filters-sheet choice (single source of truth: the sheet's own values).
+const FILTER_SHORTCUTS = [
+  { key: 'neverSignedIn', label: 'Never signed in', group: 'login', choice: 'out' },
+  { key: 'alertsOff', label: 'Alerts off', group: 'alerts', choice: 'noalerts' },
+  { key: 'profileIncomplete', label: 'Profile incomplete', group: 'profile', choice: 'incomplete' },
+] as const;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -815,6 +829,18 @@ const AdminParticipantsContent: React.FC = () => {
   const [missById, setMissById] = useState<Map<string, MissDetail>>(new Map());
   const [healthForId, setHealthForId] = useState<string | null>(null);
   const healthFor = useMemo(() => participants.find((p) => p.id === healthForId) ?? null, [participants, healthForId]);
+  // Each person's run of finished classes (dots, "N of M"), worked out from the class records the status already reads.
+  const [classRecords, setClassRecords] = useState<Map<string, ClassRecord>>(new Map());
+  const [quick, setQuick] = useState<QuickFilter | null>(null);
+  // The missed-class chips need the class records; without them (still loading, or another cohort) no chip is offered, so none may filter.
+  const quickReady = classRecords.size > 0;
+  const activeQuick = quick && quickReady ? quick : null;
+  useEffect(() => { if (quick && !quickReady) setQuick(null); }, [quick, quickReady]);
+  // A different cohort starts with no quick filter.
+  useEffect(() => { setQuick(null); }, [activeCohort?.id]);
+  // Whose side panel is open.
+  const [panelId, setPanelId] = useState<string | null>(null);
+  const panelPerson = useMemo(() => participants.find((p) => p.id === panelId) ?? null, [participants, panelId]);
   const [searchParams, setSearchParams] = useSearchParams();
   // The dashboard links here with ?health=…; it becomes a filter chip and leaves the address.
   useEffect(() => {
@@ -881,6 +907,7 @@ const AdminParticipantsContent: React.FC = () => {
       const model = health && peopleData ? buildDashboardModel(health, activeCohort, 0, peopleData, rules) : null;
       setPeople(model?.people ?? null);
       setMissById(model && health && peopleData ? buildMissDetails(peopleData, health.weeks, model.judged) : new Map());
+      setClassRecords(model && health && peopleData ? buildClassRecords(peopleData, health.weeks, model.judged) : new Map());
       const sortedPs = sortByText(ps, (participant) => participant.fullName);
       const sortedGs = sortByText(gs, (group) => group.name);
       if (silent) {
@@ -974,6 +1001,21 @@ const AdminParticipantsContent: React.FC = () => {
     }
   }, [isTeen, signedInIds, supportGroups, flagsByParticipant, noAlertsIds, healthById, completionById, wrapUpDeptById]);
 
+  // Does this person fit one of the chip-only quick filters (the missed-class ones)?
+  const quickFits = useCallback((key: QuickFilter, p: Participant): boolean => {
+    switch (key) {
+      case 'missedLast': return !!classRecords.get(p.id)?.missedLast;
+      case 'missedTwo': return !!classRecords.get(p.id)?.missedTwo;
+    }
+  }, [classRecords]);
+
+  // A plain click on a name opens the side panel; Cmd/Ctrl/Shift/Alt-click and middle-click still go to the full profile (a real link).
+  const openPanel = useCallback((e: React.MouseEvent, id: string) => {
+    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    setPanelId(id);
+  }, []);
+
   const onShow = useCallback(
     (p: Participant) => p.status === (showArchived ? 'ARCHIVED' : 'ACTIVE')
       && !(hideNotJoining && (p.followUpNoResponse || (!!p.followUpStatus && NOT_JOINING_STATUSES.has(p.followUpStatus)))),
@@ -985,12 +1027,13 @@ const AdminParticipantsContent: React.FC = () => {
     // Within a group any chosen choice matches; every group that has a choice must match.
     const active = Object.entries(filters).filter(([, choices]) => choices.length > 0);
     if (active.length > 0) ps = ps.filter((p) => active.every(([group, choices]) => choices.some((choice) => fits(group, choice, p))));
+    if (activeQuick) ps = ps.filter((p) => quickFits(activeQuick, p));
     if (search.trim()) {
       const q = search.toLowerCase();
       ps = ps.filter((p) => p.fullName.toLowerCase().includes(q) || (p.phone ?? '').includes(q));
     }
     return sortByText(ps, (participant) => participant.fullName);
-  }, [participants, onShow, search, filters, fits]);
+  }, [participants, onShow, search, filters, fits, activeQuick, quickFits]);
 
   // The chip groups, each choice with how many people it matches among those on show (active or archived).
   const filterGroups = useMemo<FilterGroup[]>(() => {
@@ -1068,15 +1111,45 @@ const AdminParticipantsContent: React.FC = () => {
     });
   }, [filterGroups]);
 
+  // The quick chips, each with how many people on show it matches. A chip whose data has not loaded is not offered.
+  // The shortcut chips count with the Filters sheet's own definitions (`fits`), so a chip and its sheet choice always agree.
+  const quickChips = useMemo(() => {
+    const base = counted.filter(onShow);
+    const shortcutReady: Record<(typeof FILTER_SHORTCUTS)[number]['key'], boolean> = {
+      neverSignedIn: !!signedInIds,
+      alertsOff: noAlertsIds.size > 0,
+      profileIncomplete: completionById.size > 0,
+    };
+    const missed = (['missedLast', 'missedTwo'] as const)
+      .filter(() => quickReady)
+      .map((key) => ({ key, label: QUICK_LABEL[key], count: base.filter((p) => quickFits(key, p)).length, on: activeQuick === key }));
+    const shortcuts = FILTER_SHORTCUTS
+      .filter((c) => shortcutReady[c.key])
+      .map((c) => ({ key: c.key, label: c.label, count: base.filter((p) => fits(c.group, c.choice, p)).length, on: (filters[c.group] ?? []).includes(c.choice) }));
+    return [...missed, ...shortcuts];
+  }, [counted, onShow, quickFits, fits, quickReady, activeQuick, filters, signedInIds, noAlertsIds, completionById]);
+
+  const toggleChip = useCallback((key: string) => {
+    if (key === 'missedLast' || key === 'missedTwo') { setQuick((cur) => (cur === key ? null : key)); return; }
+    const c = FILTER_SHORTCUTS.find((x) => x.key === key);
+    if (!c) return;
+    setFilters((prev) => {
+      const list = prev[c.group] ?? [];
+      const next = list.includes(c.choice) ? list.filter((v) => v !== c.choice) : [...list, c.choice];
+      return { ...prev, [c.group]: next };
+    });
+  }, []);
+
   // Names what is filtered on screen, so the WhatsApp export says which people it holds.
   const exportSubtitle = useMemo(() => {
     const out: string[] = [];
     if (showArchived) out.push('Archived');
     if (hideNotJoining) out.push('No response and next cohort hidden');
     out.push(...describeFilters(filterGroups, filters));
+    if (activeQuick) out.push(QUICK_LABEL[activeQuick]);
     if (search.trim()) out.push(`Search "${search.trim()}"`);
-    return out.length ? `Filter: ${out.join(' · ')}` : undefined;
-  }, [showArchived, hideNotJoining, filterGroups, filters, search]);
+    return out.length ? `Filter: ${out.filter(Boolean).join(' · ')}` : undefined;
+  }, [showArchived, hideNotJoining, filterGroups, filters, search, activeQuick]);
 
   const unassignedCount = useMemo(
     () => counted.filter((p) => p.status === 'ACTIVE' && !p.groupId).length,
@@ -1097,6 +1170,8 @@ const AdminParticipantsContent: React.FC = () => {
 
   // "Remind everyone missing details": adults whose profile is not complete. Teens have no login of their own, so they are left out.
   const [remindOpen, setRemindOpen] = useState(false);
+  // Any dialog on this page that can sit on top of the side panel; Escape then closes that dialog, not the panel.
+  const dialogOpen = addOpen || !!loginFor || !!resetFor || importOpen || !!archiveTarget || !!deleteTarget || !!firstTimeTarget || !!retakeMarking || !!healthFor || !!assigning || exportOpen || requestInfoOpen || remindOpen;
   const [reminding, setReminding] = useState(false);
   const remindTargets = useMemo(
     () => activeCounted.filter((p) => !isTeen(p) && (completionById.get(p.id)?.percent ?? 0) < 100),
@@ -1264,7 +1339,8 @@ const AdminParticipantsContent: React.FC = () => {
   );
 
   return (
-    <div className="page-content">
+    // On a wide screen the side panel sits beside the list, so the page leaves room for it (the Actions column stays usable).
+    <div className={`page-content ${panelPerson ? 'md:pr-[400px]' : ''}`}>
       <PageHeader
         title="Participants"
         tourId="admin:participants"
@@ -1350,6 +1426,25 @@ const AdminParticipantsContent: React.FC = () => {
               />
             </div>
           )}
+          {quickChips.length > 0 && (
+            <div data-wt="participants-quick-filters" className="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0" role="group" aria-label="Quick filters">
+              {quickChips.map((c) => {
+                const on = c.on;
+                return (
+                  <button
+                    key={c.key}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => toggleChip(c.key)}
+                    className={`inline-flex flex-none items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-1.5 text-[13px] font-semibold shadow-[0_1px_2px_rgba(17,24,39,0.06)] active:scale-95 ${on ? 'bg-primary text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                  >
+                    {c.label}
+                    <span className={`rounded-full px-1.5 text-[11px] ${on ? 'bg-white/25 text-white' : 'bg-gray-100 text-gray-600'}`}>{c.count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
           <div data-wt="participants-filters" className="mb-4">
             <FilterBar
               groups={filterGroups}
@@ -1369,8 +1464,8 @@ const AdminParticipantsContent: React.FC = () => {
                   className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-[11px] text-sm shadow-[0_2px_10px_-4px_rgba(17,24,39,0.08)] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               }
-              searching={search.trim().length > 0}
-              onClear={() => setSearch('')}
+              searching={search.trim().length > 0 || !!activeQuick}
+              onClear={() => { setSearch(''); setQuick(null); }}
               shown={displayed.filter((p) => !p.isTest).length}
               total={counted.filter(onShow).length}
               noun={showArchived ? 'archived participants' : 'participants'}
@@ -1394,16 +1489,17 @@ const AdminParticipantsContent: React.FC = () => {
                 return (
                   <li key={p.id} className="py-2.5 pl-4 pr-2">
                     <div className="flex items-center gap-3">
-                      <NavLink to={`/participants/${p.id}`} className="flex min-w-0 flex-1 items-center gap-3">
+                      <Link to={`/participants/${p.id}`} onClick={(e) => openPanel(e, p.id)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
                         <Avatar name={p.fullName} avatarUrl={p.avatarUrl} size="md" />
                         <span className="min-w-0 flex-1">
                           <span className="block line-clamp-2 text-[15px] font-semibold leading-tight text-gray-900">{p.fullName}</span>
                           <span className="block truncate text-[12.5px] text-gray-500">{line}</span>
                         </span>
-                      </NavLink>
+                      </Link>
                       {registration && <span className={`flex-none whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold ${registration.tone}`}>{registration.label}</span>}
                       <div className="flex-none">{renderMenu(p)}</div>
                     </div>
+                    {classRecords.has(p.id) && <div className="pl-[52px] pt-1"><ClassDots record={classRecords.get(p.id)} /></div>}
                     {/* Only what needs a look: concerns, retaking, test and so on. */}
                     <div className="flex flex-wrap items-center gap-1 pl-[52px] pr-2 empty:hidden [&>*]:!ml-0 [&>*]:mt-1">{renderChips(p)}</div>
                   </li>
@@ -1419,15 +1515,16 @@ const AdminParticipantsContent: React.FC = () => {
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Group</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Gender</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Age range</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Attendance</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Support</th>
-                    <th className="sticky right-0 bg-primary/5 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Actions</th>
+                    <th className="sticky right-0 z-10 bg-gray-50 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {displayed.map((p) => (
                     <tr key={p.id} className="hover:bg-gray-50/30">
                       <td className="px-4 py-3 font-medium text-gray-900">
-                        <NavLink to={`/participants/${p.id}`} className="hover:text-primary hover:underline">{p.fullName}</NavLink>
+                        <Link to={`/participants/${p.id}`} onClick={(e) => openPanel(e, p.id)} className="text-left hover:text-primary hover:underline">{p.fullName}</Link>
                         {renderChips(p)}
                       </td>
                       <td className="px-4 py-3 text-gray-500">
@@ -1441,6 +1538,7 @@ const AdminParticipantsContent: React.FC = () => {
                       <td className="px-4 py-3 text-gray-600">
                         {normaliseAgeRange(p.ageRange) ?? p.ageRange ?? <span className="text-gray-400">—</span>}
                       </td>
+                      <td className="whitespace-nowrap px-4 py-3"><ClassDots record={classRecords.get(p.id)} /></td>
                       <td className="px-4 py-3">
                         {p.groupId && supportByGroupId.get(p.groupId) ? (
                           <span className="rounded-full bg-violet-100/80 px-2.5 py-0.5 text-xs font-semibold text-violet-700">
@@ -1580,6 +1678,23 @@ const AdminParticipantsContent: React.FC = () => {
         confirmText="Send reminder"
         busy={reminding}
       />
+
+      {panelPerson && (
+        <ParticipantSidePanel
+          participant={panelPerson}
+          supportName={panelPerson.groupId ? supportByGroupId.get(panelPerson.groupId) ?? null : null}
+          isTeen={isTeen(panelPerson)}
+          record={classRecords.get(panelPerson.id)}
+          signedIn={signedInIds ? signedInIds.has(panelPerson.id) : null}
+          alertsOff={noAlertsIds.has(panelPerson.id)}
+          appLine={appUseLine(appDetails[panelPerson.id])}
+          completion={completionById.get(panelPerson.id)}
+          canAssign={canEdit}
+          onAssign={() => setAssigning(panelPerson)}
+          onClose={() => setPanelId(null)}
+          escapeBlocked={dialogOpen}
+        />
+      )}
 
       <AssignGroupModal
         participant={assigning}
