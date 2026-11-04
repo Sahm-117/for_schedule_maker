@@ -17,8 +17,8 @@ import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
-import { supportTagsApi, faithProjectsApi, faithProjectCategoriesApi, faithHelpRequestsApi, testimoniesApi, groupOnboardingStatusApi, groupDiscussionApi, groupPrayerFocusApi, groupPrayerStatusApi, groupsApi, participantHandoversApi, participantFlagsApi, participantNotesApi, participantsApi, participantPushApi, reflectionActivityApi, participantCheckInsApi } from '../services/api';
-import type { FaithHelpRequest, FaithProject, FaithProjectCategory, Group, GroupOnboardingStatus, GroupPrayerFocus, GroupPrayerStatus, Participant, ParticipantHandover, ParticipantFlag, ParticipantNote, RetakeMatch, Testimony, User, ParticipantAppInfo, OnboardingProgress } from '../types';
+import { supportTagsApi, faithProjectsApi, faithProjectCategoriesApi, faithHelpRequestsApi, testimoniesApi, groupOnboardingStatusApi, groupDiscussionApi, groupPrayerFocusApi, groupPrayerStatusApi, groupsApi, participantHandoversApi, participantFlagsApi, participantNotesApi, participantsApi, participantPushApi, reflectionActivityApi, participantCheckInsApi, groupMeetingReopenApi } from '../services/api';
+import type { FaithHelpRequest, FaithProject, FaithProjectCategory, Group, GroupMeetingReopenState, GroupOnboardingStatus, GroupPrayerFocus, GroupPrayerStatus, Participant, ParticipantHandover, ParticipantFlag, ParticipantNote, RetakeMatch, Testimony, User, ParticipantAppInfo, OnboardingProgress } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
 import { sortByText } from '../utils/sort';
 import Spinner from '../components/Spinner';
@@ -384,6 +384,14 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
   const groupWindowState = useRecordingOpening({ groupId: selectedGroupId || null }, selectedWeek?.id, meetingWindowState(selectedGroupData?.meetingDay, selectedGroupData?.meetingTime, selectedWeek, activeCohort?.startDate, clock, !!activeCohort?.isPractice), clock);
   const currentPrayerFocus = groupPrayerFocuses.find((focus) => focus.groupId === selectedGroupId && focus.weekId === selectedWeekId) ?? null;
   const currentPrayerStatus = groupPrayerStatuses.find((status) => status.groupId === selectedGroupId && status.weekId === selectedWeekId) ?? null;
+  // Reopening a submitted week (rule 134): one small read per group, again after an ask or a submit.
+  const [reopenStates, setReopenStates] = useState<GroupMeetingReopenState[]>([]);
+  const loadReopenStates = useCallback(() => {
+    if (!selectedGroupId) { setReopenStates([]); return; }
+    void groupMeetingReopenApi.state(selectedGroupId).then(setReopenStates).catch(() => setReopenStates([]));
+  }, [selectedGroupId]);
+  useEffect(() => { loadReopenStates(); }, [loadReopenStates, currentPrayerStatus?.done]);
+  const currentReopen = reopenStates.find((entry) => entry.weekId === selectedWeekId) ?? null;
   const focusedParticipant = currentPrayerFocus
     ? participants.find((participant) => participant.id === currentPrayerFocus.participantId) ?? null
     : null;
@@ -650,6 +658,12 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
               recapDocumentUrl={selectedWeek?.recapDocumentUrl}
               recapDocumentName={selectedWeek?.recapDocumentName}
               windowState={groupWindowState}
+              reopen={currentReopen}
+              onAskReopen={async (reason) => {
+                if (!selectedGroupId || !selectedWeekId) return;
+                await groupMeetingReopenApi.request(selectedGroupId, selectedWeekId, reason);
+                loadReopenStates();
+              }}
               onSetTime={() => document.querySelector('[data-wt="group-call"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
             />
             </div>

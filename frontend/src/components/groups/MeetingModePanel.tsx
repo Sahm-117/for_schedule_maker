@@ -4,10 +4,10 @@ import CompactAttendanceRow from '../CompactAttendanceRow';
 import DocumentViewerSheet from '../DocumentViewerSheet';
 import InfoTip from '../InfoTip';
 import { meetingAttendanceApi } from '../../services/api';
-import type { FaithProject, Participant, Week } from '../../types';
+import type { FaithProject, GroupMeetingReopenState, Participant, Week } from '../../types';
 import Spinner from '../Spinner';
 import MeetingWindowNotice from './MeetingWindowNotice';
-import { friendlyMeetingError, type MeetingWindowState } from '../../utils/meetingWindow';
+import { formatLagosMoment, friendlyMeetingError, type MeetingWindowState } from '../../utils/meetingWindow';
 
 type MeetingMark = 'JOINED' | 'EXCUSED' | 'MISSED';
 
@@ -52,6 +52,10 @@ interface MeetingModePanelProps {
   submittedWeekIds?: number[];
   onSubmit: (notes: { summary: string; concern: string }) => Promise<void>;
   onReopen?: () => Promise<void>;
+  /** This week's reopen state (rule 134): an ask waiting, or a live reopening and when it ends. */
+  reopen?: GroupMeetingReopenState | null;
+  /** "Ask to reopen" a submitted week, with a short reason; admins are told. */
+  onAskReopen?: (reason: string) => Promise<void>;
   recapSummary?: string | null;
   discussionPrompt?: string | null;
   recapDocumentUrl?: string | null;
@@ -85,7 +89,25 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
   recapDocumentName,
   windowState,
   onSetTime,
+  reopen = null,
+  onAskReopen,
 }) => {
+  const [asking, setAsking] = useState(false);
+  const [askReason, setAskReason] = useState('');
+  const [askBusy, setAskBusy] = useState(false);
+  const [askError, setAskError] = useState('');
+  const [askedNow, setAskedNow] = useState(false);
+  useEffect(() => { setAsking(false); setAskReason(''); setAskError(''); setAskedNow(false); }, [weekId]);
+  const askWaiting = askedNow || (!!reopen?.requestedAt && (!reopen.reopenedAt || reopen.requestedAt > reopen.reopenedAt));
+  const reopenedUntil = !submitted && reopen?.openUntil && Date.parse(reopen.openUntil) > Date.now() ? new Date(reopen.openUntil) : null;
+  const sendAsk = async () => {
+    if (!onAskReopen) return;
+    setAskBusy(true);
+    setAskError('');
+    try { await onAskReopen(askReason.trim()); setAskedNow(true); setAsking(false); }
+    catch (err) { setAskError(err instanceof Error ? err.message : 'Could not send that. Please try again.'); }
+    finally { setAskBusy(false); }
+  };
   const [step, setStep] = useState(submitted ? DONE_STEP : 0);
   const [marks, setMarks] = useState<Record<string, MeetingMark>>({});
   const [summary, setSummary] = useState('');
@@ -230,6 +252,13 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
               compact
             />
           </div>
+        )}
+
+        {reopenedUntil && (
+          <p className="mt-3 rounded-[14px] bg-amber-50 px-3.5 py-2.5 text-[13px] leading-normal text-amber-900" role="status">
+            <b>Reopened by the back office</b> until {formatLagosMoment(reopenedUntil)}. Edit what you need and submit again.
+            {reopen?.reopenReason ? <span className="block text-amber-800/90">“{reopen.reopenReason}”</span> : null}
+          </p>
         )}
 
         {!submitted && !blocked && <div className="mt-3 flex flex-wrap gap-1.5">
@@ -428,11 +457,31 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
             <button type="button" onClick={() => goToStep(0)} className="rounded-xl border border-gray-200 bg-white px-[18px] py-[11px] text-sm font-semibold text-gray-800">
               Record another week
             </button>
-            {submitted && (
+            {submitted && (onAskReopen ? (
+              askWaiting ? (
+                <p className="w-full text-[13px] text-amber-800">You asked to reopen this week. An admin will look at it; you’ll be told when it’s open.</p>
+              ) : asking ? (
+                <div className="w-full text-left">
+                  <label className="block">
+                    <span className="text-[13px] font-semibold text-gray-800">What needs changing?</span>
+                    <textarea value={askReason} onChange={(event) => setAskReason(event.target.value.slice(0, 300))} rows={2} placeholder="For example: I marked two people wrongly" className="mt-1.5 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                  </label>
+                  {askError && <p className="mt-1 text-sm text-red-600" role="alert">{askError}</p>}
+                  <div className="mt-2 flex justify-end gap-2">
+                    <button type="button" onClick={() => setAsking(false)} disabled={askBusy} className="rounded-xl px-3 py-2 text-sm font-semibold text-gray-500">Cancel</button>
+                    <button type="button" onClick={() => { void sendAsk(); }} disabled={askBusy || askReason.trim().length < 3} className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+                      {askBusy ? <span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Sending…</span> : 'Send to admins'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button type="button" onClick={() => setAsking(true)} className="rounded-xl px-3 py-2 text-[13px] font-semibold text-primary">Need to change something? Ask to reopen</button>
+              )
+            ) : (
               <p className="w-full text-xs text-gray-400">
                 Submitted — ask the back office if this needs to be reopened.
               </p>
-            )}
+            ))}
           </div>
         </section>
       )}

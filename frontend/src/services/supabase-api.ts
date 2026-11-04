@@ -6829,6 +6829,39 @@ const mapSupportSession = (row: any): import('../types').SupportSession => ({
 
 // An admin opens recording for one hub's or group's meeting in one week, outside its normal window
 // (20261019140000_meeting_recording_opening.sql). Reads give the end of a live opening, or null.
+// Reopening a submitted group meeting report (FLOW_MAP rule 134).
+const reopenError = (rawMessage: string | undefined, fallback: string): Error => {
+  const msg = rawMessage || '';
+  if (msg.includes('REASON_REQUIRED')) return new Error('Say briefly why it needs reopening.');
+  if (msg.includes('REASON_TOO_LONG')) return new Error('Keep the reason under 300 characters.');
+  if (msg.includes('NOT_SUBMITTED')) return new Error('This week has not been submitted, so it does not need reopening.');
+  if (msg.includes('NOT_AUTHORISED')) return new Error('You cannot do that for this group.');
+  if (/could not find the function|PGRST202/i.test(msg)) return new Error('Reopening is not switched on yet. The database update for it still has to be applied.');
+  return new Error(friendlyUserError(msg, fallback));
+};
+
+export const groupMeetingReopenApi = {
+  async state(groupId: string): Promise<import('../types').GroupMeetingReopenState[]> {
+    const { data, error } = await supabase.rpc('group_meeting_reopen_state', { p_token: getSessionToken(), p_group_id: groupId });
+    if (error) return [];
+    return (data as import('../types').GroupMeetingReopenState[] | null) ?? [];
+  },
+  async request(groupId: string, weekId: number, reason: string): Promise<void> {
+    const { error } = await supabase.rpc('request_group_meeting_reopen', { p_token: getSessionToken(), p_group_id: groupId, p_week_id: weekId, p_reason: reason });
+    if (error) throw reopenError(error.message, 'Could not send that. Please try again.');
+  },
+  async reopen(groupId: string, weekId: number, reason: string, hours = 48): Promise<string> {
+    const { data, error } = await supabase.rpc('reopen_group_meeting', { p_token: getSessionToken(), p_group_id: groupId, p_week_id: weekId, p_reason: reason, p_hours: hours });
+    if (error) throw reopenError(error.message, 'Could not reopen it. Please try again.');
+    return (data as { openUntil: string }).openUntil;
+  },
+  async requests(cohortId: string): Promise<import('../types').GroupMeetingReopenRequest[]> {
+    const { data, error } = await supabase.rpc('group_meeting_reopen_requests', { p_token: getSessionToken(), p_cohort_id: cohortId });
+    if (error) return [];
+    return (data as import('../types').GroupMeetingReopenRequest[] | null) ?? [];
+  },
+};
+
 export const meetingRecordingApi = {
   async getOpening(target: { hubId?: string | null; groupId?: string | null }, weekId: number): Promise<string | null> {
     const { data, error } = await supabase.rpc('meeting_recording_opening', { p_hub_id: target.hubId ?? null, p_group_id: target.groupId ?? null, p_week_id: weekId });

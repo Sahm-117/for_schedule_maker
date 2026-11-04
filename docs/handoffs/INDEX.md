@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-11-04 | [Reopen a group meeting report](2026-11-04_group-meeting-reopen.md) | Support "Ask to reopen" a submitted week; admin reopens with a reason for 48 hours (lifts the recording window), the support is told, submitting again locks it. 1 migration applied live. FLOW_MAP rule 134. |
 | 2026-11-04 | [The password guard](2026-11-04_password-guard.md) | A participant login (e.g. a staff member's teens on their number) and a staff account on the same number can never share a password; checks count against the staff sign-in limit. 1 migration applied live. FLOW_MAP rule 133. |
 | 2026-11-04 | [Corporate prayers: Option B](2026-11-04_corporate-prayers-option-b.md) | Live prayer is a Telegram-only screen (opened / tapped Join counts, Join counts as praying, "I can't join tonight"); daily prayer opens by itself, 3-step guide, timer to 15, Amen after 3, cannot close until Amen, missed still counts until midnight; the Wall with hide; "N people prayed for you". 2 migrations applied live. FLOW_MAP rule 132. |
 | 2026-11-04 | [Hub meetings for attendance takers](2026-11-04_hub-meetings-for-attendance-takers.md) | Supports picked to mark trainings get a Hub meetings tab on Attendance: each hub's weekly report state and every member's mark, seeing only, no notes. Frontend only. |

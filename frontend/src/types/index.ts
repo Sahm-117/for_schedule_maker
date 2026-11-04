@@ -2404,3 +2404,26 @@ export interface PrayerSlotInput {
   liveWaitMinutes: number;
   liveMessage: string;
 }
+
+/** Reopening a submitted group meeting report for one week (group_meeting_reopen_state). */
+export interface GroupMeetingReopenState {
+  weekId: number;
+  requestedAt: string | null;
+  requestReason: string | null;
+  reopenedAt: string | null;
+  reopenReason: string | null;
+  resubmittedAt: string | null;
+  /** While the reopening is live: when it ends. */
+  openUntil: string | null;
+}
+
+/** A support's "Ask to reopen" still waiting for an admin (group_meeting_reopen_requests). */
+export interface GroupMeetingReopenRequest {
+  groupId: string;
+  groupName: string;
+  weekId: number;
+  weekNumber: number;
+  requestedAt: string;
+  requestReason: string;
+  supportName: string | null;
+}

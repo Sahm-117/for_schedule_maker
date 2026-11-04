@@ -8,7 +8,7 @@ import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
 import { useAppData } from '../context/AppDataContext';
 import ModalShell from '../components/followups/ModalShell';
-import { groupPrayerFocusApi, groupPrayerStatusApi, groupsApi, meetingAttendanceApi, participantNotesApi, usersApi } from '../services/api';
+import { groupMeetingReopenApi, groupPrayerFocusApi, groupPrayerStatusApi, groupsApi, meetingAttendanceApi, participantNotesApi, usersApi } from '../services/api';
 import SupportsThisWeek from '../components/supports/SupportsThisWeek';
 import { meetingNotDoneItem, noMeetingTimeItem, type ThisWeekItem } from '../components/supports/thisWeekItems';
 import { classDateIso } from '../utils/participantApp';
@@ -16,7 +16,7 @@ import { formatPlannerDate, plannerToday } from '../utils/planner';
 import GroupReportsCard from '../components/groups/GroupReportsCard';
 import { cohortMode } from '../components/dashboard/healthModel';
 import { getIdealWeekNumberForCohort } from '../utils/weekFocus';
-import type { Group, GroupPrayerFocus, GroupPrayerStatus, MeetingAttendance, MeetingAttendanceStatus, Participant, ParticipantNote, User, Week } from '../types';
+import type { Group, GroupMeetingReopenRequest, GroupPrayerFocus, GroupPrayerStatus, MeetingAttendance, MeetingAttendanceStatus, Participant, ParticipantNote, User, Week } from '../types';
 import { sortByText } from '../utils/sort';
 import Spinner from '../components/Spinner';
 
@@ -45,6 +45,13 @@ const AdminGroupPrayersContent: React.FC = () => {
   const [reports, setReports] = useState<ParticipantNote[]>([]);
   const [reportsFailed, setReportsFailed] = useState(false);
   const [markTarget, setMarkTarget] = useState<{ group: Group; week: Week } | null>(null);
+  // Supports' "Ask to reopen" requests still waiting (rule 134).
+  const [reopenAsks, setReopenAsks] = useState<GroupMeetingReopenRequest[]>([]);
+  const loadAsks = useCallback(() => {
+    if (!activeCohort) { setReopenAsks([]); return; }
+    void groupMeetingReopenApi.requests(activeCohort.id).then(setReopenAsks).catch(() => setReopenAsks([]));
+  }, [activeCohort]);
+  useEffect(() => { loadAsks(); }, [loadAsks]);
   const [loading, setLoading] = useState(true);
   // Supports' phones, for the WhatsApp links in "This week".
   const [userById, setUserById] = useState<Map<string, User>>(new Map());
@@ -200,6 +207,29 @@ const AdminGroupPrayersContent: React.FC = () => {
         </div>
       ) : (
         <div className="flex flex-col gap-6">
+          {reopenAsks.length > 0 && (
+            <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4" aria-label="Asks to reopen">
+              <p className="text-sm font-bold text-amber-900">{reopenAsks.length === 1 ? '1 support asks' : `${reopenAsks.length} supports ask`} to reopen a meeting report</p>
+              <ul className="mt-2 space-y-2">
+                {reopenAsks.map((ask) => {
+                  const group = groups.find((g) => g.id === ask.groupId);
+                  const week = cohortWeeks.find((w) => w.id === ask.weekId);
+                  return (
+                    <li key={`${ask.groupId}:${ask.weekId}`} className="flex flex-wrap items-center gap-3 rounded-xl bg-white px-3 py-2.5">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-gray-900">{ask.supportName ?? 'Support'} · {ask.groupName} · Week {ask.weekNumber}</p>
+                        <p className="text-[13px] text-gray-600 [overflow-wrap:anywhere]">“{ask.requestReason}”</p>
+                      </div>
+                      {group && week && (
+                        <button type="button" onClick={() => setMarkTarget({ group, week })} className="flex-none rounded-xl bg-amber-600 px-3.5 py-2 text-sm font-semibold text-white">Review</button>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
+
           <SupportsThisWeek key={activeCohort.id} items={thisWeekItems} cohortId={activeCohort.id} senderId={user?.id ?? null}
             weekLabel={reportWeeks.at(-1) ? `${activeCohort.name} · week ${reportWeeks.at(-1)!.weekNumber}` : `${activeCohort.name} · before the first class`} />
 
@@ -340,6 +370,13 @@ const AdminGroupPrayersContent: React.FC = () => {
         target={markTarget}
         records={attendance}
         submitted={!!markTarget && isDone(markTarget.group.id, markTarget.week.id)}
+        askReason={markTarget ? reopenAsks.find((ask) => ask.groupId === markTarget.group.id && ask.weekId === markTarget.week.id)?.requestReason ?? null : null}
+        onReopen={async (reason) => {
+          if (!markTarget) return;
+          await groupMeetingReopenApi.reopen(markTarget.group.id, markTarget.week.id, reason);
+          setStatuses((prev) => prev.map((entry) => (entry.groupId === markTarget.group.id && entry.weekId === markTarget.week.id ? { ...entry, done: false } : entry)));
+          loadAsks();
+        }}
         onSubmittedChange={async (next) => {
           if (!markTarget) return;
           const { status } = await groupPrayerStatusApi.setDone(markTarget.group.id, markTarget.week.id, next);
@@ -365,10 +402,14 @@ const MeetingAttendanceModal: React.FC<{
   target: { group: Group; week: Week } | null;
   records: MeetingAttendance[];
   submitted: boolean;
+  /** The support's reason, when they asked to reopen this week. */
+  askReason: string | null;
+  /** Reopen for the support: 48 hours to edit and submit again; they are told. */
+  onReopen: (reason: string) => Promise<void>;
   onSubmittedChange: (next: boolean) => Promise<void>;
   onClose: () => void;
   onMarked: (record: MeetingAttendance) => void;
-}> = ({ target, records, submitted, onSubmittedChange, onClose, onMarked }) => {
+}> = ({ target, records, submitted, askReason, onReopen, onSubmittedChange, onClose, onMarked }) => {
   const { user } = useAuth();
   const { can } = usePermissions();
   const canEdit = can('groups', 'edit');
@@ -376,7 +417,15 @@ const MeetingAttendanceModal: React.FC<{
   const [loading, setLoading] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [reopening, setReopening] = useState(false);
+  const [askingReason, setAskingReason] = useState(false);
+  const [reason, setReason] = useState('');
+  const [reopenError, setReopenError] = useState('');
+  const [reopenedUntil, setReopenedUntil] = useState(false);
   const groupId = target?.group.id;
+  const weekKey = target ? `${target.group.id}:${target.week.id}` : '';
+  // A new group or week starts clean; the support's reason fills the box when there is one.
+  useEffect(() => { setAskingReason(false); setReopenError(''); setReopenedUntil(false); }, [weekKey]);
+  useEffect(() => { setReason(askReason ? `As asked: ${askReason}`.slice(0, 300) : ''); }, [weekKey, askReason]);
 
   useEffect(() => {
     if (!groupId) { setParticipants([]); return; }
@@ -409,12 +458,29 @@ const MeetingAttendanceModal: React.FC<{
       subtitle={submitted ? 'Submitted by the support · who joined the group meeting' : 'Not submitted yet · who joined the group meeting'}
       footer={(
         <>
-          {canEdit && (
+          {canEdit && submitted && askingReason && (
             <button
               type="button"
               onClick={async () => {
                 setReopening(true);
-                try { await onSubmittedChange(!submitted); } finally { setReopening(false); }
+                setReopenError('');
+                try { await onReopen(reason.trim()); setAskingReason(false); setReopenedUntil(true); }
+                catch (err) { setReopenError(err instanceof Error ? err.message : 'Could not reopen it.'); }
+                finally { setReopening(false); }
+              }}
+              disabled={reopening || reason.trim().length < 3}
+              className="rounded-2xl bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+            >
+              {reopening ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Reopening…</span>) : 'Reopen for 48 hours'}
+            </button>
+          )}
+          {canEdit && !(submitted && askingReason) && (
+            <button
+              type="button"
+              onClick={async () => {
+                if (submitted) { setAskingReason(true); return; }
+                setReopening(true);
+                try { await onSubmittedChange(true); } finally { setReopening(false); }
               }}
               disabled={reopening}
               className="rounded-2xl bg-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 disabled:opacity-60"
@@ -426,6 +492,21 @@ const MeetingAttendanceModal: React.FC<{
         </>
       )}
     >
+      {askReason && submitted && !askingReason && (
+        <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2.5 text-[13px] text-amber-900 [overflow-wrap:anywhere]"><b>The support asks to reopen:</b> “{askReason}”</p>
+      )}
+      {submitted && askingReason && (
+        <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+          <label className="block">
+            <span className="text-[13px] font-semibold text-amber-900">Why reopen it? The support gets 48 hours to edit and submit again, and is told.</span>
+            <textarea value={reason} onChange={(event) => setReason(event.target.value.slice(0, 300))} rows={2} placeholder="For example: fix two attendance marks" className="mt-1.5 w-full rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
+          </label>
+          {reopenError && <p className="mt-1.5 text-sm text-red-700" role="alert">{reopenError}</p>}
+        </div>
+      )}
+      {reopenedUntil && (
+        <p className="mb-3 rounded-xl bg-emerald-50 px-3 py-2.5 text-[13px] text-emerald-800" role="status">Reopened for 48 hours. The support has been told.</p>
+      )}
       {loading ? (
         <p className="flex items-center justify-center gap-1.5 py-6 text-center text-sm text-gray-400"><Spinner className="h-3.5 w-3.5" />Loading participants…</p>
       ) : participants.length === 0 ? (
