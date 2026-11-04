@@ -5,9 +5,11 @@ import { usePolling } from '../../hooks/usePolling';
 import { useAuth } from '../../hooks/useAuth';
 import { PrayerSignalContext } from '../../hooks/usePrayerSignal';
 import LivePrayerPopup from './LivePrayerPopup';
+import DailyPrayerTakeover from './DailyPrayerTakeover';
 
 // One minute-by-minute check for the whole signed-in app. It is a single tiny call (visible tabs only, jittered, never
-// stacked: FLOW_MAP rule 51), read by the Home banner and the live-prayer pop-up, so it is one poll however many places show it.
+// stacked: FLOW_MAP rule 51), read by the Home card and the two prayer screens (live and daily), so it is one poll however many
+// places show it.
 
 // A support working in Practice passes the Practice cohort, so they receive Practice prayers there.
 const PrayerSignalProvider: React.FC<{ audience: 'participant' | 'staff'; cohortId?: string | null; children: React.ReactNode }> = ({ audience, cohortId = null, children }) => {
@@ -42,11 +44,19 @@ const PrayerSignalProvider: React.FC<{ audience: 'participant' | 'staff'; cohort
     setSignal((prev) => (prev && prev.open ? { ...prev, open: { ...prev.open, checkedIn: true, amen: true } } : prev));
   }, []);
 
-  const value = useMemo(() => ({ signal, refresh, markAnswered }), [signal, refresh, markAnswered]);
+  // A prayer someone asked to open (Home card or push). The screens draw themselves over everything.
+  const [started, setStarted] = useState<string | null>(null);
+  const start = useCallback((sessionId: string) => { setStarted(sessionId); void refresh(); }, [refresh]);
+  const clearStarted = useCallback(() => setStarted(null), []);
+  const [liveActive, setLiveActive] = useState(false);
+
+  const value = useMemo(() => ({ signal, refresh, markAnswered, start, started, clearStarted, liveActive, setLiveActive }),
+    [signal, refresh, markAnswered, start, started, clearStarted, liveActive]);
   return (
     <PrayerSignalContext.Provider value={value}>
       {children}
       {enabled && <LivePrayerPopup />}
+      {enabled && <DailyPrayerTakeover />}
     </PrayerSignalContext.Provider>
   );
 };

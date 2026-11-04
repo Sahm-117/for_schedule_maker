@@ -73,6 +73,9 @@ export const lagosClock = (iso: string): string => {
   return parts.replace('24:', '00:');
 };
 
+/** An ISO time's Lagos calendar day, "YYYY-MM-DD". */
+export const lagosDayKey = (iso: string): string => new Date(iso).toLocaleDateString('en-CA', { timeZone: 'Africa/Lagos' });
+
 export const mmss = (ms: number): string => {
   const total = Math.max(0, Math.ceil(ms / 1000));
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
@@ -102,3 +105,21 @@ export const slotToInput = (slot: PrayerSlot, patch: Partial<PrayerSlotInput> = 
   liveMessage: slot.liveMessage ?? '',
   ...patch,
 });
+
+// The first-open guide for the daily prayer is shown once per phone.
+const GUIDE_SEEN_KEY = 'fof_prayer_guide_seen';
+export const prayerGuideSeen = (): boolean => {
+  try { return localStorage.getItem(GUIDE_SEEN_KEY) === '1'; } catch { return true; }
+};
+export const markPrayerGuideSeen = () => {
+  try { localStorage.setItem(GUIDE_SEEN_KEY, '1'); } catch { /* private browsing: it shows again next time, which is harmless */ }
+};
+
+// "People prayed for you": the Home card shows until the person has read the words once on this phone.
+const forMeKey = (sessionId: string) => `fof_prayed_for_seen_${sessionId}`;
+export const forMeSeen = (sessionId: string): boolean => {
+  try { return localStorage.getItem(forMeKey(sessionId)) === '1'; } catch { return false; }
+};
+export const markForMeSeen = (sessionId: string) => {
+  try { localStorage.setItem(forMeKey(sessionId), '1'); } catch { /* the card shows again; harmless */ }
+};

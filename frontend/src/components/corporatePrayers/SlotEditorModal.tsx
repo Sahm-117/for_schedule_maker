@@ -108,8 +108,6 @@ const SlotEditorModal: React.FC<Props> = ({ isOpen, onClose, cohortId, slot, hub
       if (slotType === 'LIVE') {
         if (!telegramLink.trim()) return 'Add the Telegram link.';
         if (!/^https:\/\//i.test(telegramLink.trim())) return 'The link must start with https://';
-        const wait = Number(liveWait);
-        if (!Number.isFinite(wait) || wait < 0 || wait > 60) return 'The wait must be between 0 and 60 minutes.';
       }
     }
     if (key === 'audience' && !audienceAll && hubIds.length === 0) return 'Choose at least one hub, or choose Everyone.';
@@ -277,14 +275,11 @@ const SlotEditorModal: React.FC<Props> = ({ isOpen, onClose, cohortId, slot, hub
                 . I cannot check from here that a call link joins the call directly, so test it with a real link before the first live prayer.
               </p>
             )}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Prayed unlocks after (minutes)" htmlFor="live-wait" hint="Counted from the moment they tap the link. 0 unlocks it at once.">
-                <input id="live-wait" type="number" inputMode="numeric" min={0} max={60} value={liveWait} onChange={(event) => setLiveWait(event.target.value)} className={INPUT} />
-              </Field>
-              <Field label="Line above the link" htmlFor="live-message" hint="Optional. Up to 120 characters.">
-                <input id="live-message" value={liveMessage} maxLength={120} onChange={(event) => setLiveMessage(event.target.value)} className={INPUT} placeholder="Join the live prayer on Telegram" />
-              </Field>
-            </div>
+            {/* There is no "Prayed" any more: tapping Join on Telegram is what counts, and the screen stays until the prayer ends.
+                The stored wait is kept as it is for phones still on the previous version. */}
+            <Field label="Line under the title" htmlFor="live-message" hint="Optional. Up to 120 characters.">
+              <input id="live-message" value={liveMessage} maxLength={120} onChange={(event) => setLiveMessage(event.target.value)} className={INPUT} placeholder="We pray together on Telegram. Join the call and pray with everyone." />
+            </Field>
           </>
         )}
 
@@ -384,7 +379,7 @@ const SlotEditorModal: React.FC<Props> = ({ isOpen, onClose, cohortId, slot, hub
               </div>
             ) : (
               <div className="rounded-xl bg-gray-50 px-3 py-2 text-sm text-gray-700 [overflow-wrap:anywhere]">
-                {telegramLink.trim()} · Prayed unlocks {Number(liveWait) === 0 ? 'at once' : `${liveWait} minutes after the link is tapped`}
+                {telegramLink.trim()} · The screen stays until the prayer ends; tapping Join on Telegram counts as praying
               </div>
             )}
           </div>

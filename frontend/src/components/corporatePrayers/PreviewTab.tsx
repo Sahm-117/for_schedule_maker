@@ -6,7 +6,7 @@ import type { PrayerOverview, PrayerPreview } from '../../types';
 import { PRAYER_TYPE_LABEL, clockLabel } from '../../utils/prayerText';
 import { Notice } from './ui';
 import PrayerSlotScreen from './PrayerSlotScreen';
-import LivePrayerCard from './LivePrayerCard';
+import LivePrayerScreen from './LivePrayerScreen';
 
 // Exactly what people see, drawn by the same components as the real prayer screen, with a sample count. Nothing is sent
 // and no session is made. "Next in rotation" shows who would come up next without moving the rotation.
@@ -73,22 +73,23 @@ const PreviewTab: React.FC<{ overview: PrayerOverview; cohortId: string }> = ({ 
       <div className="flex justify-center lg:justify-start">
         {loading && !preview ? <PageLoader /> : error ? <Notice tone="error">{error}</Notice> : preview && (
           preview.slot.slotType === 'LIVE' ? (
-            <div className="w-full max-w-[390px] rounded-[28px] bg-white p-6 shadow-xl ring-1 ring-gray-200">
-              {preview.live?.telegramLink ? (
-                <LivePrayerCard
-                  link={preview.live.telegramLink}
-                  message={preview.live.message}
-                  waitMinutes={preview.live.waitMinutes}
-                  checkedInAtMs={Date.now()}
-                  linkTappedAtMs={null}
-                  clockOffsetMs={0}
-                  busy={false}
-                  error=""
-                  onTapLink={() => undefined}
-                  onPrayed={() => undefined}
-                />
-              ) : <Notice tone="warn">No Telegram link yet. Add it by editing this slot.</Notice>}
-            </div>
+            preview.live?.telegramLink ? (
+              <LivePrayerScreen
+                embedded
+                title={preview.slot.name || 'Evening live prayer'}
+                message={preview.live.message}
+                link={preview.live.telegramLink}
+                opensAt={new Date().toISOString()}
+                closesAt={new Date(Date.now() + 30 * 60000).toISOString()}
+                counts={{ joined: 12, praying: 0, amen: 0, tapped: 9 }}
+                checkedInAtMs={Date.now()}
+                linkTappedAtMs={null}
+                clockOffsetMs={0}
+                onTapLink={() => undefined}
+                onCantJoin={() => undefined}
+                onDone={() => undefined}
+              />
+            ) : <Notice tone="warn">No Telegram link yet. Add it by editing this slot.</Notice>
           ) : (
             <PrayerSlotScreen
               embedded
@@ -97,13 +98,16 @@ const PreviewTab: React.FC<{ overview: PrayerOverview; cohortId: string }> = ({ 
                 person: preview.person,
                 blocks: preview.blocks,
                 counts: { joined: 10, praying: 7, amen: 3 },
-                timerMinutes: preview.slot.timerMinutes,
+                goalMinutes: preview.slot.timerMinutes,
+                amenAfterMinutes: Math.min(3, preview.slot.timerMinutes),
                 checkedInAtMs: null,
-                amenDone: false,
+                amenAtMs: null,
+                windowClosed: false,
+                welcomeBack: false,
               }}
               clockOffsetMs={0}
               onAmen={() => undefined}
-              onLeave={() => undefined}
+              onDone={() => undefined}
             />
           )
         )}

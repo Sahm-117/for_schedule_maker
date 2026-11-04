@@ -18,8 +18,10 @@ export type PopupKind = 'required' | 'soft';
 export const POPUP_PRIORITY = {
   followUpCheck: 20,
   checkIn: 25,
-  // The live (Telegram) prayer: cannot be closed until Prayed unlocks, so it goes right after the check-in.
+  // The live (Telegram) prayer: cannot be closed while it is on, so it goes right after the check-in.
   livePrayer: 28,
+  // The daily prayer once started: cannot be closed until Amen.
+  dailyPrayer: 29,
   prayerConsent: 30,
   hubIntro: 35,
   meetingTimeFix: 40,

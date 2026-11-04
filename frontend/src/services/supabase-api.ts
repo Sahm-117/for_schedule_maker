@@ -9584,6 +9584,11 @@ const prayerError = (rawMessage: string | undefined, fallback: string): Error =>
     ['ONE_PROJECT_ONLY', 'Only one faith project can be in a template.'],
     ['VERSE_NOT_FOUND', 'One of the chosen verses no longer exists.'],
     ['LINK_REQUIRED', 'Add the Telegram link for this live prayer.'],
+    ['AMEN_TOO_SOON', 'Amen opens 3 minutes after you start praying.'],
+    ['IS_YOU', 'This prayer is for you, so you are not one of the people praying it.'],
+    ['EMPTY_MESSAGE', 'Write a few words first.'],
+    ['MESSAGE_TOO_LONG', 'Keep it under 140 characters.'],
+    ['TOO_MANY_MESSAGES', 'You can leave up to 5 words on one prayer.'],
     ['TITLE_REQUIRED', 'Give the verse a title.'],
     ['TITLE_TOO_LONG', 'Keep the title under 60 characters.'],
     ['TITLE_TAKEN', 'Another verse already has that title.'],
@@ -9702,10 +9707,29 @@ export const prayerSlotApi = {
     if (error) throw prayerError(error.message, 'Could not save that. Please try again.');
     return (data as { counts: import('../types').PrayerCounts }).counts;
   },
-  async linkTap(sessionId: string): Promise<string> {
+  async linkTap(sessionId: string): Promise<{ linkTappedAt: string; counts?: import('../types').PrayerCounts }> {
     const { data, error } = await supabase.rpc('corporate_prayer_link_tap', { p_token: getSessionToken(), p_session: sessionId });
     if (error) throw prayerError(error.message, 'Could not record that.');
-    return (data as { linkTappedAt: string }).linkTappedAt;
+    return data as { linkTappedAt: string; counts?: import('../types').PrayerCounts };
+  },
+  async wall(sessionId: string): Promise<import('../types').PrayerWall> {
+    const { data, error } = await supabase.rpc('corporate_prayer_wall', { p_token: getSessionToken(), p_session: sessionId });
+    if (error) throw prayerError(error.message, 'Could not load the Wall.');
+    return data as import('../types').PrayerWall;
+  },
+  async wallPost(sessionId: string, body: string): Promise<import('../types').PrayerWall> {
+    const { data, error } = await supabase.rpc('corporate_prayer_wall_post', { p_token: getSessionToken(), p_session: sessionId, p_body: body });
+    if (error) throw prayerError(error.message, 'Could not send that. Please try again.');
+    return data as import('../types').PrayerWall;
+  },
+  async wallHide(postId: string): Promise<void> {
+    const { error } = await supabase.rpc('corporate_prayer_wall_hide', { p_token: getSessionToken(), p_post: postId });
+    if (error) throw prayerError(error.message, 'Could not hide that message.');
+  },
+  /** Live prayer: "I can't join tonight" (only after ten minutes without tapping Join). */
+  async cantJoin(sessionId: string): Promise<void> {
+    const { error } = await supabase.rpc('corporate_prayer_cant_join', { p_token: getSessionToken(), p_session: sessionId });
+    if (error) throw prayerError(error.message, 'Could not save that. Please try again.');
   },
   async counts(sessionId: string): Promise<{ counts: import('../types').PrayerCounts; state: 'upcoming' | 'open' | 'closed'; serverNow: string }> {
     const { data, error } = await supabase.rpc('corporate_prayer_counts', { p_token: getSessionToken(), p_session: sessionId });

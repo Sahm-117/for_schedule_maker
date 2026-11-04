@@ -2219,7 +2219,7 @@ export type PrayerResolvedBlock = { type: 'VERSE'; title: string; prayer: string
 export type PrayerTargetMode = 'COHORT' | 'HUB';
 export type PrayerPool = 'FAITH' | 'NAME';
 
-export interface PrayerCounts { joined: number; praying: number; amen: number }
+export interface PrayerCounts { joined: number; praying: number; amen: number; /** Live prayer: how many tapped Join on Telegram. */ tapped?: number }
 
 export interface PrayerSlot {
   id: string;
@@ -2270,19 +2270,67 @@ export interface PrayerNow {
   role?: 'PARTICIPANT' | 'SUPPORT';
   serverNow: string;
   state: 'none' | 'upcoming' | 'open' | 'closed';
-  session?: { id: string; name: string | null; slotType: PrayerSlotType; timerMinutes: number; opensAt: string; closesAt: string };
+  session?: {
+    id: string; name: string | null; slotType: PrayerSlotType; timerMinutes: number; opensAt: string; closesAt: string;
+    /** A daily prayer can still be prayed until midnight that day; a live one only until it closes. */
+    lateUntil?: string;
+    /** Amen opens this many minutes after you start (the timer is the suggested length). */
+    amenAfterMinutes?: number;
+  };
   person?: PrayerPerson | null;
+  /** You are the person being prayed for. */
+  isMe?: boolean;
   blocks?: PrayerResolvedBlock[];
-  me?: { checkedInAt: string; amenAt: string | null; linkTappedAt: string | null } | null;
+  me?: { checkedInAt: string; amenAt: string | null; linkTappedAt: string | null; cantJoinAt?: string | null } | null;
   counts?: PrayerCounts;
   live?: PrayerLiveInfo | null;
   next?: PrayerNext | null;
 }
 
 /** The tiny minute-by-minute answer (corporate_prayer_signal). */
+export interface PrayerSignalSession {
+  sessionId: string; slotType: PrayerSlotType; opensAt: string; closesAt: string; lateUntil?: string;
+  checkedIn: boolean; amen: boolean; serverNow: string;
+  /** Live prayer: tapped Join on Telegram / said "I can't join tonight". */
+  tapped?: boolean; cantJoin?: boolean;
+  /** You are the person being prayed for in this one. */
+  isMe?: boolean;
+}
+
 export interface PrayerSignal {
-  open: { sessionId: string; slotType: PrayerSlotType; opensAt: string; closesAt: string; checkedIn: boolean; amen: boolean; serverNow: string } | null;
+  open: PrayerSignalSession | null;
+  /** A daily prayer you started and have not said Amen to; its window has closed but it can still be finished today. */
+  unfinished?: PrayerSignalSession | null;
+  /** The latest daily prayer today you did not open: it can still be prayed until midnight, and it counts. */
+  missed?: { sessionId: string; slotType: PrayerSlotType; name: string | null; opensAt: string; closesAt: string; lateUntil: string; serverNow: string } | null;
+  /** Today's prayer for you that has ended: the words people left are ready to read. */
+  forMe?: { sessionId: string; opensAt: string; closesAt: string; serverNow: string } | null;
   next?: PrayerNext | null;
+}
+
+/** A word left on a daily prayer's Wall. */
+export interface PrayerWallPost {
+  id: string;
+  body: string;
+  at: string;
+  mine: boolean;
+  firstName: string;
+  fullName: string;
+  avatarUrl: string | null;
+  /** An admin, or the lead of the writer's hub, may hide it. */
+  canHide: boolean;
+}
+
+/** corporate_prayer_wall: the Wall for the person you pray for, or (forMe) the words left for you once your prayer ended. */
+export interface PrayerWall {
+  forMe: boolean;
+  ended?: boolean;
+  posts: PrayerWallPost[];
+  counts?: PrayerCounts;
+  prayedForYou?: number;
+  opensAt?: string;
+  hasProject?: boolean;
+  serverNow: string;
 }
 
 /** The prayer streak card data (prayer_streak): days in a row, the total, today's prayers and any milestone not celebrated yet. */

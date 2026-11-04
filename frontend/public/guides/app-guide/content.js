@@ -795,10 +795,10 @@ window.GUIDE_CONTENT = {
        ],
        "steps": [
         "Add a slot of type **Live prayer** for the time it happens.",
-        "Open the **Live prayer** tab, paste the Telegram link and choose how many minutes after they tap it that **Prayed** unlocks.",
+        "In the slot, paste the Telegram link (and, if you like, one line to show under the title).",
         "Tap the link in the tab to test it, then **Save**."
        ],
-       "result": "At that time everyone sees a pop-up with the link. It cannot be closed until they tap **Prayed**, which unlocks after the wait. If the link is missing, the pop-up does not appear.",
+       "result": "At that time everyone sees a full screen with two counts (opened the app, tapped Join on Telegram) and a **Join on Telegram** button. Tapping Join counts as praying. It stays until the prayer ends; ten minutes in without a tap, they can choose **I can't join tonight**. If the link is missing, the screen does not appear.",
        "tips": [
         "Test the link with a real call before the first live prayer."
        ]
@@ -3892,13 +3892,13 @@ window.GUIDE_CONTENT = {
         "join"
        ],
        "steps": [
-        "When a prayer opens you get a notification, and a **Time to pray** card appears at the top of Home. Tap **Join**.",
-        "Pray for the person shown, using the verse and what they are believing God for. The ring counts down your time.",
-        "Tap **Amen** when you are done, then **Yes, Amen** when it asks \"Are you done praying?\". Tap **Not yet** to keep praying. You can also leave any time."
+        "When a prayer starts and the app is open, the prayer screen opens by itself. It is not a call: pray where you are. Came in later? Tap **Start praying** on the card at the top of Home.",
+        "Pray for the person shown, using the prayer and what they are believing God for. Your timer counts up from when you start; 15 minutes is suggested.",
+        "**Amen** opens after 3 minutes. Tap it when you are done, then **Yes, Amen**. The screen stays until you say Amen."
        ],
-       "result": "You are counted as praying from the moment you open it, and as having said Amen when you tap it. Everyone sees the totals, never names.",
+       "result": "You are counted as praying from the moment you start, and as having said Amen when you tap it. Everyone sees the totals, never names. Missed one? It waits on Home until midnight, and it still counts.",
        "tips": [
-        "For the live prayer, a pop-up asks you to join on Telegram. **Prayed** unlocks a few minutes after you open the link."
+        "For the live prayer on Telegram, a full screen asks you to tap **Join on Telegram**. Tapping Join counts as praying. It stays until the prayer ends."
        ]
       }
      ]
@@ -4647,13 +4647,13 @@ window.GUIDE_CONTENT = {
         "join"
        ],
        "steps": [
-        "When a prayer opens you get a notification, and a **Time to pray** card appears at the top of Home. Tap **Join**.",
-        "Pray for the person shown, using the verse and what they are believing God for. The ring counts down your time.",
-        "Tap **Amen** when you are done, then **Yes, Amen** when it asks \"Are you done praying?\". Tap **Not yet** to keep praying. You can also leave any time."
+        "When a prayer starts and the app is open, the prayer screen opens by itself. It is not a call: pray where you are. Came in later? Tap **Start praying** on the card at the top of Home.",
+        "Pray for the person shown, using the prayer and what they are believing God for. Your timer counts up from when you start; 15 minutes is suggested.",
+        "**Amen** opens after 3 minutes. Tap it when you are done, then **Yes, Amen**. The screen stays until you say Amen."
        ],
-       "result": "You are counted as praying from the moment you open it, and as having said Amen when you tap it. Everyone sees the totals, never names.",
+       "result": "You are counted as praying from the moment you start, and as having said Amen when you tap it. Everyone sees the totals, never names. Missed one? It waits on Home until midnight, and it still counts.",
        "tips": [
-        "For the live prayer, a pop-up asks you to join on Telegram. **Prayed** unlocks a few minutes after you open the link."
+        "For the live prayer on Telegram, a full screen asks you to tap **Join on Telegram**. Tapping Join counts as praying. It stays until the prayer ends."
        ]
       }
      ]

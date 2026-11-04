@@ -451,7 +451,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
 
       <div className="flex flex-wrap items-start gap-5">
         <div className="flex min-w-0 flex-[1_1_480px] flex-col gap-4">
-          <PrayerNowBanner to="/support/pray" />
+          <PrayerNowBanner />
           {/* Someone new: one hint instead of a Welcome and tour, until they tap Got it. After the groups have
               answered (loaded or failed), so the cards below do not push it around as they arrive. */}
           {groupsSettled && (

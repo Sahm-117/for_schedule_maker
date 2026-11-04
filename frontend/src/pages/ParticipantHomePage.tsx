@@ -302,7 +302,7 @@ const ParticipantHomePage: React.FC = () => {
 
       <div className="flex flex-col gap-4 desktop-cols">
         <AppSetupBanner enable={push.enable} />
-        <PrayerNowBanner to="/me/pray" />
+        <PrayerNowBanner />
         {home.groupMeetingLive && (
           // Tapping the banner opens the meeting on My Group; Join still goes
           // straight to the call link.
