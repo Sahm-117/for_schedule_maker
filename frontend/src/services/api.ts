@@ -804,6 +804,7 @@ export const supportHubsApi = USE_SUPABASE ? supabaseSupportHubsApi : {
   async getMembersWithNotes(_hubId: string): Promise<{ userIds: string[] }> { return { userIds: [] }; },
   async remove(_hubId: string): Promise<never> { return peopleUnavailable(); },
   async getMembershipsForCohort(_cohortId: string): Promise<{ memberships: import('../types').HubMembership[] }> { return { memberships: [] }; },
+  async getNames(_userIds: string[]): Promise<{ names: Map<string, string> }> { return { names: new Map() }; },
   async getMembers(_hubId: string): Promise<{ members: import('../types').User[] }> { return { members: [] }; },
   async setMembers(_hubId: string, _cohortId: string, _userIds: string[]): Promise<never> { return peopleUnavailable(); },
 };

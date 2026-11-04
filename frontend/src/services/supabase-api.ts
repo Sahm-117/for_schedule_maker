@@ -6685,6 +6685,14 @@ export const supportHubsApi = {
     return { memberships: (data as any[]) || [] };
   },
 
+  /** Just the names of these people (the trainings markers' Hub meetings tab needs nothing else). */
+  async getNames(userIds: string[]): Promise<{ names: Map<string, string> }> {
+    if (userIds.length === 0) return { names: new Map() };
+    const { data, error } = await supabase.from('User').select('id, name').in('id', userIds);
+    if (error) throw new Error(error.message);
+    return { names: new Map(((data as any[]) || []).map((u) => [u.id as string, u.name as string])) };
+  },
+
   async getMembers(hubId: string): Promise<{ members: import('../types').User[] }> {
     const { data, error } = await supabase
       .from('HubMembership')

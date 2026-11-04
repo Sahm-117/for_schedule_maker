@@ -10,6 +10,7 @@ import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
 import { attendanceApi, groupsApi, participantsApi, settingsApi } from '../services/api';
 import TrainingAttendancePanel from '../components/TrainingAttendancePanel';
+import HubMeetingsAttendancePanel from '../components/supports/HubMeetingsAttendancePanel';
 import type { AttendanceRecord, AttendanceSession, AttendanceStatus, Participant, User, Week } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
 import { classDateIso, lagosTodayIso, nextClassWeek } from '../utils/participantApp';
@@ -41,9 +42,9 @@ type AttendanceWeekResult = {
 
 const SupportAttendancePage: React.FC = () => {
   const { user } = useAuth();
-  // Supports the admin picked to mark trainings get Participants / Supports tabs.
+  // Supports the admin picked to mark trainings get Participants / Supports / Hub meetings tabs (hub meetings: seeing only).
   const [canMarkTrainings, setCanMarkTrainings] = useState(false);
-  const [view, setView] = useState<'class' | 'trainings'>('class');
+  const [view, setView] = useState<'class' | 'trainings' | 'hubs'>('class');
   useEffect(() => {
     if (!user) return;
     settingsApi.getTrainingMarkers()
@@ -59,7 +60,7 @@ const SupportAttendancePage: React.FC = () => {
   const switcher = canMarkTrainings ? (
     <div className="mb-4">
       <SegmentedTabs accent
-        tabs={[{ key: 'class', label: 'Participants' }, { key: 'trainings', label: 'Supports (trainings)' }]}
+        tabs={[{ key: 'class', label: 'Participants' }, { key: 'trainings', label: 'Trainings' }, { key: 'hubs', label: 'Hub meetings' }]}
         active={view}
         onChange={(k) => setView(k as typeof view)}
       />
@@ -71,6 +72,15 @@ const SupportAttendancePage: React.FC = () => {
         <PageHeader title="Attendance" subtitle="Trainings & get-togethers · every support" />
         {switcher}
         <TrainingAttendancePanel />
+      </div>
+    );
+  }
+  if (canMarkTrainings && view === 'hubs') {
+    return (
+      <div className="page-content max-w-4xl">
+        <PageHeader title="Attendance" subtitle="Hub meetings · every hub" />
+        {switcher}
+        <HubMeetingsAttendancePanel />
       </div>
     );
   }

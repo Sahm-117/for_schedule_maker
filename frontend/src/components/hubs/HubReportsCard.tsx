@@ -9,6 +9,7 @@ import { formatDateTime } from '../../utils/time';
 // Each hub's weekly meeting as its Hub Lead ran it: who came, the prayer, the notes, and whether the
 // report was submitted. The current week shows as it happens (not only once the week is over), and
 // earlier weeks are one tap away. "Read report" opens the full notes and every member's mark.
+// With showNotes off (the trainings markers' Attendance tab) it is attendance only: no notes anywhere.
 
 type ReportState = 'SUBMITTED' | 'DRAFT' | 'NOT_STARTED';
 
@@ -33,6 +34,9 @@ interface HubReportsCardProps {
   /** Weeks that have started, oldest first; the last one opens by default. */
   weeks: Week[];
   nameById: Map<string, string>;
+  /** Off for the trainings markers: attendance and report state only, never the notes. */
+  showNotes?: boolean;
+  defaultExpanded?: boolean;
 }
 
 const countMarks = (memberIds: string[], marks: Map<string, SupportAttendanceStatus>) => {
@@ -45,14 +49,14 @@ const countMarks = (memberIds: string[], marks: Map<string, SupportAttendanceSta
   return counts;
 };
 
-const HubReportsCard: React.FC<HubReportsCardProps> = ({ cohortId, hubs, membersByHub, weeks, nameById }) => {
+const HubReportsCard: React.FC<HubReportsCardProps> = ({ cohortId, hubs, membersByHub, weeks, nameById, showNotes = true, defaultExpanded = false }) => {
   const [weekId, setWeekId] = useState<number | null>(weeks.at(-1)?.id ?? null);
   const [reports, setReports] = useState<HubWeekReport[]>([]);
   const [attendance, setAttendance] = useState<Array<{ sessionId: string; userId: string; status: SupportAttendanceStatus }>>([]);
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
   const [openHubId, setOpenHubId] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(defaultExpanded);
 
   // A new week starting (or the weeks loading late) moves the view to it.
   const latestWeekId = weeks.at(-1)?.id ?? null;
@@ -64,11 +68,11 @@ const HubReportsCard: React.FC<HubReportsCardProps> = ({ cohortId, hubs, members
     setLoading(true);
     setFailed(false);
     supportSessionsApi.getHubReportsForWeek(cohortId, weekId)
-      .then((res) => { if (!cancelled) { setReports(res.reports); setAttendance(res.attendance); } })
+      .then((res) => { if (!cancelled) { setReports(showNotes ? res.reports : res.reports.map((r) => ({ ...r, notes: null }))); setAttendance(res.attendance); } })
       .catch(() => { if (!cancelled) { setReports([]); setAttendance([]); setFailed(true); } })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [cohortId, weekId]);
+  }, [cohortId, weekId, showNotes]);
 
   const rows = useMemo(() => hubs.map((hub) => {
     const report = reports.find((r) => r.hubId === hub.id) ?? null;
@@ -87,7 +91,7 @@ const HubReportsCard: React.FC<HubReportsCardProps> = ({ cohortId, hubs, members
     <section data-testid="hub-reports" className="mb-5 rounded-[28px] bg-white px-6 py-5 shadow-[0_1px_2px_rgba(17,24,39,0.04),0_12px_32px_-16px_rgba(17,24,39,0.18)]">
       <h2 className="text-[17px] font-bold text-gray-900">
         <button type="button" onClick={() => setExpanded((v) => !v)} aria-expanded={expanded} className="flex w-full flex-wrap items-baseline gap-x-3 gap-y-1 text-left">
-          <span>Hub meeting reports</span>
+          <span>{showNotes ? 'Hub meeting reports' : 'Hub meetings'}</span>
           {week && !loading && !failed && (
             <span className="text-[13px] font-normal text-gray-500">Week {week.weekNumber} · {submitted} of {rows.length} submitted</span>
           )}
@@ -139,7 +143,7 @@ const HubReportsCard: React.FC<HubReportsCardProps> = ({ cohortId, hubs, members
                   <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${STATE_INFO[state].pill}`}>{STATE_INFO[state].label}</span>
                   {report && (
                     <button type="button" onClick={() => setOpenHubId(hub.id)} className="ml-auto min-h-[32px] text-[13px] font-semibold text-[#c2410c]">
-                      Read report ›
+                      {showNotes ? 'Read report ›' : 'See who ›'}
                     </button>
                   )}
                 </div>
@@ -162,7 +166,7 @@ const HubReportsCard: React.FC<HubReportsCardProps> = ({ cohortId, hubs, members
                     {prayerParts.length > 0 ? <span className="text-gray-500"> · {prayerParts.join(' · ')}</span> : null}
                   </p>
                 )}
-                {report?.notes && <p className="mt-1 line-clamp-2 whitespace-pre-line text-[13px] text-gray-500">{report.notes}</p>}
+                {showNotes && report?.notes && <p className="mt-1 line-clamp-2 whitespace-pre-line text-[13px] text-gray-500">{report.notes}</p>}
               </li>
             );
           })}
@@ -178,10 +182,12 @@ const HubReportsCard: React.FC<HubReportsCardProps> = ({ cohortId, hubs, members
           wide
         >
           <div className="flex flex-col gap-5">
-            <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Notes</h3>
-              <p className="mt-1.5 whitespace-pre-line text-[14px] leading-relaxed text-gray-900">{open.report.notes || 'No notes written.'}</p>
-            </div>
+            {showNotes && (
+              <div>
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Notes</h3>
+                <p className="mt-1.5 whitespace-pre-line text-[14px] leading-relaxed text-gray-900">{open.report.notes || 'No notes written.'}</p>
+              </div>
+            )}
             <div>
               <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Attendance</h3>
               {open.memberIds.length === 0 ? (
