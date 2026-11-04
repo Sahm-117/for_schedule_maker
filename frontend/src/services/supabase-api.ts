@@ -2806,6 +2806,9 @@ export const usersApi = {
         if (passwordError.message.includes('NOT_AUTHORISED')) {
           throw new Error('Only an admin can change someone else’s password.');
         }
+        if (passwordError.message.includes('FAMILY_PASSWORD_CLASH')) {
+          throw new Error('A participant login on this person\'s number already uses this password. Choose a different one.');
+        }
         throw new Error(passwordError.message.includes('at least 8')
           ? 'Password must be at least 8 characters.'
           : 'The password could not be updated.');
@@ -2887,6 +2890,9 @@ export const usersApi = {
       if (error.message.includes('NOT_AUTHORISED')) {
         throw new Error('Only an admin can reset a password.');
       }
+      if (error.message.includes('FAMILY_PASSWORD_CLASH')) {
+        throw new Error('A participant login on this person\'s number already uses this password. Choose a different one.');
+      }
       throw new Error(error.message.includes('at least 8')
         ? 'Password must be at least 8 characters.'
         : 'The password could not be reset.');
@@ -2903,6 +2909,8 @@ export const usersApi = {
     if (error) {
       throw new Error(error.message.includes('at least 8')
         ? 'Your new password must be at least 8 characters.'
+        : error.message.includes('FAMILY_PASSWORD_CLASH')
+          ? 'A participant login on your number (for example your children\'s) already uses this password. Choose a different one, so both logins keep working.'
         : error.message.includes('TOO_MANY_ATTEMPTS')
           ? 'Too many wrong passwords. Wait 15 minutes, then try again.'
           : 'The password could not be changed.');
@@ -3560,6 +3568,8 @@ const accountError = (rawMessage: string | undefined, fallback: string): Error =
   const msg = rawMessage || '';
   if (msg.includes('SESSION_EXPIRED')) return new Error('SESSION_EXPIRED');
   if (msg.includes('TEEN_PASSWORD_FIXED')) return new Error('Your parent or guardian signs in first and chooses the password. Ask them for it.');
+  if (msg.includes('STAFF_PASSWORD_CLASH')) return new Error('This password already opens a staff account on this number. Choose a different one for this login.');
+  if (msg.includes('TOO_MANY_ATTEMPTS')) return new Error('Too many tries on this number. Wait 15 minutes, then try again.');
   if (msg.includes('NOT_ALLOWED')) return new Error("You can only see login details for your own participants.");
   if (msg.includes('NO_PHONE')) return new Error('Add a valid phone number for this person first. It is their username.');
   if (msg.includes('NO_FORM_REGISTRATION')) return new Error('No registration form found for this person. They need to fill the form first.');
@@ -3620,6 +3630,8 @@ const participantAppError = (rawMessage: string | undefined, fallback: string): 
   const msg = rawMessage || '';
   if (msg.includes('SESSION_EXPIRED')) return new Error('SESSION_EXPIRED');
   if (msg.includes('TEEN_PASSWORD_FIXED')) return new Error('Your password is fixed. Ask your parent or guardian, or your Teen Support for a new code.');
+  if (msg.includes('STAFF_PASSWORD_CLASH')) return new Error('This password already opens a staff account on this number. Choose a different one for this login.');
+  if (msg.includes('TOO_MANY_ATTEMPTS')) return new Error('Too many tries on this number. Wait 15 minutes, then try again.');
   if (msg.includes('GOAL_REQUIRED')) return new Error('Write one thing you will do.');
   if (msg.includes('RECAP_NOT_RELEASED')) return new Error("This week's recap is not out yet.");
   if (msg.includes('REFLECTION_LOCKED')) return new Error('This reflection can no longer be changed.');

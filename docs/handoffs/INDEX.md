@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-11-04 | [The password guard](2026-11-04_password-guard.md) | A participant login (e.g. a staff member's teens on their number) and a staff account on the same number can never share a password; checks count against the staff sign-in limit. 1 migration applied live. FLOW_MAP rule 133. |
 | 2026-11-04 | [Corporate prayers: Option B](2026-11-04_corporate-prayers-option-b.md) | Live prayer is a Telegram-only screen (opened / tapped Join counts, Join counts as praying, "I can't join tonight"); daily prayer opens by itself, 3-step guide, timer to 15, Amen after 3, cannot close until Amen, missed still counts until midnight; the Wall with hide; "N people prayed for you". 2 migrations applied live. FLOW_MAP rule 132. |
 | 2026-11-04 | [Hub meetings for attendance takers](2026-11-04_hub-meetings-for-attendance-takers.md) | Supports picked to mark trainings get a Hub meetings tab on Attendance: each hub's weekly report state and every member's mark, seeing only, no notes. Frontend only. |
 | 2026-10-31 | [Automatic move and duty reminders](2026-10-31_auto-move-and-duty-reminders.md) | Absent for classes 1-3 moves to the next cohort automatically at 4 pm on class 3's day (warning the day before, undo for 3 days). Morning reminders for hub reports, follow-ups, hub messages, tasks, faith projects, reflections and surveys. Two live migrations, `daily-checks` v21. |
