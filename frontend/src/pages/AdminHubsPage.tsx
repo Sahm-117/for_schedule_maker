@@ -21,6 +21,7 @@ import { selectedFirst } from '../utils/selectedFirst';
 import { getIdealWeekForCohort, getIdealWeekNumberForCohort } from '../utils/weekFocus';
 import { cohortMode } from '../components/dashboard/healthModel';
 import HubReportsCard from '../components/hubs/HubReportsCard';
+import { hubReportWeeks } from '../components/hubs/reportWeeks';
 import MeetingSetModal from '../components/hubs/MeetingSetModal';
 import OpenRecordingModal from '../components/hubs/OpenRecordingModal';
 import { formatMeetingSlot } from '../components/groups/GroupCallCard';
@@ -593,15 +594,7 @@ const AdminHubsPage: React.FC = () => {
 
   // Hub meeting reports show every week that has started, the current one included, so a report is
   // visible the night it is sent rather than once the week is over.
-  const reportWeeks = useMemo(() => {
-    if (!activeCohort || weeks.length === 0) return [];
-    const sorted = [...weeks].sort((a, b) => a.weekNumber - b.weekNumber);
-    const mode = cohortMode(activeCohort);
-    if (mode === 'upcoming') return [];
-    if (mode === 'completed') return sorted;
-    const current = getIdealWeekNumberForCohort(activeCohort, new Date(), weeks);
-    return sorted.filter((w) => w.weekNumber <= current);
-  }, [activeCohort, weeks]);
+  const reportWeeks = useMemo(() => hubReportWeeks(activeCohort, weeks), [activeCohort, weeks]);
 
   useEffect(() => {
     if (!summaryWeek || hubs.length === 0) { setRecapByHub({}); return; }

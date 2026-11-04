@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useAppData } from '../../context/AppDataContext';
 import { supportSessionsApi } from '../../services/api';
 import type { HubWeekReport, SupportAttendanceStatus, SupportHub, Week } from '../../types';
 import ModalShell from '../followups/ModalShell';
@@ -57,6 +58,8 @@ const HubReportsCard: React.FC<HubReportsCardProps> = ({ cohortId, hubs, members
   const [failed, setFailed] = useState(false);
   const [openHubId, setOpenHubId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(defaultExpanded);
+  // Reports submitted while the card is open show up without a reload.
+  const { liveRevision } = useAppData();
 
   // A new week starting (or the weeks loading late) moves the view to it.
   const latestWeekId = weeks.at(-1)?.id ?? null;
@@ -67,12 +70,12 @@ const HubReportsCard: React.FC<HubReportsCardProps> = ({ cohortId, hubs, members
     let cancelled = false;
     setLoading(true);
     setFailed(false);
-    supportSessionsApi.getHubReportsForWeek(cohortId, weekId)
-      .then((res) => { if (!cancelled) { setReports(showNotes ? res.reports : res.reports.map((r) => ({ ...r, notes: null }))); setAttendance(res.attendance); } })
+    supportSessionsApi.getHubReportsForWeek(cohortId, weekId, showNotes)
+      .then((res) => { if (!cancelled) { setReports(res.reports); setAttendance(res.attendance); } })
       .catch(() => { if (!cancelled) { setReports([]); setAttendance([]); setFailed(true); } })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [cohortId, weekId, showNotes]);
+  }, [cohortId, weekId, showNotes, liveRevision]);
 
   const rows = useMemo(() => hubs.map((hub) => {
     const report = reports.find((r) => r.hubId === hub.id) ?? null;

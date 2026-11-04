@@ -6872,10 +6872,11 @@ export const supportSessionsApi = {
 
   // Admin Hubs page: each hub's meeting report for one week (the Hub Lead's walk-through: attendance,
   // prayer, notes, then Submit), with every mark on those reports.
-  async getHubReportsForWeek(cohortId: string, weekId: number): Promise<{ reports: import('../types').HubWeekReport[]; attendance: Array<{ sessionId: string; userId: string; status: import('../types').SupportAttendanceStatus }> }> {
+  /** withNotes false leaves the notes out of the request entirely (the trainings markers' Hub meetings tab). */
+  async getHubReportsForWeek(cohortId: string, weekId: number, withNotes = true): Promise<{ reports: import('../types').HubWeekReport[]; attendance: Array<{ sessionId: string; userId: string; status: import('../types').SupportAttendanceStatus }> }> {
     const { data: sessions, error: sessionsError } = await supabase
       .from('SupportSession')
-      .select('id, hubId, weekId, notes, submittedAt, submittedById, startedAt, createdById, createdAt, hubPrayerDoneAt, prayerFinishedAt, prayedForFaithProjectIds')
+      .select(`id, hubId, weekId, ${withNotes ? 'notes, ' : ''}submittedAt, submittedById, startedAt, createdById, createdAt, hubPrayerDoneAt, prayerFinishedAt, prayedForFaithProjectIds`)
       .eq('cohortId', cohortId)
       .eq('type', 'SUNDAY_RECAP')
       .eq('weekId', weekId);

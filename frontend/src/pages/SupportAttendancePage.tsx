@@ -42,7 +42,7 @@ type AttendanceWeekResult = {
 
 const SupportAttendancePage: React.FC = () => {
   const { user } = useAuth();
-  // Supports the admin picked to mark trainings get Participants / Supports / Hub meetings tabs (hub meetings: seeing only).
+  // Supports the admin picked to mark trainings get Participants / Trainings / Hub meetings tabs (hub meetings: seeing only).
   const [canMarkTrainings, setCanMarkTrainings] = useState(false);
   const [view, setView] = useState<'class' | 'trainings' | 'hubs'>('class');
   useEffect(() => {

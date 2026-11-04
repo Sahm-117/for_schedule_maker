@@ -2,9 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useAppData } from '../../context/AppDataContext';
 import { supportHubsApi } from '../../services/api';
 import type { SupportHub } from '../../types';
-import { getIdealWeekNumberForCohort } from '../../utils/weekFocus';
-import { cohortMode } from '../dashboard/healthModel';
 import HubReportsCard from '../hubs/HubReportsCard';
+import { hubReportWeeks } from '../hubs/reportWeeks';
 import Spinner from '../Spinner';
 
 // Hub meetings on the Attendance page of the supports picked to mark trainings (AppSetting 'training_markers'):
@@ -46,15 +45,10 @@ const HubMeetingsAttendancePanel: React.FC = () => {
   }, [activeCohort?.id]);
 
   // Every week that has started, the current one included.
-  const reportWeeks = useMemo(() => {
-    if (!activeCohort) return [];
-    const cohortWeeks = (weeks ?? []).filter((w) => w.cohortId === activeCohort.id).sort((a, b) => a.weekNumber - b.weekNumber);
-    const mode = cohortMode(activeCohort);
-    if (mode === 'upcoming') return [];
-    if (mode === 'completed') return cohortWeeks;
-    const current = getIdealWeekNumberForCohort(activeCohort, new Date(), cohortWeeks);
-    return cohortWeeks.filter((w) => w.weekNumber <= current);
-  }, [activeCohort, weeks]);
+  const reportWeeks = useMemo(
+    () => hubReportWeeks(activeCohort, (weeks ?? []).filter((w) => w.cohortId === activeCohort?.id)),
+    [activeCohort, weeks],
+  );
 
   if (!activeCohort) return null;
   if (loading) return <p className="flex items-center gap-1.5 text-sm text-gray-400"><Spinner className="h-3.5 w-3.5" />Loading hub meetings…</p>;
