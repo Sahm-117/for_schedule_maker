@@ -58,6 +58,9 @@ Give each app only the scopes it needs. A test key and a live key should be sepa
 
 ## Next: the registration handshake (planned, not built)
 
+The full spec and phased build plan (link table, handshake, login delivery, webhooks, single sign-on) is
+[`docs/specs/church-app-integration.md`](../specs/church-app-integration.md). Start there; the summary below is kept for reference.
+
 Agreed flow: someone registers for FOF in the church app, fills in only what FOF still needs there, and sees their
 FOF login details in the church app. Later, once email is wired up, the same login details are also emailed.
 

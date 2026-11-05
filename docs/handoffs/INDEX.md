@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-11-05 | [Church app integration spec](../specs/church-app-integration.md) | Spec and phased plan for connecting FOF and the church app: church person link, registration handshake (request/response, matching, missing fields, teen rules, login delivery), webhooks, single sign-on, open questions, status checklist. Docs only. |
 | 2026-11-05 | [Database schema snapshot](2026-11-05_schema-snapshot.md) | `docs/schema/SCHEMA.md` (readable, by area) and `schema.sql` (exact structure) made from the live database by `scripts/schema-snapshot.py`; `--check` spots drift. No live changes. |
 | 2026-11-04 | [Reopen a group meeting report](2026-11-04_group-meeting-reopen.md) | Support "Ask to reopen" a submitted week; admin reopens with a reason for 48 hours (lifts the recording window), the support is told, submitting again locks it. 1 migration applied live. FLOW_MAP rule 134. |
 | 2026-11-04 | [The password guard](2026-11-04_password-guard.md) | A participant login (e.g. a staff member's teens on their number) and a staff account on the same number can never share a password; checks count against the staff sign-in limit. 1 migration applied live. FLOW_MAP rule 133. |
