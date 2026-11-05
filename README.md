@@ -19,6 +19,7 @@ installed phone apps and backups depend on them).
 | [`AGENTS.md`](AGENTS.md) | The working rules for this repo (people and AI agents) |
 | [`FLOW_MAP.md`](FLOW_MAP.md) | How the app works end to end; section 4 lists the numbered business rules and where each is enforced |
 | [`docs/handoffs/INDEX.md`](docs/handoffs/INDEX.md) | What was done, when, what is live and what is still open (newest first) |
+| [`docs/schema/SCHEMA.md`](docs/schema/SCHEMA.md) | Every table, column, link, function and scheduled job in the live database, grouped by area (exact SQL in `schema.sql`) |
 | [`BACKUP_RESTORE.md`](BACKUP_RESTORE.md) | Nightly backups and how to restore |
 | [`integrations/README.md`](integrations/README.md) | The Google Form / Sheet sign-up feed |
 
@@ -102,6 +103,7 @@ Participants sign in with their phone number once their support enrols them. The
 for_schedule_maker/
 ├── AGENTS.md, HANDOVER.md, FLOW_MAP.md, BACKUP_RESTORE.md
 ├── docs/handoffs/              # One note per stretch of work (INDEX.md lists them)
+├── docs/schema/                # Snapshot of the live database (SCHEMA.md to read, schema.sql exact)
 ├── .github/workflows/          # Nightly backup, restore check, keep-alive
 ├── .githooks/pre-push          # Requires a Flow-Map line in every commit
 ├── integrations/               # Google Sheet Apps Script for the sign-up form
@@ -184,6 +186,7 @@ npm run preview           # serve the built app
 ## Database
 
 - **The live database is the source of truth.** There is one Supabase project and no staging copy.
+- **What is in it:** [`docs/schema/SCHEMA.md`](docs/schema/SCHEMA.md) (readable) and `docs/schema/schema.sql` (structure only, no data), both made from the live database by `python3 scripts/schema-snapshot.py`. Run it again after applying a migration; `--check` says whether the files are out of date. It needs `SUPABASE_ACCESS_TOKEN` and `SUPABASE_PROJECT_REF` in the environment or the root `.env.local`. `supabase-schema.sql` is the September starting point, not the current shape.
 - **Rebuilding from scratch:** the dependable way is to restore a nightly backup (`BACKUP_RESTORE.md`); the restore is tested automatically every night. Replaying `supabase-schema.sql` and then all migrations in filename order has not been tested recently and may need fixes.
 - **Existing database:** apply only the new migration files, in order. `node scripts/apply-migration.cjs supabase/migrations/<file>.sql` applies one file using the root `.env.local` (set `PG_PATH` to a folder containing the `pg` package if it isn't installed).
 - Migrations are additive by convention, so a deployed app keeps working while a new frontend rolls out.
