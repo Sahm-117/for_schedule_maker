@@ -12,7 +12,7 @@ import type { Group, Participant, SupportKind, SupportTag, User } from '../../ty
 import { AGE_RANGE_OPTIONS } from '../../constants/departments';
 import { trainingCountFor } from '../../utils/programmeRules';
 import { buildWhatsAppText } from '../../utils/groupingExport';
-import { DEFAULT_GROUPING_RULES, type GroupingRules, type RuleStrength, type TagRule } from '../../utils/groupingRules';
+import { DEFAULT_GROUPING_RULES, normaliseGender, type GroupingRules, type RuleStrength, type TagRule } from '../../utils/groupingRules';
 import {
   buildDraft,
   evaluateGroup,
@@ -710,7 +710,12 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
           ({ group: { id: groupId } } = await groupsApi.create({ cohortId, name: g.name, supportId: g.supportId }, { reuseEmpty: true }));
         }
         createdAny.current = true;
-        await groupsApi.bulkAssign(g.memberIds.map((participantId) => ({ participantId, groupId: groupId! })));
+        // A builder group of both genders, or with a support of the other gender, exists only because the rules
+        // chosen here allow it; it is saved as on purpose (FLOW_MAP rule 135). One-gender groups are checked as usual.
+        const memberGenders = new Set(g.memberIds.map((id) => normaliseGender(participants.find((p) => p.id === id)?.gender)).filter((x): x is string => x === 'Female' || x === 'Male'));
+        const supportG = normaliseGender(supportUsers.find((u) => u.id === g.supportId)?.gender);
+        const mixed = memberGenders.size > 1 || (memberGenders.size === 1 && (supportG === 'Female' || supportG === 'Male') && !memberGenders.has(supportG));
+        await groupsApi.bulkAssign(g.memberIds.map((participantId) => ({ participantId, groupId: groupId! })), { override: mixed });
         setStatuses((prev) => ({ ...prev, [g.key]: 'done' }));
       } catch (e: any) {
         setFailReasons((prev) => ({ ...prev, [g.key]: e?.message ? String(e.message) : '' }));

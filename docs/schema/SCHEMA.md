@@ -1,6 +1,6 @@
 # FOF Ops database schema
 
-Generated 2026-11-05 19:21 UTC from the live database by `scripts/schema-snapshot.py`. Do not edit by hand: change the
+Generated 2026-11-06 10:39 UTC from the live database by `scripts/schema-snapshot.py`. Do not edit by hand: change the
 database with a migration in `supabase/migrations/`, then run `python3 scripts/schema-snapshot.py`.
 The exact SQL is in [`schema.sql`](schema.sql). Business rules are in [`FLOW_MAP.md`](../../FLOW_MAP.md) section 4.
 
@@ -10,8 +10,8 @@ The exact SQL is in [`schema.sql`](schema.sql). Business rules are in [`FLOW_MAP
 | --- | --- |
 | Tables | 160 (160 with row-level security on) |
 | Views | 6 |
-| Functions | 552 (377 the app may call, 174 internal) |
-| Triggers | 66 |
+| Functions | 556 (380 the app may call, 175 internal) |
+| Triggers | 67 |
 | Row-level-security policies | 93 |
 | Enum types | 10 |
 | Scheduled jobs | 11 |
@@ -149,7 +149,7 @@ about 55 rows · row-level security on · 1 policy · triggers: `sign_in_throttl
 | `roles` | "Role"[] |  | '{}' |  |
 | `birthYear` | smallint | yes |  |  |
 
-Referenced by: `AbsenceReviewDone`, `AbsenceReviewMove`, `Activity`, `Announcement`, `AnnouncementPopup`, `ApiClient`, `AppNudgeLog`, `AppNudgeSend`, `AppSession`, `AttendanceExcusal`, `AttendanceFollowUpTask`, `AttendanceRecord`, `AttendanceSession`, `ChurchEvent`, `CoverRequest`, `DepartmentReferral`, `FaithHelpRequest`, `FaithProject`, `FaithProjectVersion`, `FaithThreadRead`, `FollowUpContact`, `FollowUpIssue`, `FollowUpLoginIssue`, `FollowUpNoteHistory`, `FollowUpOwnerCheck`, `FollowUpOwnerReminderLog`, `FollowUpReassignmentLog`, `Group`, `GroupDiscussionSeen`, `GroupOnboardingStatus`, `GroupPost`, `GroupPostLike`, `GroupPostReply`, `GroupPostReport`, `GroupPrayer`, `GroupPrayerFocus`, `GroupPrayerStatus`, `HubComment`, `HubItSupport`, `HubLeadsMeeting`, `HubMembership`, `HubMessage`, `HubMessageAck`, `HubPersonOfInterest`, `HubReaction`, `HubReply`, `HubRoleIntroSeen`, `HubTopic`, `ManualQuestion`, `MeetingAttendance`, `MeetingRecordingOpening`, `Notification`, `OnboardingEvent`, `Participant`, `ParticipantAccount`, `ParticipantAppSetupCompletion`, `ParticipantCheckIn`, `ParticipantFlag`, `ParticipantHandover`, `ParticipantLoginPhone`, `ParticipantNote`, `ParticipantOnboardingStatus`, `ParticipantStageChange`, `PendingChange`, `PlannerChange`, `PracticeMember`, `PracticePeer`, `PracticeProgress`, `ProfileField`, `PushReminderLog`, `PushSubscription`, `RecapRelease`, `RejectedChange`, `Resource`, `ResourceVersion`, `Scripture`, `SupportActivityCompletion`, `SupportChecklistItem`, `SupportClassFeedback`, `SupportHub`, `SupportNote`, `SupportOnboardingOverride`, `SupportSession`, `SupportSessionAttendance`, `SupportTag`, `SupportTagMember`, `TelegramLink`, `Testimony`, `TourProgress`, `UserAppState`, `UserCohort`, `UserLabel`, `UserNotificationSetting`, `UserPermissionRole`, `WebsiteSectionChange`
+Referenced by: `AbsenceReviewDone`, `AbsenceReviewMove`, `Activity`, `Announcement`, `AnnouncementPopup`, `ApiClient`, `AppNudgeLog`, `AppNudgeSend`, `AppSession`, `AttendanceExcusal`, `AttendanceFollowUpTask`, `AttendanceRecord`, `AttendanceSession`, `ChurchEvent`, `CoverRequest`, `DepartmentReferral`, `FaithHelpRequest`, `FaithProject`, `FaithProjectVersion`, `FaithThreadRead`, `FollowUpContact`, `FollowUpIssue`, `FollowUpLoginIssue`, `FollowUpNoteHistory`, `FollowUpOwnerCheck`, `FollowUpOwnerReminderLog`, `FollowUpReassignmentLog`, `Group`, `GroupDiscussionSeen`, `GroupOnboardingStatus`, `GroupParticipant`, `GroupPost`, `GroupPostLike`, `GroupPostReply`, `GroupPostReport`, `GroupPrayer`, `GroupPrayerFocus`, `GroupPrayerStatus`, `HubComment`, `HubItSupport`, `HubLeadsMeeting`, `HubMembership`, `HubMessage`, `HubMessageAck`, `HubPersonOfInterest`, `HubReaction`, `HubReply`, `HubRoleIntroSeen`, `HubTopic`, `ManualQuestion`, `MeetingAttendance`, `MeetingRecordingOpening`, `Notification`, `OnboardingEvent`, `Participant`, `ParticipantAccount`, `ParticipantAppSetupCompletion`, `ParticipantCheckIn`, `ParticipantFlag`, `ParticipantHandover`, `ParticipantLoginPhone`, `ParticipantNote`, `ParticipantOnboardingStatus`, `ParticipantStageChange`, `PendingChange`, `PlannerChange`, `PracticeMember`, `PracticePeer`, `PracticeProgress`, `ProfileField`, `PushReminderLog`, `PushSubscription`, `RecapRelease`, `RejectedChange`, `Resource`, `ResourceVersion`, `Scripture`, `SupportActivityCompletion`, `SupportChecklistItem`, `SupportClassFeedback`, `SupportHub`, `SupportNote`, `SupportOnboardingOverride`, `SupportSession`, `SupportSessionAttendance`, `SupportTag`, `SupportTagMember`, `TelegramLink`, `Testimony`, `TourProgress`, `UserAppState`, `UserCohort`, `UserLabel`, `UserNotificationSetting`, `UserPermissionRole`, `WebsiteSectionChange`
 
 #### `UserAppState`
 
@@ -763,7 +763,7 @@ about 52 rows · row-level security on · 0 policies · key: `id`
 
 #### `ParticipantHandover`
 
-about 387 rows · row-level security on · 1 policy · key: `id`
+about 417 rows · row-level security on · 1 policy · key: `id`
 
 | Column | Type | Null | Default | Links to |
 | --- | --- | --- | --- | --- |
@@ -992,13 +992,15 @@ not analysed yet · row-level security on · 1 policy · triggers: `acted_as_upd
 
 #### `GroupParticipant`
 
-about 312 rows · row-level security on · 1 policy · triggers: `participant_handover_on_group_member` · key: `groupId, participantId`
+about 293 rows · row-level security on · 1 policy · triggers: `group_member_gender_guard`, `participant_handover_on_group_member` · key: `groupId, participantId`
 
 | Column | Type | Null | Default | Links to |
 | --- | --- | --- | --- | --- |
 | `groupId` | uuid |  |  | `Group.id` |
 | `participantId` | uuid |  |  | `Participant.id` |
 | `createdAt` | timestamp with time zone |  | now() |  |
+| `genderOverrideAt` | timestamp with time zone | yes |  |  |
+| `genderOverrideById` | uuid | yes |  | `User.id` |
 
 #### `GroupPost`
 
@@ -1555,7 +1557,7 @@ about 338 rows · row-level security on · 0 policies · key: `key`
 
 #### `Participant`
 
-about 323 rows · row-level security on · 1 policy · triggers: `participant_age_teen_boundary`, `participant_retake_note`, `teen_group_sync_participant`, `trg_participant_age_from_dob`, `trg_participant_local_phone` · key: `id`
+about 331 rows · row-level security on · 1 policy · triggers: `participant_age_teen_boundary`, `participant_retake_note`, `teen_group_sync_participant`, `trg_participant_age_from_dob`, `trg_participant_local_phone` · key: `id`
 
 | Column | Type | Null | Default | Links to |
 | --- | --- | --- | --- | --- |
@@ -1790,7 +1792,7 @@ about 35 rows · row-level security on · 0 policies · key: `participantId, ste
 
 #### `ParticipantReminderLog`
 
-about 3,310 rows · row-level security on · 0 policies · key: `id`
+about 3,368 rows · row-level security on · 0 policies · key: `id`
 
 | Column | Type | Null | Default | Links to |
 | --- | --- | --- | --- | --- |
@@ -2225,7 +2227,7 @@ about 22 rows · row-level security on · 1 policy · key: `id`
 
 #### `Notification`
 
-about 5,614 rows · row-level security on · 0 policies · triggers: `telegram_after_notification`, `trg_notification_stamp_read` · key: `id`
+about 5,912 rows · row-level security on · 0 policies · triggers: `telegram_after_notification`, `trg_notification_stamp_read` · key: `id`
 
 | Column | Type | Null | Default | Links to |
 | --- | --- | --- | --- | --- |
@@ -2241,7 +2243,7 @@ about 5,614 rows · row-level security on · 0 policies · triggers: `telegram_a
 
 #### `PushReminderLog`
 
-about 1,282 rows · row-level security on · 1 policy · key: `id`
+about 1,331 rows · row-level security on · 1 policy · key: `id`
 
 | Column | Type | Null | Default | Links to |
 | --- | --- | --- | --- | --- |
@@ -2692,6 +2694,7 @@ Full definitions are in `schema.sql`.
 | `feedback_themes` | p_token text, p_cohort_id uuid | json |
 | `finalize_shared_attendance` | p_week_id integer | jsonb |
 | `fof_assert_meeting_open` | p_group_id uuid, p_hub_id uuid, p_week_id integer | void |
+| `fof_gender` | p_gender text | text |
 | `fof_is_teen_age` | p_age text | boolean |
 | `fof_local_phone` | raw text | text |
 | `fof_localize_phone_trigger` |  | trigger |
@@ -2729,6 +2732,8 @@ Full definitions are in `schema.sql`.
 | `group_meeting_limits_guard` |  | trigger |
 | `group_meeting_reopen_requests` | p_token text, p_cohort_id uuid | jsonb |
 | `group_meeting_reopen_state` | p_token text, p_group_id uuid | jsonb |
+| `group_member_gender_check` | r "GroupParticipant" | "GroupParticipant" |
+| `group_member_gender_guard` |  | trigger |
 | `group_onboarding_progress` | p_group_id uuid | json |
 | `hub_group_overview` | p_group_id uuid | json |
 | `hub_it_support_kind` |  | trigger |
@@ -2978,9 +2983,9 @@ Full definitions are in `schema.sql`.
 | `website_section_changes` |  | jsonb |
 | `week_class_date` | p_start_date date, p_week_number integer, p_class_date date | date |
 
-## Internal functions (174)
+## Internal functions (175)
 
-Helpers, trigger functions and jobs the public key cannot call: `absence_auto_candidates`, `absence_auto_move`, `absence_auto_move_due`, `absence_notify_participants`, `absence_review_candidates`, `absence_review_notify`, `absence_review_remind`, `absence_review_saturday`, `api_admin_check`, `api_announcements`, `api_authenticate`, `api_birthday_person`, `api_birthdays`, `api_cohort_groups`, `api_cohort_hubs`, `api_cohort_id`, `api_cohort_participants`, `api_cohort_schedule`, `api_cohort_team`, `api_cohort_weeks`, `api_cohorts_current`, `api_create_client`, `api_finish_request`, `api_is_teen`, `api_participant_json`, `api_people_lookup`, `api_person`, `api_person_attendance`, `api_person_faith_project`, `api_person_programme`, `api_person_programme_for`, `api_planner_inputs`, `api_real_cohort`, `api_resources`, `api_scriptures`, `app_nudge_due`, `app_nudge_people`, `app_participant_id`, `app_session`, `app_staff`, `app_staff_real`, `assign_teen_contacts`, `attendance_week_locked`, `birthday_alerts_due`, `birthday_alerts_mark`, `birthday_next`, `build_discussion_feed`, `change_own_password_check`, `check_participant_app_setup`, `checkup_rest_week3`, `class_feedback_release_at`, `class_signal_open_week`, `clear_support_group_assignments_before_user_delete`, `complete_participant_app_setup`, `create_user`, `discussion_alert_name`, `discussion_clean_body`, `discussion_clean_mentions`, `discussion_live_post`, `discussion_mark_seen`, `discussion_mentions_json`, `discussion_participant_group`, `discussion_post_json`, `discussion_send_alerts`, `discussion_staff_access`, `discussion_unseen_count`, `discussion_upsert_intro`, `ensure_prayer_session`, `fill_profile_from_form`, `fof_notify`, `followup_active_supports`, `followup_contact_it_support_ids`, `followup_owner_handed_on_recently`, `followup_owner_is_quiet`, `followup_reassign_enabled`, `followup_reassign_since`, `followup_relax_on`, `followup_stale_contacts`, `followup_support_inactive`, `group_meeting_notify`, `group_meeting_reopen_close`, `household_add_person`, `invoke_discussion_notify`, `invoke_prayer_notify`, `invoke_telegram_send`, `login_user`, `module_viewers`, `notify_prayer_slots`, `onboarding_progress_json`, `onboarding_try_complete`, `participant_age_teen_boundary`, `participant_onboarding_state`, `participant_profile_fields`, `participant_user_json`, `password_family_clash`, `password_staff_clash`, `perm_require_admin`, `perm_role_json`, `post_cohort_checkups_run`, `practice_apply_calendar`, `practice_autotick_participant`, `practice_autotick_staff`, `practice_ensure_cohort`, `practice_load_manuals`, `practice_make_group`, `practice_place`, `practice_prepare`, `practice_push`, `practice_sync_members`, `prayer_amen_for_target`, `prayer_blocks_pool`, `prayer_caller`, `prayer_counted_participants`, `prayer_counted_supports`, `prayer_counts_json`, `prayer_in_audience`, `prayer_is_practice`, `prayer_is_target`, `prayer_is_teen`, `prayer_lagos_today`, `prayer_late_until`, `prayer_next_opening`, `prayer_notify_ready`, `prayer_open_session`, `prayer_participant_hub`, `prayer_pick`, `prayer_pool_members`, `prayer_require_admin`, `prayer_resolve_blocks`, `prayer_running`, `prayer_session_cohort`, `prayer_session_target`, `prayer_streak_calc`, `prayer_user_cohort`, `prayer_user_hub`, `profile_field_applies`, `recap_auto_release_at`, `recap_release_at`, `refresh_age_brackets`, `run_followup_assignment`, `run_followup_reassignment`, `set_user_password`, `shared_number_people`, `sign_in_check`, `sign_in_guard`, `sign_in_key`, `sign_in_record`, `sign_in_throttle_clear_participant`, `sign_in_throttle_clear_staff`, `start_app_session`, `survey_mark_notified`, `survey_notifications_due`, `survey_open_for_participant`, `survey_open_for_staff`, `survey_people`, `survey_questions_json`, `survey_reminders_due`, `survey_window`, `teen_convert_participant`, `teen_enable_move_trigger`, `teen_family_members`, `teen_group_sync`, `teen_group_sync_trigger`, `teen_login_staff_allowed`, `teen_move_existing`, `teen_owner_guard`, `teen_quiet_bypass`, `teen_revert_participant`, `telegram_after_notification`, `telegram_after_participant_notification`, `telegram_link_chat`, `telegram_owner`, `telegram_set_chat_enabled`, `website_section_changes_trg`.
+Helpers, trigger functions and jobs the public key cannot call: `absence_auto_candidates`, `absence_auto_move`, `absence_auto_move_due`, `absence_notify_participants`, `absence_review_candidates`, `absence_review_notify`, `absence_review_remind`, `absence_review_saturday`, `api_admin_check`, `api_announcements`, `api_authenticate`, `api_birthday_person`, `api_birthdays`, `api_cohort_groups`, `api_cohort_hubs`, `api_cohort_id`, `api_cohort_participants`, `api_cohort_schedule`, `api_cohort_team`, `api_cohort_weeks`, `api_cohorts_current`, `api_create_client`, `api_finish_request`, `api_is_teen`, `api_participant_json`, `api_people_lookup`, `api_person`, `api_person_attendance`, `api_person_faith_project`, `api_person_programme`, `api_person_programme_for`, `api_planner_inputs`, `api_real_cohort`, `api_resources`, `api_scriptures`, `app_nudge_due`, `app_nudge_people`, `app_participant_id`, `app_session`, `app_staff`, `app_staff_real`, `assign_teen_contacts`, `attendance_week_locked`, `birthday_alerts_due`, `birthday_alerts_mark`, `birthday_next`, `build_discussion_feed`, `change_own_password_check`, `check_participant_app_setup`, `checkup_rest_week3`, `class_feedback_release_at`, `class_signal_open_week`, `clear_support_group_assignments_before_user_delete`, `complete_participant_app_setup`, `create_user`, `discussion_alert_name`, `discussion_clean_body`, `discussion_clean_mentions`, `discussion_live_post`, `discussion_mark_seen`, `discussion_mentions_json`, `discussion_participant_group`, `discussion_post_json`, `discussion_send_alerts`, `discussion_staff_access`, `discussion_unseen_count`, `discussion_upsert_intro`, `ensure_prayer_session`, `fill_profile_from_form`, `fof_notify`, `followup_active_supports`, `followup_contact_it_support_ids`, `followup_owner_handed_on_recently`, `followup_owner_is_quiet`, `followup_reassign_enabled`, `followup_reassign_since`, `followup_relax_on`, `followup_stale_contacts`, `followup_support_inactive`, `group_gender_of`, `group_meeting_notify`, `group_meeting_reopen_close`, `household_add_person`, `invoke_discussion_notify`, `invoke_prayer_notify`, `invoke_telegram_send`, `login_user`, `module_viewers`, `notify_prayer_slots`, `onboarding_progress_json`, `onboarding_try_complete`, `participant_age_teen_boundary`, `participant_onboarding_state`, `participant_profile_fields`, `participant_user_json`, `password_family_clash`, `password_staff_clash`, `perm_require_admin`, `perm_role_json`, `post_cohort_checkups_run`, `practice_apply_calendar`, `practice_autotick_participant`, `practice_autotick_staff`, `practice_ensure_cohort`, `practice_load_manuals`, `practice_make_group`, `practice_place`, `practice_prepare`, `practice_push`, `practice_sync_members`, `prayer_amen_for_target`, `prayer_blocks_pool`, `prayer_caller`, `prayer_counted_participants`, `prayer_counted_supports`, `prayer_counts_json`, `prayer_in_audience`, `prayer_is_practice`, `prayer_is_target`, `prayer_is_teen`, `prayer_lagos_today`, `prayer_late_until`, `prayer_next_opening`, `prayer_notify_ready`, `prayer_open_session`, `prayer_participant_hub`, `prayer_pick`, `prayer_pool_members`, `prayer_require_admin`, `prayer_resolve_blocks`, `prayer_running`, `prayer_session_cohort`, `prayer_session_target`, `prayer_streak_calc`, `prayer_user_cohort`, `prayer_user_hub`, `profile_field_applies`, `recap_auto_release_at`, `recap_release_at`, `refresh_age_brackets`, `run_followup_assignment`, `run_followup_reassignment`, `set_user_password`, `shared_number_people`, `sign_in_check`, `sign_in_guard`, `sign_in_key`, `sign_in_record`, `sign_in_throttle_clear_participant`, `sign_in_throttle_clear_staff`, `start_app_session`, `survey_mark_notified`, `survey_notifications_due`, `survey_open_for_participant`, `survey_open_for_staff`, `survey_people`, `survey_questions_json`, `survey_reminders_due`, `survey_window`, `teen_convert_participant`, `teen_enable_move_trigger`, `teen_family_members`, `teen_group_sync`, `teen_group_sync_trigger`, `teen_login_staff_allowed`, `teen_move_existing`, `teen_owner_guard`, `teen_quiet_bypass`, `teen_revert_participant`, `telegram_after_notification`, `telegram_after_participant_notification`, `telegram_link_chat`, `telegram_owner`, `telegram_set_chat_enabled`, `website_section_changes_trg`.
 
 ## Enum types
 

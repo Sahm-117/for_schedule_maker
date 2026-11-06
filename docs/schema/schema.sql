@@ -1,5 +1,5 @@
 -- FOF Ops database schema: structure only, no data.
--- Generated 2026-11-05 19:21 UTC from the live database catalogue by scripts/schema-snapshot.py. Do not edit by hand;
+-- Generated 2026-11-06 10:39 UTC from the live database catalogue by scripts/schema-snapshot.py. Do not edit by hand;
 -- change the database with a migration in supabase/migrations/, then run the script again.
 -- Covers the public and analytics schemas. Supabase-managed schemas (auth, storage, realtime, vault, cron, net)
 -- come with every Supabase project and are not repeated here.
@@ -862,6 +862,8 @@ CREATE TABLE public."GroupParticipant" (
   "groupId" uuid NOT NULL,
   "participantId" uuid NOT NULL,
   "createdAt" timestamp with time zone DEFAULT now() NOT NULL,
+  "genderOverrideAt" timestamp with time zone,
+  "genderOverrideById" uuid,
   CONSTRAINT "GroupParticipant_pkey" PRIMARY KEY ("groupId", "participantId"),
   CONSTRAINT group_participant_unique_participant UNIQUE ("participantId")
 );
@@ -2397,6 +2399,7 @@ ALTER TABLE public."GroupMeetingReopen" ADD CONSTRAINT "GroupMeetingReopen_group
 ALTER TABLE public."GroupMeetingReopen" ADD CONSTRAINT "GroupMeetingReopen_weekId_fkey" FOREIGN KEY ("weekId") REFERENCES "Week"(id) ON DELETE CASCADE;
 ALTER TABLE public."GroupOnboardingStatus" ADD CONSTRAINT "GroupOnboardingStatus_groupId_fkey" FOREIGN KEY ("groupId") REFERENCES "Group"(id) ON DELETE CASCADE;
 ALTER TABLE public."GroupOnboardingStatus" ADD CONSTRAINT "GroupOnboardingStatus_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "User"(id) ON DELETE SET NULL;
+ALTER TABLE public."GroupParticipant" ADD CONSTRAINT "GroupParticipant_genderOverrideById_fkey" FOREIGN KEY ("genderOverrideById") REFERENCES "User"(id) ON DELETE SET NULL;
 ALTER TABLE public."GroupParticipant" ADD CONSTRAINT "GroupParticipant_groupId_fkey" FOREIGN KEY ("groupId") REFERENCES "Group"(id) ON DELETE CASCADE;
 ALTER TABLE public."GroupParticipant" ADD CONSTRAINT "GroupParticipant_participantId_fkey" FOREIGN KEY ("participantId") REFERENCES "Participant"(id) ON DELETE CASCADE;
 ALTER TABLE public."GroupPost" ADD CONSTRAINT "GroupPost_authorParticipantId_fkey" FOREIGN KEY ("authorParticipantId") REFERENCES "Participant"(id) ON DELETE CASCADE;
@@ -8187,6 +8190,18 @@ BEGIN
 END;
 $function$;
 
+CREATE OR REPLACE FUNCTION public.fof_gender(p_gender text)
+ RETURNS text
+ LANGUAGE sql
+ IMMUTABLE
+ SET search_path TO ''
+AS $function$
+  SELECT CASE lower(trim(COALESCE(p_gender, '')))
+    WHEN 'male' THEN 'Male' WHEN 'm' THEN 'Male'
+    WHEN 'female' THEN 'Female' WHEN 'f' THEN 'Female'
+  END;
+$function$;
+
 CREATE OR REPLACE FUNCTION public.fof_is_teen_age(p_age text)
  RETURNS boolean
  LANGUAGE sql
@@ -9282,6 +9297,37 @@ BEGIN
 END;
 $function$;
 
+CREATE OR REPLACE FUNCTION public.group_gender_of(p_group_id uuid, p_except_participant uuid DEFAULT NULL::uuid)
+ RETURNS text
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+DECLARE
+  v_genders text[];
+BEGIN
+  IF EXISTS (SELECT 1 FROM public."GroupParticipant" gp
+             WHERE gp."groupId" = p_group_id AND gp."genderOverrideAt" IS NOT NULL
+               AND gp."participantId" IS DISTINCT FROM p_except_participant) THEN
+    RETURN 'Mixed';
+  END IF;
+
+  SELECT array_agg(DISTINCT public.fof_gender(p.gender)) FILTER (WHERE public.fof_gender(p.gender) IS NOT NULL)
+    INTO v_genders
+  FROM public."GroupParticipant" gp
+  JOIN public."Participant" p ON p.id = gp."participantId"
+  WHERE gp."groupId" = p_group_id
+    AND gp."participantId" IS DISTINCT FROM p_except_participant;
+
+  IF COALESCE(array_length(v_genders, 1), 0) > 1 THEN RETURN 'Mixed'; END IF;
+  IF COALESCE(array_length(v_genders, 1), 0) = 1 THEN RETURN v_genders[1]; END IF;
+
+  RETURN (SELECT public.fof_gender(u.gender)
+          FROM public."Group" g JOIN public."User" u ON u.id = g."supportId"
+          WHERE g.id = p_group_id);
+END;
+$function$;
+
 CREATE OR REPLACE FUNCTION public.group_meeting_limits()
  RETURNS jsonb
  LANGUAGE sql
@@ -9428,6 +9474,81 @@ BEGIN
       'reopenedAt', r."reopenedAt", 'reopenReason', r."reopenReason", 'resubmittedAt', r."resubmittedAt",
       'openUntil', public.meeting_recording_opening(NULL, r."groupId", r."weekId")))
     FROM public."GroupMeetingReopen" r WHERE r."groupId" = p_group_id), '[]'::jsonb);
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.group_member_gender_check(r "GroupParticipant")
+ RETURNS "GroupParticipant"
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+DECLARE
+  v_group public."Group";
+  v_person public."Participant";
+  v_person_gender text;
+  v_group_gender text;
+  v_teen_on boolean;
+BEGIN
+  -- Without a staff session there is nothing to check here: the table's own access rule refuses the write, and an
+  -- error from this function must not tell an outsider anything about a person.
+  IF NOT public.app_is_staff() THEN RETURN r; END IF;
+
+  SELECT * INTO v_group FROM public."Group" WHERE id = r."groupId";
+  SELECT * INTO v_person FROM public."Participant" WHERE id = r."participantId";
+  IF v_group.id IS NULL OR v_person.id IS NULL THEN RETURN r; END IF;
+
+  -- Teen groups follow the Teen Support (rules 20, 22, 23); nothing more to check here.
+  IF v_group."isTeenGroup" IS TRUE THEN RETURN r; END IF;
+
+  v_teen_on := COALESCE((SELECT value = to_jsonb(true) FROM public."AppSetting" WHERE "settingKey" = 'teen_flow_enabled'), false);
+  IF v_teen_on AND EXISTS (
+    SELECT 1 FROM public."FollowUpContact" c
+    WHERE c.id = v_person."followUpContactId"
+      AND c."registrationStatus"::text IN ('TEENAGER', 'TEEN_ONBOARDED')
+      AND c."archivedAt" IS NULL
+  ) THEN
+    RAISE EXCEPTION 'TEEN_GROUP_ONLY: % is a teen; give them a Teen Support instead', v_person."fullName";
+  END IF;
+
+  IF r."genderOverrideAt" IS NOT NULL THEN
+    IF NOT public.app_is_admin() THEN
+      RAISE EXCEPTION 'GENDER_OVERRIDE_ADMIN_ONLY: only an admin can put someone in a group of the other gender';
+    END IF;
+    r."genderOverrideAt" := now();
+    r."genderOverrideById" := public.app_current_user_id();
+    RETURN r;
+  END IF;
+  r."genderOverrideById" := NULL;
+
+  v_person_gender := public.fof_gender(v_person.gender);
+  IF v_person_gender IS NULL THEN RETURN r; END IF;
+
+  v_group_gender := public.group_gender_of(r."groupId", r."participantId");
+  IF v_group_gender IN ('Male', 'Female') AND v_group_gender <> v_person_gender THEN
+    RAISE EXCEPTION 'GENDER_MISMATCH: % is a % group and % is %',
+      v_group.name, lower(CASE v_group_gender WHEN 'Male' THEN 'men''s' ELSE 'women''s' END),
+      v_person."fullName", lower(v_person_gender);
+  END IF;
+  RETURN r;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.group_member_gender_guard()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+BEGIN
+  IF current_user NOT IN ('anon', 'authenticated') THEN
+    RETURN NEW;
+  END IF;
+  -- An update that moves nobody and changes no override passes.
+  IF TG_OP = 'UPDATE' AND NEW."groupId" = OLD."groupId" AND NEW."participantId" = OLD."participantId"
+     AND NEW."genderOverrideAt" IS NOT DISTINCT FROM OLD."genderOverrideAt" THEN
+    RETURN NEW;
+  END IF;
+  RETURN public.group_member_gender_check(NEW);
 END;
 $function$;
 
@@ -21880,6 +22001,7 @@ CREATE TRIGGER ensure_group_support_cohort_membership AFTER INSERT OR UPDATE OF 
 CREATE TRIGGER group_meeting_limits_guard BEFORE INSERT OR UPDATE ON public."Group" FOR EACH ROW EXECUTE FUNCTION group_meeting_limits_guard();
 CREATE TRIGGER participant_handover_on_group_support AFTER UPDATE OF "supportId" ON public."Group" FOR EACH ROW EXECUTE FUNCTION log_group_support_handover();
 CREATE TRIGGER "acted_as_updatedById" BEFORE INSERT OR UPDATE ON public."GroupOnboardingStatus" FOR EACH ROW EXECUTE FUNCTION set_acted_as('updatedById');
+CREATE TRIGGER group_member_gender_guard BEFORE INSERT OR UPDATE OF "groupId", "participantId", "genderOverrideAt" ON public."GroupParticipant" FOR EACH ROW EXECUTE FUNCTION group_member_gender_guard();
 CREATE TRIGGER participant_handover_on_group_member AFTER INSERT OR DELETE ON public."GroupParticipant" FOR EACH ROW EXECUTE FUNCTION log_group_participant_handover();
 CREATE TRIGGER discussion_post_alerts AFTER INSERT ON public."GroupPost" FOR EACH ROW EXECUTE FUNCTION discussion_post_alerts();
 CREATE TRIGGER discussion_reply_alerts AFTER INSERT ON public."GroupPostReply" FOR EACH ROW EXECUTE FUNCTION discussion_reply_alerts();

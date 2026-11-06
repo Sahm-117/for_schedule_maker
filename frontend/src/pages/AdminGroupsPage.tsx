@@ -369,12 +369,24 @@ const MembersModal: React.FC<MembersModalProps> = ({ isOpen, onClose, group, all
     });
   };
 
+  // People ticked whose gender differs from the group's (the support's gender, or else most of those ticked). Saving
+  // puts them in on purpose, which the database records (FLOW_MAP rule 135); teen groups follow their Teen Support.
+  const otherGenderIds = useMemo(() => {
+    if (group.isTeenGroup) return [] as string[];
+    const genderById = new Map(allParticipants.map((p) => [p.id, normaliseGender(p.gender)]));
+    const ticked = [...selected].map((id) => genderById.get(id)).filter((g): g is string => g === 'Female' || g === 'Male');
+    const women = ticked.filter((g) => g === 'Female').length;
+    const base = normaliseGender(supportGender) ?? (ticked.length === 0 ? null : women >= ticked.length - women ? 'Female' : 'Male');
+    if (base !== 'Female' && base !== 'Male') return [] as string[];
+    return [...selected].filter((id) => { const g = genderById.get(id); return (g === 'Female' || g === 'Male') && g !== base; });
+  }, [selected, allParticipants, supportGender, group.isTeenGroup]);
+
   const handleSave = async () => {
     setSaving(true);
     setErr('');
     try {
       const memberIds = [...selected];
-      await groupsApi.setParticipants(group.id, memberIds);
+      await groupsApi.setParticipants(group.id, memberIds, { overrideIds: otherGenderIds });
       onUpdated({ ...group, participantCount: selected.size }, memberIds);
       onClose();
     } catch (e: any) {
@@ -471,6 +483,11 @@ const MembersModal: React.FC<MembersModalProps> = ({ isOpen, onClose, group, all
     >
       <div className="flex flex-col gap-3">
         {err && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">{err}</p>}
+        {otherGenderIds.length > 0 && (
+          <p className="rounded-2xl bg-amber-100/60 px-3.5 py-3 text-[13px] text-amber-800">
+            {otherGenderIds.length === 1 ? '1 person ticked is' : `${otherGenderIds.length} people ticked are`} of the other gender. Saving puts them in this group on purpose, and it is recorded as your choice.
+          </p>
+        )}
         <input
           ref={searchRef}
           type="search"

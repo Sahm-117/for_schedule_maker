@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import ModalShell from '../followups/ModalShell';
 import Spinner from '../Spinner';
 import { teenMoveApi, type TeenMoveTarget } from '../../services/api';
+import type { User } from '../../types';
+import { genderAgeLabel } from '../../utils/groupGender';
 
 interface TeenMoveModalProps {
   /** The teen being moved; null = closed. */
@@ -9,10 +11,12 @@ interface TeenMoveModalProps {
   onClose: () => void;
   /** Called after a successful move, so the page can read the groups again. */
   onMoved: (message: string) => void;
+  /** Staff details, to show each Teen Support's gender and age. */
+  supportsById?: Map<string, Pick<User, 'gender' | 'ageRange'>>;
 }
 
 /** An admin moves a teen to another Teen Support of the same gender. The move is recorded and both supports are told. */
-const TeenMoveModal: React.FC<TeenMoveModalProps> = ({ teen, onClose, onMoved }) => {
+const TeenMoveModal: React.FC<TeenMoveModalProps> = ({ teen, onClose, onMoved, supportsById }) => {
   const [targets, setTargets] = useState<TeenMoveTarget[] | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
   const [force, setForce] = useState(false);
@@ -30,6 +34,8 @@ const TeenMoveModal: React.FC<TeenMoveModalProps> = ({ teen, onClose, onMoved })
   }, [teen]);
 
   const options = (targets ?? []).filter((t) => !t.current);
+  // No current Teen Support: this is a first choice, not a move.
+  const firstChoice = targets !== null && !(targets ?? []).some((t) => t.current);
   const chosen = options.find((t) => t.userId === picked) ?? null;
   const full = !!chosen && chosen.count >= chosen.cap;
 
@@ -52,13 +58,15 @@ const TeenMoveModal: React.FC<TeenMoveModalProps> = ({ teen, onClose, onMoved })
     <ModalShell
       isOpen={!!teen}
       onClose={() => { if (!saving) onClose(); }}
-      title={teen ? `Move ${teen.name}` : 'Move a teen'}
-      subtitle="To another Teen Support of the same gender. The move is recorded, and both supports are told."
+      title={teen ? (firstChoice ? `Choose a Teen Support for ${teen.name}` : `Move ${teen.name}`) : 'Move a teen'}
+      subtitle={firstChoice
+        ? 'Only Teen Supports of the same gender. The teen joins their teen group, and the support is told.'
+        : 'To another Teen Support of the same gender. The move is recorded, and both supports are told.'}
       footer={(
         <div className="flex justify-end gap-2">
           <button type="button" onClick={onClose} disabled={saving} className="rounded-2xl bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-700 active:scale-95 disabled:opacity-50">Cancel</button>
           <button type="button" onClick={() => void move()} disabled={!chosen || saving || (full && !force)} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-50">
-            {saving ? <span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Moving…</span> : 'Move'}
+            {saving ? <span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span> : firstChoice ? 'Choose' : 'Move'}
           </button>
         </div>
       )}
@@ -66,7 +74,7 @@ const TeenMoveModal: React.FC<TeenMoveModalProps> = ({ teen, onClose, onMoved })
       {targets === null ? (
         <div className="flex justify-center py-6"><Spinner /></div>
       ) : options.length === 0 ? (
-        <p className="rounded-2xl bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">{error || 'No other Teen Support of the same gender to move them to.'}</p>
+        <p className="rounded-2xl bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">{error || (firstChoice ? 'No Teen Support of the same gender yet, or this teen has no gender on their profile.' : 'No other Teen Support of the same gender to move them to.')}</p>
       ) : (
         <div className="flex flex-col gap-2" role="radiogroup" aria-label="Teen Support">
           {options.map((t) => {
@@ -83,7 +91,10 @@ const TeenMoveModal: React.FC<TeenMoveModalProps> = ({ teen, onClose, onMoved })
                 <span className={`grid h-5 w-5 flex-none place-items-center rounded-full border-2 ${picked === t.userId ? 'border-primary' : 'border-gray-300'}`} aria-hidden="true">
                   {picked === t.userId && <span className="h-2.5 w-2.5 rounded-full bg-primary" />}
                 </span>
-                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-900">{t.name}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold text-gray-900">{t.name}</span>
+                  {supportsById && <span className="block truncate text-xs text-gray-500">{genderAgeLabel(supportsById.get(t.userId)?.gender, supportsById.get(t.userId)?.ageRange) || 'Gender and age not on profile'}</span>}
+                </span>
                 <span className={`flex-none rounded-full px-2.5 py-0.5 text-xs font-semibold ${isFull ? 'bg-amber-100/80 text-amber-700' : 'bg-sky-100/80 text-sky-700'}`}>{t.count} of {t.cap}{isFull ? ' · full' : ''}</span>
               </button>
             );

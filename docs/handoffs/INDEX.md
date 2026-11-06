@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-11-06 | [Group gender match and teens from Participants](2026-11-06_group-gender-and-teen-assign.md) | Only same-gender groups are offered (Participants, Allocation), with each support's gender and age; "Show all groups" for an admin's on-purpose exception; the database refuses the rest and records overrides; Allocation shows gender and age tags and teen groups; teens get the Teen Support picker. 1 migration applied live. FLOW_MAP rule 135. |
 | 2026-11-05 | [Church app integration spec](../specs/church-app-integration.md) | Spec and phased plan for connecting FOF and the church app: church person link, registration handshake (request/response, matching, missing fields, teen rules, login delivery), webhooks, single sign-on, open questions, status checklist. Docs only. |
 | 2026-11-05 | [Database schema snapshot](2026-11-05_schema-snapshot.md) | `docs/schema/SCHEMA.md` (readable, by area) and `schema.sql` (exact structure) made from the live database by `scripts/schema-snapshot.py`; `--check` spots drift. No live changes. |
 | 2026-11-04 | [Reopen a group meeting report](2026-11-04_group-meeting-reopen.md) | Support "Ask to reopen" a submitted week; admin reopens with a reason for 48 hours (lifts the recording window), the support is told, submitting again locks it. 1 migration applied live. FLOW_MAP rule 134. |

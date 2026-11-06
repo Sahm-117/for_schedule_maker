@@ -9,10 +9,10 @@ import PageLoader from '../components/PageLoader';
 import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
 import { useAppData } from '../context/AppDataContext';
-import { participantsApi, practiceApi, groupsApi, participantFlagsApi, participantPushApi, cohortsApi, settingsApi, profileFieldsApi, wrapUpApi, departmentReferralsApi } from '../services/api';
+import { participantsApi, practiceApi, groupsApi, usersApi, participantFlagsApi, participantPushApi, cohortsApi, settingsApi, profileFieldsApi, wrapUpApi, departmentReferralsApi } from '../services/api';
 import { buildDashboardModel, type PeopleSummary } from '../components/dashboard/healthModel';
 import { PERSON_HEALTH_LABEL, type PersonHealth } from '../utils/programmeRules';
-import type { Participant, ParticipantAppInfo, Group, ParticipantFlag, ParticipantUpdate, RetakeMatch } from '../types';
+import type { Participant, ParticipantAppInfo, Group, ParticipantFlag, ParticipantUpdate, RetakeMatch, User } from '../types';
 import { appUseLine } from '../utils/appUse';
 import NotOpenedTag from '../components/participants/NotOpenedTag';
 import RetakingChip, { RetakeMarkModal } from '../components/participants/RetakingChip';
@@ -24,7 +24,10 @@ import AppMultiSelect from '../components/AppMultiSelect';
 import ConfirmationModal from '../components/ConfirmationModal';
 import ConfirmReachModal from '../components/ConfirmReachModal';
 import { useToast } from '../components/Toast';
-import { REGISTRATION_STATUS_META } from '../utils/followUps';
+import { REGISTRATION_STATUS_META, isOnTeenPath } from '../utils/followUps';
+import GroupPickList from '../components/groups/GroupPickList';
+import TeenMoveModal from '../components/groups/TeenMoveModal';
+import { genderAgeLabel, genderFits, groupGenders } from '../utils/groupGender';
 import { isTeenAgeRange, normaliseAgeRange, normaliseGender } from '../utils/groupingRules';
 import ProfileCompletionCard from '../components/dashboard/ProfileCompletionCard';
 import HealthReasonModal from '../components/participants/HealthReasonModal';
@@ -707,26 +710,30 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImported, 
 interface AssignGroupModalProps {
   participant: Participant | null;
   groups: Group[];
+  /** Everyone in the cohort, for each group's gender and size. */
+  participants: Participant[];
+  supportsById: Map<string, User>;
   onClose: () => void;
   onAssigned: (participantId: string, group: Group | null) => void;
 }
 
-const AssignGroupModal: React.FC<AssignGroupModalProps> = ({ participant, groups, onClose, onAssigned }) => {
+// Only groups of the person's gender are offered, each with its support's gender and age (FLOW_MAP rule 135).
+const AssignGroupModal: React.FC<AssignGroupModalProps> = ({ participant, groups, participants, supportsById, onClose, onAssigned }) => {
   const [groupId, setGroupId] = useState('');
+  const [showAll, setShowAll] = useState(false);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
 
   useEffect(() => {
-    if (participant) { setGroupId(participant.groupId ?? ''); setErr(''); }
+    if (participant) { setGroupId(participant.groupId ?? ''); setErr(''); setShowAll(false); }
   }, [participant]);
 
-  const options = useMemo(
-    () => [
-      { value: '', label: 'Unassigned' },
-      ...[...groups].sort((a, b) => new Intl.Collator(undefined, { numeric: true }).compare(a.name, b.name)).map((g) => ({ value: g.id, label: g.name })),
-    ],
-    [groups]
-  );
+  const genders = useMemo(() => groupGenders(groups, participants, supportsById, participant?.id), [groups, participants, supportsById, participant?.id]);
+  const memberCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    participants.forEach((x) => { if (x.groupId && x.id !== participant?.id) map.set(x.groupId, (map.get(x.groupId) ?? 0) + 1); });
+    return map;
+  }, [participants, participant?.id]);
 
   if (!participant) return null;
   const p = participant;
@@ -735,7 +742,8 @@ const AssignGroupModal: React.FC<AssignGroupModalProps> = ({ participant, groups
     setSaving(true);
     setErr('');
     try {
-      await groupsApi.moveParticipant(p.id, groupId || null);
+      const override = !!groupId && !genderFits(p.gender, genders.get(groupId));
+      await groupsApi.moveParticipant(p.id, groupId || null, { override });
       onAssigned(p.id, groups.find((g) => g.id === groupId) ?? null);
       onClose();
     } catch (e: any) {
@@ -750,7 +758,7 @@ const AssignGroupModal: React.FC<AssignGroupModalProps> = ({ participant, groups
       isOpen={!!participant}
       onClose={onClose}
       title="Assign to group"
-      subtitle={p.fullName}
+      subtitle={[p.fullName, genderAgeLabel(p.gender, p.ageRange)].filter(Boolean).join(' · ')}
       footer={
         <>
           <button type="button" onClick={onClose} className="rounded-2xl bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 active:scale-95">Cancel</button>
@@ -762,12 +770,21 @@ const AssignGroupModal: React.FC<AssignGroupModalProps> = ({ participant, groups
     >
       <div className="flex flex-col gap-4">
         {err && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">{err}</p>}
-        <AppSelect
-          label="Group"
+        {!!groupId && !genderFits(p.gender, genders.get(groupId)) && (
+          <p className="rounded-2xl bg-amber-100/60 px-3.5 py-3 text-[13px] text-amber-800">This group is for the other gender. Saving puts them there on purpose, and it is recorded as your choice.</p>
+        )}
+        <GroupPickList
+          personGender={p.gender}
+          groups={groups}
+          genders={genders}
+          supportsById={supportsById}
+          memberCounts={memberCounts}
           value={groupId}
           onChange={setGroupId}
-          options={options}
-          placeholder="Choose a group"
+          showAll={showAll}
+          onShowAllChange={setShowAll}
+          allowUnassigned
+          currentGroupId={p.groupId ?? ''}
         />
         <p className="text-xs text-gray-500">Moving a participant replaces their current group. Choose “Unassigned” to remove them from all groups.</p>
       </div>
@@ -852,6 +869,20 @@ const AdminParticipantsContent: React.FC = () => {
     setSearchParams(params, { replace: true });
   }, [searchParams, setSearchParams]);
   const [assigning, setAssigning] = useState<Participant | null>(null);
+  // A teen on the teen path is placed by giving them a Teen Support (their group follows the support, rule 22).
+  const [movingTeen, setMovingTeen] = useState<{ participantId: string; name: string } | null>(null);
+  const [supportUsers, setSupportUsers] = useState<User[]>([]);
+  const supportsById = useMemo(() => new Map(supportUsers.map((u) => [u.id, u])), [supportUsers]);
+  const onTeenPath = isOnTeenPath;
+  const openAssign = (p: Participant) => {
+    if (onTeenPath(p)) setMovingTeen({ participantId: p.id, name: p.fullName });
+    else setAssigning(p);
+  };
+  useEffect(() => {
+    let cancelled = false;
+    usersApi.getAll().then(({ users }) => { if (!cancelled) setSupportUsers(users); }).catch(() => { /* group rows simply show no support details */ });
+    return () => { cancelled = true; };
+  }, []);
   const [exportOpen, setExportOpen] = useState(false);
   const [requestInfoOpen, setRequestInfoOpen] = useState(false);
   // Profile completion (%) per participant, and the "Incomplete profiles" filter.
@@ -1314,7 +1345,7 @@ const AdminParticipantsContent: React.FC = () => {
                                 { label: 'View profile', onClick: () => navigate(`/participants/${p.id}`) },
                                 ...(canEdit ? [
                                   { label: 'Edit', onClick: () => { setEditing(p); setAddOpen(true); } },
-                                  { label: 'Assign to group', onClick: () => setAssigning(p) },
+                                  { label: onTeenPath(p) ? 'Choose a Teen Support' : 'Assign to group', onClick: () => openAssign(p) },
                                   { label: 'Mark as retaking', onClick: () => setRetakeMarking(p) },
                                   { label: 'Reset first-time experience', onClick: () => setFirstTimeTarget(p) },
                                   { label: 'Reset password', onClick: () => setResetFor(p) },
@@ -1394,8 +1425,8 @@ const AdminParticipantsContent: React.FC = () => {
                     <li key={p.id} className="flex items-center justify-between gap-3 py-2">
                       <span className="min-w-0 truncate text-sm font-medium text-gray-900">{p.fullName}</span>
                       {canEdit && (
-                        <button type="button" onClick={() => setAssigning(p)} className="flex-none rounded-2xl bg-primary px-3.5 py-1.5 text-xs font-semibold text-white active:scale-95">
-                          Add to a group
+                        <button type="button" onClick={() => openAssign(p)} className="flex-none rounded-2xl bg-primary px-3.5 py-1.5 text-xs font-semibold text-white active:scale-95">
+                          {onTeenPath(p) ? 'Choose a Teen Support' : 'Add to a group'}
                         </button>
                       )}
                     </li>
@@ -1691,15 +1722,25 @@ const AdminParticipantsContent: React.FC = () => {
           appLine={appUseLine(appDetails[panelPerson.id])}
           completion={completionById.get(panelPerson.id)}
           canAssign={canEdit}
-          onAssign={() => setAssigning(panelPerson)}
+          onAssign={() => openAssign(panelPerson)}
+          assignLabel={onTeenPath(panelPerson) ? 'Choose a Teen Support' : 'Add to a group'}
           onClose={() => setPanelId(null)}
           escapeBlocked={dialogOpen}
         />
       )}
 
+      <TeenMoveModal
+        teen={movingTeen}
+        supportsById={supportsById}
+        onClose={() => setMovingTeen(null)}
+        onMoved={(message) => { toast({ message }); void load(true); }}
+      />
+
       <AssignGroupModal
         participant={assigning}
         groups={groups}
+        participants={participants}
+        supportsById={supportsById}
         onClose={() => setAssigning(null)}
         onAssigned={(participantId, group) => {
           setParticipants((prev) => prev.map((x) =>

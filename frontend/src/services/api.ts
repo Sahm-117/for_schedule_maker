@@ -741,9 +741,9 @@ export const groupsApi = USE_SUPABASE ? supabaseGroupsApi : {
   async getParticipants(_groupId: string): Promise<{ participants: import('../types').Participant[] }> { return { participants: [] }; },
   async getForSupport(_userId: string, _cohortId?: string | null): Promise<{ group: import('../types').Group | null }> { return { group: null }; },
   async getTeenGroupForSupport(_userId: string, _cohortId: string): Promise<{ group: import('../types').Group | null }> { return { group: null }; },
-  async setParticipants(_groupId: string, _ids: string[]): Promise<never> { return peopleUnavailable(); },
-  async moveParticipant(_participantId: string, _toGroupId: string | null): Promise<never> { return peopleUnavailable(); },
-  async bulkAssign(_assignments: Array<{ participantId: string; groupId: string }>): Promise<never> { return peopleUnavailable(); },
+  async setParticipants(_groupId: string, _ids: string[], _opts?: { overrideIds?: string[] }): Promise<never> { return peopleUnavailable(); },
+  async moveParticipant(_participantId: string, _toGroupId: string | null, _opts?: { override?: boolean }): Promise<never> { return peopleUnavailable(); },
+  async bulkAssign(_assignments: Array<{ participantId: string; groupId: string }>, _opts?: { override?: boolean; overrideIds?: string[] }): Promise<never> { return peopleUnavailable(); },
   async backfillTags(_cohortId: string): Promise<never> { return peopleUnavailable(); },
 };
 

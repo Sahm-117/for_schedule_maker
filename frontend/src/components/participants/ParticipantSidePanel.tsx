@@ -30,6 +30,8 @@ interface ParticipantSidePanelProps {
   completion: ProfileCompletion | undefined;
   canAssign: boolean;
   onAssign: () => void;
+  /** Button text; a teen on the teen path gets a Teen Support instead of a group. */
+  assignLabel?: string;
   onClose: () => void;
   /** True while another dialog (e.g. Add to a group) is open on top: Escape then belongs to that dialog, not the panel. */
   escapeBlocked?: boolean;
@@ -45,7 +47,7 @@ const Row: React.FC<{ label: string; children: React.ReactNode }> = ({ label, ch
 const pill = (cls: string, text: string) => <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${cls}`}>{text}</span>;
 
 /** Right-side panel on desktop, bottom sheet on a phone. The list behind it keeps its place. */
-const ParticipantSidePanel: React.FC<ParticipantSidePanelProps> = ({ participant: p, supportName, isTeen, record, signedIn, alertsOff, appLine, completion, canAssign, onAssign, onClose, escapeBlocked = false }) => {
+const ParticipantSidePanel: React.FC<ParticipantSidePanelProps> = ({ participant: p, supportName, isTeen, record, signedIn, alertsOff, appLine, completion, canAssign, onAssign, assignLabel = 'Add to a group', onClose, escapeBlocked = false }) => {
   const [faith, setFaith] = useState<FaithProjectStatus | null | undefined>(undefined);
   const [notes, setNotes] = useState<ParticipantNote[] | null>(null);
 
@@ -111,7 +113,7 @@ const ParticipantSidePanel: React.FC<ParticipantSidePanelProps> = ({ participant
             {p.groupName ? p.groupName : (
               <span className="inline-flex items-center gap-3">
                 <span className="text-gray-500">Not in a group yet</span>
-                {canAssign && <button type="button" onClick={onAssign} className="rounded-2xl bg-primary px-3.5 py-1.5 text-xs font-semibold text-white active:scale-95">Add to a group</button>}
+                {canAssign && <button type="button" onClick={onAssign} className="rounded-2xl bg-primary px-3.5 py-1.5 text-xs font-semibold text-white active:scale-95">{assignLabel}</button>}
               </span>
             )}
           </Row>

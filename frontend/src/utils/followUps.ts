@@ -109,6 +109,9 @@ export const followUpStatusOptions = FOLLOW_UP_STATUS_GROUPS.flatMap(({ group, s
 
 /** Teens are looked after off the app by a Teen Support, so they have their own two statuses. */
 export const TEEN_STATUSES: FollowUpStatus[] = ['TEENAGER', 'TEEN_ONBOARDED'];
+/** A participant whose follow-up is on the teen path: placed by giving them a Teen Support, never put in a group by hand (rule 22). */
+export const isOnTeenPath = (p: { followUpStatus?: string | null }): boolean =>
+  !!p.followUpStatus && (TEEN_STATUSES as string[]).includes(p.followUpStatus);
 export const isTeenContact = (c: Pick<FollowUpContact, 'registrationStatus'>): boolean =>
   c.registrationStatus === 'TEENAGER' || c.registrationStatus === 'TEEN_ONBOARDED';
 

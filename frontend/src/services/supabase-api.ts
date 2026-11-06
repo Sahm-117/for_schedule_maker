@@ -3,6 +3,7 @@ import { platformFromLink } from '../utils/links';
 import { normaliseRules } from '../utils/programmeRules';
 import { isTeenAgeRange, normaliseGroupingRules } from '../utils/groupingRules';
 import { normaliseSavedDraft } from '../utils/groupingEngine';
+import { groupMoveMessage } from '../utils/groupGender';
 import { normaliseRecapReleaseTimes } from '../utils/recapReleaseTimes';
 import { normaliseClassFeedbackTimes } from '../utils/classFeedbackTimes';
 import { normaliseClassStartTime } from '../utils/classStartTime';
@@ -5943,7 +5944,9 @@ export const groupsApi = {
     return { participants: ((data as any[]) || []).map((r: any) => mapParticipant(r.participant)) };
   },
 
-  async setParticipants(groupId: string, participantIds: string[]): Promise<{ message: string }> {
+  // overrideIds: people an admin is putting in this group although their gender differs (FLOW_MAP rule 135).
+  // Anyone already placed that way keeps it, so saving a mixed group again still works.
+  async setParticipants(groupId: string, participantIds: string[], opts?: { overrideIds?: string[] }): Promise<{ message: string }> {
     const { data: groupRow } = await supabase
       .from('Group')
       .select(GROUP_SELECT)
@@ -5952,9 +5955,12 @@ export const groupsApi = {
     const previousGroup = groupRow ? mapGroup(groupRow) : null;
     const { data: previousRows } = await supabase
       .from('GroupParticipant')
-      .select('participantId')
+      .select('participantId, genderOverrideAt')
       .eq('groupId', groupId);
     const previousIds = new Set((previousRows ?? []).map((row: any) => row.participantId as string));
+    const overrideAt = new Map<string, string>((previousRows ?? []).filter((row: any) => row.genderOverrideAt).map((row: any) => [row.participantId as string, row.genderOverrideAt as string]));
+    const now = new Date().toISOString();
+    (opts?.overrideIds ?? []).forEach((id) => { if (!overrideAt.has(id)) overrideAt.set(id, now); });
 
     const { error: delError } = await supabase
       .from('GroupParticipant')
@@ -5964,9 +5970,17 @@ export const groupsApi = {
     if (delError) throw new Error(delError.message);
     if (participantIds.length === 0) return { message: 'Members cleared' };
 
-    const inserts = participantIds.map((participantId) => ({ groupId, participantId }));
+    // Placed-on-purpose rows go in first, so the group already counts as mixed for the rest.
+    const ordered = [...participantIds].sort((a, b) => Number(overrideAt.has(b)) - Number(overrideAt.has(a)));
+    const inserts = ordered.map((participantId) => ({ groupId, participantId, ...(overrideAt.has(participantId) ? { genderOverrideAt: overrideAt.get(participantId) } : {}) }));
     const { error: insError } = await supabase.from('GroupParticipant').insert(inserts);
-    if (insError) throw new Error(insError.message);
+    if (insError) {
+      // The insert is one statement, so nothing was added; put the old members back.
+      if ((previousRows ?? []).length > 0) {
+        await supabase.from('GroupParticipant').insert((previousRows as any[]).map((row) => ({ groupId, participantId: row.participantId, ...(row.genderOverrideAt ? { genderOverrideAt: row.genderOverrideAt } : {}) })));
+      }
+      throw new Error(groupMoveMessage(insError.message));
+    }
     const addedParticipantIds = participantIds.filter((participantId) => !previousIds.has(participantId));
     if (addedParticipantIds.length > 0) {
       const actor = getCurrentUserFromStorage();
@@ -5987,7 +6001,14 @@ export const groupsApi = {
 
   // Move a single participant to a group (or to `null` = unassigned).
   // Enforces one-group-per-participant by clearing any prior membership first.
-  async moveParticipant(participantId: string, toGroupId: string | null): Promise<{ message: string }> {
+  // override: an admin placing someone in a group of the other gender on purpose (FLOW_MAP rule 135).
+  async moveParticipant(participantId: string, toGroupId: string | null, opts?: { override?: boolean }): Promise<{ message: string }> {
+    // Where they are now, to put them back if the new group refuses them.
+    const { data: previous } = await supabase
+      .from('GroupParticipant')
+      .select('groupId, genderOverrideAt')
+      .eq('participantId', participantId)
+      .maybeSingle();
     const { error: delError } = await supabase
       .from('GroupParticipant')
       .delete()
@@ -5998,8 +6019,14 @@ export const groupsApi = {
 
     const { error: insError } = await supabase
       .from('GroupParticipant')
-      .insert({ groupId: toGroupId, participantId });
-    if (insError) throw new Error(insError.message);
+      .insert({ groupId: toGroupId, participantId, ...(opts?.override ? { genderOverrideAt: new Date().toISOString() } : {}) });
+    if (insError) {
+      // Put them back where they were (as it was saved), then explain.
+      if (previous?.groupId) {
+        await supabase.from('GroupParticipant').insert({ groupId: previous.groupId, participantId, ...(previous.genderOverrideAt ? { genderOverrideAt: previous.genderOverrideAt } : {}) });
+      }
+      throw new Error(groupMoveMessage(insError.message));
+    }
 
     const { data: groupRow } = await supabase
       .from('Group')
@@ -6024,9 +6051,16 @@ export const groupsApi = {
 
   // Assign many participants to groups in one batch (used by auto-distribute).
   // Clears each listed participant's prior membership, then inserts the new ones.
-  async bulkAssign(assignments: Array<{ participantId: string; groupId: string }>): Promise<{ message: string }> {
+  // override: every row is placed on purpose (a builder group that is mixed); overrideIds: only these people are
+  // (FLOW_MAP rule 135). Placed-on-purpose rows go in first, so the group already counts as mixed for the rest.
+  async bulkAssign(assignments: Array<{ participantId: string; groupId: string }>, opts?: { override?: boolean; overrideIds?: string[] }): Promise<{ message: string }> {
     if (assignments.length === 0) return { message: 'Nothing to assign' };
     const participantIds = assignments.map((a) => a.participantId);
+    // Where everyone is now, to put them back if the new placement is refused.
+    const { data: previousRows } = await supabase
+      .from('GroupParticipant')
+      .select('groupId, participantId, genderOverrideAt')
+      .in('participantId', participantIds);
 
     const { error: delError } = await supabase
       .from('GroupParticipant')
@@ -6034,10 +6068,17 @@ export const groupsApi = {
       .in('participantId', participantIds);
     if (delError) throw new Error(delError.message);
 
+    const now = new Date().toISOString();
+    const onPurpose = (id: string) => !!opts?.override || !!opts?.overrideIds?.includes(id);
+    const ordered = [...assignments].sort((a, b) => Number(onPurpose(b.participantId)) - Number(onPurpose(a.participantId)));
     const { error: insError } = await supabase
       .from('GroupParticipant')
-      .insert(assignments.map((a) => ({ groupId: a.groupId, participantId: a.participantId })));
-    if (insError) throw new Error(insError.message);
+      .insert(ordered.map((a) => ({ groupId: a.groupId, participantId: a.participantId, ...(onPurpose(a.participantId) ? { genderOverrideAt: now } : {}) })));
+    if (insError) {
+      // The insert is one statement, so nothing was added; put everyone back where they were.
+      if ((previousRows ?? []).length > 0) await supabase.from('GroupParticipant').insert((previousRows as any[]).map((r) => (r.genderOverrideAt ? r : { groupId: r.groupId, participantId: r.participantId })));
+      throw new Error(groupMoveMessage(insError.message));
+    }
 
     const actor = getCurrentUserFromStorage();
     const byGroup = assignments.reduce<Record<string, string[]>>((acc, a) => {
