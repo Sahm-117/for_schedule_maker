@@ -912,7 +912,8 @@ const AdminParticipantsContent: React.FC = () => {
       participantsApi.getRetakeMatches(activeCohort.id).then(setRetakeMatches).catch(() => { /* no chips */ });
       const [{ participants: ps }, { groups: gs }, { flags: fs }, health, peopleData, rules, unreachableIds, wrapUpDepts] = await Promise.all([
         participantsApi.getAll({ cohortId: activeCohort.id, includeArchived: true }),
-        groupsApi.getAll({ cohortId: activeCohort.id }),
+        // Teen groups too: they show in the Group and Support filters and columns. Adults are never offered one.
+        groupsApi.getAll({ cohortId: activeCohort.id, includeTeenGroups: true }),
         participantFlagsApi.getAll({ openOnly: true }).catch(() => ({ flags: [] as ParticipantFlag[] })),
         cohortsApi.getHealth(activeCohort.id).catch(() => null),
         cohortsApi.getPeople(activeCohort.id).catch(() => null),
@@ -999,6 +1000,8 @@ const AdminParticipantsContent: React.FC = () => {
   }, [counted, wrapUpDeptById]);
   // A teen by age range, by being on the teen path, or by being in a teen group. Teens get no login.
   const teenGroupIds = useMemo(() => new Set(groups.filter((g) => g.isTeenGroup).map((g) => g.id)), [groups]);
+  // A teen's group follows their Teen Support (rule 22), so "Assign to group" only ever offers adult groups.
+  const adultGroups = useMemo(() => groups.filter((g) => !g.isTeenGroup), [groups]);
   const isTeen = useCallback((p: Participant) => isTeenParticipant(p, teenGroupIds), [teenGroupIds]);
 
   const supportGroups = useMemo(() => {
@@ -1738,7 +1741,7 @@ const AdminParticipantsContent: React.FC = () => {
 
       <AssignGroupModal
         participant={assigning}
-        groups={groups}
+        groups={adultGroups}
         participants={participants}
         supportsById={supportsById}
         onClose={() => setAssigning(null)}

@@ -191,7 +191,9 @@ const FilterBar: React.FC<{
       {open && createPortal(
         <div className="fixed inset-0 z-[120] flex items-end justify-center sm:items-center">
           <div className="absolute inset-0 bg-slate-900/35" onClick={() => setOpen(false)} />
-          <div role="dialog" aria-modal="true" aria-label={title} className="relative max-h-[90dvh] w-full max-w-md overflow-y-auto overscroll-contain rounded-t-[28px] bg-white p-6 pb-8 shadow-[0_-8px_40px_rgba(15,23,42,0.15)] sm:rounded-[28px]">
+          {/* Header and buttons stay put; only the choices scroll, so Apply is always in view. */}
+          <div role="dialog" aria-modal="true" aria-label={title} className="relative flex max-h-[90dvh] w-full max-w-md flex-col overflow-hidden rounded-t-[28px] bg-white shadow-[0_-8px_40px_rgba(15,23,42,0.15)] sm:rounded-[28px]">
+            <div className="flex-none px-6 pt-6">
             <div className="mx-auto mb-6 h-1 w-10 rounded-full bg-gray-200 sm:hidden" />
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-900">{title}</h3>
@@ -199,8 +201,9 @@ const FilterBar: React.FC<{
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
+            </div>
 
-            <div className="mt-5 space-y-5">
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-6 pb-5 pt-5">
               {groups.map((group) => (
                 <div key={group.key}>
                   <p className="mb-0.5 text-xs font-semibold uppercase tracking-wide text-gray-500">{group.label}</p>
@@ -247,7 +250,7 @@ const FilterBar: React.FC<{
               })}
             </div>
 
-            <div className="mt-6 flex gap-3">
+            <div className="flex flex-none gap-3 border-t border-gray-100 bg-white px-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4">
               <button type="button" onClick={clear} className="flex-1 rounded-2xl border border-gray-200 bg-white py-3 text-sm font-semibold text-gray-600 transition hover:bg-gray-50 active:scale-[0.98]">
                 Clear filters
               </button>
