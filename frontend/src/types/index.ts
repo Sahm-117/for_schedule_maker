@@ -690,7 +690,7 @@ export interface Participant {
 
 export type ParticipantUpdate = Partial<Pick<Participant,
   'fullName' | 'phone' | 'cohortId' | 'notes' | 'status' |
-  'email' | 'gender' | 'ageRange' | 'departments' | 'registrationDate' | 'smartRequest' | 'isTest' |
+  'email' | 'gender' | 'ageRange' | 'dateOfBirth' | 'departments' | 'registrationDate' | 'smartRequest' | 'isTest' |
   'retakeStatus' | 'retakeNote'
 >> & { retakeCheckedById?: string | null; retakeCheckedAt?: string | null };
 

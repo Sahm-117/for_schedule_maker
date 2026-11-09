@@ -21,6 +21,7 @@ import AppOverflowMenu from '../components/AppOverflowMenu';
 import AppSelect from '../components/AppSelect';
 import FilterBar, { describeFilters, type FilterGroup, type FilterValues } from '../components/filters/FilterBar';
 import AppMultiSelect from '../components/AppMultiSelect';
+import BirthDateSelect from '../components/BirthDateSelect';
 import ConfirmationModal from '../components/ConfirmationModal';
 import ConfirmReachModal from '../components/ConfirmReachModal';
 import { useToast } from '../components/Toast';
@@ -49,6 +50,7 @@ import Spinner from '../components/Spinner';
 import { sortByText } from '../utils/sort';
 import { reconcileById } from '../utils/reconcile';
 import { normalizeToIntlPhone } from '../utils/phone';
+import { ageRangeFromDate } from '../utils/people';
 import { AGE_RANGE_OPTIONS, GENDER_OPTIONS, toSelectOptions } from '../constants/departments';
 import { departmentOptions, useChurchDepartments } from '../hooks/useChurchDepartments';
 import LoginDetailsCard from '../components/participants/LoginDetailsCard';
@@ -92,14 +94,13 @@ const toDateInput = (value?: string | null): string => {
 const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, onSaved, cohortId, existing }) => {
   const churchDepartments = useChurchDepartments();
   const toast = useToast();
-  // With a date of birth on file the database works the age range out from it and puts it back after any edit, so it is not editable here.
-  const ageFromDob = !!existing?.dateOfBirth;
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [notes, setNotes] = useState('');
   const [email, setEmail] = useState('');
   const [gender, setGender] = useState('');
   const [ageRange, setAgeRange] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
   const [departments, setDepartments] = useState<string[]>([]);
   const [registrationDate, setRegistrationDate] = useState('');
   const [smartRequest, setSmartRequest] = useState('');
@@ -115,6 +116,7 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, on
       setEmail(existing?.email ?? '');
       setGender(existing?.gender ?? '');
       setAgeRange(existing?.ageRange ?? '');
+      setDateOfBirth(toDateInput(existing?.dateOfBirth));
       setDepartments(existing?.departments ?? []);
       setRegistrationDate(toDateInput(existing?.registrationDate));
       setSmartRequest(existing?.smartRequest ?? '');
@@ -122,6 +124,10 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, on
       setErr('');
     }
   }, [isOpen, existing]);
+
+  // A believable date of birth (age 5 to 100) sets the age range, and the database puts it back after any edit, so the
+  // box locks. A day-and-month-only birthday (placeholder year) gives no age, so the age range stays editable.
+  const ageFromDob = !!ageRangeFromDate(dateOfBirth);
 
   const handleSave = async () => {
     if (!fullName.trim()) { setErr('Name is required'); return; }
@@ -131,6 +137,7 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, on
       email: email.trim() || null,
       gender: gender || null,
       ageRange: ageRange || null,
+      dateOfBirth: dateOfBirth || null,
       departments,
       registrationDate: registrationDate || null,
       smartRequest: smartRequest.trim() || null,
@@ -156,9 +163,10 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, on
       }
       // An edit across the teen line also moves the person (teen handling, their group, their follow-up): say so.
       let crossed: 'teen' | 'adult' | null = null;
-      if (existing && !ageFromDob && ageRange && normaliseAgeRange(existing.ageRange) !== normaliseAgeRange(ageRange)) {
+      // Read the saved age range: a date of birth may have set it in the database.
+      if (existing && result.ageRange && normaliseAgeRange(existing.ageRange) !== normaliseAgeRange(result.ageRange)) {
         const wasTeen = isTeenAgeRange(existing.ageRange);
-        const isTeen = isTeenAgeRange(ageRange);
+        const isTeen = isTeenAgeRange(result.ageRange);
         if (!wasTeen && isTeen) crossed = 'teen';
         else if (wasTeen && !isTeen) crossed = 'adult';
       }
@@ -228,7 +236,7 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, on
             onClick={() => setDetailsOpen((v) => !v)}
             className="flex w-full items-center justify-between px-3.5 py-2.5 text-sm font-semibold text-gray-700"
           >
-            <span>More details {departments.length || email || gender || ageRange || registrationDate || smartRequest ? <span className="ml-1 text-xs font-normal text-primary">· added</span> : <span className="ml-1 text-xs font-normal text-gray-400">(optional)</span>}</span>
+            <span>More details {departments.length || email || gender || ageRange || dateOfBirth || registrationDate || smartRequest ? <span className="ml-1 text-xs font-normal text-primary">· added</span> : <span className="ml-1 text-xs font-normal text-gray-400">(optional)</span>}</span>
             <svg className={`h-4 w-4 text-gray-400 transition-transform ${detailsOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m19 9-7 7-7-7" />
             </svg>
@@ -254,6 +262,15 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, on
                   options={[{ value: '', label: 'Not specified' }, ...toSelectOptions(GENDER_OPTIONS)]}
                   placeholder="Select gender"
                 />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Date of birth</label>
+                <BirthDateSelect
+                  value={dateOfBirth}
+                  onChange={(iso) => { setDateOfBirth(iso); const derived = ageRangeFromDate(iso); if (derived) setAgeRange(derived); }}
+                />
+                {dateOfBirth && !ageFromDob && <p className="mt-1 text-xs text-gray-500">This birthday has no real year, so it doesn't set their age range.</p>}
+                {dateOfBirth && <button type="button" onClick={() => setDateOfBirth('')} className="mt-1 block text-xs font-semibold text-primary">Clear date of birth</button>}
               </div>
               <div>
                 <AppSelect

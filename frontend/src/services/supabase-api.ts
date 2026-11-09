@@ -5082,6 +5082,7 @@ export const participantsApi = {
     email?: string | null;
     gender?: string | null;
     ageRange?: string | null;
+    dateOfBirth?: string | null;
     departments?: string[];
     registrationDate?: string | null;
     smartRequest?: string | null;
