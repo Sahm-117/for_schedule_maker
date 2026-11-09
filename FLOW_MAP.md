@@ -511,7 +511,8 @@ duplicating the logic anywhere else is a bug waiting to happen.
     any edit path behaves the same, including a date of birth that changes the range. `fill_profile_from_form` sets the
     transaction flag `fof.skip_teen_boundary` around its own profile fill, because it does the teen handling itself
     straight after; keep that flag if you rewrite it. A date of birth still wins over a typed range, so the Participants form locks the
-    age range when a date of birth exists. A participant with no date of birth can only be corrected this way. Source:
+    age range when a believable date of birth exists (a placeholder year like 1904 leaves it editable). Admins can set or
+    clear the date of birth in the same form; a believable one fills the age range. Source:
     `20261009150000_teen_age_change_follows.sql`, `20261009170000_teen_review_fixes.sql`. The conversion marks a contact
     as registered by hand (`manualRegistrationAt`, the mark the form gate in rule 1 looks for) only when no form
     registration is linked to it; a person who signed up on the form is left unmarked
