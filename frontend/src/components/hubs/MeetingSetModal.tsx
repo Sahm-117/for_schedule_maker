@@ -3,7 +3,7 @@ import ModalShell from '../followups/ModalShell';
 import { MeetingCallCard, type MeetingSaveInput } from '../groups/GroupCallCard';
 import type { GroupCallPlatform } from '../../types';
 
-// Admin-only editor for a hub's weekly meeting, or the Hub Leads meeting. The
+// Editor for a hub's weekly meeting (admins, the hub's lead, or an assistant lead they allow), or the Hub Leads meeting (admins). The
 // people involved get a notification when the time or link actually changes
 // (unless the switch is off).
 const MeetingSetModal: React.FC<{
@@ -18,7 +18,9 @@ const MeetingSetModal: React.FC<{
   linkLabel: string;
   tellLabel: string;
   onSave: (input: MeetingSaveInput, notify: boolean) => Promise<void>;
-}> = ({ isOpen, onClose, title, subtitle, slot, callPlatform, callLink, resetKey, linkLabel, tellLabel, onSave }) => {
+  /** A hub's own meeting: HUB_MEETING_MINUTES, so its Join button stays open to the end. */
+  openMinutes?: number;
+}> = ({ isOpen, onClose, title, subtitle, slot, callPlatform, callLink, resetKey, linkLabel, tellLabel, onSave, openMinutes }) => {
   const [notify, setNotify] = useState(true);
   useEffect(() => { if (isOpen) setNotify(true); }, [isOpen, resetKey]);
 
@@ -45,6 +47,7 @@ const MeetingSetModal: React.FC<{
           linkLabel={linkLabel}
           saveLabel="Save meeting"
           anySlot
+          openMinutes={openMinutes}
           onSave={async (input) => { await onSave(input, notify); onClose(); }}
         />
       </div>

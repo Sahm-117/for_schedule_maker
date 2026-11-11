@@ -25,6 +25,7 @@ import { hubReportWeeks } from '../components/hubs/reportWeeks';
 import MeetingSetModal from '../components/hubs/MeetingSetModal';
 import OpenRecordingModal from '../components/hubs/OpenRecordingModal';
 import { formatMeetingSlot } from '../components/groups/GroupCallCard';
+import { HUB_MEETING_MINUTES } from '../utils/joinWindow';
 import Spinner from '../components/Spinner';
 import SupportNotesStar from '../components/hubs/SupportNotesStar';
 import Avatar from '../components/Avatar';
@@ -984,13 +985,14 @@ const AdminHubsPage: React.FC = () => {
         isOpen={!!meetingTarget}
         onClose={() => setMeetingTarget(null)}
         title={meetingTarget ? `${meetingTarget.name} meeting` : 'Hub meeting'}
-        subtitle="The hub's weekly meeting. Only admins can change it."
+        subtitle="The hub's weekly meeting (75 minutes). The hub's lead can change it too."
         slot={{ meetingDay: meetingTarget?.meetingDay ?? null, meetingTime: meetingTarget?.meetingTime ?? null }}
         callPlatform={meetingTarget?.callPlatform ?? null}
         callLink={meetingTarget?.callLink ?? null}
         resetKey={meetingTarget?.id ?? ''}
         linkLabel="Meeting Call Link"
         tellLabel="Tell the hub"
+        openMinutes={HUB_MEETING_MINUTES}
         onSave={async (input, notify) => {
           if (!meetingTarget) return;
           await myHubApi.updateMeeting(meetingTarget.id, input, notify);

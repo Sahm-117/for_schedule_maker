@@ -8,6 +8,7 @@ import type { Group, GroupCallPlatform } from '../../types';
 import { normalizeLink, platformFromLink } from '../../utils/links';
 import Spinner from '../Spinner';
 import JoinCallButton from '../JoinCallButton';
+import { HUB_MEETING_MINUTES, meetingRangeLabel } from '../../utils/joinWindow';
 
 
 // "FRIDAY" + "19:00" → "Friday, 7:00 PM" (meetings have no set length)
@@ -18,6 +19,12 @@ export const formatMeetingSlot = (day?: string | null, time?: string | null): st
   const ampm = h >= 12 ? 'PM' : 'AM';
   const displayH = h > 12 ? h - 12 : h === 0 ? 12 : h;
   return `${dayLabel}, ${displayH}:${String(m).padStart(2, '0')} ${ampm}`;
+};
+
+// "FRIDAY" + "20:00" → "Friday, 8:00 – 9:15 PM": a hub meeting, which runs HUB_MEETING_MINUTES.
+export const formatHubMeetingSlot = (day?: string | null, time?: string | null): string | null => {
+  if (!day || !time) return null;
+  return `${day.charAt(0) + day.slice(1).toLowerCase()}, ${meetingRangeLabel(time, HUB_MEETING_MINUTES)}`;
 };
 
 export const formatMeetingTime = (day?: string | null, time?: string | null): string | null => {
@@ -60,6 +67,8 @@ export interface MeetingCallCardProps {
   anySlot?: boolean;
   // The meeting is marked live: the call is open whatever the clock says.
   live?: boolean;
+  // How long after the start the call stays open (hub meetings: HUB_MEETING_MINUTES). Default an hour.
+  openMinutes?: number;
 }
 
 // Recurring call + meeting slot editor/display, shared by a group's own call
@@ -77,6 +86,7 @@ export const MeetingCallCard: React.FC<MeetingCallCardProps> = ({
   onSave,
   anySlot = false,
   live = false,
+  openMinutes,
   teen = false,
 }) => {
   const limits = useGroupMeetingLimits(teen);
@@ -195,6 +205,7 @@ export const MeetingCallCard: React.FC<MeetingCallCardProps> = ({
               day={slot.meetingDay}
               time={slot.meetingTime}
               live={live}
+              openMinutes={openMinutes}
               label="Join Call"
               className="inline-flex h-11 min-h-11 shrink-0 items-center justify-center rounded-[10px] bg-primary px-3.5 py-0 text-sm font-semibold leading-none text-white"
             />

@@ -8,6 +8,8 @@ interface JoinCallButtonProps {
   time?: string | null;
   /** The meeting is marked live: open whatever the clock says. */
   live?: boolean;
+  /** How long after the start the call stays open (hub meetings: HUB_MEETING_MINUTES). Default an hour. */
+  openMinutes?: number;
   label?: string;
   /** Style of the open button. When it is waiting the same shape turns grey. */
   className: string;
@@ -17,7 +19,7 @@ interface JoinCallButtonProps {
  * "Join the call" that waits for its time: grey until JOIN_LEAD_MINUTES before
  * the meeting, with a line saying so, and opens by itself when the time comes.
  */
-const JoinCallButton: React.FC<JoinCallButtonProps> = ({ href, day, time, live = false, label = 'Join the call', className }) => {
+const JoinCallButton: React.FC<JoinCallButtonProps> = ({ href, day, time, live = false, openMinutes, label = 'Join the call', className }) => {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 30000);
@@ -25,7 +27,7 @@ const JoinCallButton: React.FC<JoinCallButtonProps> = ({ href, day, time, live =
   }, []);
 
   const scheduled = !!(day && time);
-  const open = !scheduled || isCallJoinable(day, time, now, live);
+  const open = !scheduled || isCallJoinable(day, time, now, live, openMinutes);
 
   if (open) {
     return <a href={href} target="_blank" rel="noreferrer" className={className}>{label}</a>;

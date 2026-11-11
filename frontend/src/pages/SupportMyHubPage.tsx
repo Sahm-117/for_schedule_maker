@@ -7,7 +7,9 @@ import AppSelect from '../components/AppSelect';
 import SaveStatus, { type SaveState } from '../components/SaveStatus';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import ConfirmationModal from '../components/ConfirmationModal';
-import { formatMeetingSlot } from '../components/groups/GroupCallCard';
+import { formatHubMeetingSlot } from '../components/groups/GroupCallCard';
+import MeetingSetModal from '../components/hubs/MeetingSetModal';
+import { HUB_MEETING_MINUTES } from '../utils/joinWindow';
 import JoinCallButton from '../components/JoinCallButton';
 import { LeadsMeetingCard } from '../components/hubs/LeadsMeetingTab';
 import Avatar from '../components/Avatar';
@@ -66,6 +68,7 @@ const STATUS_PILL: Record<SupportAttendanceStatus, string> = {
 const PERMISSION_OPTIONS: Array<{ value: AssistantHubPermission; label: string; hint: string; summary: string }> = [
   { value: 'ATTENDANCE', label: 'Attendance & hub meeting', hint: 'Mark attendance and run the hub meeting.', summary: 'run attendance & hub meeting' },
   { value: 'MESSAGE', label: 'Message the hub', hint: 'Send messages to everyone in the hub.', summary: 'message the hub' },
+  { value: 'MEETING', label: 'Set the meeting time', hint: "Change the hub's meeting day, time and call link.", summary: 'set the meeting time' },
   { value: 'GROUPS', label: 'See groups', hint: "Open each support's group and join their call.", summary: 'see groups' },
 ];
 
@@ -174,6 +177,7 @@ const SupportMyHubPage: React.FC = () => {
   // as a draft (Save/Cancel), collapsing back to the summary once saved.
   const [permEditing, setPermEditing] = useState(false);
   const [permDraft, setPermDraft] = useState<AssistantHubPermission[]>([]);
+  const [meetingEditOpen, setMeetingEditOpen] = useState(false);
   const [permSaving, setPermSaving] = useState(false);
   const [permError, setPermError] = useState('');
 
@@ -444,6 +448,8 @@ const SupportMyHubPage: React.FC = () => {
   const isLead = !!myHub?.isLead;
   const canAttendance = isLead || !!myHub?.canAttendance;
   const canMessage = isLead || !!myHub?.canMessage;
+  // The lead sets the hub's meeting; an assistant lead only with the "Set the meeting time" permission.
+  const canSetMeeting = isLead || !!myHub?.canMeeting;
   const canGroups = isLead || (!!myHub?.isAssistant && (myHub?.hub?.assistantPermissions ?? []).includes('GROUPS'));
   const isRecapLead = (myHub?.myJobs ?? []).includes('RECAP_LEAD');
   const isPrayerLead = (myHub?.myJobs ?? []).includes('PRAYER_LEAD');
@@ -511,7 +517,7 @@ const SupportMyHubPage: React.FC = () => {
 
           {tab === 'overview' && (() => {
             const hub = myHub.hub!;
-            const slot = formatMeetingSlot(hub.meetingDay, hub.meetingTime);
+            const slot = formatHubMeetingSlot(hub.meetingDay, hub.meetingTime);
             const callHref = hub.callLink ? (/^https?:\/\//i.test(hub.callLink) ? hub.callLink : `https://${hub.callLink}`) : null;
             const unacked = isLead ? 0 : myHub.messages.filter((msg) => !msg.ackedByMe && !ackedLocal.has(msg.id)).length;
             const isOpen = (key: string) => openRows[key] ?? (key === 'messages' && unacked > 0);
@@ -538,11 +544,16 @@ const SupportMyHubPage: React.FC = () => {
                 </span>
                 <h2 className="mt-2 text-[30px] font-bold leading-[1.1] tracking-[-0.025em] text-gray-900 sm:text-[36px]">{hub.name}</h2>
                 <p className="mt-3 text-[15.5px] leading-[1.7] text-gray-600">
-                  {slot ? `Meets ${slot}.` : 'Meeting time not set yet. Your admin sets it.'}
+                  {slot ? `Meets ${slot}.` : canSetMeeting ? 'Meeting time not set yet.' : 'Meeting time not set yet. Your admin sets it.'}
                 </p>
+                {canSetMeeting && (
+                  <button type="button" onClick={() => setMeetingEditOpen(true)} className="mt-1 text-[14.5px] font-semibold text-primary">
+                    {slot ? 'Change meeting time' : 'Set meeting time'}
+                  </button>
+                )}
                 {(callHref || (!isLead && leadWhatsAppLink)) && (
                   <div className="mt-6 flex flex-col gap-2.5 sm:flex-row">
-                    {callHref && <JoinCallButton href={callHref} day={hub.meetingDay} time={hub.meetingTime} live={!!myHub.meetingLive} className={PRIMARY} />}
+                    {callHref && <JoinCallButton href={callHref} day={hub.meetingDay} time={hub.meetingTime} live={!!myHub.meetingLive} openMinutes={HUB_MEETING_MINUTES} className={PRIMARY} />}
                     {!isLead && leadWhatsAppLink && <a href={leadWhatsAppLink} target="_blank" rel="noreferrer" className={callHref ? SECONDARY : PRIMARY}>Message {hub.leadName?.split(' ')[0] || 'the lead'}</a>}
                   </div>
                 )}
@@ -974,6 +985,28 @@ const SupportMyHubPage: React.FC = () => {
         confirmDisabled={deleting}
         type="danger"
       />
+
+      {myHub?.hub && canSetMeeting && (
+        <MeetingSetModal
+          isOpen={meetingEditOpen}
+          onClose={() => setMeetingEditOpen(false)}
+          title={`${myHub.hub.name} meeting`}
+          subtitle="The hub's weekly meeting. It runs 75 minutes."
+          slot={{ meetingDay: myHub.hub.meetingDay ?? null, meetingTime: myHub.hub.meetingTime ?? null }}
+          callPlatform={myHub.hub.callPlatform ?? null}
+          callLink={myHub.hub.callLink ?? null}
+          resetKey={myHub.hub.id}
+          linkLabel="Meeting Call Link"
+          tellLabel="Tell the hub"
+          openMinutes={HUB_MEETING_MINUTES}
+          onSave={async (input, notify) => {
+            const hubId = myHub.hub!.id;
+            await myHubApi.updateMeeting(hubId, input, notify);
+            const patch = { meetingDay: input.meetingDay, meetingTime: input.meetingTime, callPlatform: input.callPlatform, callLink: input.callLink };
+            setHubs((prev) => prev.map((h) => (h.hub?.id === hubId ? { ...h, hub: { ...h.hub!, ...patch } } : h)));
+          }}
+        />
+      )}
     </div>
   );
 };

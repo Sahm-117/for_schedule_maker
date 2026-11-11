@@ -23,7 +23,6 @@ import { CountdownRing, useChecklistAutoHide } from '../components/ChecklistAuto
 import { useGroupMeetingLive } from '../hooks/useGroupMeetingLive';
 import { GROUP_MEETING_CHANGED_EVENT } from '../utils/meetingLiveEvents';
 import { HUB_JOB_INFO, hubJobAudienceLabel, sortHubJobs } from '../components/hubs/hubJobs';
-import { formatMeetingTime } from '../components/groups/GroupCallCard';
 import Spinner from '../components/Spinner';
 import TrainingLearnedCard from '../components/supports/TrainingLearnedCard';
 import ProfileCompletionStrip from '../components/supports/ProfileCompletionStrip';
@@ -33,7 +32,7 @@ import AppNudgeCard from '../components/supports/AppNudgeCard';
 import TeenQuestionsCard from '../components/questions/TeenQuestionsCard';
 import { useTeenSupportIds } from '../hooks/useTeenSupportIds';
 import SupportScriptures from '../components/supports/SupportScriptures';
-import { isCallJoinable, meetingClock, meetingTodayState } from '../utils/joinWindow';
+import { HUB_MEETING_MINUTES, isCallJoinable, meetingClock, meetingRangeLabel, meetingTodayState } from '../utils/joinWindow';
 import SupportNextClassCard from '../components/supports/SupportNextClassCard';
 
 type HomeActivity = {
@@ -214,21 +213,22 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
     return { hub: soonest.hub };
   }, [isHubOnlySupport, hubsList, tickNow, user.id]);
 
-  // The hub call opens 10 minutes before the meeting (or once it is marked live).
+  // The hub call opens 10 minutes before the meeting (or once it is marked live) and stays open to its end (75 minutes).
   const hubJoinHref = (() => {
     const hub = nextHubMeeting?.hub;
     const link = normalizeLink(hub?.callLink || '');
     if (!hub || !link) return null;
     const live = !!hubsList.find((h) => h.hub?.id === hub.id)?.meetingLive;
-    return isCallJoinable(hub.meetingDay, hub.meetingTime, tickNow, live) ? link : null;
+    return isCallJoinable(hub.meetingDay, hub.meetingTime, tickNow, live, HUB_MEETING_MINUTES) ? link : null;
   })();
 
-  // "Wednesday · 8:00 PM", or "Today · 8:00 PM" on the day itself.
+  // "Wednesday · 8:00 – 9:15 PM", or "Today · 8:00 – 9:15 PM" on the day itself.
   const hubRowWhen = (() => {
     const hub = nextHubMeeting?.hub;
     if (!hub?.meetingDay || !hub.meetingTime) return '';
-    if (meetingTodayState(hub.meetingDay, hub.meetingTime, tickNow)) return `Today · ${meetingClock(hub.meetingTime)}`;
-    return formatMeetingTime(hub.meetingDay, hub.meetingTime) ?? '';
+    const range = meetingRangeLabel(hub.meetingTime, HUB_MEETING_MINUTES);
+    if (meetingTodayState(hub.meetingDay, hub.meetingTime, tickNow, HUB_MEETING_MINUTES)) return `Today · ${range}`;
+    return `${hub.meetingDay.charAt(0)}${hub.meetingDay.slice(1).toLowerCase()} · ${range}`;
   })();
 
   // Today's hub meeting, for a banner above the rows: the hub meeting of a hub they belong to (a hub-only support with
@@ -241,7 +241,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
     hubPool.forEach((entry) => {
       const hub = entry.hub;
       if (!hub?.meetingDay || !hub.meetingTime || liveHubs.some((l) => l.hub?.id === hub.id)) return;
-      const state = meetingTodayState(hub.meetingDay, hub.meetingTime, tickNow);
+      const state = meetingTodayState(hub.meetingDay, hub.meetingTime, tickNow, HUB_MEETING_MINUTES);
       if (!state) return;
       const link = normalizeLink(hub.callLink || '');
       out.push({
@@ -250,7 +250,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
         time: meetingClock(hub.meetingTime),
         started: state === 'started',
         to: '/support/my-hub?tab=meeting',
-        joinHref: link && isCallJoinable(hub.meetingDay, hub.meetingTime, tickNow, false) ? link : null,
+        joinHref: link && isCallJoinable(hub.meetingDay, hub.meetingTime, tickNow, false, HUB_MEETING_MINUTES) ? link : null,
       });
     });
     return out;
