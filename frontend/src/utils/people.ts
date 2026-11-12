@@ -15,6 +15,10 @@ export const firstNameOf = (fullName: string | null | undefined): string => {
   return parts.find((part) => !TITLE_WORDS.has(part.replace(/\./g, '').toLowerCase())) || parts[0] || '';
 };
 
+// A switched-off (deactivated) person still shows in records, labelled so nobody waits on them.
+export const nameWithStatus = (name: string, isActive?: boolean | null): string =>
+  isActive === false ? `${name} (deactivated)` : name;
+
 // "Female · 25 - 34" — the short line under a person's name wherever supports
 // are matched with the people they follow up.
 export const genderAgeLine = (person: { gender?: string | null; ageRange?: string | null }): string =>

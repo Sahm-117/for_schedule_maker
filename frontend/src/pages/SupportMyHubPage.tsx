@@ -24,6 +24,7 @@ import { currentWeekNumber } from '../utils/participantApp';
 import { myHubApi, supportHubsApi, supportNotesApi, supportRecapsApi, supportSessionsApi } from '../services/api';
 import { buildWhatsAppLink } from '../utils/phone';
 import { sortByText } from '../utils/sort';
+import { nameWithStatus } from '../utils/people';
 import { cohortMode } from '../components/dashboard/healthModel';
 import type {
   AssistantHubPermission,
@@ -328,7 +329,7 @@ const SupportMyHubPage: React.FC = () => {
 
   // A lead can't write notes about themselves, so they're left out of the pick.
   const noteableMembers = useMemo(
-    () => (myHub?.members ?? []).filter((m) => m.userId !== user?.id),
+    () => (myHub?.members ?? []).filter((m) => m.userId !== user?.id && m.isActive !== false),
     [myHub?.members, user?.id],
   );
 
@@ -574,7 +575,7 @@ const SupportMyHubPage: React.FC = () => {
                             <Avatar name={m.name} avatarUrl={m.avatarUrl} size="md" />
                           </button>
                           <div className="min-w-0">
-                            <button type="button" onClick={() => setProfileUserId(m.userId)} className="break-words text-left text-[15px] font-medium text-gray-900 hover:underline">{m.name}{m.userId === user?.id && <span className="ml-1.5 text-[13px] font-normal text-gray-400">You</span>}</button>
+                            <button type="button" onClick={() => setProfileUserId(m.userId)} className="break-words text-left text-[15px] font-medium text-gray-900 hover:underline">{nameWithStatus(m.name, m.isActive)}{m.userId === user?.id && <span className="ml-1.5 text-[13px] font-normal text-gray-400">You</span>}</button>
                             {(!!jobs.length || m.isPersonOfInterest) && (
                               <div className="mt-1 flex flex-wrap gap-1">
                                 {sortHubJobs(jobs).map((job) => (
@@ -812,10 +813,11 @@ const SupportMyHubPage: React.FC = () => {
                         <p className="text-sm text-gray-400">No active supports.</p>
                       ) : (
                         <ul className="space-y-2">
-                          {trainingAllSupports.map((u) => (
+                          {/* Switched-off (deactivated) supports only show when already marked, locked, for the record. */}
+                          {trainingAllSupports.filter((u) => u.isActive !== false || !!trainingAttendance[trainingSessionId]?.[u.userId]).map((u) => (
                             <li key={u.userId} className="flex items-center justify-between gap-3 rounded-xl border border-orange-100 p-3">
                               <div className="min-w-0">
-                                <p className="text-sm font-semibold text-gray-900">{u.name}</p>
+                                <p className="text-sm font-semibold text-gray-900">{nameWithStatus(u.name, u.isActive)}</p>
                                 <SaveStatus state={trainingSaveState[u.userId]} />
                               </div>
                               <div className="w-40 flex-none">
@@ -824,7 +826,7 @@ const SupportMyHubPage: React.FC = () => {
                                   onChange={(v) => v && void handleMarkTraining(u.userId, v as SupportAttendanceStatus)}
                                   options={STATUS_OPTIONS}
                                   placeholder="Not marked"
-                                  disabled={trainingSaveState[u.userId] === 'saving'}
+                                  disabled={u.isActive === false || trainingSaveState[u.userId] === 'saving'}
                                   compact
                                 />
                               </div>
@@ -1097,7 +1099,7 @@ const HubMessageAckSummary: React.FC<{ message: HubMessage; members: MyHubMember
   const ackCount = message.ackCount ?? 0;
   const memberCount = message.memberCount ?? 0;
   const ackedIds = new Set(message.ackedUserIds ?? []);
-  const notAcked = members.filter((m) => m.userId !== message.authorId && !ackedIds.has(m.userId));
+  const notAcked = members.filter((m) => m.userId !== message.authorId && m.isActive !== false && !ackedIds.has(m.userId));
 
   return (
     <div className="mt-2">

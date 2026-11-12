@@ -31,7 +31,7 @@ import SupportNotesStar from '../components/hubs/SupportNotesStar';
 import Avatar from '../components/Avatar';
 import HubAuthorProfileModal from '../components/HubAuthorProfileModal';
 import { pickableUsers } from '../utils/testUsers';
-import { countsAsCohortSupport, hasSupportRole } from '../utils/people';
+import { countsAsCohortSupport, hasSupportRole, nameWithStatus } from '../utils/people';
 import { normaliseGender } from '../utils/groupingRules';
 
 // ── Recap Attendance Modal ────────────────────────────────────────────────────
@@ -121,10 +121,11 @@ const RecapAttendanceModal: React.FC<{
           <p className="text-sm text-gray-400">No members yet.</p>
         ) : (
           <ul className="space-y-2">
-            {members.map((m) => (
+            {/* Switched-off (deactivated) members only show when already marked, locked, for the record. */}
+            {members.filter((m) => m.isActive !== false || !!marks[m.id]).map((m) => (
               <li key={m.id} className="flex items-center justify-between gap-3 rounded-xl border border-orange-100 p-3">
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-gray-900">{m.name}</p>
+                  <p className="text-sm font-semibold text-gray-900">{nameWithStatus(m.name, m.isActive)}</p>
                   <SaveStatus state={saveState[m.id]} />
                 </div>
                 <div className="w-40 flex-none">
@@ -133,7 +134,7 @@ const RecapAttendanceModal: React.FC<{
                     onChange={(v) => v && void handleMark(m.id, v as SupportAttendanceStatus)}
                     options={STATUS_OPTIONS}
                     placeholder="Not marked"
-                    disabled={saveState[m.id] === 'saving'}
+                    disabled={m.isActive === false || saveState[m.id] === 'saving'}
                     compact
                   />
                 </div>
@@ -234,7 +235,7 @@ const RoleCheckList: React.FC<{ users: User[]; selected: Set<string>; onToggle: 
         className={`flex cursor-pointer items-center gap-3 px-3 py-2.5 transition ${selected.has(u.id) ? 'bg-orange-50/60' : 'hover:bg-gray-50'}`}
       >
         <input type="checkbox" checked={selected.has(u.id)} readOnly tabIndex={-1} className="pointer-events-none h-4 w-4 accent-primary" />
-        <span className="flex-1 text-sm text-gray-800">{u.name}</span>
+        <span className="flex-1 text-sm text-gray-800">{nameWithStatus(u.name, u.isActive)}</span>
       </li>
     ))}
   </ul>
@@ -276,7 +277,11 @@ const HubRolesModal: React.FC<{
     [itSupportCandidates, itSupportIds]
   );
 
-  const memberOptions = [{ value: '', label: '— None —' }, ...members.map((u) => ({ value: u.id, label: u.name }))];
+  // Switched-off (deactivated) members can't be picked for a job; one already holding a job still shows, labelled, so it can be cleared.
+  const pickableMembers = members.filter((u) => u.isActive !== false
+    || u.id === hub.leadUserId || u.id === hub.assistantLeadUserId
+    || (hub.recapLeadUserIds ?? []).includes(u.id) || (hub.prayerLeadUserIds ?? []).includes(u.id));
+  const memberOptions = [{ value: '', label: '— None —' }, ...pickableMembers.map((u) => ({ value: u.id, label: nameWithStatus(u.name, u.isActive) }))];
   // The same person can't hold both jobs: each picker excludes whoever is
   // currently picked for the other one — except when they're already the same
   // (an existing saved hub), so that current selection still shows its real
@@ -338,11 +343,11 @@ const HubRolesModal: React.FC<{
             </div>
             <div>
               <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Recap leads</label>
-              <RoleCheckList users={members} selected={recapLeadIds} onToggle={(id) => setRecapLeadIds((prev) => toggleIn(prev, id))} />
+              <RoleCheckList users={pickableMembers} selected={recapLeadIds} onToggle={(id) => setRecapLeadIds((prev) => toggleIn(prev, id))} />
             </div>
             <div>
               <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Prayer leads</label>
-              <RoleCheckList users={members} selected={prayerLeadIds} onToggle={(id) => setPrayerLeadIds((prev) => toggleIn(prev, id))} />
+              <RoleCheckList users={pickableMembers} selected={prayerLeadIds} onToggle={(id) => setPrayerLeadIds((prev) => toggleIn(prev, id))} />
             </div>
           </div>
         )}
@@ -408,9 +413,11 @@ const HubMembersModal: React.FC<{
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const list = q ? allSupports.filter((u) => u.name.toLowerCase().includes(q)) : allSupports;
+    // Switched-off (deactivated) supports can't be added; a current member still shows, labelled, so they can be taken out.
+    const addable = allSupports.filter((u) => u.isActive !== false || currentMemberIds.includes(u.id));
+    const list = q ? addable.filter((u) => u.name.toLowerCase().includes(q)) : addable;
     return selectedFirst(list, (u) => selected.has(u.id));
-  }, [allSupports, search, selected]);
+  }, [allSupports, currentMemberIds, search, selected]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -462,7 +469,7 @@ const HubMembersModal: React.FC<{
               >
                 <input type="checkbox" checked={selected.has(u.id)} readOnly tabIndex={-1} className="pointer-events-none h-4 w-4 accent-primary" />
                 <span className="flex-1 text-sm text-gray-800">
-                  {u.name}
+                  {nameWithStatus(u.name, u.isActive)}
                   {inOtherHub && <span className="ml-2 text-xs text-amber-600">Moves from another hub</span>}
                 </span>
               </li>
@@ -917,7 +924,7 @@ const AdminHubsPage: React.FC = () => {
                             <Avatar name={u.name} avatarUrl={u.avatarUrl} size="md" />
                           </button>
                           <div className="min-w-0 flex-1">
-                          <button type="button" onClick={() => setProfileUserId(u.id)} className="block max-w-full truncate text-left text-[15px] font-medium leading-tight text-gray-900 hover:underline">{u.name}</button>
+                          <button type="button" onClick={() => setProfileUserId(u.id)} className="block max-w-full truncate text-left text-[15px] font-medium leading-tight text-gray-900 hover:underline">{nameWithStatus(u.name, u.isActive)}</button>
                           {(jobs.length > 0 || isPoi || !!teenSupportIds?.has(u.id)) && (
                             <div className="mt-1 flex flex-wrap gap-1">
                               {jobs.map((job) => (

@@ -1619,6 +1619,8 @@ export interface HubMessage {
 export interface MyHubMember {
   userId: string;
   name: string;
+  /** False once the person is switched off (deactivated); they stay listed for the record but never block anything. */
+  isActive?: boolean;
   phone?: string | null;
   avatarUrl?: string | null;
   isLead: boolean;

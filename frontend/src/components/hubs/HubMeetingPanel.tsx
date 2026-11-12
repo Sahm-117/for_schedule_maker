@@ -16,6 +16,7 @@ import { friendlyMeetingError, meetingWindowState, useMinuteClock, useRecordingO
 import { prefetchPdfEngine, prefetchDocumentFile } from '../../utils/prefetchDocument';
 import type { HubMessage, HubPrayerFocus, HubPrayerListItem, MyHubMember, SupportAttendanceStatus, SupportRecap, Week } from '../../types';
 import { PERSON_OF_INTEREST_INFO } from './hubJobs';
+import { nameWithStatus } from '../../utils/people';
 
 const STEPS = ['Attendance', 'Prayer', 'Review & Recap', 'Announcements', 'Notes', 'Submit'];
 const DONE_STEP = STEPS.length;
@@ -157,7 +158,7 @@ const FollowAlongPrayerCard: React.FC<{ focus: HubPrayerFocus; prayerLeadNames?:
 // follow-along (step names + the live prayer focus card, no controls).
 const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
   hubId,
-  members,
+  members: allMembers,
   weeks,
   weekId,
   onWeekChange,
@@ -194,6 +195,8 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
   const canOpenStep = (index: number) => isFullAccess || index === RECAP_STEP || (restrictedStepIndices?.has(index) ?? false);
 
   const [step, setStep] = useState(0);
+  // Switched-off (deactivated) members stay in the hub for the record but take no part in the meeting.
+  const activeMembers = useMemo(() => allMembers.filter((m) => m.isActive !== false), [allMembers]);
   const [marks, setMarks] = useState<Record<string, SupportAttendanceStatus>>({});
   const [marksLoading, setMarksLoading] = useState(false);
   const [markSaveState, setMarkSaveState] = useState<Record<string, SaveState>>({});
@@ -464,27 +467,30 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
   const recap = useMemo(() => recaps.find((r) => r.weekId === weekId) ?? null, [recaps, weekId]);
   const latestMessage = messages[0] ?? null;
 
-  const markedCount = Object.keys(marks).length;
-  const unmarkedMembers = members.filter((m) => !marks[m.userId]);
+  // Attendance lists the active members, plus anyone switched off (deactivated) who was already marked
+  // this week, kept for the record. Switched-off people can't be marked, so they never block Submit.
+  const attendanceRows = allMembers.filter((m) => m.isActive !== false || !!marks[m.userId]);
+  const markedCount = attendanceRows.filter((m) => marks[m.userId]).length;
+  const unmarkedMembers = attendanceRows.filter((m) => !marks[m.userId]);
   const blockedByMarks = !submitted && unmarkedMembers.length > 0;
-  const presentCount = Object.values(marks).filter((s) => s === 'PRESENT' || s === 'LATE').length;
+  const presentCount = attendanceRows.filter((m) => marks[m.userId] === 'PRESENT' || marks[m.userId] === 'LATE').length;
   const attendanceSummary = markedCount === 0
-    ? `Nobody marked yet · ${members.length} in the hub.`
-    : `${presentCount} of ${members.length} here · ${members.length - markedCount} still unmarked.`;
+    ? `Nobody marked yet · ${attendanceRows.length} in the hub.`
+    : `${presentCount} of ${attendanceRows.length} here · ${attendanceRows.length - markedCount} still unmarked.`;
 
   const doneSummary = useMemo(() => {
     const parts: string[] = [];
-    if (members.length === 0) parts.push('no members in this hub yet');
+    if (attendanceRows.length === 0) parts.push('no members in this hub yet');
     else if (markedCount === 0) parts.push('attendance not marked');
     else {
-      const unmarked = members.length - markedCount;
-      const counts = [`${presentCount} of ${members.length} present`];
+      const unmarked = attendanceRows.length - markedCount;
+      const counts = [`${presentCount} of ${attendanceRows.length} present`];
       if (unmarked > 0) counts.push(`${unmarked} still unmarked`);
       parts.push(counts.join(', '));
     }
     if (notes.trim()) parts.push('notes added');
     return `${parts.join(' · ')}.`;
-  }, [markedCount, members.length, notes, presentCount]);
+  }, [markedCount, attendanceRows.length, notes, presentCount]);
 
   const status = submitted
     ? { label: 'Submitted', cls: 'bg-emerald-100/80 text-emerald-700' }
@@ -547,11 +553,11 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
           </button>
         </div>
         {!huddleDone && (
-          members.length === 0 ? (
+          activeMembers.length === 0 ? (
             <p className="mt-2 text-sm text-gray-500">No members yet.</p>
           ) : (
             <div className="mt-2 flex flex-wrap gap-1.5">
-              {members.map((m) => (
+              {activeMembers.map((m) => (
                 <span key={m.userId} className="rounded-full bg-neutral-100 px-2.5 py-1 text-xs font-semibold text-gray-600">{m.name}</span>
               ))}
             </div>
@@ -953,20 +959,20 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
           <h3 className="text-[17px] font-semibold text-gray-900">Who's here?</h3>
           {marksLoading ? (
             <p className="mt-3 flex items-center gap-1.5 text-sm text-gray-400"><Spinner className="h-3.5 w-3.5" />Loading…</p>
-          ) : members.length === 0 ? (
+          ) : attendanceRows.length === 0 ? (
             <div className="mt-3.5 rounded-2xl bg-[#f5f5f7] py-10 text-center text-[14px] text-gray-500">No members in this hub yet.</div>
           ) : (
             <ul className="mt-2">
-              {members.map((m) => (
+              {attendanceRows.map((m) => (
                 <CompactAttendanceRow
                   quiet
                   key={m.userId}
-                  name={m.name}
+                  name={nameWithStatus(m.name, m.isActive)}
                   tag={m.isPersonOfInterest ? <span title={PERSON_OF_INTEREST_INFO.description} className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${PERSON_OF_INTEREST_INFO.pill}`}>{PERSON_OF_INTEREST_INFO.label}</span> : undefined}
                   value={marks[m.userId] ?? ''}
                   onChange={(v) => void handleMark(m.userId, v as SupportAttendanceStatus)}
                   options={STATUS_OPTIONS}
-                  disabled={markSaveState[m.userId] === 'saving'}
+                  disabled={m.isActive === false || markSaveState[m.userId] === 'saving'}
                   status={<SaveStatus state={markSaveState[m.userId]} />}
                 />
               ))}
