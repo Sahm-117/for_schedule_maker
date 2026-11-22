@@ -716,6 +716,7 @@ const peopleUnavailable = () => {
 };
 
 export const participantsApi = USE_SUPABASE ? supabaseParticipantsApi : {
+  async teenSetup(_participantId: string): Promise<void> { return peopleUnavailable(); },
   async getNames(): Promise<{ people: Array<{ id: string; fullName: string; phone: string | null; cohortName: string | null; isTest: boolean; archived: boolean }> }> { return { people: [] }; },
   async getById(_participantId: string): Promise<{ participant: import('../types').Participant | null }> { return { participant: null }; },
   async getAll(_options?: any): Promise<{ participants: import('../types').Participant[] }> { return { participants: [] }; },

@@ -209,6 +209,15 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, on
           ...details,
         }));
       }
+      // Someone saved with a teen age range but not yet on the teen path (added from this form, or added before this
+      // existed) goes on it now, so a Teen Support can take them. A failure leaves them saved as they are.
+      if (isTeenAgeRange(result.ageRange) && !isOnTeenPath(result)) {
+        try {
+          await participantsApi.teenSetup(result.id);
+          const { participant: fresh } = await participantsApi.getById(result.id);
+          if (fresh) result = fresh;
+        } catch { /* they show under "Not in a group" until an admin sets them up */ }
+      }
       // An edit across the teen line also moves the person (teen handling, their group, their follow-up): say so.
       let crossed: 'teen' | 'adult' | null = null;
       // Read the saved age range: a date of birth may have set it in the database.
@@ -1282,6 +1291,10 @@ const AdminParticipantsContent: React.FC = () => {
   );
   const [noGroupShowAll, setNoGroupShowAll] = useState(false);
   const [noGroupOpen, setNoGroupOpen] = useState(false);
+  // "Needs attention": the missed-classes, not-in-a-group and profile cards folded into one section, closed by default.
+  const [attentionOpen, setAttentionOpen] = useState(false);
+  const [absenceCounts, setAbsenceCounts] = useState<{ atRisk: number; moved: number }>({ atRisk: 0, moved: 0 });
+  const onAbsenceCount = useCallback((atRisk: number, moved: number) => setAbsenceCounts({ atRisk, moved }), []);
 
   // "Remind everyone missing details": adults whose profile is not complete. Teens have no login of their own, so they are left out.
   const [remindOpen, setRemindOpen] = useState(false);
@@ -1481,11 +1494,33 @@ const AdminParticipantsContent: React.FC = () => {
         }
       />
 
-      {activeCohort && <AbsenceReviewCard className="mb-4" />}
       {!activeCohort ? (
         <p className="text-sm text-gray-500">Select or create a cohort first.</p>
       ) : (
         <>
+          <section data-wt="participants-needs-attention" className="surface-card mb-4 min-w-0 overflow-hidden">
+            <button type="button" onClick={() => setAttentionOpen((v) => !v)} aria-expanded={attentionOpen} aria-controls="participants-needs-attention-body" className="flex w-full items-center gap-3 px-5 py-4 text-left sm:px-6">
+              <div className="min-w-0 flex-1">
+                <h3 className="text-base font-semibold text-gray-900">Needs attention</h3>
+                <p className="mt-0.5 text-[13px] text-gray-600">
+                  {[
+                    absenceCounts.atRisk > 0 ? `${absenceCounts.atRisk} at risk of moving to the next cohort` : null,
+                    absenceCounts.moved > 0 ? `${absenceCounts.moved} moved (can undo)` : null,
+                    !loading && noGroupAdults.length > 0 ? `${noGroupAdults.length} not in a group` : null,
+                    !loading && noGroupTeens > 0 ? `${noGroupTeens} ${noGroupTeens === 1 ? 'teen' : 'teens'} waiting for a Teen Support` : null,
+                    completionById.size > 0 ? 'Profile completion' : null,
+                  ].filter(Boolean).join(' · ') || 'Nothing needs you right now'}
+                </p>
+              </div>
+              <span className={`inline-flex h-8 w-8 flex-none items-center justify-center text-gray-500 transition-transform ${attentionOpen ? 'rotate-90' : ''}`} aria-hidden="true">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m9 5 7 7-7 7" />
+                </svg>
+              </span>
+            </button>
+            {/* Kept mounted while folded, so the missed-classes card can report its numbers for the summary above. */}
+            <div id="participants-needs-attention-body" className={attentionOpen ? 'px-3 pb-3 sm:px-4' : 'hidden'}>
+          <AbsenceReviewCard className="mb-4" onCount={onAbsenceCount} />
           {!loading && (noGroupAdults.length > 0 || noGroupTeens > 0) && (
             <section data-wt="participants-no-group" className="surface-card mb-4 min-w-0 overflow-hidden">
               <button type="button" onClick={() => setNoGroupOpen((v) => !v)} aria-expanded={noGroupOpen} aria-controls="participants-no-group-body" className="flex w-full items-center gap-3 px-5 py-4 text-left sm:px-6">
@@ -1541,6 +1576,8 @@ const AdminParticipantsContent: React.FC = () => {
               />
             </div>
           )}
+            </div>
+          </section>
           {quickChips.length > 0 && (
             <div data-wt="participants-quick-filters" className="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0" role="group" aria-label="Quick filters">
               {quickChips.map((c) => {

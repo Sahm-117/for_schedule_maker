@@ -5037,6 +5037,12 @@ const mapParticipant = (row: any): import('../types').Participant => {
 };
 
 export const participantsApi = {
+  /** Put a participant added (or left) with a teen age range on the teen path, so a Teen Support can take them (admins). */
+  async teenSetup(participantId: string): Promise<void> {
+    const { error } = await supabase.rpc('admin_teen_setup', { p_participant_id: participantId });
+    if (error) throw new Error(error.message);
+  },
+
   /** Every participant (any cohort, archived too) as a name only: for pickers such as a teen's guardian. */
   async getNames(): Promise<{ people: Array<{ id: string; fullName: string; phone: string | null; cohortName: string | null; isTest: boolean; archived: boolean }> }> {
     const { data, error } = await supabase.from('Participant').select('id, fullName, phone, isTest, status, cohort:Cohort(name)').order('fullName', { ascending: true });

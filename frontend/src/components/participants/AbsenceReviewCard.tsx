@@ -29,7 +29,7 @@ const Overlay: React.FC<{ title: string; onClose: () => void; children: React.Re
   document.body,
 );
 
-const AbsenceReviewCard: React.FC<{ className?: string }> = ({ className = '' }) => {
+const AbsenceReviewCard: React.FC<{ className?: string; onCount?: (atRisk: number, moved: number) => void }> = ({ className = '', onCount }) => {
   const toast = useToast();
   const [state, setState] = useState<AbsenceReviewState | null>(null);
   const [open, setOpen] = useState(false);
@@ -43,6 +43,8 @@ const AbsenceReviewCard: React.FC<{ className?: string }> = ({ className = '' })
   const people = state?.people ?? [];
   const undoable = state?.undoable ?? [];
   const warning = !!state?.open && people.length > 0;
+  // For a page that folds this card away: how many are at risk now, and how many moves can still be undone.
+  useEffect(() => { onCount?.(warning ? people.length : 0, undoable.length); }, [onCount, warning, people.length, undoable.length]);
   if (!warning && undoable.length === 0) return null;
 
   const undo = async (id: string, name: string) => {
