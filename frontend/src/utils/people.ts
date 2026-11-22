@@ -69,6 +69,20 @@ export const supportProfileChecklist = (user: Pick<User, 'avatarUrl' | 'gender' 
 export const isSupportProfileComplete = (user: Pick<User, 'avatarUrl' | 'gender' | 'ageRange' | 'phone'>): boolean =>
   supportProfileChecklist(user).every((item) => item.done);
 
+/** How each role reads on screen (Users page badges, pickers). */
+export const ROLE_LABEL: Record<string, string> = {
+  ADMIN: 'Admin',
+  SUPPORT: 'Support',
+  STAFF: 'Team member',
+  PARTICIPANT: 'Participant',
+};
+
+/** Every role a user holds, as words ("Admin · Support"). A Team member loaded as an admin (`teamMember`) reads as a Team member. */
+export const roleLabels = (user: { role?: string; roles?: string[] | null; teamMember?: boolean }): string => {
+  const roles = user.roles && user.roles.length > 0 ? user.roles : user.role ? [user.teamMember ? 'STAFF' : user.role] : [];
+  return roles.map((r) => ROLE_LABEL[r] ?? r).join(' · ');
+};
+
 /** A support in every list that needs supports: the Support role, or an admin who also carries the Support tag. */
 export const hasSupportRole = (user: { role?: string; roles?: string[] | null }): boolean =>
   user.role === 'SUPPORT' || !!user.roles?.includes('SUPPORT');

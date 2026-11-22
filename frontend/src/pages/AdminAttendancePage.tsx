@@ -18,6 +18,9 @@ import type { AttendanceFollowUpTask, AttendanceRecord, AttendanceSession, Atten
 import { getIdealWeekForCohort } from '../utils/weekFocus';
 import { sortByText } from '../utils/sort';
 import { sundayMarkAttended } from '../utils/programmeRules';
+import { isTeenParticipant } from '../utils/profileCompletionSummary';
+
+const NO_TEEN_GROUPS = new Set<string>();
 import MiniLine from '../components/charts/MiniLine';
 
 const STATUS_DOT: Record<AttendanceStatus, string> = {
@@ -92,6 +95,7 @@ const AdminAttendanceContent: React.FC = () => {
   const [filters, setFilters] = useState<FilterValues>({});
   const selectedGroupIds = filters.group ?? NO_CHOICES;
   const statusFilters = filters.status ?? NO_CHOICES;
+  const peopleFilters = filters.people ?? NO_CHOICES;
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<Set<string>>(new Set());
@@ -173,12 +177,14 @@ const AdminAttendanceContent: React.FC = () => {
 
   const visibleParticipants = useMemo(() => {
     let ps = selectedGroupIds.length > 0 ? participants.filter((p) => !!p.groupId && selectedGroupIds.includes(p.groupId)) : participants;
+    // Adults or teens, as the Participants page decides it (teen age range or on the teen path; teen groups aren't loaded here).
+    if (peopleFilters.length > 0) ps = ps.filter((p) => peopleFilters.includes(isTeenParticipant(p, NO_TEEN_GROUPS) ? 'teen' : 'adult'));
     if (search.trim()) {
       const q = search.toLowerCase();
       ps = ps.filter((p) => p.fullName.toLowerCase().includes(q) || (p.phone ?? '').includes(q));
     }
     return sortByText(ps, (participant) => participant.fullName);
-  }, [participants, selectedGroupIds, search]);
+  }, [participants, selectedGroupIds, peopleFilters, search]);
 
   // Status filter applies only to the card list (summary tiles keep counting
   // the whole week). 'UNMARKED' = no attendance record for the participant.
@@ -200,6 +206,11 @@ const AdminAttendanceContent: React.FC = () => {
       options: [['PRESENT', 'Present'], ['LATE', 'Late'], ['LEFT_EARLY', 'Left early'], ['ABSENT', 'Absent'], ['EXCUSED', 'Excused'], ['UNMARKED', 'Unmarked']]
         .map(([value, label]) => ({ value, label, count: statusCount(value) })),
     }];
+    const teens = participants.filter((p) => isTeenParticipant(p, NO_TEEN_GROUPS)).length;
+    out.push({ key: 'people', label: 'Adults or teens', options: [
+      { value: 'adult', label: 'Adults', count: participants.length - teens },
+      { value: 'teen', label: 'Teens', count: teens },
+    ] });
     if (groups.length > 0) out.push({ key: 'group', label: 'Group', options: sortedGroups.map((g) => ({ value: g.id, label: g.name, count: participants.filter((p) => p.groupId === g.id).length })) });
     return out;
   }, [groups, participants, visibleParticipants, records]);

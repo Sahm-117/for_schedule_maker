@@ -51,7 +51,7 @@ import { sortByText } from '../utils/sort';
 import { pickableUsers } from '../utils/testUsers';
 import { reconcileById } from '../utils/reconcile';
 import { normalizeToIntlPhone } from '../utils/phone';
-import { ageRangeFromDate } from '../utils/people';
+import { ageRangeFromDate, roleLabels } from '../utils/people';
 import { AGE_RANGE_OPTIONS, GENDER_OPTIONS, toSelectOptions } from '../constants/departments';
 import { departmentOptions, useChurchDepartments } from '../hooks/useChurchDepartments';
 import LoginDetailsCard from '../components/participants/LoginDetailsCard';
@@ -148,10 +148,10 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, on
   const guardianOptions = useMemo(() => {
     const staff = pickableUsers(users, { keepIds: [existing?.guardianUserId] })
       .filter((u) => u.isActive !== false || u.id === existing?.guardianUserId)
-      .map((u) => ({ value: `user:${u.id}`, label: u.name, meta: u.role === 'ADMIN' || u.roles?.includes('ADMIN') ? 'Admin' : 'Support', group: 'Supports & admins' }));
+      .map((u) => ({ value: `user:${u.id}`, label: u.name, meta: roleLabels(u) || undefined, group: 'Supports, admins & team' }));
     // A guardian who has since been switched off is not in the list of active users: keep them shown.
     if (existing?.guardianUserId && !staff.some((o) => o.value === `user:${existing.guardianUserId}`)) {
-      staff.push({ value: `user:${existing.guardianUserId}`, label: 'Current guardian (account switched off)', meta: 'Support', group: 'Supports & admins' });
+      staff.push({ value: `user:${existing.guardianUserId}`, label: 'Current guardian (account switched off)', meta: undefined, group: 'Supports, admins & team' });
     }
     // Archived participants are listed only when they are already this teen's guardian.
     const people = (guardianPeople ?? [])

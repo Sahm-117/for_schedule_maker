@@ -19,6 +19,7 @@ import { toLocalNigerianPhone } from '../utils/phone';
 import { INSTALL_VIDEO_ANDROID, INSTALL_VIDEO_IOS } from '../constants/installVideos';
 import NotOpenedTag from './participants/NotOpenedTag';
 import { STAFF_NOT_OPENED_HINT } from '../utils/appUse';
+import { ROLE_LABEL } from '../utils/people';
 
 const ROLE_BADGE: Record<string, string> = {
   ADMIN: 'bg-orange-100/80 text-orange-700',
@@ -47,12 +48,6 @@ const formatLastActiveShort = (iso: string | null | undefined): string => {
   if (iso === undefined) return '';
   if (!iso) return 'Never';
   return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', hour: 'numeric', hour12: true }).format(new Date(iso));
-};
-const ROLE_LABEL: Record<string, string> = {
-  ADMIN: 'Admin',
-  SUPPORT: 'Support',
-  STAFF: 'Team member',
-  PARTICIPANT: 'Participant',
 };
 
 interface UserManagementProps {
