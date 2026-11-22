@@ -64,6 +64,8 @@ interface MeetingModePanelProps {
   windowState?: MeetingWindowState;
   /** Opens the meeting time editor, for the "no time yet" notice. */
   onSetTime?: () => void;
+  /** The group's own support: open a missed, unreported past meeting for 48 hours. */
+  onOpenMissed?: () => Promise<void>;
 }
 
 // Five-step weekly group meeting flow: Attendance → Prayer → Recap → Notes → Submit.
@@ -89,6 +91,7 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
   recapDocumentName,
   windowState,
   onSetTime,
+  onOpenMissed,
   reopen = null,
   onAskReopen,
 }) => {
@@ -303,7 +306,7 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
         </div>}
       </section>
 
-      {blocked && windowState ? <MeetingWindowNotice window={windowState} onSetTime={onSetTime} /> : (<>
+      {blocked && windowState ? <MeetingWindowNotice key={weekId ?? 'none'} window={windowState} onSetTime={onSetTime} onOpenMissed={onOpenMissed} /> : (<>
       {step === 0 && (
         <section className={CARD}>
           <h3 className="text-[15px] font-bold text-gray-900">Who joined the meeting?</h3>

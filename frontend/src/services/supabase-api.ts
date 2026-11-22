@@ -5025,6 +5025,8 @@ const mapParticipant = (row: any): import('../types').Participant => {
     groupName: gp?.group?.name ?? null,
     isTest: !!row.isTest,
     guardianPhone: row.guardianPhone ?? null,
+    guardianUserId: row.guardianUserId ?? null,
+    guardianParticipantId: row.guardianParticipantId ?? null,
     prayerConsent: row.prayerConsent ?? null,
     retakeStatus: row.retakeStatus ?? null,
     retakeNote: row.retakeNote ?? null,
@@ -5035,6 +5037,13 @@ const mapParticipant = (row: any): import('../types').Participant => {
 };
 
 export const participantsApi = {
+  /** Every participant (any cohort, archived too) as a name only: for pickers such as a teen's guardian. */
+  async getNames(): Promise<{ people: Array<{ id: string; fullName: string; cohortName: string | null; isTest: boolean; archived: boolean }> }> {
+    const { data, error } = await supabase.from('Participant').select('id, fullName, isTest, status, cohort:Cohort(name)').order('fullName', { ascending: true });
+    if (error) throw new Error(error.message);
+    return { people: ((data as any[]) || []).map((row) => ({ id: row.id, fullName: row.fullName, cohortName: (Array.isArray(row.cohort) ? row.cohort[0] : row.cohort)?.name ?? null, isTest: !!row.isTest, archived: row.status !== 'ACTIVE' })) };
+  },
+
   async getById(participantId: string): Promise<{ participant: import('../types').Participant | null }> {
     const { data, error } = await supabase.from('Participant').select(PARTICIPANT_SELECT).eq('id', participantId).maybeSingle();
     if (error) throw new Error(error.message);
@@ -5086,6 +5095,8 @@ export const participantsApi = {
     departments?: string[];
     registrationDate?: string | null;
     smartRequest?: string | null;
+    guardianUserId?: string | null;
+    guardianParticipantId?: string | null;
   }): Promise<{ participant: import('../types').Participant }> {
     const { data, error } = await supabase
       .from('Participant')
@@ -6914,6 +6925,17 @@ export const meetingRecordingApi = {
     const { data, error } = await supabase.rpc('admin_open_meeting_recording', { p_hub_id: target.hubId ?? null, p_group_id: target.groupId ?? null, p_week_id: weekId, p_hours: hours });
     if (error) {
       if (/could not find the function|PGRST202/i.test(`${error.message} ${error.code ?? ''}`)) throw new Error('Open meeting is not switched on yet. The database update for it still has to be applied.');
+      throw new Error(error.message);
+    }
+    return data as string;
+  },
+  /** A group's support (or a hub lead) opens their own missed, unreported meeting for 48 hours. */
+  async openMissed(target: { hubId?: string | null; groupId?: string | null }, weekId: number): Promise<string> {
+    const { data, error } = await supabase.rpc('open_missed_meeting', { p_hub_id: target.hubId ?? null, p_group_id: target.groupId ?? null, p_week_id: weekId });
+    if (error) {
+      if (/ALREADY_SUBMITTED/.test(error.message)) throw new Error('This meeting was already reported.');
+      if (/NOT_PAST/.test(error.message)) throw new Error('This meeting has not passed yet.');
+      if (/NOT_AUTHORISED/.test(error.message)) throw new Error('Only the person who runs this meeting can open it.');
       throw new Error(error.message);
     }
     return data as string;

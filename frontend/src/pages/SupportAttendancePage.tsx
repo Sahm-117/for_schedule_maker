@@ -17,6 +17,7 @@ import { classDateIso, lagosTodayIso, nextClassWeek } from '../utils/participant
 import { sortByText } from '../utils/sort';
 import { countdownLabel, useDeadlineClock } from '../hooks/useDeadlineClock';
 import Spinner from '../components/Spinner';
+import ConfirmationModal from '../components/ConfirmationModal';
 
 const STATUS_BUTTONS: Array<{ status: AttendanceStatus; label: string; activeCls: string }> = [
   { status: 'PRESENT', label: 'Present', activeCls: 'bg-emerald-100 text-emerald-700' },
@@ -110,6 +111,11 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
   const [search, setSearch] = useState('');
   const [selectedGroupId, setSelectedGroupId] = useState('');
   const [starting, setStarting] = useState(false);
+  // Any support can reopen a closed class (with a reason), the same reopen as an admin's.
+  const [reopenOpen, setReopenOpen] = useState(false);
+  const [reopenReason, setReopenReason] = useState('');
+  const [reopening, setReopening] = useState(false);
+  const reopenConfirming = useRef(false);
   const participants = useMemo(
     () => {
       if (!teenGroupId) return allParticipants;
@@ -266,6 +272,21 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
     return ps;
   }, [participants, selectedGroupId, search]);
 
+  const reopen = async () => {
+    if (typeof selectedWeekId !== 'number' || !reopenReason.trim() || reopening) return;
+    setReopening(true);
+    try {
+      const { session: saved } = await attendanceApi.reopen(selectedWeekId, reopenReason.trim());
+      setSession(saved);
+      setReopenReason('');
+      toast({ message: 'Attendance reopened. Other supports have been told.' });
+    } catch (err) {
+      // Keep the typed reason and put the dialog back so they can retry.
+      toast({ message: err instanceof Error ? err.message : 'Could not reopen attendance.', tone: 'error' });
+      setReopenOpen(true);
+    } finally { setReopening(false); }
+  };
+
   const [confirmAllPresent, setConfirmAllPresent] = useState(false);
   const markAllPresent = async () => {
     setConfirmAllPresent(false);
@@ -348,7 +369,14 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
             )}
             {!allWeeks && finalised && <p className="mt-2 text-[13px] font-medium text-emerald-700">Attendance report sent.</p>}
             {!allWeeks && !finalised && allMarked && !(teenGroupId && scope !== 'everyone') && <p className="mt-2 text-[13px] font-medium text-emerald-700">Attendance taken.{activeSession.autoFinalizeAtNoon ? ' It will be sent automatically at noon on Sunday.' : ' Waiting for the admin to send the report.'}</p>}
-            {!allWeeks && locked && <p className="mt-2 text-[13px] font-medium text-gray-500">Attendance for this class is closed. To dispute someone's mark, message an admin.</p>}
+            {!allWeeks && locked && (
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
+                <p className="text-[13px] font-medium text-gray-500">Attendance for this class is closed.</p>
+                <button type="button" onClick={() => setReopenOpen(true)} disabled={reopening} className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl bg-primary px-4 text-[13px] font-semibold text-white active:scale-95 disabled:opacity-60">
+                  {reopening ? <><Spinner className="h-3.5 w-3.5" />Reopening…</> : 'Reopen attendance'}
+                </button>
+              </div>
+            )}
           </section>
           {allWeeks ? (loading ? <PageLoader /> : <section className="overflow-hidden rounded-[20px] border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">{weekResults.map((result) => {
             const reportSent = !!result.session?.finalizedAt;
@@ -399,6 +427,30 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
           </>}
         </>
       )}
+      <ConfirmationModal
+        isOpen={reopenOpen}
+        onClose={() => {
+          setReopenOpen(false);
+          if (!reopenConfirming.current) setReopenReason('');
+          reopenConfirming.current = false;
+        }}
+        onConfirm={() => { reopenConfirming.current = true; void reopen(); }}
+        title="Reopen this class?"
+        message="Marks can be changed again, and the other supports are told it is open. Say why you are reopening it."
+        confirmText="Reopen"
+        type="warning"
+        confirmDisabled={!reopenReason.trim()}
+      >
+        <textarea
+          value={reopenReason}
+          onChange={(e) => setReopenReason(e.target.value)}
+          rows={3}
+          maxLength={500}
+          placeholder="For example: I missed marking two people"
+          aria-label="Reason for reopening"
+          className="w-full rounded-xl border border-gray-200 px-3.5 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+        />
+      </ConfirmationModal>
     </div>
   );
 };

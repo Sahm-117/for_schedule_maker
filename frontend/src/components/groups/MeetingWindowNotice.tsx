@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { formatLagosMoment, type MeetingWindowState } from '../../utils/meetingWindow';
 
 // Shown in place of a meeting's recording steps when it cannot be recorded right now: no meeting time
@@ -8,9 +8,22 @@ const MeetingWindowNotice: React.FC<{
   window: MeetingWindowState;
   /** "Set meeting time" for whoever can set it; leave out when they cannot. */
   onSetTime?: () => void;
-}> = ({ window: state, onSetTime }) => {
+  /** For whoever runs the meeting: open a missed, unreported meeting for 48 hours so they can report it. */
+  onOpenMissed?: () => Promise<void>;
+}> = ({ window: state, onSetTime, onOpenMissed }) => {
+  const [opening, setOpening] = useState(false);
+  const [error, setError] = useState('');
   if (state.state === 'open') return null;
-  const { title, body } = state.state === 'not_set'
+  const canOpenMissed = state.state === 'after' && !!onOpenMissed;
+  const openMissed = async () => {
+    if (!onOpenMissed || opening) return;
+    setOpening(true);
+    setError('');
+    try { await onOpenMissed(); } catch (e) { setError(e instanceof Error ? e.message : 'Could not open the meeting.'); } finally { setOpening(false); }
+  };
+  const { title, body } = canOpenMissed
+    ? { title: 'This meeting was not reported', body: 'If you missed it, or held it but did not report it, open it to record attendance and the report. It stays open for 48 hours.' }
+    : state.state === 'not_set'
     ? { title: 'Set your meeting day and time first', body: 'Attendance, prayer and the report can be recorded once your meeting has a day and time.' }
     : state.state === 'before'
       ? { title: `Opens ${formatLagosMoment(state.opensAt)}`, body: 'You can record the meeting from 10 minutes before it starts until midnight that day.' }
@@ -26,6 +39,12 @@ const MeetingWindowNotice: React.FC<{
         {state.state === 'not_set' && onSetTime && (
           <button type="button" onClick={onSetTime} className="mt-2.5 min-h-[36px] rounded-full bg-primary px-4 text-[13px] font-semibold text-white">Set meeting time</button>
         )}
+        {canOpenMissed && (
+          <button type="button" onClick={() => void openMissed()} disabled={opening} className="mt-2.5 inline-flex min-h-[40px] items-center gap-1.5 rounded-full bg-primary px-4 text-[13px] font-semibold text-white active:scale-95 disabled:opacity-60">
+            {opening ? 'Opening…' : 'Report this meeting now'}
+          </button>
+        )}
+        {error && <p className="mt-2 text-xs font-medium text-red-700">{error}</p>}
       </div>
     </section>
   );

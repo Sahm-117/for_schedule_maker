@@ -98,6 +98,8 @@ export const useRecordingOpening = (
   weekId: number | null | undefined,
   base: MeetingWindowState,
   clock: Date,
+  /** Bump to read the opening again, e.g. after the support opened a missed meeting. */
+  refreshKey = 0,
 ): MeetingWindowState => {
   const [until, setUntil] = useState<Date | null>(null);
   const targetId = target.hubId ?? target.groupId ?? null;
@@ -112,6 +114,6 @@ export const useRecordingOpening = (
       .catch(() => { if (!cancelled) setUntil(null); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [closed, targetId, weekId]);
+  }, [closed, targetId, weekId, refreshKey]);
   return until && until.getTime() > clock.getTime() ? { state: 'open', closesAt: until } : base;
 };

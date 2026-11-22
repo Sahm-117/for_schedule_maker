@@ -48,6 +48,7 @@ import {
 } from '../utils/contactImport';
 import Spinner from '../components/Spinner';
 import { sortByText } from '../utils/sort';
+import { pickableUsers } from '../utils/testUsers';
 import { reconcileById } from '../utils/reconcile';
 import { normalizeToIntlPhone } from '../utils/phone';
 import { ageRangeFromDate } from '../utils/people';
@@ -81,6 +82,8 @@ interface ParticipantModalProps {
   onSaved: (p: Participant, crossed?: 'teen' | 'adult' | null) => void;
   cohortId: string;
   existing?: Participant | null;
+  /** Everyone who can be picked as a teen's guardian from the users side (supports and admins). */
+  users: User[];
 }
 
 // CSV registrationDate arrives as "YYYY-MM-DD HH:mm:ss" (or ISO); a date input
@@ -91,7 +94,7 @@ const toDateInput = (value?: string | null): string => {
   return /^\d{4}-\d{2}-\d{2}$/.test(datePart) ? datePart : '';
 };
 
-const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, onSaved, cohortId, existing }) => {
+const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, onSaved, cohortId, existing, users }) => {
   const churchDepartments = useChurchDepartments();
   const toast = useToast();
   const [fullName, setFullName] = useState('');
@@ -104,6 +107,9 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, on
   const [departments, setDepartments] = useState<string[]>([]);
   const [registrationDate, setRegistrationDate] = useState('');
   const [smartRequest, setSmartRequest] = useState('');
+  // A teen's guardian picked from people already in the system: "user:<id>" or "participant:<id>".
+  const [guardian, setGuardian] = useState('');
+  const [guardianPeople, setGuardianPeople] = useState<Array<{ id: string; fullName: string; cohortName: string | null; isTest: boolean; archived: boolean }> | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
@@ -120,6 +126,7 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, on
       setDepartments(existing?.departments ?? []);
       setRegistrationDate(toDateInput(existing?.registrationDate));
       setSmartRequest(existing?.smartRequest ?? '');
+      setGuardian(existing?.guardianUserId ? `user:${existing.guardianUserId}` : existing?.guardianParticipantId ? `participant:${existing.guardianParticipantId}` : '');
       setDetailsOpen(false);
       setErr('');
     }
@@ -128,6 +135,30 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, on
   // A believable date of birth (age 5 to 100) sets the age range, and the database puts it back after any edit, so the
   // box locks. A day-and-month-only birthday (placeholder year) gives no age, so the age range stays editable.
   const ageFromDob = !!ageRangeFromDate(dateOfBirth);
+  const teenRange = isTeenAgeRange(ageRange);
+
+  // Participants (any cohort) are read once, when a teen age range first needs the guardian list.
+  useEffect(() => {
+    if (!isOpen || !teenRange || guardianPeople) return;
+    let cancelled = false;
+    participantsApi.getNames().then(({ people }) => { if (!cancelled) setGuardianPeople(people); }).catch(() => { if (!cancelled) setGuardianPeople([]); });
+    return () => { cancelled = true; };
+  }, [isOpen, teenRange, guardianPeople]);
+
+  const guardianOptions = useMemo(() => {
+    const staff = pickableUsers(users, { keepIds: [existing?.guardianUserId] })
+      .filter((u) => u.isActive !== false || u.id === existing?.guardianUserId)
+      .map((u) => ({ value: `user:${u.id}`, label: u.name, meta: u.role === 'ADMIN' || u.roles?.includes('ADMIN') ? 'Admin' : 'Support', group: 'Supports & admins' }));
+    // A guardian who has since been switched off is not in the list of active users: keep them shown.
+    if (existing?.guardianUserId && !staff.some((o) => o.value === `user:${existing.guardianUserId}`)) {
+      staff.push({ value: `user:${existing.guardianUserId}`, label: 'Current guardian (account switched off)', meta: 'Support', group: 'Supports & admins' });
+    }
+    // Archived participants are listed only when they are already this teen's guardian.
+    const people = (guardianPeople ?? [])
+      .filter((p) => p.id !== existing?.id && ((!p.isTest && !p.archived) || p.id === existing?.guardianParticipantId))
+      .map((p) => ({ value: `participant:${p.id}`, label: p.fullName, meta: [p.cohortName, p.archived ? 'archived' : null].filter(Boolean).join(' · ') || undefined, group: 'Participants' }));
+    return [{ value: '', label: 'No guardian picked' }, ...sortByText(staff, (o) => o.label), ...people];
+  }, [users, guardianPeople, existing]);
 
   const handleSave = async () => {
     if (!fullName.trim()) { setErr('Name is required'); return; }
@@ -141,6 +172,9 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, on
       departments,
       registrationDate: registrationDate || null,
       smartRequest: smartRequest.trim() || null,
+      // Only a teen keeps a guardian link.
+      guardianUserId: teenRange && guardian.startsWith('user:') ? guardian.slice(5) : null,
+      guardianParticipantId: teenRange && guardian.startsWith('participant:') ? guardian.slice(12) : null,
     };
     try {
       let result: Participant;
@@ -284,6 +318,19 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, on
                 {ageFromDob && <p className="mt-1 text-xs text-gray-500">Worked out from their date of birth. To change it, change the date of birth.</p>}
                 {!ageFromDob && existing && <p className="mt-1 text-xs text-gray-500">Switching between teen (10 - 17) and adult also moves them (group, Teen Support and follow-up) when they are in the current cohort and teen handling is on.</p>}
               </div>
+              {teenRange && (
+                <div>
+                  <AppSelect
+                    label="Guardian"
+                    value={guardian}
+                    onChange={setGuardian}
+                    options={guardianOptions}
+                    placeholder="Search supports, admins or participants"
+                    loading={!guardianPeople}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">Pick their parent or guardian if they are already in the app.</p>
+                </div>
+              )}
               <div>
                 <AppMultiSelect
                   label="Department(s)"
@@ -1629,6 +1676,7 @@ const AdminParticipantsContent: React.FC = () => {
         }}
         cohortId={activeCohort?.id ?? ''}
         existing={editing}
+        users={supportUsers}
       />
 
       {healthFor && healthById.get(healthFor.id) && people && (

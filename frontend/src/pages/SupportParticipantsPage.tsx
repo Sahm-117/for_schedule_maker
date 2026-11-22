@@ -17,7 +17,7 @@ import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
-import { supportTagsApi, faithProjectsApi, faithProjectCategoriesApi, faithHelpRequestsApi, testimoniesApi, groupOnboardingStatusApi, groupDiscussionApi, groupPrayerFocusApi, groupPrayerStatusApi, groupsApi, participantHandoversApi, participantFlagsApi, participantNotesApi, participantsApi, participantPushApi, reflectionActivityApi, participantCheckInsApi, groupMeetingReopenApi } from '../services/api';
+import { supportTagsApi, faithProjectsApi, faithProjectCategoriesApi, faithHelpRequestsApi, testimoniesApi, groupOnboardingStatusApi, groupDiscussionApi, groupPrayerFocusApi, groupPrayerStatusApi, groupsApi, participantHandoversApi, participantFlagsApi, participantNotesApi, participantsApi, participantPushApi, reflectionActivityApi, participantCheckInsApi, groupMeetingReopenApi, meetingRecordingApi } from '../services/api';
 import type { FaithHelpRequest, FaithProject, FaithProjectCategory, Group, GroupMeetingReopenState, GroupOnboardingStatus, GroupPrayerFocus, GroupPrayerStatus, Participant, ParticipantHandover, ParticipantFlag, ParticipantNote, RetakeMatch, Testimony, User, ParticipantAppInfo, OnboardingProgress } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
 import { sortByText } from '../utils/sort';
@@ -381,7 +381,8 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
   );
 
   const selectedWeek = cohortWeeks.find((week) => week.id === selectedWeekId) ?? null;
-  const groupWindowState = useRecordingOpening({ groupId: selectedGroupId || null }, selectedWeek?.id, meetingWindowState(selectedGroupData?.meetingDay, selectedGroupData?.meetingTime, selectedWeek, activeCohort?.startDate, clock, !!activeCohort?.isPractice), clock);
+  const [openingTick, setOpeningTick] = useState(0);
+  const groupWindowState = useRecordingOpening({ groupId: selectedGroupId || null }, selectedWeek?.id, meetingWindowState(selectedGroupData?.meetingDay, selectedGroupData?.meetingTime, selectedWeek, activeCohort?.startDate, clock, !!activeCohort?.isPractice), clock, openingTick);
   const currentPrayerFocus = groupPrayerFocuses.find((focus) => focus.groupId === selectedGroupId && focus.weekId === selectedWeekId) ?? null;
   const currentPrayerStatus = groupPrayerStatuses.find((status) => status.groupId === selectedGroupId && status.weekId === selectedWeekId) ?? null;
   // Reopening a submitted week (rule 134): one small read per group, again after an ask or a submit.
@@ -665,6 +666,11 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
                 loadReopenStates();
               }}
               onSetTime={() => document.querySelector('[data-wt="group-call"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+              onOpenMissed={selectedGroupData?.supportId === user.id ? async () => {
+                if (!selectedGroupId || !selectedWeekId) return;
+                await meetingRecordingApi.openMissed({ groupId: selectedGroupId }, selectedWeekId);
+                setOpeningTick((n) => n + 1);
+              } : undefined}
             />
             </div>
           )}

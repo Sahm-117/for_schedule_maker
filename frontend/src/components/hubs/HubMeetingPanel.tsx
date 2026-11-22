@@ -8,7 +8,7 @@ import Spinner from '../Spinner';
 import LinkText from '../LinkText';
 import { useToast } from '../Toast';
 import { supabase } from '../../lib/supabase';
-import { myHubApi, practiceApi, supportSessionsApi } from '../../services/api';
+import { meetingRecordingApi, myHubApi, practiceApi, supportSessionsApi } from '../../services/api';
 import { useAppData } from '../../context/AppDataContext';
 import { useAuth } from '../../hooks/useAuth';
 import MeetingWindowNotice from '../groups/MeetingWindowNotice';
@@ -463,7 +463,8 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
   const { isAdmin } = useAuth();
   const { activeCohort: windowCohort } = useAppData();
   const clock = useMinuteClock();
-  const windowState = useRecordingOpening({ hubId }, weekId, meetingWindowState(meetingDay, meetingTime, week, windowCohort?.startDate, clock, isAdmin || !!windowCohort?.isPractice), clock);
+  const [openingTick, setOpeningTick] = useState(0);
+  const windowState = useRecordingOpening({ hubId }, weekId, meetingWindowState(meetingDay, meetingTime, week, windowCohort?.startDate, clock, isAdmin || !!windowCohort?.isPractice), clock, openingTick);
   const recap = useMemo(() => recaps.find((r) => r.weekId === weekId) ?? null, [recaps, weekId]);
   const latestMessage = messages[0] ?? null;
 
@@ -953,7 +954,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
         )}
       </section>
 
-      {blocked ? <MeetingWindowNotice window={windowState} /> : (<>
+      {blocked ? <MeetingWindowNotice key={weekId ?? 'none'} window={windowState} onOpenMissed={weekId == null ? undefined : async () => { await meetingRecordingApi.openMissed({ hubId }, weekId); setOpeningTick((n) => n + 1); }} /> : (<>
       {step === 0 && (
         <section className={CARD}>
           <h3 className="text-[17px] font-semibold text-gray-900">Who's here?</h3>

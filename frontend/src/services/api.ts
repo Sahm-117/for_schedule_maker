@@ -716,6 +716,7 @@ const peopleUnavailable = () => {
 };
 
 export const participantsApi = USE_SUPABASE ? supabaseParticipantsApi : {
+  async getNames(): Promise<{ people: Array<{ id: string; fullName: string; cohortName: string | null; isTest: boolean; archived: boolean }> }> { return { people: [] }; },
   async getById(_participantId: string): Promise<{ participant: import('../types').Participant | null }> { return { participant: null }; },
   async getAll(_options?: any): Promise<{ participants: import('../types').Participant[] }> { return { participants: [] }; },
   async create(_input: any): Promise<never> { return peopleUnavailable(); },
@@ -750,6 +751,7 @@ export const groupsApi = USE_SUPABASE ? supabaseGroupsApi : {
 export const meetingRecordingApi = USE_SUPABASE ? supabaseMeetingRecordingApi : {
   async getOpening(_target: { hubId?: string | null; groupId?: string | null }, _weekId: number): Promise<string | null> { return null; },
   async open(_target: { hubId?: string | null; groupId?: string | null }, _weekId: number, _hours?: number): Promise<never> { return peopleUnavailable(); },
+  async openMissed(_target: { hubId?: string | null; groupId?: string | null }, _weekId: number): Promise<never> { return peopleUnavailable(); },
   async close(_target: { hubId?: string | null; groupId?: string | null }, _weekId: number): Promise<never> { return peopleUnavailable(); },
 };
 

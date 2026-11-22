@@ -675,6 +675,9 @@ export interface Participant {
   isTest?: boolean;
   /** A teen's parent or guardian number. */
   guardianPhone?: string | null;
+  /** A teen's guardian, when they are already in the system: a user (support or admin) or a participant. */
+  guardianUserId?: string | null;
+  guardianParticipantId?: string | null;
   /** A support/admin's answer to the Retaking chip: same person, or not. */
   retakeStatus?: 'CONFIRMED' | 'NOT_SAME' | null;
   /** Why they were marked as retaking by hand (e.g. "Was in FOF 8"). */
@@ -691,7 +694,7 @@ export interface Participant {
 export type ParticipantUpdate = Partial<Pick<Participant,
   'fullName' | 'phone' | 'cohortId' | 'notes' | 'status' |
   'email' | 'gender' | 'ageRange' | 'dateOfBirth' | 'departments' | 'registrationDate' | 'smartRequest' | 'isTest' |
-  'retakeStatus' | 'retakeNote'
+  'retakeStatus' | 'retakeNote' | 'guardianUserId' | 'guardianParticipantId'
 >> & { retakeCheckedById?: string | null; retakeCheckedAt?: string | null };
 
 /** Another cohort's record on the same phone number (for the Retaking chip). */
