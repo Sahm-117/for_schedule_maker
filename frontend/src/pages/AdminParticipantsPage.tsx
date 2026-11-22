@@ -63,7 +63,7 @@ const NOT_JOINING_STATUSES = new Set<string>(['NO_RESPONSE', 'NEXT_COHORT']);
 // One-tap filters above the search box. Tap one to use it, tap it again to clear it. These two exist only as chips;
 // the other chips (Never signed in, Alerts off, Profile incomplete) are shortcuts that set the same choices as the Filters sheet.
 type QuickFilter = 'missedLast' | 'missedTwo';
-const QUICK_LABEL: Record<QuickFilter, string> = { missedLast: 'Missed last class', missedTwo: 'Missed 2 in a row' };
+const QUICK_LABEL: Record<QuickFilter, string> = { missedLast: 'Missed last class', missedTwo: 'Missed 2+ in a row' };
 // Chips that set a Filters-sheet choice (single source of truth: the sheet's own values).
 const FILTER_SHORTCUTS = [
   { key: 'neverSignedIn', label: 'Never signed in', group: 'login', choice: 'out' },

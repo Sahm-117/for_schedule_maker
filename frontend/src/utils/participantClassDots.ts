@@ -20,6 +20,8 @@ export interface ClassRecord {
   missedLast: boolean;
   /** The last two finished classes were both Absent. */
   missedTwo: boolean;
+  /** How many finished classes in a row, ending with the last one, were Absent (0 when the last was not). */
+  missedRun: number;
 }
 
 const HOW: Record<string, string> = { PRESENT: 'Present', LATE: 'Late', LEFT_EARLY: 'Left early', ABSENT: 'Absent', EXCUSED: 'Excused' };
@@ -52,12 +54,15 @@ export const buildClassRecords = (
     const counted = Math.max(dots.length - dots.filter((d) => d.state === 'excused').length, 0);
     const last = dots[dots.length - 1];
     const before = dots[dots.length - 2];
+    let missedRun = 0;
+    for (let i = dots.length - 1; i >= 0 && dots[i].state === 'absent'; i -= 1) missedRun += 1;
     out.set(id, {
       dots,
       attended,
       counted,
       missedLast: last?.state === 'absent',
       missedTwo: last?.state === 'absent' && before?.state === 'absent',
+      missedRun,
     });
   });
   return out;

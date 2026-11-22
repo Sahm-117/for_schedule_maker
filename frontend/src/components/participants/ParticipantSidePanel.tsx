@@ -123,7 +123,7 @@ const ParticipantSidePanel: React.FC<ParticipantSidePanelProps> = ({ participant
               <div className="flex flex-col gap-1.5">
                 <ClassDots record={record} dotsOnly />
                 <span className="text-xs font-medium text-gray-600">{record.counted > 0 ? `${record.attended} of ${record.counted} classes attended` : 'No marks yet'}</span>
-                {record.missedTwo && <span className="text-xs font-semibold text-amber-700">Missed 2 in a row</span>}
+                {record.missedTwo && <span className="text-xs font-semibold text-amber-700">Missed {record.missedRun} in a row</span>}
               </div>
             ) : <span className="text-gray-400">No classes finished yet</span>}
           </Row>

@@ -25,9 +25,13 @@ describe('class dots (rule 12)', () => {
   it('flags missedTwo only for two Absents in a row at the end', () => {
     const two = buildClassRecords(make([['a', 1, 'PRESENT'], ['a', 2, 'ABSENT'], ['a', 3, 'ABSENT']]), weeks, [1, 2, 3]).get('a')!;
     expect(two.missedTwo).toBe(true);
+    expect(two.missedRun).toBe(2);
+    const three = buildClassRecords(make([['a', 1, 'ABSENT'], ['a', 2, 'ABSENT'], ['a', 3, 'ABSENT']]), weeks, [1, 2, 3]).get('a')!;
+    expect(three.missedRun).toBe(3);
     const gap = buildClassRecords(make([['a', 1, 'ABSENT'], ['a', 2, 'PRESENT'], ['a', 3, 'ABSENT']]), weeks, [1, 2, 3]).get('a')!;
     expect(gap.missedLast).toBe(true);
     expect(gap.missedTwo).toBe(false);
+    expect(gap.missedRun).toBe(1);
     const excusedBetween = buildClassRecords(make([['a', 1, 'ABSENT'], ['a', 2, 'EXCUSED'], ['a', 3, 'ABSENT']]), weeks, [1, 2, 3]).get('a')!;
     expect(excusedBetween.missedTwo).toBe(false);
   });

@@ -29,9 +29,9 @@ const ClassDots: React.FC<ClassDotsProps> = ({ record, dotsOnly }) => {
         <>
           <span className="whitespace-nowrap text-xs font-medium text-gray-600">{record.counted > 0 ? `${record.attended} of ${record.counted}` : 'No marks yet'}</span>
           {record.missedTwo && (
-            <span title="Missed the last two classes in a row" className="inline-flex text-amber-600">
+            <span title={`Missed the last ${record.missedRun} classes in a row`} className="inline-flex text-amber-600">
               <Glyph name="warning" className="h-3.5 w-3.5" />
-              <span className="sr-only">Missed 2 in a row</span>
+              <span className="sr-only">Missed {record.missedRun} in a row</span>
             </span>
           )}
         </>
@@ -48,6 +48,6 @@ export const ClassDotsLegend: React.FC = () => (
     {([['attended', 'Attended (incl. late, left early)'], ['absent', 'Absent'], ['excused', 'Excused'], ['none', 'No mark']] as const).map(([k, label]) => (
       <span key={k} className="inline-flex items-center gap-1.5"><span className={`inline-block h-2.5 w-2.5 rounded-full ${DOT[k]}`} />{label}</span>
     ))}
-    <span className="inline-flex items-center gap-1 text-amber-700"><Glyph name="warning" className="h-3.5 w-3.5" />Missed 2 in a row</span>
+    <span className="inline-flex items-center gap-1 text-amber-700"><Glyph name="warning" className="h-3.5 w-3.5" />Missed 2+ in a row</span>
   </p>
 );
