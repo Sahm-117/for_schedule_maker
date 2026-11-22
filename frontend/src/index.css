@@ -73,8 +73,10 @@ body {
       linear-gradient(180deg, #fff8f3 0%, #f7f8fb 38%, #f4f6fb 100%);
   }
 
+  /* No backdrop blur: on a long page (Settings) every blurred card is its own painted layer, and the browser showed
+     white blocks over them while scrolling. The cards sit on a plain background, so the blur showed nothing. */
   .surface-card {
-    @apply rounded-3xl border border-white/70 bg-white/90 backdrop-blur-sm;
+    @apply rounded-3xl border border-white/70 bg-white/90;
     box-shadow: var(--shadow-card);
   }
 
