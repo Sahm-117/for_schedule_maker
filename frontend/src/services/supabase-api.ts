@@ -5038,10 +5038,10 @@ const mapParticipant = (row: any): import('../types').Participant => {
 
 export const participantsApi = {
   /** Every participant (any cohort, archived too) as a name only: for pickers such as a teen's guardian. */
-  async getNames(): Promise<{ people: Array<{ id: string; fullName: string; cohortName: string | null; isTest: boolean; archived: boolean }> }> {
-    const { data, error } = await supabase.from('Participant').select('id, fullName, isTest, status, cohort:Cohort(name)').order('fullName', { ascending: true });
+  async getNames(): Promise<{ people: Array<{ id: string; fullName: string; phone: string | null; cohortName: string | null; isTest: boolean; archived: boolean }> }> {
+    const { data, error } = await supabase.from('Participant').select('id, fullName, phone, isTest, status, cohort:Cohort(name)').order('fullName', { ascending: true });
     if (error) throw new Error(error.message);
-    return { people: ((data as any[]) || []).map((row) => ({ id: row.id, fullName: row.fullName, cohortName: (Array.isArray(row.cohort) ? row.cohort[0] : row.cohort)?.name ?? null, isTest: !!row.isTest, archived: row.status !== 'ACTIVE' })) };
+    return { people: ((data as any[]) || []).map((row) => ({ id: row.id, fullName: row.fullName, phone: row.phone ?? null, cohortName: (Array.isArray(row.cohort) ? row.cohort[0] : row.cohort)?.name ?? null, isTest: !!row.isTest, archived: row.status !== 'ACTIVE' })) };
   },
 
   async getById(participantId: string): Promise<{ participant: import('../types').Participant | null }> {
@@ -5095,6 +5095,7 @@ export const participantsApi = {
     departments?: string[];
     registrationDate?: string | null;
     smartRequest?: string | null;
+    guardianPhone?: string | null;
     guardianUserId?: string | null;
     guardianParticipantId?: string | null;
   }): Promise<{ participant: import('../types').Participant }> {

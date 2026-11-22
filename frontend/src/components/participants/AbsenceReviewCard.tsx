@@ -4,9 +4,9 @@ import Spinner from '../Spinner';
 import { useToast } from '../Toast';
 import { absenceReviewApi, type AbsenceReviewState } from '../../services/absenceReview';
 
-// Missed classes (FLOW_MAP rule 119), on the admin Dashboard and Participants page. From the Saturday before class 3
-// it lists everyone marked Absent for class 1 and class 2: anyone also absent from class 3 moves to the next cohort
-// automatically at 4 pm on class 3's day. Afterwards it lists who moved, each with Undo for three days.
+// Missed classes (FLOW_MAP rule 119), on the admin Dashboard and Participants page. From the day before each class
+// (week 3 on) it lists everyone marked Absent at the last two classes: anyone also absent from that class moves to the
+// next cohort automatically at 4 pm on its day. Afterwards it lists who moved, each with Undo for three days.
 
 const dayLabel = (iso?: string | null) => {
   if (!iso) return '';
@@ -56,33 +56,38 @@ const AbsenceReviewCard: React.FC<{ className?: string }> = ({ className = '' })
     } finally { setUndoing(null); }
   };
   const undoUntil = undoable.map((m) => m.undoUntil).filter(Boolean).sort()[0];
+  const week = state?.weekNumber ?? null;
+  const lastTwo = week ? `Week ${week - 2} and Week ${week - 1}` : 'the last two classes';
+  const nextClass = week ? `Week ${week}` : 'the next class';
+  // On the class day itself the move can happen today.
+  const moveIsToday = !!state?.moveAt && dayLabel(state.moveAt) === dayLabel(new Date().toISOString());
 
   return (
     <>
       {warning ? (
         <div className={`surface-card flex flex-wrap items-center gap-3 border-l-4 border-l-amber-500 p-4 ${className}`}>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-gray-900">{people.length} {people.length === 1 ? 'person' : 'people'} missed class 1 and class 2{state?.cohortName ? ` · ${state.cohortName}` : ''}</p>
-            <p className="mt-0.5 text-[13px] text-gray-500">Anyone also absent from class 3 moves to the next cohort automatically{state?.moveAt ? ` on ${dayLabel(state.moveAt)} at 4 pm` : ''}. They and their supports are told the day before. Late, left early and excused don't count as missed.</p>
+            <p className="text-sm font-semibold text-gray-900">{people.length} {people.length === 1 ? 'person' : 'people'} missed {lastTwo}{state?.cohortName ? ` · ${state.cohortName}` : ''}</p>
+            <p className="mt-0.5 text-[13px] text-gray-500">Anyone also absent from {nextClass} moves to the next cohort automatically{state?.moveAt ? ` on ${dayLabel(state.moveAt)} at 4 pm` : ''}. They and their supports are told the day before. Late, left early and excused don't count as missed.</p>
           </div>
           <button type="button" onClick={() => setOpen(true)} className="inline-flex h-11 items-center rounded-2xl border border-gray-200 px-4 text-sm font-semibold text-gray-800 hover:bg-gray-50">See who</button>
         </div>
       ) : (
         <div className={`surface-card flex flex-wrap items-center gap-3 p-4 ${className}`}>
-          <p className="min-w-0 flex-1 text-sm text-gray-700"><span className="font-semibold text-gray-900">{undoable.length} moved to the next cohort</span> after missing class 1, class 2 and class 3.{undoUntil ? ` You can undo until ${dayLabel(undoUntil)}.` : ''}</p>
+          <p className="min-w-0 flex-1 text-sm text-gray-700"><span className="font-semibold text-gray-900">{undoable.length} moved to the next cohort</span> after missing three classes in a row.{undoUntil ? ` You can undo until ${dayLabel(undoUntil)}.` : ''}</p>
           <button type="button" onClick={() => setOpen(true)} className="inline-flex h-11 items-center rounded-2xl border border-gray-200 px-4 text-sm font-semibold text-gray-800 hover:bg-gray-50">See who</button>
         </div>
       )}
 
       {open && (
         <Overlay
-          title={warning ? 'Missed class 1 and class 2' : 'Moved to the next cohort'}
+          title={warning ? `Missed ${lastTwo}` : 'Moved to the next cohort'}
           onClose={() => setOpen(false)}
           footer={<button type="button" onClick={() => setOpen(false)} className="inline-flex h-11 items-center rounded-2xl bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark">Done</button>}
         >
           {warning ? (
             <>
-              <p className="mb-3 text-[13px] text-gray-500">Nobody moves today. If they're also absent from class 3, they move automatically{state?.moveAt ? ` at 4 pm on ${dayLabel(state.moveAt)}` : ''}, and you can undo any move for three days.</p>
+              <p className="mb-3 text-[13px] text-gray-500">{moveIsToday ? '' : 'Nobody moves today. '}If they're also absent from {nextClass}, they move automatically{state?.moveAt ? ` at 4 pm on ${dayLabel(state.moveAt)}` : ''}, and you can undo any move for three days.</p>
               <div className="grid gap-2">
                 {people.map((p) => (
                   <div key={p.participantId} className="rounded-2xl border border-gray-200 px-3.5 py-3">

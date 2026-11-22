@@ -1,8 +1,8 @@
 import { supabase } from '../lib/supabase';
 import { getSessionToken } from './supabase-api';
 
-// Missed classes (FLOW_MAP rule 119): who missed class 1 and class 2 before class 3, and who moved to the next cohort
-// automatically after also missing class 3, with undo for three days. Admins only; the database refuses everyone else.
+// Missed classes (FLOW_MAP rule 119): who missed the last two classes before the next one (week 3 on), and who moved
+// to the next cohort automatically after missing three in a row, with undo for three days. Admins only; the database refuses everyone else.
 
 export type AbsenceReviewPerson = {
   participantId: string;
@@ -20,7 +20,9 @@ export type AbsenceReviewState = {
   cohortId?: string;
   cohortName?: string;
   saturday?: string | null;
-  /** When anyone also absent from class 3 moves automatically (class 3's day, 4 pm Lagos). */
+  /** The next class checked (week 3 on): absent at it and the two before means a move. */
+  weekNumber?: number | null;
+  /** When anyone also absent from that class moves automatically (its day, 4 pm Lagos). */
   moveAt?: string | null;
   done?: { at: string; by: string | null; automatic?: boolean; moved: number; kept: number } | null;
   people?: AbsenceReviewPerson[];

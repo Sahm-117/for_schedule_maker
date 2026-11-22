@@ -694,7 +694,7 @@ export interface Participant {
 export type ParticipantUpdate = Partial<Pick<Participant,
   'fullName' | 'phone' | 'cohortId' | 'notes' | 'status' |
   'email' | 'gender' | 'ageRange' | 'dateOfBirth' | 'departments' | 'registrationDate' | 'smartRequest' | 'isTest' |
-  'retakeStatus' | 'retakeNote' | 'guardianUserId' | 'guardianParticipantId'
+  'retakeStatus' | 'retakeNote' | 'guardianPhone' | 'guardianUserId' | 'guardianParticipantId'
 >> & { retakeCheckedById?: string | null; retakeCheckedAt?: string | null };
 
 /** Another cohort's record on the same phone number (for the Retaking chip). */

@@ -109,7 +109,7 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, on
   const [smartRequest, setSmartRequest] = useState('');
   // A teen's guardian picked from people already in the system: "user:<id>" or "participant:<id>".
   const [guardian, setGuardian] = useState('');
-  const [guardianPeople, setGuardianPeople] = useState<Array<{ id: string; fullName: string; cohortName: string | null; isTest: boolean; archived: boolean }> | null>(null);
+  const [guardianPeople, setGuardianPeople] = useState<Array<{ id: string; fullName: string; phone: string | null; cohortName: string | null; isTest: boolean; archived: boolean }> | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
@@ -160,8 +160,20 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, on
     return [{ value: '', label: 'No guardian picked' }, ...sortByText(staff, (o) => o.label), ...people];
   }, [users, guardianPeople, existing]);
 
+  // A teen's login is their guardian's number (FLOW_MAP rule 67): with a guardian picked and no number typed, use theirs.
+  const pickedGuardianPhone = useMemo(() => {
+    if (!teenRange || !guardian) return null;
+    if (guardian.startsWith('user:')) return users.find((u) => u.id === guardian.slice(5))?.phone?.trim() || null;
+    return guardianPeople?.find((p) => p.id === guardian.slice(12))?.phone?.trim() || null;
+  }, [teenRange, guardian, users, guardianPeople]);
+
   const handleSave = async () => {
     if (!fullName.trim()) { setErr('Name is required'); return; }
+    if (teenRange && guardian && !phone.trim() && !pickedGuardianPhone) {
+      setErr('Their guardian has no phone number in the app. Type the guardian’s number in Phone.');
+      return;
+    }
+    const savedPhone = phone.trim() || (teenRange ? pickedGuardianPhone : null) || null;
     setSaving(true);
     setErr('');
     const details = {
@@ -175,20 +187,22 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, on
       // Only a teen keeps a guardian link.
       guardianUserId: teenRange && guardian.startsWith('user:') ? guardian.slice(5) : null,
       guardianParticipantId: teenRange && guardian.startsWith('participant:') ? guardian.slice(12) : null,
+      // The guardian's number on file, unless one is already there.
+      ...(teenRange && pickedGuardianPhone && !existing?.guardianPhone ? { guardianPhone: pickedGuardianPhone } : {}),
     };
     try {
       let result: Participant;
       if (existing) {
         ({ participant: result } = await participantsApi.update(existing.id, {
           fullName: fullName.trim(),
-          phone: phone.trim() || null,
+          phone: savedPhone,
           notes: notes.trim() || null,
           ...details,
         }));
       } else {
         ({ participant: result } = await participantsApi.create({
           fullName: fullName.trim(),
-          phone: phone.trim() || null,
+          phone: savedPhone,
           cohortId,
           notes: notes.trim() || null,
           source: 'MANUAL',
@@ -252,6 +266,9 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, on
             className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             placeholder="e.g. 08012345678"
           />
+          {teenRange && guardian && !phone.trim() && (
+            <p className="mt-1 text-xs text-gray-500">{pickedGuardianPhone ? `Left empty, their guardian’s number (${pickedGuardianPhone}) is used. The guardian signs in with it and picks who is using the app.` : 'Their guardian has no number in the app, so type the guardian’s number here.'}</p>
+          )}
         </div>
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Notes</label>
