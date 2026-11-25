@@ -9,7 +9,7 @@ import type { DepartmentReferral, JourneyStage, ParticipantStageChange } from '.
 
 export const NEXT_COHORT_LABEL = 'Next cohort';
 
-export const JOURNEY_STAGES: Array<{ stage: JourneyStage; label: string }> = [
+export const JOURNEY_STAGES: Array<{ stage: Exclude<JourneyStage, 'NEXT_COHORT'>; label: string }> = [
   { stage: 'REGISTERED', label: 'Registered' },
   { stage: 'ONBOARDED', label: 'Onboarded' },
   { stage: 'ACTIVE', label: 'Active' },
@@ -51,7 +51,7 @@ export const buildJourney = (evidence: JourneyEvidence, formatDate: (value: stri
   // A department choice only counts as a referral once they've completed FOF;
   // before that it's just interest (often captured at registration).
   const completed = !!evidence.completedAt;
-  const fromRecords: Record<JourneyStage, { at: string | null; detail: string }> = {
+  const fromRecords: Record<Exclude<JourneyStage, 'NEXT_COHORT'>, { at: string | null; detail: string }> = {
     REGISTERED: { at: evidence.registeredAt, detail: 'Registration' },
     ONBOARDED: { at: evidence.onboardedAt, detail: evidence.onboardedBy ? `Onboarding finished by ${evidence.onboardedBy}` : 'Onboarding finished' },
     ACTIVE: { at: evidence.firstAttendedAt, detail: 'First class or meeting attended' },
@@ -77,7 +77,7 @@ export const buildJourney = (evidence: JourneyEvidence, formatDate: (value: stri
 
   const latestChange = [...ladderChanges].sort((a, b) => (a.changedAt < b.changedAt ? 1 : -1))[0] ?? null;
   const manualWins = latestChange !== null && (time(latestChange.changedAt) ?? 0) >= newestRecord;
-  const currentIndex = manualWins ? order.indexOf(latestChange!.stage) : furthest;
+  const currentIndex = manualWins ? order.indexOf(latestChange!.stage as Exclude<JourneyStage, 'NEXT_COHORT'>) : furthest;
 
   const ladder = JOURNEY_STAGES.map(({ stage, label }, index) => {
     const reached = index <= currentIndex;
