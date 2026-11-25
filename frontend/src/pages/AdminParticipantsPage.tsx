@@ -950,7 +950,10 @@ const AdminParticipantsContent: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
   // Leaves out people who are not joining this cohort (sign-up status No Response or Will Join Next Cohort).
-  const [hideNotJoining, setHideNotJoining] = useState(false);
+  // Off: No Response and Will Join Next Cohort people are left out. On: they are listed too, archived ones included.
+  const [showNotJoining, setShowNotJoining] = useState(false);
+  // Last moved to "Next cohort" with Adjust journey (rule 141), so people with no sign-up record count too.
+  const [nextCohortIds, setNextCohortIds] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
   // Every filter takes several choices at once (see FilterBar). Keys: people (adult / teen), login, signup
   // ('__NONE__' = added by hand or imported), group ('__UNASSIGNED__' = no group), support, gender, age,
@@ -1040,6 +1043,7 @@ const AdminParticipantsContent: React.FC = () => {
       profileFieldsApi.getCohortCompletion(activeCohort.id).then(setCompletionById).catch(() => { /* column stays empty */ });
       participantPushApi.getSignedInIds(activeCohort.id).then((ids) => setSignedInIds(new Set(ids))).catch(() => { /* the Logged in filter is simply not offered */ });
       participantsApi.getRetakeMatches(activeCohort.id).then(setRetakeMatches).catch(() => { /* no chips */ });
+      participantStageChangesApi.getNextCohortIds(activeCohort.id).then((ids) => setNextCohortIds(new Set(ids))).catch(() => { /* sign-up status alone decides */ });
       const [{ participants: ps }, { groups: gs }, { flags: fs }, health, peopleData, rules, unreachableIds, wrapUpDepts] = await Promise.all([
         participantsApi.getAll({ cohortId: activeCohort.id, includeArchived: true }),
         // Teen groups too: they show in the Group and Support filters and columns. Adults are never offered one.
@@ -1145,12 +1149,16 @@ const AdminParticipantsContent: React.FC = () => {
     return map;
   }, [groups]);
 
+  // Sign-up status, with a hand move to Next cohort counted as Will Join Next Cohort when there is no sign-up record.
+  const signUpKey = useCallback((p: Participant): string => p.followUpStatus ?? (nextCohortIds.has(p.id) ? 'NEXT_COHORT' : '__NONE__'), [nextCohortIds]);
+  const isNotJoining = useCallback((p: Participant) => !!p.followUpNoResponse || NOT_JOINING_STATUSES.has(signUpKey(p)), [signUpKey]);
+
   // Does this person fit one chosen choice of one filter group?
   const fits = useCallback((group: string, choice: string, p: Participant): boolean => {
     switch (group) {
       case 'people': return choice === 'teen' ? isTeen(p) : !isTeen(p);
       case 'login': return !isTeen(p) && !!signedInIds && (choice === 'in' ? signedInIds.has(p.id) : !signedInIds.has(p.id));
-      case 'signup': return choice === '__NONE__' ? !p.followUpStatus : p.followUpStatus === choice;
+      case 'signup': return signUpKey(p) === choice;
       case 'group': return choice === '__UNASSIGNED__' ? !p.groupId : p.groupId === choice;
       case 'support': return !!p.groupId && !!supportGroups.get(choice)?.groupIds.has(p.groupId);
       case 'gender': return normaliseGender(p.gender) === choice;
@@ -1163,7 +1171,7 @@ const AdminParticipantsContent: React.FC = () => {
       case 'wants': return !!wrapUpDeptById.get(p.id)?.has(choice);
       default: return true;
     }
-  }, [isTeen, signedInIds, supportGroups, flagsByParticipant, noAlertsIds, healthById, completionById, wrapUpDeptById]);
+  }, [isTeen, signUpKey, signedInIds, supportGroups, flagsByParticipant, noAlertsIds, healthById, completionById, wrapUpDeptById]);
 
   // Does this person fit one of the chip-only quick filters (the missed-class ones)?
   const quickFits = useCallback((key: QuickFilter, p: Participant): boolean => {
@@ -1180,10 +1188,13 @@ const AdminParticipantsContent: React.FC = () => {
     setPanelId(id);
   }, []);
 
+  // No Response / next cohort people show only with the switch on: then everyone plus them, archived ones too
+  // (a move to the next cohort archives them), or only the archived ones under Show archived.
   const onShow = useCallback(
-    (p: Participant) => p.status === (showArchived ? 'ARCHIVED' : 'ACTIVE')
-      && !(hideNotJoining && (p.followUpNoResponse || (!!p.followUpStatus && NOT_JOINING_STATUSES.has(p.followUpStatus)))),
-    [showArchived, hideNotJoining],
+    (p: Participant) => isNotJoining(p)
+      ? showNotJoining && (!showArchived || p.status === 'ARCHIVED')
+      : p.status === (showArchived ? 'ARCHIVED' : 'ACTIVE'),
+    [showArchived, showNotJoining, isNotJoining],
   );
 
   const displayed = useMemo(() => {
@@ -1205,11 +1216,10 @@ const AdminParticipantsContent: React.FC = () => {
     const count = (group: string, choice: string) => base.filter((p) => fits(group, choice, p)).length;
     const opt = (group: string, value: string, label: string) => ({ value, label, count: count(group, value) });
 
-    // Every status among the active (or archived) people stays a choice, even while the switch hides some of them, so a
-    // choice already picked is never dropped; its count is what is on show.
+    // Only statuses among the people on show are choices, so No Response and Will Join Next Cohort appear only while
+    // the "Show no response and next cohort" switch is on.
     const signUpCounts = new Map<string, number>();
-    counted.filter((p) => p.status === (showArchived ? 'ARCHIVED' : 'ACTIVE')).forEach((p) => { const key = p.followUpStatus ?? '__NONE__'; if (!signUpCounts.has(key)) signUpCounts.set(key, 0); });
-    base.forEach((p) => { const key = p.followUpStatus ?? '__NONE__'; signUpCounts.set(key, (signUpCounts.get(key) ?? 0) + 1); });
+    base.forEach((p) => { const key = signUpKey(p); signUpCounts.set(key, (signUpCounts.get(key) ?? 0) + 1); });
     const signUpLabel = (key: string) => key === '__NONE__' ? 'No sign-up record' : REGISTRATION_STATUS_META[key as keyof typeof REGISTRATION_STATUS_META]?.label ?? key;
 
     const out: FilterGroup[] = [
@@ -1257,7 +1267,7 @@ const AdminParticipantsContent: React.FC = () => {
       out.push({ key: 'wants', label: 'Wants to join', options: [...departmentCounts.keys()].sort((a, b) => a.localeCompare(b)).map((name) => opt('wants', name, name)) });
     }
     return out.filter((g) => g.options.length > 0);
-  }, [counted, onShow, showArchived, fits, signedInIds, groups, supportGroups, healthById, flagsByParticipant, noAlertsIds, completionById, departmentCounts]);
+  }, [counted, onShow, signUpKey, fits, signedInIds, groups, supportGroups, healthById, flagsByParticipant, noAlertsIds, completionById, departmentCounts]);
 
   // Archived and active people are different lists; a choice nobody here has is dropped, so no hidden filter stays on.
   useEffect(() => {
@@ -1308,12 +1318,12 @@ const AdminParticipantsContent: React.FC = () => {
   const exportSubtitle = useMemo(() => {
     const out: string[] = [];
     if (showArchived) out.push('Archived');
-    if (hideNotJoining) out.push('No response and next cohort hidden');
+    if (showNotJoining) out.push('No response and next cohort shown');
     out.push(...describeFilters(filterGroups, filters));
     if (activeQuick) out.push(QUICK_LABEL[activeQuick]);
     if (search.trim()) out.push(`Search "${search.trim()}"`);
     return out.length ? `Filter: ${out.filter(Boolean).join(' · ')}` : undefined;
-  }, [showArchived, hideNotJoining, filterGroups, filters, search, activeQuick]);
+  }, [showArchived, showNotJoining, filterGroups, filters, search, activeQuick]);
 
   const unassignedCount = useMemo(
     () => counted.filter((p) => p.status === 'ACTIVE' && !p.groupId).length,
@@ -1646,7 +1656,7 @@ const AdminParticipantsContent: React.FC = () => {
               countAside={classRecords.size > 0 ? <ClassDotsLegend /> : undefined}
               toggles={[
                 { key: 'archived', label: 'Show archived', value: showArchived, onChange: setShowArchived, hint: 'Look at archived participants instead of active ones.' },
-                { key: 'notJoining', label: 'Hide no response and next cohort', value: hideNotJoining, onChange: setHideNotJoining, hint: 'Leave out people whose sign-up status is No Response or Will Join Next Cohort.' },
+                { key: 'notJoining', label: 'Show no response and next cohort', value: showNotJoining, onChange: setShowNotJoining, hint: 'Also list people whose sign-up status is No Response or Will Join Next Cohort, including those archived when they were moved.' },
               ]}
               search={
                 <input

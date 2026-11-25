@@ -5436,6 +5436,18 @@ export const participantStageChangesApi = {
     if (error || !data) throw new Error(error?.message || 'Failed to move journey stage');
     return { change: mapStageChange(data) };
   },
+  // Who in the cohort was last moved to "Next cohort" by hand (rule 141); covers people with no sign-up record.
+  async getNextCohortIds(cohortId: string): Promise<string[]> {
+    const { data, error } = await supabase
+      .from('ParticipantStageChange')
+      .select('participantId, stage, changedAt, Participant!inner(cohortId)')
+      .eq('Participant.cohortId', cohortId)
+      .order('changedAt', { ascending: false });
+    if (error) throw new Error(error.message);
+    const latest = new Map<string, string>();
+    for (const row of (data as any[]) || []) if (!latest.has(row.participantId)) latest.set(row.participantId, row.stage);
+    return [...latest].filter(([, stage]) => stage === 'NEXT_COHORT').map(([id]) => id);
+  },
 };
 
 export const participantHandoversApi = {

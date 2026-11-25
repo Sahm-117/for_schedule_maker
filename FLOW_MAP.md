@@ -456,8 +456,12 @@ duplicating the logic anywhere else is a bug waiting to happen.
     `?group=` links still work); the others keep them in the page. The Participants page splits adults and teens, and
     its App login filter means logged in = chose a password (`participants_signed_in`), adults only (rule 33); the
     sign-up status there is the follow-up status, so a hand-set Access confirmed is not the same as logged in. Its sheet
-    also has the switch "Hide no response and next cohort" (sign-up status No Response or Will Join Next Cohort): it
-    leaves them out of the list, the choice counts, "Showing N of M" and the export label; it is not kept in the address. Pages
+    also has the switch "Show no response and next cohort", off by default (sign-up status No Response or Will Join
+    Next Cohort, or last moved to Next cohort with Adjust journey, rule 141, which counts as Will Join Next Cohort when
+    there is no sign-up record). Off, they are left out of the list, the choices and counts, "Showing N of M" and the
+    export; the No Response and Will Join Next Cohort choices appear only while it is on. On, the list is everyone plus
+    them, archived ones included (a move to the next cohort archives them); with Show archived, only the archived ones.
+    It is not kept in the address. Pages
     whose selector picks the data to load (Feedback by week or group, Birthdays' cohort) keep a single selector.
     The Groups page also shows its hub choices as chips beside the Filters button (`FilterBar` `extra`, `?hub=`, same
     any-of matching and counts; a group's hub is its support's `HubMembership`), so a hub is one tap away. The chips also

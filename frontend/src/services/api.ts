@@ -976,7 +976,7 @@ export const classFeedbackApi = USE_SUPABASE ? supabaseClassFeedbackApi : {
 
 export const participantStageChangesApi = USE_SUPABASE ? supabaseParticipantStageChangesApi : {
   async getForParticipant(_participantId: string): Promise<{ changes: import('../types').ParticipantStageChange[] }> { return { changes: [] }; },
-  async create(_input: any): Promise<never> { return peopleUnavailable(); },
+  async create(_input: any): Promise<never> { return peopleUnavailable(); },  async getNextCohortIds(_cohortId: string): Promise<string[]> { return []; },
 };
 
 export const participantHandoversApi = USE_SUPABASE ? supabaseParticipantHandoversApi : {
