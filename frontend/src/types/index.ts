@@ -917,7 +917,7 @@ export interface DepartmentReferral {
   updatedAt: string;
 }
 
-export type JourneyStage = 'REGISTERED' | 'ONBOARDED' | 'ACTIVE' | 'COMPLETED' | 'REFERRED' | 'INTEGRATED';
+export type JourneyStage = 'REGISTERED' | 'ONBOARDED' | 'ACTIVE' | 'COMPLETED' | 'REFERRED' | 'INTEGRATED' | 'NEXT_COHORT';
 
 export interface ParticipantStageChange {
   id: string;

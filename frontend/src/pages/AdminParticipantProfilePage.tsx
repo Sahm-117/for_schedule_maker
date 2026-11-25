@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate, NavLink, useParams } from 'react-router-dom';
-import AppSelect from '../components/AppSelect';
 import Avatar from '../components/Avatar';
 import { useToast } from '../components/Toast';
 import OnboardingStepPills from '../components/OnboardingStepPills';
 import ModalShell from '../components/followups/ModalShell';
+import AdjustJourneyModal from '../components/participants/AdjustJourneyModal';
+import { nextCohortApi } from '../services/nextCohort';
 import {
   buildWeekStats,
   cohortMode,
@@ -39,7 +40,6 @@ import type {
   DepartmentReferral,
   FaithProject,
   FollowUpContact,
-  JourneyStage,
   MeetingAttendance,
   Participant,
   ParticipantFlag,
@@ -234,6 +234,7 @@ const AdminParticipantProfilePage: React.FC = () => {
       completedAt: evaluation?.completion?.outcome === 'COMPLETED' ? (cohort?.endDate ?? health?.cohort?.endDate ?? null) : null,
       referrals: data.referrals,
       changes: data.changes,
+      archived: participant.status === 'ARCHIVED',
     }, (value) => formatDate(value));
     return { cohort, weeks, judged, mode, evaluation, group, journey };
   }, [data, cohorts]);
@@ -316,7 +317,7 @@ const AdminParticipantProfilePage: React.FC = () => {
         {isAdmin && (canAdd || canEdit) && (
           <div className="mt-5 flex flex-wrap gap-2">
             {canAdd && <button type="button" onClick={() => setModal('checkin')} className="rounded-2xl bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-dark">Log a check-in</button>}
-            {canEdit && <button type="button" onClick={() => setModal('stage')} className="rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-800 hover:bg-gray-50">Move journey stage</button>}
+            {canEdit && <button type="button" onClick={() => setModal('stage')} className="rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-800 hover:bg-gray-50">Adjust journey</button>}
             {canAdd && <button type="button" onClick={() => setModal('flag')} className="rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-800 hover:bg-gray-50">Flag a concern</button>}
           </div>
         )}
@@ -574,14 +575,16 @@ const AdminParticipantProfilePage: React.FC = () => {
               void load();
             }}
           />
-          <StageModal
+          <AdjustJourneyModal
             isOpen={modal === 'stage'}
             current={journey.find((s) => s.current)?.stage ?? null}
+            inGroup={!!participant.groupId}
             onClose={() => setModal(null)}
             onSave={async (stage, note) => {
-              await participantStageChangesApi.create({ participantId: participant.id, stage, note, changedById: user.id });
+              if (stage === 'NEXT_COHORT') await nextCohortApi.move(participant, note, user.id);
+              else await participantStageChangesApi.create({ participantId: participant.id, stage, note, changedById: user.id });
               setModal(null);
-              showToast({ message: `Moved to ${JOURNEY_STAGES.find((s) => s.stage === stage)?.label}` });
+              showToast({ message: stage === 'NEXT_COHORT' ? 'Moved to next cohort' : `Moved to ${JOURNEY_STAGES.find((s) => s.stage === stage)?.label}` });
               void load();
             }}
           />
@@ -688,28 +691,6 @@ const CheckInModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (bo
       footer={<ModalFooter onClose={onClose} saving={saving} disabled={!body.trim()} label="Save check-in" onSave={() => { void run(() => onSave(body.trim())); }} />}>
       <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={4} placeholder="Called her. Work has been heavy; she'll be back on Sunday." className={TEXTAREA} autoFocus />
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
-    </ModalShell>
-  );
-};
-
-const StageModal: React.FC<{ isOpen: boolean; current: JourneyStage | null; onClose: () => void; onSave: (stage: JourneyStage, note: string) => Promise<void> }> = ({ isOpen, current, onClose, onSave }) => {
-  const [stage, setStage] = useState<string>('');
-  const [note, setNote] = useState('');
-  const { saving, error, setError, run } = useSaving();
-  useEffect(() => { if (isOpen) { setStage(''); setNote(''); setError(''); } }, [isOpen, setError]);
-  return (
-    <ModalShell isOpen={isOpen} onClose={() => { if (!saving) onClose(); }} title="Move journey stage" subtitle="Use this when the records can't show it. Your name and the date are saved with it."
-      footer={<ModalFooter onClose={onClose} saving={saving} disabled={!stage || stage === current} label="Move" onSave={() => { void run(() => onSave(stage as JourneyStage, note)); }} />}>
-      <div className="space-y-3">
-        <AppSelect
-          value={stage}
-          onChange={setStage}
-          options={JOURNEY_STAGES.map((s) => ({ value: s.stage, label: s.stage === current ? `${s.label} (current)` : s.label }))}
-          placeholder="Choose a stage"
-        />
-        <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} placeholder="Why? (optional)" className={TEXTAREA} />
-        {error && <p className="text-sm text-red-600">{error}</p>}
-      </div>
     </ModalShell>
   );
 };

@@ -9,7 +9,7 @@ import PageLoader from '../components/PageLoader';
 import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
 import { useAppData } from '../context/AppDataContext';
-import { participantsApi, practiceApi, groupsApi, usersApi, participantFlagsApi, participantPushApi, cohortsApi, settingsApi, profileFieldsApi, wrapUpApi, departmentReferralsApi } from '../services/api';
+import { participantsApi, practiceApi, groupsApi, usersApi, participantFlagsApi, participantPushApi, cohortsApi, settingsApi, profileFieldsApi, wrapUpApi, departmentReferralsApi, participantStageChangesApi } from '../services/api';
 import { buildDashboardModel, type PeopleSummary } from '../components/dashboard/healthModel';
 import { PERSON_HEALTH_LABEL, type PersonHealth } from '../utils/programmeRules';
 import type { Participant, ParticipantAppInfo, Group, ParticipantFlag, ParticipantUpdate, RetakeMatch, User } from '../types';
@@ -18,6 +18,9 @@ import NotOpenedTag from '../components/participants/NotOpenedTag';
 import RetakingChip, { RetakeMarkModal } from '../components/participants/RetakingChip';
 import ModalShell from '../components/followups/ModalShell';
 import AppOverflowMenu from '../components/AppOverflowMenu';
+import AdjustJourneyModal from '../components/participants/AdjustJourneyModal';
+import { nextCohortApi } from '../services/nextCohort';
+import { JOURNEY_STAGES } from '../utils/participantJourney';
 import AppSelect from '../components/AppSelect';
 import FilterBar, { describeFilters, type FilterGroup, type FilterValues } from '../components/filters/FilterBar';
 import AppMultiSelect from '../components/AppMultiSelect';
@@ -107,6 +110,10 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, on
   const [departments, setDepartments] = useState<string[]>([]);
   const [registrationDate, setRegistrationDate] = useState('');
   const [smartRequest, setSmartRequest] = useState('');
+  // Add only: "Next cohort" adds them and moves them straight on (rule 141).
+  const [journey, setJourney] = useState<'THIS_COHORT' | 'NEXT_COHORT'>('THIS_COHORT');
+  const [journeyReason, setJourneyReason] = useState('');
+  const { user } = useAuth();
   // A teen's guardian picked from people already in the system: "user:<id>" or "participant:<id>".
   const [guardian, setGuardian] = useState('');
   const [guardianPeople, setGuardianPeople] = useState<Array<{ id: string; fullName: string; phone: string | null; cohortName: string | null; isTest: boolean; archived: boolean }> | null>(null);
@@ -126,6 +133,8 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, on
       setDepartments(existing?.departments ?? []);
       setRegistrationDate(toDateInput(existing?.registrationDate));
       setSmartRequest(existing?.smartRequest ?? '');
+      setJourney('THIS_COHORT');
+      setJourneyReason('');
       setGuardian(existing?.guardianUserId ? `user:${existing.guardianUserId}` : existing?.guardianParticipantId ? `participant:${existing.guardianParticipantId}` : '');
       setDetailsOpen(false);
       setErr('');
@@ -169,6 +178,7 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, on
 
   const handleSave = async () => {
     if (!fullName.trim()) { setErr('Name is required'); return; }
+    if (!existing && journey === 'NEXT_COHORT' && !journeyReason.trim()) { setErr('Give a reason for moving them to the next cohort'); return; }
     if (teenRange && guardian && !phone.trim() && !pickedGuardianPhone) {
       setErr('Their guardian has no phone number in the app. Type the guardian’s number in Phone.');
       return;
@@ -217,6 +227,15 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, on
           const { participant: fresh } = await participantsApi.getById(result.id);
           if (fresh) result = fresh;
         } catch { /* they show under "Not in a group" until an admin sets them up */ }
+      }
+      if (!existing && journey === 'NEXT_COHORT' && user) {
+        try {
+          await nextCohortApi.move(result, journeyReason.trim(), user.id);
+          result = { ...result, status: 'ARCHIVED' };
+          toast({ message: `${result.fullName} was added and moved to the next cohort.` });
+        } catch (moveErr) {
+          toast({ message: `${result.fullName} was added, but not moved to the next cohort: ${moveErr instanceof Error ? moveErr.message : 'try Adjust journey'}` });
+        }
       }
       // An edit across the teen line also moves the person (teen handling, their group, their follow-up): say so.
       let crossed: 'teen' | 'adult' | null = null;
@@ -288,6 +307,26 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, on
             className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
         </div>
+        {!existing && (
+          <div className="flex flex-col gap-2">
+            <AppSelect
+              label="Journey"
+              value={journey}
+              onChange={(v) => setJourney(v as 'THIS_COHORT' | 'NEXT_COHORT')}
+              options={[{ value: 'THIS_COHORT', label: 'This cohort' }, { value: 'NEXT_COHORT', label: 'Next cohort', meta: 'Added, then taken off this cohort' }]}
+              placeholder="Choose"
+            />
+            {journey === 'NEXT_COHORT' && (
+              <input
+                type="text"
+                value={journeyReason}
+                onChange={(e) => setJourneyReason(e.target.value)}
+                placeholder="Reason *"
+                className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            )}
+          </div>
+        )}
 
         {/* Registration details — collapsed by default */}
         <div className="rounded-xl border border-gray-100">
@@ -906,6 +945,7 @@ const AdminParticipantsContent: React.FC = () => {
   // Records in other cohorts on the same number, for the Retaking chip.
   const [retakeMatches, setRetakeMatches] = useState<Map<string, RetakeMatch[]>>(new Map());
   const [retakeMarking, setRetakeMarking] = useState<Participant | null>(null);
+  const [journeyFor, setJourneyFor] = useState<Participant | null>(null);
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
@@ -1299,7 +1339,7 @@ const AdminParticipantsContent: React.FC = () => {
   // "Remind everyone missing details": adults whose profile is not complete. Teens have no login of their own, so they are left out.
   const [remindOpen, setRemindOpen] = useState(false);
   // Any dialog on this page that can sit on top of the side panel; Escape then closes that dialog, not the panel.
-  const dialogOpen = addOpen || !!loginFor || !!resetFor || importOpen || !!archiveTarget || !!deleteTarget || !!firstTimeTarget || !!retakeMarking || !!healthFor || !!assigning || exportOpen || requestInfoOpen || remindOpen;
+  const dialogOpen = addOpen || !!loginFor || !!resetFor || importOpen || !!archiveTarget || !!deleteTarget || !!firstTimeTarget || !!retakeMarking || !!journeyFor || !!healthFor || !!assigning || exportOpen || requestInfoOpen || remindOpen;
   const [reminding, setReminding] = useState(false);
   const remindTargets = useMemo(
     () => activeCounted.filter((p) => !isTeen(p) && (completionById.get(p.id)?.percent ?? 0) < 100),
@@ -1443,6 +1483,7 @@ const AdminParticipantsContent: React.FC = () => {
                                 ...(canEdit ? [
                                   { label: 'Edit', onClick: () => { setEditing(p); setAddOpen(true); } },
                                   { label: onTeenPath(p) ? 'Choose a Teen Support' : 'Assign to group', onClick: () => openAssign(p) },
+                                  { label: 'Adjust journey', onClick: () => setJourneyFor(p) },
                                   { label: 'Mark as retaking', onClick: () => setRetakeMarking(p) },
                                   { label: 'Reset first-time experience', onClick: () => setFirstTimeTarget(p) },
                                   { label: 'Reset password', onClick: () => setResetFor(p) },
@@ -1805,6 +1846,27 @@ const AdminParticipantsContent: React.FC = () => {
         title="Delete permanently"
         message={`Permanently delete ${deleteTarget?.fullName}? This cannot be undone — all their attendance records will also be removed.`}
         confirmText="Delete permanently"
+      />
+
+      <AdjustJourneyModal
+        isOpen={!!journeyFor}
+        name={journeyFor?.fullName}
+        current={null}
+        inGroup={!!journeyFor?.groupId}
+        onClose={() => setJourneyFor(null)}
+        onSave={async (stage, note) => {
+          const p = journeyFor;
+          if (!p || !user) return;
+          if (stage === 'NEXT_COHORT') {
+            await nextCohortApi.move(p, note, user.id);
+            setParticipants((prev) => prev.map((x) => x.id === p.id ? { ...x, status: 'ARCHIVED' } : x));
+            toast({ message: `${p.fullName} moved to the next cohort` });
+          } else {
+            await participantStageChangesApi.create({ participantId: p.id, stage, note, changedById: user.id });
+            toast({ message: `${p.fullName} moved to ${JOURNEY_STAGES.find((s) => s.stage === stage)?.label}` });
+          }
+          setJourneyFor(null);
+        }}
       />
 
       <RetakeMarkModal

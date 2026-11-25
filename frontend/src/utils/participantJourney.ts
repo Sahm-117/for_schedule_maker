@@ -4,6 +4,10 @@ import type { DepartmentReferral, JourneyStage, ParticipantStageChange } from '.
 // Referred -> Integrated. Each stage is reached from records where possible;
 // a manual "Move journey stage" covers the rest and wins when it's the newest
 // thing that happened, so a mistaken stage can also be moved back.
+// "Next cohort" (rule 141) sits off this ladder: while they are archived and it is
+// the newest manual move, it shows as an extra, current step after the ladder.
+
+export const NEXT_COHORT_LABEL = 'Next cohort';
 
 export const JOURNEY_STAGES: Array<{ stage: JourneyStage; label: string }> = [
   { stage: 'REGISTERED', label: 'Registered' },
@@ -22,6 +26,8 @@ export interface JourneyEvidence {
   completedAt: string | null;
   referrals: DepartmentReferral[];
   changes: ParticipantStageChange[];
+  /** Archived participants keep a "Next cohort" move as their current step. */
+  archived?: boolean;
 }
 
 export interface JourneyStep {
@@ -65,14 +71,18 @@ export const buildJourney = (evidence: JourneyEvidence, formatDate: (value: stri
     }
   });
 
-  const latestChange = [...evidence.changes].sort((a, b) => (a.changedAt < b.changedAt ? 1 : -1))[0] ?? null;
+  const newestChange = [...evidence.changes].sort((a, b) => (a.changedAt < b.changedAt ? 1 : -1))[0] ?? null;
+  const nextCohort = evidence.archived && newestChange?.stage === 'NEXT_COHORT' ? newestChange : null;
+  const ladderChanges = evidence.changes.filter((c) => c.stage !== 'NEXT_COHORT');
+
+  const latestChange = [...ladderChanges].sort((a, b) => (a.changedAt < b.changedAt ? 1 : -1))[0] ?? null;
   const manualWins = latestChange !== null && (time(latestChange.changedAt) ?? 0) >= newestRecord;
   const currentIndex = manualWins ? order.indexOf(latestChange!.stage) : furthest;
 
-  return JOURNEY_STAGES.map(({ stage, label }, index) => {
+  const ladder = JOURNEY_STAGES.map(({ stage, label }, index) => {
     const reached = index <= currentIndex;
     const record = fromRecords[stage];
-    const manual = evidence.changes.filter((c) => c.stage === stage).sort((a, b) => (a.changedAt < b.changedAt ? 1 : -1))[0];
+    const manual = ladderChanges.filter((c) => c.stage === stage).sort((a, b) => (a.changedAt < b.changedAt ? 1 : -1))[0];
     let at: string | null = null;
     let detail = 'Not reached';
     if (reached) {
@@ -96,11 +106,21 @@ export const buildJourney = (evidence: JourneyEvidence, formatDate: (value: stri
       stage,
       label,
       reached,
-      current: index === currentIndex,
+      current: !nextCohort && index === currentIndex,
       at,
       detail: at ? `${detail} · ${formatDate(at)}` : detail,
     };
   });
+  if (!nextCohort) return ladder;
+  const by = `Moved by ${nextCohort.changedByName || 'an admin'}${nextCohort.note ? `: ${nextCohort.note}` : ''}`;
+  return [...ladder, {
+    stage: 'NEXT_COHORT',
+    label: NEXT_COHORT_LABEL,
+    reached: true,
+    current: true,
+    at: nextCohort.changedAt,
+    detail: `${by} · ${formatDate(nextCohort.changedAt)}`,
+  }];
 };
 
 const DAY_MS = 86400000;
